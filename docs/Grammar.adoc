@@ -1,0 +1,13 @@
+= Grammar
+
+
+An actor is a computational entity that, in response to a message it receives, can concurrently:
+. send a finite number of messages to other actors
+. create a finite number of new actors
+. designate the behavior to be used for the next message it receives
+
+Therefore we need a syntax for 3 actions.
+
+. send a finite number of messages to other actors
+. creating a new actor is a message to the system actor with a behavior. The question is how to serialize behavior as a message.
+. send self a behavior to use
