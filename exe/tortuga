@@ -1,3 +1,5 @@
 #!/usr/bin/env ruby
 
 require "tortuga"
+
+Tortuga.interpret(File.join("examples", "v1.tor"), 'utf-8')
