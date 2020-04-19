@@ -3,10 +3,10 @@ require 'tortuga/lexical/lexer'
 require 'tortuga/lexical/lexeme'
 
 RSpec.describe Tortuga::Lexical::Lexer do
-  subject { described_class.new(characters.each) }
+  subject { described_class.new(characters) }
 
   context 'when no characters' do
-    let(:characters) { [].each }
+    let(:characters) { [] }
 
     it 'returns an empty sequence of lexemes' do
       expect(subject.to_a).to be_empty
@@ -14,51 +14,61 @@ RSpec.describe Tortuga::Lexical::Lexer do
   end
 
   context 'when an empty line' do
-    let(:characters) { '\r\n'.split(//) }
+    let(:characters) { "\r\n".split(//) }
 
     it 'returns only a single lexeme' do
-      expect(subject.to_a).to eq [Tortuga::Lexical::Lexeme.new(:new_line, 1, 1)]
+      expect(subject.to_a).to eq [Tortuga::Lexical::Lexeme.new(:concurrency_delimiter, 1, 1, "\r\n")]
     end
   end
 
   context 'when only a single line' do
-    let(:characters) { '(add 1 2)\r\n'.split(//) }
+    let(:characters) { "(add 1 2)\r\n".split(//) }
 
     it 'succeeds' do
-      pending 'Not implemented'
+      expect(subject.to_a).to eq [
+        Tortuga::Lexical::Lexeme.new(:message_delimiter, 1, 1, "("),
+        Tortuga::Lexical::Lexeme.new(:identifier, 1, 2, "add"),
+        Tortuga::Lexical::Lexeme.new(:integer, 1, 6, "1"),
+        Tortuga::Lexical::Lexeme.new(:integer, 1, 8, "2"),
+        Tortuga::Lexical::Lexeme.new(:message_delimiter, 1, 9, ")"),
+        Tortuga::Lexical::Lexeme.new(:concurrency_delimiter, 1, 10, "\r\n")
+      ]
+
     end
   end
 
   context 'when determining the kind' do
+    let(:characters) { [] }
+
     context 'when the character is a digit' do
       it 'returns integer kind' do
-        expect(described_class.determine_kind('1')).to eq :integer
+        expect(subject.determine_kind('1')).to eq :integer
       end
     end
     
     context 'when the character is a letter' do
       it 'returns identifier kind' do
-        expect(described_class.determine_kind('Ä')).to eq :identifier
+        expect(subject.determine_kind('Ä')).to eq :identifier
       end
     end
 
-    context 'when the character is a newline' do
+    context 'when the character is a new line or carriage return' do
       it 'returns concurrency delimiter kind' do
-        expect(described_class.determine_kind("\n")).to eq :concurrency_delimiter
-        expect(described_class.determine_kind("\r")).to eq :concurrency_delimiter
+        expect(subject.determine_kind("\n")).to eq :concurrency_delimiter
+        expect(subject.determine_kind("\r")).to eq :concurrency_delimiter
       end
     end
 
     context 'when the character is a parenthesis' do
       it 'returns message delimiter kind' do
-        expect(described_class.determine_kind('(')).to eq :message_delimiter
-        expect(described_class.determine_kind(')')).to eq :message_delimiter
+        expect(subject.determine_kind('(')).to eq :message_delimiter
+        expect(subject.determine_kind(')')).to eq :message_delimiter
       end
     end
 
     context 'when the character is an unknown kind' do
-      it 'returns nil' do
-        expect(described_class.determine_kind("\0")).to be_nil
+      it 'raises an error' do
+        expect { subject.determine_kind("\0") }.to raise_error(Tortuga::Lexical::InvalidCharacterError)
       end
     end
   end

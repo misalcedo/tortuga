@@ -6,7 +6,7 @@ RSpec.describe Tortuga::Lexical::Lexeme do
 
   context 'when no content' do
     it 'returns an empty string' do
-      expect(subject.contents).to be_empty
+      expect(subject.content).to be_empty
     end
   end
 
@@ -18,7 +18,17 @@ RSpec.describe Tortuga::Lexical::Lexeme do
     end
 
     it 'returns the buffered content' do
-      expect(subject.contents).to eq message.join('')
+      expect(subject.content).to eq message.join('')
+    end
+  end
+
+  context 'when lexeme is created with content' do
+    let(:message) { "Hello, World!" }
+
+    subject { described_class.new(:identifier, 1, 2, message) }
+
+    it 'returns the content' do
+      expect(subject.content).to eq message
     end
   end
 
@@ -30,7 +40,7 @@ RSpec.describe Tortuga::Lexical::Lexeme do
     end
 
     it 'returns the buffered content' do
-      expect(subject.contents).to eq message[0]
+      expect(subject.content).to eq message[0]
     end
   end
 end
