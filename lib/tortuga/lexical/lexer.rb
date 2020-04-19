@@ -18,7 +18,7 @@ module Tortuga
           when :identifier
           when :integer
           when :message_delimiter
-            
+
           when :concurrency_delimiter
             line += 1
             column = 0
@@ -26,6 +26,21 @@ module Tortuga
             # This is the first character.
             kind = Lexeme.determine_kind(character)
           end
+        end
+      end
+
+      def self.determine_kind(character)
+        case character
+        when /[()]/
+          :message_delimiter
+        when /[\r\n]/
+          :concurrency_delimiter
+        when /[[:digit:]]/
+          :integer
+        when /[[:alpha:]]/
+          :identifier
+        else
+          nil
         end
       end
     end
