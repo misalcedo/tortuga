@@ -3,8 +3,11 @@ module Tortuga
     class Lexer
       include Enumerable
 
+      attr_reader :lexeme
+
       def initialize(characters)
         @characters = characters
+        @lexeme = Lexeme.new()
       end
 
       def each
