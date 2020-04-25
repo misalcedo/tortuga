@@ -14,6 +14,8 @@ module Tortuga
                         head, *tail = transmission.message.parts
 
                         puts head - tail.sum
+                    when "multiply"
+                        puts transmission.message.parts.reduce(1) { |accumulator, part| accumulator * part }
                     end
                 end
             end
