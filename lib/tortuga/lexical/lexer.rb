@@ -1,3 +1,5 @@
+require 'tortuga/lexical/lexeme'
+
 module Tortuga
   module Lexical
     InvalidCharacterError = Class.new(RuntimeError)
