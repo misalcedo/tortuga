@@ -1,2 +1,4 @@
 (add 1 2)
 (substract 4 2)
+(substract 4 2 1 1)
+(multiply 1 3 5 2)
