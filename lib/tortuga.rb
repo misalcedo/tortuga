@@ -1,5 +1,6 @@
 require "tortuga/version"
 require 'tortuga/io/file_reader'
+require 'tortuga/lexical/lexer'
 require 'tortuga/syntax/parser'
 require 'tortuga/runtime/interpreter'
 
@@ -17,7 +18,7 @@ module Tortuga
   def self.parse(path, encoding)
     reader = Io::FileReader.new(path, encoding)
     lexer = Lexical::Lexer.new(reader)
-    parser = Grammar::Parser.new(lexer)
+    parser = Syntax::Parser.new(lexer)
 
     parser.parse()
   end
