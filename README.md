@@ -7,6 +7,9 @@ An actor is a computational entity that, in response to a message it receives, c
 1. create a finite number of new actors;
 1. designate the behavior to be used for the next message it receives.
 
+== Behavior
+Behaviors are executed in the context of an actor's continuation for a specific message.
+
 == Grammar
 ```bnf
 <behavior> ::= <action> | <action> <behavior>
