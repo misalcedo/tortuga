@@ -10,6 +10,9 @@ An actor is a computational entity that, in response to a message it receives, c
 == Behavior
 Behaviors are executed in the context of an actor's continuation for a specific message.
 
+== Network
+All numbers are in network byte order (i.e. big endian). See https://tools.ietf.org/html/draft-newman-network-byte-order-01
+
 == Grammar
 ```bnf
 <behavior> ::= <action> | <action> <behavior>
