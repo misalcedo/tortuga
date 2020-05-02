@@ -1,0 +1,54 @@
+= Tortuga
+
+== Goal
+Create an actor-based programming language that is useful for building large-scale distributed systems with real-world liveness and safety guarantees.
+
+== Domain
+
+Actor:::
+An entity that communicates with other such entities via message-passing and upon receipt of a message executes a prescribed behavior. Actors in a distributed system form a hierarchy called a supervision tree.
+
+Programming Language:::
+A human-readable machine-translatable mechanism to describe computations to be performed by a computer in a human-readable format.
+
+Distributed Systems:::
+A computational system designed to perform a specific task that is comprised of multiple concurrent, and potentially parallel, components.
+
+Liveness:::
+A property of a system. A system exhibiting liveness is guaranteed to eventually make progress on a given task.
+
+Safety:::
+A property of a system. A system exhibiting safety is guaranteed to exhibit the correct behavior given the proper state.
+
+Supervisor:::
+A supervisor is an actor in a distributed system that is responsible for processing messages relating to the state of the actors it supervises. Supervisors can take execute various behaviors in response to sub-actor failures such as re-creating an actor, changing its supervision hierarchy, etc.
+
+Message:::
+A message is a sequence of bytes, in network-byte order, that code information to be used by an actor in the execution of a behavior. Messages are prefixed by a variable length integer that denotes their length. Messages do not have a prescribed format besides the length prefix. Instead, actors must asynchronously agree on a message protocol in order to communicate effectively.
+
+Behavior:::
+A behavior is a collection of concurrent actions performed by a actor in response to a message. An actor may concurrently: send messages to other actors or itself, create new actors, and designate the behavior to be used for the next message it receives.
+
+Reference:::
+A reference to an actor. An actor acquires a reference to another actor by creating said actor as one of the actions it performs in a behavior. Actor references cannot be generated in a brute forced, or hard-coded, in order to communicate with another actor.
+
+== Use cases
+
+. Expose an Application Programming Interface (API) to other systems. The other systems may not be based on the actor programming model.
+. Perform ad-hoc computations.
+. Verify the intent of an actor's behavior.
+. Benchmark the performance in terms of messages per second (MPS) that can be processed by an actor system.
+. Deploy an actor system to one or more computers.
+. Update the behavior of certain actors in an actor system.
+
+== Trade-offs & Limitations
+
+. Only a single actor per system.
+. Verification of an actor's behavior will rely on Rust.
+. Deploying new behaviors to an actor system will restart the entire system.
+. Messages will be limited to sequences of unsigned 8-bit integers.
+. Benchmarking an actor system will rely on Rust.
+. Perforing ad-hoc computations on an actor system will rely on a Command-Line Interface (CLI) to code the messages and send them to the actor system.
+. Initial version of the actor system will implement a set for 8-bit unsigned integers. Each message will be comprised of a single 8-bit unsigned integer.
+. The Rust programming language will be used to transpile the actor-based programming language into a Rust-based actor system based on async-await functionality.
+. Initial version of the actor system will rely on UDP to buffer messages providing a queue for the system. The queue need not be ordered. 

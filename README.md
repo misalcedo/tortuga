@@ -37,3 +37,10 @@ All numbers are in network byte order (i.e. big endian). See https://tools.ietf.
 
 <letter> ::= "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L" | "M" | "N" | "O" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z" | "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z"
 ```
+
+== Future work
+1. Define how to retrieve fields about a message (like a reference).
+1. Pattern match on a message and define named patterns to allow for more readable code.
+1. Create a rust-based runtime.
+1. Define what a behavior looks like and how to denote a new behavior
+1. Define how to create an actor (needs a reference and a behavior).
