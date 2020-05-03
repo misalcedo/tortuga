@@ -1,48 +1,57 @@
-use std::io::{self, Read};
+extern crate wasmer_runtime;
 
-mod parser;
+use wasmer_runtime::{error, func, imports, instantiate, Array, Ctx, WasmPtr};
 
-fn main() {
-    let mut buffer = String::new();
-    let stdin = io::stdin();
-    let mut handle = stdin.lock();
+// Make sure that the compiled wasm-sample-app is accessible at this path.
+static WASM: &'static [u8] = include_bytes!("../resources/wasm/hello-world.wasm");
 
-    handle.read_to_string(&mut buffer).expect("Unable to read from stdin.");
+fn main() -> error::Result<()> {
+    // Let's define the import object used to import our function
+    // into our webassembly sample application.
+    //
+    // We've defined a macro that makes it super easy.
+    //
+    // The signature tells the runtime what the signature (the parameter
+    // and return types) of the function we're defining here is.
+    // The allowed types are `i32`, `u32`, `i64`, `u64`,
+    // `f32`, and `f64`.
+    //
+    // Make sure to check this carefully!
+    let import_object = imports! {
+        // Define the "env" namespace that was implicitly used
+        // by our sample application.
+        "system" => {
+            // name        // the func! macro autodetects the signature
+            "print" => func!(print),
+        },
+    };
 
-    let actions = parser::parse(buffer.as_str()).expect("Unable to parse the file.");
+    // Compile our webassembly into an `Instance`.
+    let instance = instantiate(WASM, &import_object)?;
 
-    for (reference, message) in actions.iter() {
-        match reference {
-            &"add" => {
-                let total: u64 = message.iter().sum();
-                println!("{}", total);
-            },
-            &"subtract" => {
-                let iterator = message.iter();
+    // Call our exported function!
+    instance.call("helloworld", &[])?;
 
-                match iterator.next() {
-                    Some(value) => {
-                        let total: u64 = iterator.sum();
-                        println!("{}", value - total)
-                    },
-                    None => eprintln!("Must pass at least one value to subtract.")
-                };
-            },
-            &"divide" => {
-                let iterator = message.iter();
+    Ok(())
+}
 
-                match iterator.next() {
-                    Some(value) => {
-                        let total: u64 = iterator.product();
-                        println!("{}", value / total)
-                    },
-                    None => eprintln!("Must pass at least one value to subtract.")
-                };
-            },
-            &"multiply" => {
-                let total: u64 = message.iter().product();
-                println!("{}", total);
-            }
-        };
-    }
+// Let's define our "print" function.
+//
+// The declaration must start with "extern" or "extern "C"".
+fn print(ctx: &mut Ctx, ptr: WasmPtr<u8, Array>, len: u32) {
+    // Get a slice that maps to the memory currently used by the webassembly
+    // instance.
+    //
+    // Webassembly only supports a single memory for now,
+    // but in the near future, it'll support multiple.
+    //
+    // Therefore, we don't assume you always just want to access first
+    // memory and force you to specify the first memory.
+    let memory = ctx.memory(0);
+
+    // Use helper method on `WasmPtr` to read a utf8 string
+    let string = ptr.get_utf8_string(memory, len).unwrap();
+
+    // Print it!
+    println!("{}", string);
 }

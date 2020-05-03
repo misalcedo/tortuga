@@ -8,3 +8,4 @@ edition = "2018"
 
 [dependencies]
 nom = "6.0.0-alpha1"
+wasmer-runtime = "0.16.2"
