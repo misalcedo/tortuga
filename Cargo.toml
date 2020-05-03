@@ -1,5 +1,6 @@
 [package]
 name = "tortuga"
+description = "An actor-based programming language."
 version = "0.1.0"
 authors = ["Miguel D. Salcedo <miguel@salcedo.cc>"]
 edition = "2018"
