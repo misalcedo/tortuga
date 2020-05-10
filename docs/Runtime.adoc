@@ -1,0 +1,12 @@
+= Runtime
+
+== Abstract
+The goal of this document is to describe the technical details of the Tortuga runtime for version 0.1.
+
+== Goals
+. Allow actors to read a single integer in memory as input.
+. Allow actors to send messages with a single integer as output.
+. Allow actors to send messages to system actors.
+
+== Sending messages
+To send a message an actor uses a system provided function to send a message to a system actor reference. The function has the following signature `(int, int, int) -> ()`. The first integer is the index of the memory block, the second input is the offset into the memory block. The third int is the number of bytes to read.
