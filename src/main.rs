@@ -2,8 +2,7 @@ extern crate wasmer_runtime;
 
 use wasmer_runtime::{error, func, imports, instantiate, Array, Ctx, WasmPtr};
 
-// Make sure that the compiled wasm-sample-app is accessible at this path.
-static WASM: &'static [u8] = include_bytes!("../resources/wasm/hello-world.wasm");
+static WASM: &'static [u8] = include_bytes!("../resources/wasm/math.wasm");
 
 mod actor;
 
@@ -32,7 +31,10 @@ fn main() -> error::Result<()> {
     let instance = instantiate(WASM, &import_object)?;
 
     // Call our exported function!
-    instance.call("helloworld", &[])?;
+    instance.call("add", &[])?;
+    instance.call("subtract", &[])?;
+    instance.call("multiply", &[])?;
+    instance.call("divide", &[])?;
 
     Ok(())
 }
