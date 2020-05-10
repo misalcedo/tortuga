@@ -1,28 +1,22 @@
 use uuid::Uuid;
 
-#[derive(Debug, PartialEq, Eq)]
-struct Reference {
-    id: u128
-}
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Reference(u128);
 
 impl Reference {
     /// Creates a new unparented actor reference.
-    fn new() -> Reference {
+    pub fn new() -> Reference {
         let uuid = Uuid::new_v4();
 
-        Reference {
-            id: uuid.as_u128()
-        }
+        Reference(uuid.as_u128())
     }
 
     /// Creates a new parented and named actor reference.
-    fn new_parented(parent: &Reference, name: &str) -> Reference {
-        let parent = Uuid::from_u128(parent.id);
+    pub fn new_parented(parent: &Reference, name: &str) -> Reference {
+        let parent = Uuid::from_u128(parent.0);
         let uuid = Uuid::new_v5(&parent, name.as_bytes());
 
-        Reference {
-            id: uuid.as_u128()
-        }
+        Reference(uuid.as_u128())
     }
 }
 
