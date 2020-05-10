@@ -1,28 +1,28 @@
-mod reference;
+pub mod reference;
 
 use std::collections::HashMap;
 use std::vec::Drain;
 use self::reference::Reference;
 
 /// Allows actors in the system to send each other messages.
-struct DistributionCenter {
+pub struct DistributionCenter {
     mailboxes: HashMap<Reference, Vec<u32>>
 }
 
 impl DistributionCenter {
-    fn new() -> DistributionCenter {
+    pub fn new() -> DistributionCenter {
         DistributionCenter {
             mailboxes: HashMap::new()
         }
     }
 
-    fn send(&mut self, to: Reference, message: u32) {
+    pub fn send(&mut self, to: Reference, message: u32) {
         let mailbox = self.mailboxes.entry(to).or_insert_with(|| Vec::new());
 
         mailbox.push(message);
     }
 
-    fn read(&mut self, to: Reference) -> Drain<u32> {
+    pub fn read(&mut self, to: Reference) -> Drain<u32> {
         let mailbox = self.mailboxes.entry(to).or_insert_with(|| Vec::new());
         
         mailbox.drain(..)

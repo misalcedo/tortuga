@@ -1,40 +1,74 @@
-extern crate wasmer_runtime;
-
-use wasmer_runtime::{error, func, imports, instantiate, Array, Ctx, WasmPtr};
-
-static WASM: &'static [u8] = include_bytes!("../resources/wasm/math.wasm");
-
 mod actor;
 
-fn main() -> error::Result<()> {
-    // Let's define the import object used to import our function
-    // into our webassembly sample application.
-    //
-    // We've defined a macro that makes it super easy.
-    //
-    // The signature tells the runtime what the signature (the parameter
-    // and return types) of the function we're defining here is.
-    // The allowed types are `i32`, `u32`, `i64`, `u64`,
-    // `f32`, and `f64`.
-    //
-    // Make sure to check this carefully!
-    let import_object = imports! {
-        // Define the "env" namespace that was implicitly used
-        // by our sample application.
-        "system" => {
-            // name        // the func! macro autodetects the signature
-            "print" => func!(print),
-        },
-    };
+extern crate wasmer_runtime;
 
-    // Compile our webassembly into an `Instance`.
-    let instance = instantiate(WASM, &import_object)?;
+use wasmer_runtime::{error, func, imports, instantiate, Instance, ImportObject, Array, Ctx, WasmPtr};
+use std::collections::HashMap;
+use crate::actor::DistributionCenter;
+use crate::actor::reference::Reference;
 
-    // Call our exported function!
-    instance.call("add", &[])?;
-    instance.call("subtract", &[])?;
-    instance.call("multiply", &[])?;
-    instance.call("divide", &[])?;
+static MATH_WASM: &'static [u8] = include_bytes!("../resources/wasm/math.wasm");
+static ECHO_WASM: &'static [u8] = include_bytes!("../resources/wasm/echo.wasm");
+
+struct System {
+    dc: DistributionCenter,
+    reference: Reference,
+    import: ImportObject,
+    instances: HashMap<Reference, Instance>
+}
+
+impl System {
+    fn new() -> System {
+        let import = imports! {
+            "system" => {
+                "print" => func!(print),
+                "send" => func!(send),
+            },
+        };
+
+        System {
+            dc: DistributionCenter::new(),
+            reference: Reference::new(),
+            instances: HashMap::new(),
+            import
+        }
+    }
+
+    pub fn create(&mut self, module: &[u8]) -> Result<Reference, &'static str> {
+        let reference = Reference::new();
+        let instance = instantiate(module, &self.import).map_err(|_| "Unable to instantiate the WASM module.")?;
+
+        self.instances.insert(reference, instance);
+
+        Ok(reference)
+    }
+
+    pub fn send(&mut self, to: Reference, message: u32) -> Result<(), &'static str> {
+        if let Some(instance) = self.instances.get_mut(&to) {
+            let mut context = instance.context_mut();
+            let memory = context.memory(0);
+            let pointer: WasmPtr<u32> = WasmPtr::new(0);
+
+            let cell = pointer.deref(memory).ok_or("Unable to dereference the memory pointer to write the message.")?;
+
+            cell.set(message);
+
+            instance.call("receive", &[]).map_err(|_| "Unabe to trigger the actor's behavior.")?;
+            
+            Ok(())
+        } else {
+            Err("No such actor found.")
+        }
+    }
+}
+
+fn main() -> Result<(), &'static str> {
+    let mut system = System::new();
+    let math = system.create(MATH_WASM)?;
+    let echo = system.create(ECHO_WASM)?;
+
+    system.send(echo, 42)?;
+    system.send(echo, 19)?;
 
     Ok(())
 }
@@ -58,4 +92,14 @@ fn print(ctx: &mut Ctx, ptr: WasmPtr<u8, Array>, len: u32) {
 
     // Print it!
     println!("{}", string);
+}
+
+fn send(ctx: &mut Ctx, ptr: WasmPtr<u32>) {
+    let memory = ctx.memory(0);
+    
+    if let Some(cell) = ptr.deref(memory) {
+        println!("Message: {}", cell.get());
+    } else {
+        eprintln!("Unable to load memory to read the message.");
+    }
 }
