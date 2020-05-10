@@ -8,5 +8,12 @@ The goal of this document is to describe the technical details of the Tortuga ru
 . Allow actors to send messages with a single integer as output.
 . Allow actors to send messages to system actors.
 
+== Creating actors
+To create a child actor, a parent must use the system provided `create` function. This function takes a behavior reference (TBD) as input and returns an actor reference as a result.
+
 == Sending messages
-To send a message an actor uses a system provided function to send a message to a system actor reference. The function has the following signature `(int, int, int) -> ()`. The first integer is the index of the memory block, the second input is the offset into the memory block. The third int is the number of bytes to read.
+For an actor to send a mesage, the behavior must invoke a system provided function to send a message. This message must be for a valid destination for the given actor. The `send` system function takes a destination actor reference and a memory location for the outbound message.
+
+== Altering behavior
+An actor must always export the `receive` function as the entry point to handle a message.
+To alter its behavior, an actor changes the function pointed to by an indirect function call in its `receive` function. Actor's with a single behavior can avoid the indirect function call.
