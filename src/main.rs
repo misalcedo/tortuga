@@ -5,6 +5,8 @@ use wasmer_runtime::{error, func, imports, instantiate, Array, Ctx, WasmPtr};
 // Make sure that the compiled wasm-sample-app is accessible at this path.
 static WASM: &'static [u8] = include_bytes!("../resources/wasm/hello-world.wasm");
 
+mod actor;
+
 fn main() -> error::Result<()> {
     // Let's define the import object used to import our function
     // into our webassembly sample application.
