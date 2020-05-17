@@ -14,5 +14,6 @@ lto = true
 
 [dependencies]
 clap = "2"
+thiserror = "1"
 wasmer-runtime = "0.17"
 uuid = { version = "0.8", features = ["v4", "v5"] }

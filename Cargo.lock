@@ -614,6 +614,7 @@ name = "tortuga"
 version = "0.1.0"
 dependencies = [
  "clap 2.33.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "thiserror 1.0.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "uuid 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "wasmer-runtime 0.17.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

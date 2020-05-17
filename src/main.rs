@@ -1,8 +1,10 @@
-// Import the wasmer runtime so we can use it
-use wasmer_runtime::{error, imports, compile, validate, func, Func, Instance, WasmPtr, Array, Ctx};
+mod errors;
+
+use wasmer_runtime::{imports, compile, validate, func, Ctx, Func, Module, ImportObject, Instance, WasmPtr, Array};
+use crate::errors::WasmError;
 
 // Our entry point to our application
-fn main() -> error::Result<()> {
+fn main() -> Result<(), WasmError> {
     // Let's get the .wasm file as bytes
     let wasm_bytes = include_bytes!("../examples/echo.wasm");
 
@@ -14,50 +16,79 @@ fn main() -> error::Result<()> {
         },
     };
 
-    if !validate(wasm_bytes) {
-        return Ok(());
-    }
-
-    let module = compile(wasm_bytes)?;
+    let behavior = new_behavior(wasm_bytes)?;
 
     // Let's create an instance of Wasm module running in the wasmer-runtime
-    let instance = module.instantiate(&import_object)?;
+    let continuation = new_continuation(&behavior, &import_object)?;
 
-    pass(instance);
+    continuation.receive("Hello, World!".as_bytes())?;
 
     // Return OK since everything executed successfully!
     Ok(())
 }
 
-fn pass(instance: Instance) {
-    // Lets get the context and memory of our Wasm Instance
-    let wasm_instance_context = instance.context();
-    let wasm_instance_memory = wasm_instance_context.memory(0);
-    let buffer_pointer: WasmPtr<u8, Array> = WasmPtr::new(0);
-
-    // Let's write a string to the Wasm memory
-    let original_string = "Hello, World!";
-
-    // We deref our WasmPtr to get a &[Cell<u8>]
-    let memory_writer = buffer_pointer
-        .deref(wasm_instance_memory, 0, original_string.len() as u32)
-        .unwrap();
-    for (i, b) in original_string.bytes().enumerate() {
-        memory_writer[i].set(b);
-    }
-
-    // Let's call the exported function that concatenates a phrase to our string.
-    let receive: Func<(WasmPtr<u8, Array>, u32), ()> = instance
-        .exports
-        .get("receive")
-        .expect("receive function not defined.");
-
-    receive.call(WasmPtr::new(0), original_string.len() as u32).unwrap();
-}
-
-fn send(ctx: &mut Ctx, address: WasmPtr<u8, Array>, length: u32) {
-    let memory = ctx.memory(0);
-    let value = address.get_utf8_string(memory, length);
+fn send(ctx: &mut Ctx, address: WasmPtr<u8, Array>, length: u32) -> Result<(), WasmError> {
+    let bytes = ctx.read(address, length)?;
+    let value = std::str::from_utf8(&bytes)?;
 
     println!("Address: {:?}, Length: {}, Value: {:?}", address, length, value);
+
+    Ok(())
+}
+
+fn new_behavior(module: &[u8]) -> Result<Module, WasmError> {
+    if !validate(module) {
+        return Err(WasmError::Invalid);
+    }
+
+    compile(module).map_err(WasmError::Compile)
+}
+
+fn new_continuation(behavior: &Module, imports: &ImportObject) -> Result<impl Continuation, WasmError> {
+    behavior.instantiate(imports).map_err(WasmError::Unkown)
+}
+
+trait Continuation {
+    fn receive(&self, message: &[u8]) -> Result<(), WasmError>;
+}
+
+trait Source {
+    fn read(&self, address: WasmPtr<u8, Array>, length: u32) -> Result<Vec<u8>, WasmError>;
+}
+
+impl Continuation for Instance {
+    fn receive(&self, message: &[u8]) -> Result<(), WasmError> {
+        let memory = self.context().memory(0);
+        let message_buffer: WasmPtr<u8, Array> = WasmPtr::new(0);
+        let length = message.len() as u32;
+
+        // We deref our WasmPtr to get a &[Cell<u8>]
+        let memory_writer = message_buffer
+            .deref(memory, 0, length)
+            .unwrap();
+
+        for i in 0..message.len() {
+            memory_writer[i].set(message[i]);
+        }
+
+        // Let's call the exported function that concatenates a phrase to our string.
+        let receive: Func<(WasmPtr<u8, Array>, u32), ()> = self
+            .exports
+            .get("receive")
+            .expect("receive function not defined.");
+
+        receive.call(message_buffer, length)?;
+
+        Ok(())
+    }
+}
+
+impl Source for Ctx {
+    fn read(&self, address: WasmPtr<u8, Array>, length: u32) -> Result<Vec<u8>, WasmError> {
+        let memory = self.memory(0);
+        let cells = address.deref(memory, 0, length).ok_or(WasmError::PointerReference)?;
+        let bytes: Vec<u8> = cells.iter().map(|cell| cell.get()).collect();
+        
+        Ok(bytes) 
+    }
 }
