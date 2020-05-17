@@ -44,3 +44,10 @@ All numbers are in network byte order (i.e. big endian). See https://tools.ietf.
 1. Create a rust-based runtime.
 1. Define what a behavior looks like and how to denote a new behavior
 1. Define how to create an actor (needs a reference and a behavior).
+
+
+== Examples
+All examples are WASM-based actors. Use `cargo build --example <example> --target wasm32-unknown-unknown` to compile examples. An alternative is to run `make` from the `examples/` directory. For `make` to work, new examples need to be added to `examples/Makefile`.
+
+=== ECHO
+`cargo build --example echo --target wasm32-unknown-unknown`

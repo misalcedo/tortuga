@@ -9,8 +9,9 @@ homepage = "https://github.com/misalcedo/tortuga"
 repository = "https://github.com/misalcedo/tortuga"
 documentation = "https://docs.rs/tortuga/0.1.0/tortuga/"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[profile.release]
+lto = true
 
 [dependencies]
-wasmer-runtime = "0.16.2"
+wasmer-runtime = {version = "0.17", optional = true }
 uuid = { version = "0.8", features = ["v4", "v5"] }
