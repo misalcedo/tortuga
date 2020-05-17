@@ -1,38 +1,46 @@
 mod errors;
 
-use wasmer_runtime::{imports, compile, validate, func, Ctx, Func, Module, ImportObject, Instance, WasmPtr, Array};
+use std::sync::Arc;
+use wasmer_runtime::{compile, imports, func, validate, Ctx, Func, Module, ImportObject, Instance, WasmPtr, Array};
 use crate::errors::WasmError;
+
+struct System();
+
+impl System {
+    extern fn send(&self, source: &mut impl Source, address: WasmPtr<u8, Array>, length: u32) -> Result<(), WasmError> {
+        let bytes = source.read(address, length)?;
+        let value = std::str::from_utf8(&bytes)?;
+    
+        println!("Address: {:?}, Length: {}, Value: {:?}", address, length, value);
+    
+        Ok(())
+    }
+}
 
 // Our entry point to our application
 fn main() -> Result<(), WasmError> {
+    let system = Arc::new(System());
+    let cloned_system = system.clone();
+
     // Let's get the .wasm file as bytes
     let wasm_bytes = include_bytes!("../examples/echo.wasm");
 
-    // Our import object, that allows exposing functions to our Wasm module.
-    // We're not importing anything, so make an empty import object.
-    let import_object = imports! {
+    let imports = imports! {
         "system" => {
-            "send" => func!(send),
+            "send" => func!(move |source: &mut Ctx, address: WasmPtr<u8, Array>, length: u32| { 
+                cloned_system.send(source, address, length) 
+            }),
         },
     };
 
     let behavior = new_behavior(wasm_bytes)?;
 
     // Let's create an instance of Wasm module running in the wasmer-runtime
-    let continuation = new_continuation(&behavior, &import_object)?;
+    let continuation = new_continuation(&behavior, &imports)?;
 
     continuation.receive("Hello, World!".as_bytes())?;
 
     // Return OK since everything executed successfully!
-    Ok(())
-}
-
-fn send(source: &mut impl Source, address: WasmPtr<u8, Array>, length: u32) -> Result<(), WasmError> {
-    let bytes = source.read(address, length)?;
-    let value = std::str::from_utf8(&bytes)?;
-
-    println!("Address: {:?}, Length: {}, Value: {:?}", address, length, value);
-
     Ok(())
 }
 
