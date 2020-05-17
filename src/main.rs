@@ -1,5 +1,5 @@
 // Import the wasmer runtime so we can use it
-use wasmer_runtime::{error, imports, instantiate, func, Func, Instance, WasmPtr, Array};
+use wasmer_runtime::{error, imports, instantiate, func, Func, Instance, WasmPtr, Array, Ctx};
 
 // Our entry point to our application
 fn main() -> error::Result<()> {
@@ -27,15 +27,7 @@ fn pass(instance: Instance) {
     // Lets get the context and memory of our Wasm Instance
     let wasm_instance_context = instance.context();
     let wasm_instance_memory = wasm_instance_context.memory(0);
-
-    // Let's get the pointer to the buffer defined by the Wasm module in the Wasm memory.
-    // We use the type system and the power of generics to get a function we can call
-    // directly with a type signature of no arguments and returning a WasmPtr<u8, Array>
-    let request_buffer_pointer: Func<(), WasmPtr<u8, Array>> = instance
-        .exports
-        .get("request_buffer")
-        .expect("request_buffer function not defined.");
-    let buffer_pointer = request_buffer_pointer.call().unwrap();
+    let buffer_pointer: WasmPtr<u8, Array> = WasmPtr::new(0);
 
     // Let's write a string to the Wasm memory
     let original_string = "Hello, World!";
@@ -49,14 +41,17 @@ fn pass(instance: Instance) {
     }
 
     // Let's call the exported function that concatenates a phrase to our string.
-    let receive: Func<(u32, u32), ()> = instance
+    let receive: Func<(WasmPtr<u8, Array>, u32), ()> = instance
         .exports
         .get("receive")
         .expect("receive function not defined.");
-        
-    receive.call(0, original_string.len() as u32).unwrap();
+
+    receive.call(WasmPtr::new(0), original_string.len() as u32).unwrap();
 }
 
-fn send(addres: u32, length: u32) {
-    println!("Address: {}, Length: {}", addres, length);
+fn send(ctx: &mut Ctx, address: WasmPtr<u8, Array>, length: u32) {
+    let memory = ctx.memory(0);
+    let value = address.get_utf8_string(memory, length);
+
+    println!("Address: {:?}, Length: {}, Value: {:?}", address, length, value);
 }

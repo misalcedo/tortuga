@@ -7,18 +7,10 @@
 #[link(wasm_import_module = "system")]
 extern "C" {
     /// Sends a message to the system by passing the memory address of the start of the message.
-    fn send(address: u32, length: u32);
-}
-
-const MAX_REQUEST_SIZE: usize = 4096;
-static mut REQUES_BUFFER: [u8; MAX_REQUEST_SIZE] = [0; MAX_REQUEST_SIZE];
-
-#[no_mangle]
-pub unsafe fn request_buffer() -> *const u8 {
-    REQUES_BUFFER.as_ptr()
+    fn send(address: *const u8, length: usize);
 }
 
 #[no_mangle]
-pub unsafe fn receive(address: u32, length: u32) {
+pub unsafe fn receive(address: *const u8, length: usize) {
     send(address, length);
 }
