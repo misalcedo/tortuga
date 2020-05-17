@@ -27,8 +27,8 @@ fn main() -> Result<(), WasmError> {
     Ok(())
 }
 
-fn send(ctx: &mut Ctx, address: WasmPtr<u8, Array>, length: u32) -> Result<(), WasmError> {
-    let bytes = ctx.read(address, length)?;
+fn send(source: &mut impl Source, address: WasmPtr<u8, Array>, length: u32) -> Result<(), WasmError> {
+    let bytes = source.read(address, length)?;
     let value = std::str::from_utf8(&bytes)?;
 
     println!("Address: {:?}, Length: {}, Value: {:?}", address, length, value);
