@@ -1,5 +1,5 @@
 // Import the wasmer runtime so we can use it
-use wasmer_runtime::{error, imports, instantiate, func, Func, Instance, WasmPtr, Array, Ctx};
+use wasmer_runtime::{error, imports, compile, validate, func, Func, Instance, WasmPtr, Array, Ctx};
 
 // Our entry point to our application
 fn main() -> error::Result<()> {
@@ -14,8 +14,14 @@ fn main() -> error::Result<()> {
         },
     };
 
+    if !validate(wasm_bytes) {
+        return Ok(());
+    }
+
+    let module = compile(wasm_bytes)?;
+
     // Let's create an instance of Wasm module running in the wasmer-runtime
-    let instance = instantiate(wasm_bytes, &import_object)?;
+    let instance = module.instantiate(&import_object)?;
 
     pass(instance);
 

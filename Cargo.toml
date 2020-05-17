@@ -13,5 +13,6 @@ documentation = "https://docs.rs/tortuga/0.1.0/tortuga/"
 lto = true
 
 [dependencies]
+clap = "2"
 wasmer-runtime = "0.17"
 uuid = { version = "0.8", features = ["v4", "v5"] }
