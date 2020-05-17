@@ -1,105 +1,62 @@
-mod actor;
+// Import the wasmer runtime so we can use it
+use wasmer_runtime::{error, imports, instantiate, func, Func, Instance, WasmPtr, Array};
 
-extern crate wasmer_runtime;
+// Our entry point to our application
+fn main() -> error::Result<()> {
+    // Let's get the .wasm file as bytes
+    let wasm_bytes = include_bytes!("../examples/echo.wasm");
 
-use wasmer_runtime::{error, func, imports, instantiate, Instance, ImportObject, Array, Ctx, WasmPtr};
-use std::collections::HashMap;
-use crate::actor::DistributionCenter;
-use crate::actor::reference::Reference;
+    // Our import object, that allows exposing functions to our Wasm module.
+    // We're not importing anything, so make an empty import object.
+    let import_object = imports! {
+        "system" => {
+            "send" => func!(send),
+        },
+    };
 
-static MATH_WASM: &'static [u8] = include_bytes!("../resources/wasm/math.wasm");
-static ECHO_WASM: &'static [u8] = include_bytes!("../resources/wasm/echo.wasm");
+    // Let's create an instance of Wasm module running in the wasmer-runtime
+    let instance = instantiate(wasm_bytes, &import_object)?;
 
-struct System {
-    dc: DistributionCenter,
-    reference: Reference,
-    import: ImportObject,
-    instances: HashMap<Reference, Instance>
-}
+    pass(instance);
 
-impl System {
-    fn new() -> System {
-        let import = imports! {
-            "system" => {
-                "print" => func!(print),
-                "send" => func!(send),
-            },
-        };
-
-        System {
-            dc: DistributionCenter::new(),
-            reference: Reference::new(),
-            instances: HashMap::new(),
-            import
-        }
-    }
-
-    pub fn create(&mut self, module: &[u8]) -> Result<Reference, &'static str> {
-        let reference = Reference::new();
-        let instance = instantiate(module, &self.import).map_err(|_| "Unable to instantiate the WASM module.")?;
-
-        self.instances.insert(reference, instance);
-
-        Ok(reference)
-    }
-
-    pub fn send(&mut self, to: Reference, message: u32) -> Result<(), &'static str> {
-        if let Some(instance) = self.instances.get_mut(&to) {
-            let mut context = instance.context_mut();
-            let memory = context.memory(0);
-            let pointer: WasmPtr<u32> = WasmPtr::new(0);
-
-            let cell = pointer.deref(memory).ok_or("Unable to dereference the memory pointer to write the message.")?;
-
-            cell.set(message);
-
-            instance.call("receive", &[]).map_err(|_| "Unabe to trigger the actor's behavior.")?;
-            
-            Ok(())
-        } else {
-            Err("No such actor found.")
-        }
-    }
-}
-
-fn main() -> Result<(), &'static str> {
-    let mut system = System::new();
-    let math = system.create(MATH_WASM)?;
-    let echo = system.create(ECHO_WASM)?;
-
-    system.send(echo, 42)?;
-    system.send(echo, 19)?;
-
+    // Return OK since everything executed successfully!
     Ok(())
 }
 
-// Let's define our "print" function.
-//
-// The declaration must start with "extern" or "extern "C"".
-fn print(ctx: &mut Ctx, ptr: WasmPtr<u8, Array>, len: u32) {
-    // Get a slice that maps to the memory currently used by the webassembly
-    // instance.
-    //
-    // Webassembly only supports a single memory for now,
-    // but in the near future, it'll support multiple.
-    //
-    // Therefore, we don't assume you always just want to access first
-    // memory and force you to specify the first memory.
-    let memory = ctx.memory(0);
+fn pass(instance: Instance) {
+    // Lets get the context and memory of our Wasm Instance
+    let wasm_instance_context = instance.context();
+    let wasm_instance_memory = wasm_instance_context.memory(0);
 
-    // Use helper method on `WasmPtr` to read a utf8 string
-    let string = ptr.get_utf8_string(memory, len).unwrap();
+    // Let's get the pointer to the buffer defined by the Wasm module in the Wasm memory.
+    // We use the type system and the power of generics to get a function we can call
+    // directly with a type signature of no arguments and returning a WasmPtr<u8, Array>
+    let request_buffer_pointer: Func<(), WasmPtr<u8, Array>> = instance
+        .exports
+        .get("request_buffer")
+        .expect("request_buffer function not defined.");
+    let buffer_pointer = request_buffer_pointer.call().unwrap();
 
-    // Print it!
-    println!("{}", string);
+    // Let's write a string to the Wasm memory
+    let original_string = "Hello, World!";
+
+    // We deref our WasmPtr to get a &[Cell<u8>]
+    let memory_writer = buffer_pointer
+        .deref(wasm_instance_memory, 0, original_string.len() as u32)
+        .unwrap();
+    for (i, b) in original_string.bytes().enumerate() {
+        memory_writer[i].set(b);
+    }
+
+    // Let's call the exported function that concatenates a phrase to our string.
+    let receive: Func<(u32, u32), ()> = instance
+        .exports
+        .get("receive")
+        .expect("receive function not defined.");
+        
+    receive.call(0, original_string.len() as u32).unwrap();
 }
 
-fn send(ctx: &mut Ctx, ptr: WasmPtr<u32>) {
-    let memory = ctx.memory(0);
-    
-    if let Some(cell) = ptr.deref(memory) {
-        println!("Message: {}", cell.get());
-    } else {
-        eprintln!("Unable to load memory to read the message.");
-    }
+fn send(addres: u32, length: u32) {
+    println!("Address: {}, Length: {}", addres, length);
 }
