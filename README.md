@@ -47,7 +47,4 @@ All numbers are in network byte order (i.e. big endian). See https://tools.ietf.
 
 
 == Examples
-All examples are WASM-based actors. Use `cargo build --example <example> --target wasm32-unknown-unknown` to compile examples. An alternative is to run `make` from the `examples/` directory. For `make` to work, new examples need to be added to `examples/Makefile`.
-
-=== ECHO
-`cargo build --example echo --target wasm32-unknown-unknown`
+All examples are WASM-based actors. To build the examples, change to the `examples` worksapce directory. Then, run `cargo build`. All examples can be found in: `examples/target/wasm32-unknown-unknown/*.wasm`.

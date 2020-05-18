@@ -23,7 +23,7 @@ pub fn run() -> Result<(), WasmError> {
     let cloned_system = system.clone();
 
     // Let's get the .wasm file as bytes
-    let wasm_bytes = include_bytes!("../examples/echo.wasm");
+    let wasm_bytes = include_bytes!("../../resources/wasm/echo.wasm");
 
     let imports = imports! {
         "system" => {

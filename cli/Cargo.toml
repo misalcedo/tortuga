@@ -1,0 +1,17 @@
+[package]
+name = "cli"
+description = "A Command-Line Interface for the Tortuga programming language."
+version = "0.1.0"
+authors = ["Miguel D. Salcedo <miguel@salcedo.cc>"]
+edition = "2018"
+license = "Apache-2.0"
+homepage = "https://github.com/misalcedo/tortuga"
+repository = "https://github.com/misalcedo/tortuga"
+documentation = "https://docs.rs/tortuga/0.1.0/tortuga/"
+
+[profile.release]
+lto = true
+
+[dependencies]
+tortuga = { version = "0.1", path = "../library"}
+clap = "2"

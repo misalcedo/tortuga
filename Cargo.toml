@@ -1,26 +1,2 @@
-[package]
-name = "tortuga"
-description = "An actor-based programming language."
-version = "0.1.0"
-authors = ["Miguel D. Salcedo <miguel@salcedo.cc>"]
-edition = "2018"
-license = "Apache-2.0"
-homepage = "https://github.com/misalcedo/tortuga"
-repository = "https://github.com/misalcedo/tortuga"
-documentation = "https://docs.rs/tortuga/0.1.0/tortuga/"
-
-[profile.release]
-lto = true
-
-[lib]
-required-features = ["wasm"]
-
-[features]
-wasm = ["thiserror", "uuid", "wasmer-runtime"]
-cli = ["clap"]
-
-[dependencies]
-clap = { version = "2", optional = true }
-thiserror = { version = "1", optional = true }
-uuid = { version = "0.8", features = ["v4", "v5"], optional = true }
-wasmer-runtime = { version = "0.17", optional = true }
+[workspace]
+members = ["cli", "library"]
