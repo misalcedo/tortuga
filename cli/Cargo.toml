@@ -15,3 +15,4 @@ lto = true
 [dependencies]
 tortuga = { version = "0.1", path = "../library"}
 clap = "2"
+structopt = "0.3"

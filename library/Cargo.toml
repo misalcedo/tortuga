@@ -17,3 +17,4 @@ lto = true
 thiserror = "1"
 uuid = { version = "0.8", features = ["v4", "v5"] }
 wasmer-runtime = "0.17"
+wat = "1.0"

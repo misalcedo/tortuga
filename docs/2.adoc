@@ -1,0 +1,6 @@
+= Runtime
+
+As part of expanding the language, I investigated lots of options.
+Today, the main goal is to abstract the WASM runtime from the tortuga system.
+That way we can select between wasmer and wasmtime pretty easily.
+The next step is to clean up the CLI a bit to make it more usable.
