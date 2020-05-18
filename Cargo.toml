@@ -12,8 +12,15 @@ documentation = "https://docs.rs/tortuga/0.1.0/tortuga/"
 [profile.release]
 lto = true
 
+[lib]
+required-features = ["wasm"]
+
+[features]
+wasm = ["thiserror", "uuid", "wasmer-runtime"]
+cli = ["clap"]
+
 [dependencies]
-clap = "2"
-thiserror = "1"
-wasmer-runtime = "0.17"
-uuid = { version = "0.8", features = ["v4", "v5"] }
+clap = { version = "2", optional = true }
+thiserror = { version = "1", optional = true }
+uuid = { version = "0.8", features = ["v4", "v5"], optional = true }
+wasmer-runtime = { version = "0.17", optional = true }

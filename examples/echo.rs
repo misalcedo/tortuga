@@ -1,4 +1,18 @@
+// Declaring our library as `no-std` unconditionally lets us be consistent
+// in how we `use` items from `std` or `core`
+#![no_std]
 #![no_main]
+
+// We always pull in `std` during tests, because it's just easier
+// to write tests when you can assume you're on a capable platform
+#[cfg(any(feature = "std", test))]
+#[macro_use]
+extern crate std;
+
+// When we're building for a no-std target, we pull in `core`, but alias
+// it as `std` so the `use` statements are the same between `std` and `core`.
+#[cfg(all(not(feature = "std"), not(test)))]
+extern crate core as std;
 
 // Define the functions that this module will use from the outside world.
 // In general, the set of this functions is what we define as an ABI.
