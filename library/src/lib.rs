@@ -11,14 +11,14 @@ impl System {
         let bytes = source.read(address, length)?;
         let value = std::str::from_utf8(&bytes)?;
     
-        println!("Address: {:?}, Length: {}, Value: {:?}", address, length, value);
+        println!("Address: {:?}, Length: {}, Bytes: {:?}, Value: {:?}", address, length, bytes, value);
     
         Ok(())
     }
 }
 
 // Our entry point to our application
-pub fn run(wasm_bytes: &[u8]) -> Result<(), WasmError> {
+pub fn run(wasm_bytes: &[u8], message: &[u8]) -> Result<(), WasmError> {
     let system = Arc::new(System());
     let cloned_system = system.clone();
 
@@ -35,7 +35,7 @@ pub fn run(wasm_bytes: &[u8]) -> Result<(), WasmError> {
     // Let's create an instance of Wasm module running in the wasmer-runtime
     let continuation = new_continuation(&behavior, &imports)?;
 
-    continuation.receive("Hello, World!".as_bytes())?;
+    continuation.receive(message)?;
 
     // Return OK since everything executed successfully!
     Ok(())
