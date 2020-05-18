@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum WasmError {
+pub enum Error {
     #[error("Unable to decode UTF8 string.")]
     DecodeError(#[from] std::str::Utf8Error),
     #[error("Invalid WASM module.")]

@@ -1,76 +1,73 @@
 pub mod errors;
 
-use std::sync::Arc;
-use wasmer_runtime::{compile, imports, func, validate, Ctx, Func, Module, ImportObject, Instance, WasmPtr, Array};
-use crate::errors::WasmError;
+use crate::errors::Error;
+use wasmer_runtime::{
+    compile, func, imports, validate, Array, Ctx, Func, ImportObject, Instance, Module, WasmPtr,
+};
 
-struct System();
+pub struct System();
 
 impl System {
-    extern fn send(&self, source: &mut impl Source, address: WasmPtr<u8, Array>, length: u32) -> Result<(), WasmError> {
-        let bytes = source.read(address, length)?;
-        let value = std::str::from_utf8(&bytes)?;
-    
-        println!("Address: {:?}, Length: {}, Bytes: {:?}, Value: {:?}", address, length, bytes, value);
-    
+    pub fn new() -> System {
+        System()
+    }
+
+    pub fn run(&self, wasm_bytes: &[u8], message: &[u8]) -> Result<(), Error> {
+        let imports = imports! {
+            "system" => {
+                "send" => func!(send),
+            },
+        };
+
+        let behavior = new_behavior(wasm_bytes)?;
+        let continuation = new_continuation(&behavior, &imports)?;
+
+        continuation.receive(message)?;
+
         Ok(())
     }
 }
 
-// Our entry point to our application
-pub fn run(wasm_bytes: &[u8], message: &[u8]) -> Result<(), WasmError> {
-    let system = Arc::new(System());
-    let cloned_system = system.clone();
+pub fn send(source: &mut Ctx, address: WasmPtr<u8, Array>, length: u32) -> Result<(), Error> {
+    let bytes = source.read(address, length)?;
+    let value = std::str::from_utf8(&bytes)?;
 
-    let imports = imports! {
-        "system" => {
-            "send" => func!(move |source: &mut Ctx, address: WasmPtr<u8, Array>, length: u32| { 
-                cloned_system.send(source, address, length) 
-            }),
-        },
-    };
+    println!(
+        "Address: {:?}, Length: {}, Bytes: {:?}, Value: {:?}",
+        address, length, bytes, value
+    );
 
-    let behavior = new_behavior(wasm_bytes)?;
-
-    // Let's create an instance of Wasm module running in the wasmer-runtime
-    let continuation = new_continuation(&behavior, &imports)?;
-
-    continuation.receive(message)?;
-
-    // Return OK since everything executed successfully!
     Ok(())
 }
 
-fn new_behavior(module: &[u8]) -> Result<Module, WasmError> {
+fn new_behavior(module: &[u8]) -> Result<Module, Error> {
     if !validate(module) {
-        return Err(WasmError::Invalid);
+        return Err(Error::Invalid);
     }
 
-    compile(module).map_err(WasmError::Compile)
+    compile(module).map_err(Error::Compile)
 }
 
-fn new_continuation(behavior: &Module, imports: &ImportObject) -> Result<impl Continuation, WasmError> {
-    behavior.instantiate(imports).map_err(WasmError::Unkown)
+fn new_continuation(behavior: &Module, imports: &ImportObject) -> Result<impl Continuation, Error> {
+    behavior.instantiate(imports).map_err(Error::Unkown)
 }
 
 trait Continuation {
-    fn receive(&self, message: &[u8]) -> Result<(), WasmError>;
+    fn receive(&self, message: &[u8]) -> Result<(), Error>;
 }
 
 trait Source {
-    fn read(&self, address: WasmPtr<u8, Array>, length: u32) -> Result<Vec<u8>, WasmError>;
+    fn read(&self, address: WasmPtr<u8, Array>, length: u32) -> Result<Vec<u8>, Error>;
 }
 
 impl Continuation for Instance {
-    fn receive(&self, message: &[u8]) -> Result<(), WasmError> {
+    fn receive(&self, message: &[u8]) -> Result<(), Error> {
         let memory = self.context().memory(0);
         let message_buffer: WasmPtr<u8, Array> = WasmPtr::new(0);
         let length = message.len() as u32;
 
         // We deref our WasmPtr to get a &[Cell<u8>]
-        let memory_writer = message_buffer
-            .deref(memory, 0, length)
-            .unwrap();
+        let memory_writer = message_buffer.deref(memory, 0, length).unwrap();
 
         for i in 0..message.len() {
             memory_writer[i].set(message[i]);
@@ -89,11 +86,13 @@ impl Continuation for Instance {
 }
 
 impl Source for Ctx {
-    fn read(&self, address: WasmPtr<u8, Array>, length: u32) -> Result<Vec<u8>, WasmError> {
+    fn read(&self, address: WasmPtr<u8, Array>, length: u32) -> Result<Vec<u8>, Error> {
         let memory = self.memory(0);
-        let cells = address.deref(memory, 0, length).ok_or(WasmError::PointerReference)?;
+        let cells = address
+            .deref(memory, 0, length)
+            .ok_or(Error::PointerReference)?;
         let bytes: Vec<u8> = cells.iter().map(|cell| cell.get()).collect();
-        
-        Ok(bytes) 
+
+        Ok(bytes)
     }
 }
