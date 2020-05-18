@@ -18,12 +18,9 @@ impl System {
 }
 
 // Our entry point to our application
-pub fn run() -> Result<(), WasmError> {
+pub fn run(wasm_bytes: &[u8]) -> Result<(), WasmError> {
     let system = Arc::new(System());
     let cloned_system = system.clone();
-
-    // Let's get the .wasm file as bytes
-    let wasm_bytes = include_bytes!("../../resources/wasm/echo.wasm");
 
     let imports = imports! {
         "system" => {
