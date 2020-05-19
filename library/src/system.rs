@@ -4,20 +4,19 @@ use crate::reference::Reference;
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use wasmer_runtime::{
-    compile, func, imports, instantiate, validate, Array, Ctx, Func, ImportObject, Instance,
-    Module, WasmPtr,
+    compile, func, imports, validate, Array, Ctx, Func, Instance, Module, WasmPtr,
 };
 
 pub struct System {
-    reference: Reference,
     modules: HashMap<Reference, Module>,
+    broker: Broker,
 }
 
 impl System {
     pub fn new() -> System {
         System {
-            reference: Reference::new(),
             modules: HashMap::new(),
+            broker: Broker::new(),
         }
     }
 
@@ -41,12 +40,20 @@ impl System {
         module.instantiate(&imports).map_err(Error::Unkown)
     }
 
-    pub fn run(&self, actor: Reference, message: &[u8]) -> Result<(), Error> {
+    pub fn send(&mut self, actor: Reference, message: &[u8]) -> Result<(), Error> {
+        if self.modules.contains_key(&actor) {
+            self.broker.send(actor, message);
+            Ok(())
+        } else {
+            Err(Error::NoSuchActor)
+        }
+    }
+
+    pub fn run(&mut self, actor: Reference) -> Result<Vec<Result<(), Error>>, Error> {
         let instance = self.new_instance(actor)?;
+        let messages = self.broker.read(actor);
 
-        instance.receive(message)?;
-
-        Ok(())
+        Ok(messages.map(|message| instance.receive(&message)).collect())
     }
 }
 
@@ -140,16 +147,6 @@ pub fn send(source: &mut Ctx, address: WasmPtr<u8, Array>, length: u32) -> Resul
 //             instances: HashMap::new(),
 //             import,
 //         }
-//     }
-//
-//     pub fn create(&mut self, module: &[u8]) -> Result<Reference, &'static str> {
-//         let reference = Reference::new();
-//         let instance = instantiate(module, &self.import)
-//             .map_err(|_| "Unable to instantiate the WASM module.")?;
-//
-//         self.instances.insert(reference, instance);
-//
-//         Ok(reference)
 //     }
 //
 //     pub fn send(&mut self, to: Reference, message: u32) -> Result<(), &'static str> {
