@@ -23,9 +23,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("{:?}", opt);
 
     let path = Path::new("./examples/target/wasm32-unknown-unknown/debug/");
-    let system = tortuga::System::new();
+    let mut system = tortuga::System::new();
 
-    system.run(&read(path.join("echo.wasm"))?, "Hello, World!".as_bytes())?;
+    let echo = system.register(&read(path.join("echo.wasm"))?)?;
+    let add = system.register(&read(path.join("add.wasm"))?)?;
+
+    system.run(echo, "Hello, World!".as_bytes())?;
 
     let mut numbers = [42, 7, 1, 5];
     let ptr = numbers.as_mut_ptr() as *mut u8;
@@ -35,7 +38,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let bytes = unsafe { Vec::from_raw_parts(ptr, length, length) };
 
-    system.run(&read(path.join("add.wasm"))?, &bytes)?;
+    system.run(add, &bytes)?;
 
     Ok(())
 }
