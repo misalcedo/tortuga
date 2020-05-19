@@ -23,9 +23,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("{:?}", opt);
 
     let path = Path::new("./examples/target/wasm32-unknown-unknown/debug/");
+    let resource_path = Path::new("./resources/wasm/");
     let mut system = tortuga::System::new();
 
-    let echo = system.register(&read(path.join("echo.wasm"))?)?;
+    let echo = system.register(&read(resource_path.join("echo.wat"))?)?;
     let add = system.register(&read(path.join("add.wasm"))?)?;
 
     system.send(echo, "Hello, World!".as_bytes())?;

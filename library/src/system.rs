@@ -3,9 +3,7 @@ use crate::errors::Error;
 use crate::reference::Reference;
 use std::borrow::Borrow;
 use std::collections::HashMap;
-use wasmer_runtime::{
-    compile, func, imports, validate, Array, Ctx, Func, Instance, Module, WasmPtr,
-};
+use wasmer_runtime::{compile, func, imports, Array, Ctx, Func, Instance, Module, WasmPtr};
 
 pub struct System {
     modules: HashMap<Reference, Module>,
@@ -59,10 +57,6 @@ impl System {
 
 fn new_behavior(bytes: &[u8]) -> Result<Module, Error> {
     let module = wat::parse_bytes(bytes)?;
-
-    if !validate(module.borrow()) {
-        return Err(Error::Invalid);
-    }
 
     compile(module.borrow()).map_err(Error::Compile)
 }
