@@ -1,7 +1,6 @@
 use std::error::Error;
 use std::fs::read;
 use std::path::PathBuf;
-use std::sync::Arc;
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]

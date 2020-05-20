@@ -14,8 +14,8 @@ autoexamples = false
 lto = true
 
 [dependencies]
-bytes = "0.5.4"
-crossbeam = "0.7.3"
+bytes = "0.5"
+crossbeam = "0.7"
 thiserror = "1"
 uuid = { version = "0.8", features = ["v4", "v5"] }
 wasmer-runtime = "0.17"
