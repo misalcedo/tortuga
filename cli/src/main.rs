@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::fs::read;
 use std::path::PathBuf;
+use std::sync::Arc;
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
@@ -20,7 +21,8 @@ struct Options {
     message: String,
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
     let options = Options::from_args();
     let echo_module = &read(options.actor)?;
 

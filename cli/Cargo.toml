@@ -16,3 +16,4 @@ lto = true
 tortuga = { version = "0.1", path = "../library"}
 clap = "2"
 structopt = "0.3"
+tokio = { version = "0.2", features = ["rt-threaded", "macros"] }
