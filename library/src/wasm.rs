@@ -45,7 +45,7 @@ impl Instance {
     }
 }
 
-pub struct Store(wasmer_runtime::ImportObject);
+pub(crate) struct Store(wasmer_runtime::ImportObject);
 
 impl Store {
     pub(crate) fn new() -> Result<Store> {
