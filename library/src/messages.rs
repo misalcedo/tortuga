@@ -1,6 +1,11 @@
+use crate::errors::Result;
 use crate::reference::Reference;
 use std::collections::HashMap;
 use std::vec::Drain;
+
+pub trait MessageBus {
+    fn send(to: Reference) -> Result<()>;
+}
 
 /// Allows actors in the system to send each other messages.
 pub struct Broker {
