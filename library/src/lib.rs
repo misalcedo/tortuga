@@ -1,5 +1,5 @@
+mod actor;
 pub mod errors;
-mod messages;
 mod reference;
 mod system;
 mod wasm;
