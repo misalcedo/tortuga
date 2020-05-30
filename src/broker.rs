@@ -34,6 +34,11 @@ impl Broker {
     pub fn sender(&self) -> UnboundedSender<Envelope> {
         self.sender.clone()
     }
+
+    /// Retrieves the next message to be processed by the actor system.
+    pub async fn pop(&mut self) -> Option<Envelope> {
+        self.receiver.recv().await.filter(|envelope| self.references.contains(&envelope.to()))
+    }
 }
 
 #[cfg(test)]
@@ -54,29 +59,25 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn send_to_unregistere() {
+    async fn send_to_unregistered() {
         let mut broker = Broker::new();
-        let sender = broker.sender();
+
+        broker.sender().send(Envelope::new(Reference::new(), b"Hello, World!")).unwrap();
+        
+        assert!(broker.pop().await.is_none());
+    }
+
+    #[tokio::test]
+    async fn send_and_receive_a_message() {
+        let mut broker = Broker::new();
         let reference = Reference::new();
         let message = b"Hello, World!";
 
-        sender.send(Envelope::new(reference, message)).unwrap();
+        broker.register(reference).unwrap();
+        broker.sender().send(Envelope::new(reference, message)).unwrap();
         
-        // assert_eq!(Some(Envelope::new(reference, message)), envelope);
+        let envelope = broker.pop().await;
+
+        assert_eq!(Some(Envelope::new(reference, message)), envelope);
     }
-
-    // #[test]
-    // fn send_and_receive_a_message() {
-    //     let mut broker = Broker::new();
-    //     let sender = broker.sender();
-    //     let reference = Reference::new();
-    //     let message = b"Hello, World!";
-
-    //     broker.register(reference);
-    //     sender(reference, Envelope::new(reference, message));
-        
-    //     let envelope = broker.pop(reference);
-
-    //     assert_eq!(Some(Envelope::new(reference, message)), envelope);
-    // }
 }
