@@ -1,2 +1,25 @@
-[workspace]
-members = ["cli", "library"]
+[package]
+name = "tortuga"
+description = "An actor-based programming language."
+version = "0.1.0"
+authors = ["Miguel D. Salcedo <miguel@salcedo.cc>"]
+edition = "2018"
+license = "Apache-2.0"
+homepage = "https://github.com/misalcedo/tortuga"
+repository = "https://github.com/misalcedo/tortuga"
+documentation = "https://docs.rs/tortuga/0.1.0/tortuga/"
+autoexamples = false
+
+[profile.release]
+lto = true
+
+[dependencies]
+bytes = "0.5"
+clap = "2"
+crossbeam = "0.7"
+structopt = "0.3"
+thiserror = "1"
+tokio = { version = "0.2", features = ["rt-threaded", "macros"] }
+uuid = { version = "0.8", features = ["v4", "v5"] }
+wasmer-runtime = "0.17"
+wat = "1.0"
