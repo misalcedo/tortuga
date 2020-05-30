@@ -1,5 +1,7 @@
 = Tortuga
-Miguel D. Salcedo <miguel@salcedo.cc.
+Miguel D. Salcedo <miguel@salcedo.cc>
+:toc:
+:sectanchors:
 
 [NOTE] 
 .Key words for use in RFCs to Indicate Requirement Levels
@@ -37,6 +39,17 @@ An instantiation of an actor's intent in the actor system to process a message. 
 
 Supervision::
 Actors in an actor system may form a supervision tree. The tree is always rooted in a system-provided root actor. The root actor has children for system actors and user actors. When an actor creates a new actor, the creator becomes the supervisor of the created. On failure to process a message, the supervisor is queried to determine the appropriate action (e.g., create a new continuation and re-process the message, discard the message, etc.).
+
+== Usage
+To run the system locally, perform the following steps:
+
+. Clone the repository to your local computer.
+. Run `cargo build --release`.
+. Build the examples as described in the <<examples>> section.
+. [[system]] Run `cargo run --release -- act --intent examples/target/wasm32-unknown-unknown/echo.wasm`
+. [[copy]] Copy the hyphenated Universally Unique Identifier from the console.
+. [[messsage]] Run `cargo run --release -- send --reference $reference --message "Hello, World!"`; replacing `$reference` with the reference copied in the <<copy>> step.
+. In the console that is running the <<system>>, you should see the <<message>> that was sent.
 
 == Endian-ness
 While all numbers are sent in network byte order (i.e. big endian) by the system, WebAssembly uses little-endian for its numbers. Therefore, the system will handle mapping the intergers between the types of endian-ness. See https://tools.ietf.org/html/draft-newman-network-byte-order-01
