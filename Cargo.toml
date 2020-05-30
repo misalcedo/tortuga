@@ -17,9 +17,11 @@ lto = true
 bytes = "0.5"
 clap = "2"
 crossbeam = "0.7"
+postcard = "0.5.0"
+serde = { version = "1.0.110", feature = ["derive"] }
 structopt = "0.3"
 thiserror = "1"
-tokio = { version = "0.2", features = ["rt-threaded", "macros"] }
+tokio = { version = "0.2", features = ["rt-threaded", "macros", "udp", "dns"] }
 uuid = { version = "0.8", features = ["v4", "v5"] }
 wasmer-runtime = "0.17"
 wat = "1.0"
