@@ -1,0 +1,54 @@
+= Tortuga
+Miguel D. Salcedo <miguel@salcedo.cc.
+
+[IMPORTANT] 
+.Key words for use in RFCs to Indicate Requirement Levels
+====
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL
+NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED",  "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in
+RFC 2119.
+====
+
+[abstract]
+== Abstract
+Tortuga is an actor-based programming language and runtime. The runtime is written in Rust to provide performance and memory safety, while the language is compiled to WebAssembly. Using WebAssembly allows developers to utilize their favorite programming language to write actors for the runtime. Also, have WebAssembly as the target architecture allows us to test the runtime itself without a dependency on the programming language, so the two can be developed independently.
+
+[glossary]
+== Glossary
+Actors::
+[quote, Wikipedia, https://en.wikipedia.org/wiki/Actor_model]
+____
+An actor is a computational entity that, in response to a message it receives, can concurrently:
+
+. Send a finite number of messages to other actors.
+. Create a finite number of new actors.
+. Designate the behavior to be used for the next message it receives.
+____
+
+Intent::
+An actor is defined by its intent. The intent is the set of behaviors that an actor may excute in response to receiving a message. An intent must have at least one behavior that is the default behavior.
+
+Behavior::
+A behavior is a set of logiccal instructions (i.e. messages sent to actors) executed in the context of an actor's continuation for a specific message.
+
+Continuation::
+An instantiation of an actor's intent in the actor system to process a message. Continuations may be re-used between multiple messages as long as the re-use is not perceivable (i.e. does not affect the outcome of the intent).
+
+Supervision::
+Actors in an actor system may form a supervision tree. The tree is always rooted in a system-provided root actor. The root actor has children for system actors and user actors. When an actor creates a new actor, the creator becomes the supervisor of the created. On failure to process a message, the supervisor is queried to determine the appropriate action (e.g., create a new continuation and re-process the message, discard the message, etc.).
+
+== Endian-ness
+While all numbers are sent in network byte order (i.e. big endian) by the system, WebAssembly uses little-endian for its numbers. Therefore, the system will handle mapping the intergers between the types of endian-ness. See https://tools.ietf.org/html/draft-newman-network-byte-order-01
+
+
+== Future work
+1. Define how to retrieve fields about a message (like a reference).
+1. Pattern match on a message and define named patterns to allow for more readable code.
+1. Create a rust-based runtime.
+1. Define what a behavior looks like and how to denote a new behavior
+1. Define how to create an actor (needs a reference and a behavior).
+
+
+== Examples
+All examples are Rust-based Tortuga actors that compile to WASM. To build the examples, change to the `examples` workspace directory. Then, run `cargo build`. All examples can be found in: `examples/target/wasm32-unknown-unknown/*.wasm`.
