@@ -51,6 +51,15 @@ To run the system locally, perform the following steps:
 . [[messsage]] Run `cargo run --release -- send --reference $reference --message "Hello, World!"`; replacing `$reference` with the reference copied in the <<copy>> step.
 . In the console that is running the <<system>>, you should see the <<message>> that was sent.
 
+== Limitations
+=== System
+The initial versions of the actor system will have the following limitations:
+
+. Only a single thread will process incoming messages, create continuations, and send outgoing messages.
+. No supervision tree, any failed messages will be discarded.
+. Actors can only send messages, they cannot create new actors or change the behavior.
+. New continuation for every message.
+
 == Endian-ness
 While all numbers are sent in network byte order (i.e. big endian) by the system, WebAssembly uses little-endian for its numbers. Therefore, the system will handle mapping the intergers between the types of endian-ness. See https://tools.ietf.org/html/draft-newman-network-byte-order-01
 
