@@ -1,5 +1,4 @@
-use serde::export::Formatter;
-use std::fmt::{Display, Result};
+use std::fmt::{Display, Formatter, Result};
 use uuid::Uuid;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -18,6 +17,10 @@ impl Reference {
         Reference {
             global: Uuid::parse_str(hyphenated).unwrap(),
         }
+    }
+
+    pub fn as_u128(&self) -> u128 {
+        self.global.as_u128()
     }
 }
 

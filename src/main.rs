@@ -3,6 +3,7 @@ use std::fs::read;
 use std::path::PathBuf;
 use structopt::StructOpt;
 use tokio::net::UdpSocket;
+use tortuga::Envelope;
 
 #[derive(Debug, StructOpt)]
 struct Send {
@@ -60,25 +61,31 @@ async fn act(options: Act) -> Result<(), Box<dyn Error>> {
     let mut buffer = [0u8; MAX_DATAGRAM];
 
     while let Ok((read, from)) = socket.recv_from(&mut buffer).await {
-        // TODO: parse reference and message
-        println!(
-            "Received '{}' from {}.",
-            String::from_utf8_lossy(&buffer[..read]),
-            from
-        );
+        let payload = &buffer[..read];
+        let envelope: Envelope = postcard::from_bytes(payload)?;
+
+        println!("Received '{}' from {}.", envelope, from);
     }
 
     Ok(())
 }
 
 async fn send(options: Send) -> Result<(), Box<dyn Error>> {
-    let _actor = tortuga::Reference::from(options.reference.as_str());
+    let actor = tortuga::Reference::from(options.reference.as_str());
     let mut system = UdpSocket::bind(options.address).await?;
+    let mut buffer = [0u8; MAX_DATAGRAM];
 
-    system.connect(options.system).await?;
+    system.connect(options.system.as_str()).await?;
 
-    // TODO: encode reference and message
-    let _sent = system.send(options.message.as_bytes()).await?;
+    let envelope = Envelope::new(actor, options.message.as_bytes());
+    let payload = postcard::to_slice(&envelope, &mut buffer)?;
+    let sent = system.send(payload).await?;
+
+    println!(
+        "Sent {} bytes to system at udp://{}",
+        sent,
+        options.system.as_str()
+    );
 
     Ok(())
 }
