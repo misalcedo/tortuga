@@ -3,31 +3,35 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter, Result};
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
-pub struct Envelope<'a> {
+pub struct Envelope {
     to: String,
-    pub message: &'a [u8],
+    message: Vec<u8>,
 }
 
-impl<'a> Envelope<'a> {
+impl Envelope {
     pub fn new(to: Reference, message: &[u8]) -> Envelope {
         Envelope {
             to: format!("{}", to),
-            message,
+            message: message.iter().cloned().collect()
         }
     }
 
     pub fn to(&self) -> Reference {
         Reference::from(self.to.as_str())
     }
+
+    pub fn message(&self) -> &[u8] {
+        &self.message
+    }
 }
 
-impl<'a> Display for Envelope<'a> {
+impl Display for Envelope {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(
             f,
             "{} >> {}",
             self.to.as_str(),
-            String::from_utf8_lossy(self.message)
+            String::from_utf8_lossy(self.message())
         )
     }
 }

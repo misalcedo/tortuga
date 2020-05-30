@@ -20,8 +20,12 @@ pub enum Error {
     Runtime(#[from] wasmer_runtime::error::RuntimeError),
     #[error("Actor reference not found.")]
     NoSuchActor,
+    #[error("Actor reference {0} is already registered.")]
+    AlreadyRegistered(crate::reference::Reference),
     #[error("Unable to send the message to the specified actor.")]
     UnableToSend(#[from] crossbeam::channel::TrySendError<bytes::Bytes>),
+    #[error("Unable to send the message to the specified actor via the broker.")]
+    UnableToBroker(#[from] tokio::sync::mpsc::error::SendError<crate::message::Envelope>),
     #[error("Unable to receive a message from the specified actor.")]
     UnableToReceive(#[from] crossbeam::channel::TryRecvError),
 }

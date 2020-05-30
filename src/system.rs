@@ -36,7 +36,7 @@ impl System {
     pub fn send(&mut self, envelope: Envelope) -> Result<()> {
         self.actor(&envelope.to())
             .ok_or(Error::NoSuchActor)?
-            .send(envelope.message)
+            .send(envelope.message())
     }
 
     /// Runs the actor.
@@ -46,5 +46,30 @@ impl System {
         let message = actor.receive()?;
 
         instance.receive(&message)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const ECHO_WAT_MODULE: &'static str = r#"(module
+        (import "system" "send" (func $send (param i32 i32)))
+      
+        (memory 1)
+      
+        (func (export "receive") (param $address i32) (param $length i32)
+          (call $send (local.get $address) (local.get $length))
+        )
+      )"#;
+
+    #[test]
+    fn register_an_actor() {
+        let mut system = System::new();
+
+        let reference = system.register(ECHO_WAT_MODULE.as_bytes()).unwrap();
+        let other_reference = system.register(ECHO_WAT_MODULE.as_bytes()).unwrap();
+
+        assert_ne!(reference, other_reference);
     }
 }
