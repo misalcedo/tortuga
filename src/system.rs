@@ -2,6 +2,7 @@ use crate::actor::Actor;
 use crate::errors::{Error, Result};
 use crate::reference::Reference;
 use crate::wasm::{Module, Store};
+use crate::Envelope;
 use std::collections::HashMap;
 
 /// An actor system. A system can host multiple actors.
@@ -32,8 +33,10 @@ impl System {
         self.actors.get(actor)
     }
 
-    pub fn send(&mut self, actor: Reference, message: &[u8]) -> Result<()> {
-        self.actor(&actor).ok_or(Error::NoSuchActor)?.send(message)
+    pub fn send(&mut self, envelope: Envelope) -> Result<()> {
+        self.actor(&envelope.to())
+            .ok_or(Error::NoSuchActor)?
+            .send(envelope.message)
     }
 
     /// Runs the actor.

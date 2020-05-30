@@ -4,7 +4,7 @@ use std::fmt::{Display, Formatter, Result};
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub struct Envelope<'a> {
-    pub to: String,
+    to: String,
     pub message: &'a [u8],
 }
 
@@ -14,6 +14,10 @@ impl<'a> Envelope<'a> {
             to: format!("{}", to),
             message,
         }
+    }
+
+    pub fn to(&self) -> Reference {
+        Reference::from(self.to.as_str())
     }
 }
 

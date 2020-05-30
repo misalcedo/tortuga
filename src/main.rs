@@ -65,6 +65,11 @@ async fn act(options: Act) -> Result<(), Box<dyn Error>> {
         let envelope: Envelope = postcard::from_bytes(payload)?;
 
         println!("Received '{}' from {}.", envelope, from);
+
+        let reference = envelope.to();
+
+        system.send(envelope)?;
+        system.run(reference)?;
     }
 
     Ok(())
