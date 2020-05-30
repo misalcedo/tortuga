@@ -41,14 +41,5 @@ Actors in an actor system may form a supervision tree. The tree is always rooted
 == Endian-ness
 While all numbers are sent in network byte order (i.e. big endian) by the system, WebAssembly uses little-endian for its numbers. Therefore, the system will handle mapping the intergers between the types of endian-ness. See https://tools.ietf.org/html/draft-newman-network-byte-order-01
 
-
-== Future work
-1. Define how to retrieve fields about a message (like a reference).
-1. Pattern match on a message and define named patterns to allow for more readable code.
-1. Create a rust-based runtime.
-1. Define what a behavior looks like and how to denote a new behavior
-1. Define how to create an actor (needs a reference and a behavior).
-
-
 == Examples
 All examples are Rust-based Tortuga actors that compile to WASM. To build the examples, change to the `examples` workspace directory. Then, run `cargo build`. All examples can be found in: `examples/target/wasm32-unknown-unknown/*.wasm`.
