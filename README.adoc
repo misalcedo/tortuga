@@ -1,7 +1,7 @@
 = Tortuga
 Miguel D. Salcedo <miguel@salcedo.cc.
 
-[IMPORTANT] 
+[NOTE] 
 .Key words for use in RFCs to Indicate Requirement Levels
 ====
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL
