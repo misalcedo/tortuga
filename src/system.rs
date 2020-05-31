@@ -1,35 +1,40 @@
-use crate::actor::Actor;
 use crate::errors::{Error, Result};
-use crate::reference::Reference;
 use crate::wasm::{Module, Store};
 use crate::Envelope;
 use std::collections::HashMap;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
+use uuid::Uuid;
 
 /// An actor system. A system can host multiple actors.
 pub struct System {
-    actors: HashMap<Reference, Actor>,
+    actors: HashMap<Uuid, Module>,
+    sender: UnboundedSender<Envelope>,
+    receiver: UnboundedReceiver<Envelope>,
 }
 
 impl System {
     /// Creates an empty actor system.
     pub fn new() -> System {
+        let (sender, receiver) = unbounded_channel();
+
         System {
             actors: HashMap::new(),
+            sender,
+            receiver,
         }
     }
 
     /// Registers an actor with the given intent.
-    pub fn register(&mut self, intent: &[u8]) -> Result<Reference> {
+    pub fn register(&mut self, intent: &[u8]) -> Result<Uuid> {
         let module = Module::new(intent)?;
-        let actor = Actor::new(module);
-        let reference = actor.reference();
+        let reference = Uuid::new_v4();
 
-        self.actors.insert(reference, actor);
+        self.actors.insert(reference, module);
 
         Ok(reference)
     }
 
-    fn actor(&self, actor: &Reference) -> Option<&Actor> {
+    fn actor(&self, actor: &Uuid) -> Option<&Module> {
         self.actors.get(actor)
     }
 
@@ -40,7 +45,7 @@ impl System {
     }
 
     /// Runs the actor.
-    pub fn run(&mut self, actor: Reference) -> Result<()> {
+    pub fn run(&mut self, actor: Uuid) -> Result<()> {
         let actor = self.actors.get(&actor).ok_or(Error::NoSuchActor)?;
         let instance = actor.module().instantiate(&Store::new()?)?;
         let message = actor.receive()?;
@@ -67,9 +72,9 @@ mod tests {
     fn register_an_actor() {
         let mut system = System::new();
 
-        let reference = system.register(ECHO_WAT_MODULE.as_bytes()).unwrap();
-        let other_reference = system.register(ECHO_WAT_MODULE.as_bytes()).unwrap();
+        let Uuid = system.register(ECHO_WAT_MODULE.as_bytes()).unwrap();
+        let other_Uuid = system.register(ECHO_WAT_MODULE.as_bytes()).unwrap();
 
-        assert_ne!(reference, other_reference);
+        assert_ne!(Uuid, other_Uuid);
     }
 }

@@ -16,7 +16,6 @@ lto = true
 [dependencies]
 bytes = "0.5"
 clap = "2"
-crossbeam = "0.7"
 postcard = "0.5.0"
 serde = { version = "1.0.110", features = ["derive"] }
 structopt = "0.3"

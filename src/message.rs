@@ -1,6 +1,6 @@
-use crate::Reference;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter, Result};
+use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub struct Envelope {
@@ -9,15 +9,15 @@ pub struct Envelope {
 }
 
 impl Envelope {
-    pub fn new(to: Reference, message: &[u8]) -> Envelope {
+    pub fn new(to: Uuid, message: &[u8]) -> Envelope {
         Envelope {
-            to: format!("{}", to),
-            message: message.iter().cloned().collect()
+            to: to.to_hyphenated().to_string(),
+            message: message.iter().cloned().collect(),
         }
     }
 
-    pub fn to(&self) -> Reference {
-        Reference::from(self.to.as_str())
+    pub fn to(&self) -> Uuid {
+        Uuid::parse_str(self.to.as_str()).unwrap()
     }
 
     pub fn message(&self) -> &[u8] {
