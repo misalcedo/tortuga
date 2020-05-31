@@ -1,14 +1,18 @@
+use std::collections::HashMap;
+
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
+use uuid::Uuid;
+
 use crate::errors::{Error, Result};
 use crate::wasm::{Module, Store};
 use crate::Envelope;
-use std::collections::HashMap;
-use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
-use uuid::Uuid;
+
+const PAGE_SIZE: usize = 64000;
 
 /// An actor system. A system can host multiple actors.
 pub struct System {
     actors: HashMap<Uuid, Module>,
-    sender: UnboundedSender<Envelope>,
+    pub sender: UnboundedSender<Envelope>,
     receiver: UnboundedReceiver<Envelope>,
 }
 
@@ -38,19 +42,25 @@ impl System {
         self.actors.get(actor)
     }
 
-    pub fn send(&mut self, envelope: Envelope) -> Result<()> {
-        self.actor(&envelope.to())
-            .ok_or(Error::NoSuchActor)?
-            .send(envelope.message())
+    pub async fn run(&mut self) {
+        while let Some(envelope) = self.receiver.recv().await {
+            if let Err(e) = self.process(envelope) {
+                eprintln!("Encountered an error processing envelope: {}", e);
+            } else {
+                println!("Processed a message.");
+            }
+        }
     }
 
-    /// Runs the actor.
-    pub fn run(&mut self, actor: Uuid) -> Result<()> {
-        let actor = self.actors.get(&actor).ok_or(Error::NoSuchActor)?;
-        let instance = actor.module().instantiate(&Store::new()?)?;
-        let message = actor.receive()?;
+    fn process(&self, envelope: Envelope) -> Result<()> {
+        let module = self.actor(&envelope.to()).ok_or(Error::NoSuchActor)?;
+        let store = Store::new(self.sender.clone())?;
+        let instance = module.instantiate(&store)?;
+        let mut buffer = [0u8; PAGE_SIZE];
 
-        instance.receive(&message)
+        let payload = postcard::to_slice(&envelope, &mut buffer)?;
+
+        instance.receive(payload)
     }
 }
 
@@ -72,9 +82,9 @@ mod tests {
     fn register_an_actor() {
         let mut system = System::new();
 
-        let Uuid = system.register(ECHO_WAT_MODULE.as_bytes()).unwrap();
-        let other_Uuid = system.register(ECHO_WAT_MODULE.as_bytes()).unwrap();
+        let reference = system.register(ECHO_WAT_MODULE.as_bytes()).unwrap();
+        let other_reference = system.register(ECHO_WAT_MODULE.as_bytes()).unwrap();
 
-        assert_ne!(Uuid, other_Uuid);
+        assert_ne!(reference, other_reference);
     }
 }

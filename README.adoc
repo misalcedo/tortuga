@@ -29,10 +29,10 @@ An actor is a computational entity that, in response to a message it receives, c
 ____
 
 Intent::
-An actor is defined by its intent. The intent is the set of behaviors that an actor may excute in response to receiving a message. An intent must have at least one behavior that is the default behavior.
+The intent is the set of behaviors that an actor may execute in response to receiving a message. An intent must have at least one behavior that is the default behavior.
 
 Behavior::
-A behavior is a set of logiccal instructions (i.e. messages sent to actors) executed in the context of an actor's continuation for a specific message.
+A behavior is a set of logical instructions (i.e. messages sent to actors) executed in the context of an actor's continuation for a specific message.
 
 Continuation::
 An instantiation of an actor's intent in the actor system to process a message. Continuations may be re-used between multiple messages as long as the re-use is not perceivable (i.e. does not affect the outcome of the intent).
@@ -45,8 +45,8 @@ To run the system locally, perform the following steps:
 
 . Clone the repository to your local computer.
 . Run `cargo build --release`.
-. Build the examples as described in the <<examples>> section.
-. [[system]] Run `cargo run --release -- act --intent examples/target/wasm32-unknown-unknown/echo.wasm`
+. Build the examples as described in the <<Examples>> section.
+. [[system]] Run `cargo run --release -- act --intent examples/target/wasm32-unknown-unknown/release/echo.wasm`
 . [[copy]] Copy the hyphenated Universally Unique Identifier from the console.
 . [[messsage]] Run `cargo run --release -- send --reference $reference --message "Hello, World!"`; replacing `$reference` with the reference copied in the <<copy>> step.
 . In the console that is running the <<system>>, you should see the <<message>> that was sent.
@@ -60,8 +60,8 @@ The initial versions of the actor system will have the following limitations:
 . Actors can only send messages, they cannot create new actors or change the behavior.
 . New continuation for every message.
 
-== Endian-ness
-While all numbers are sent in network byte order (i.e. big endian) by the system, WebAssembly uses little-endian for its numbers. Therefore, the system will handle mapping the intergers between the types of endian-ness. See https://tools.ietf.org/html/draft-newman-network-byte-order-01
+== Endianness
+While the system sends all numbers in network byte order (i.e. big endian), WebAssembly uses little-endian for its numbers. Therefore, the system will handle mapping the integers between the types of endianness. See https://tools.ietf.org/html/draft-newman-network-byte-order-01
 
 == Examples
-All examples are Rust-based Tortuga actors that compile to WASM. To build the examples, change to the `examples` workspace directory. Then, run `cargo build`. All examples can be found in: `examples/target/wasm32-unknown-unknown/*.wasm`.
+All examples are Rust-based Tortuga actors that compile to WASM. To build the examples, change to the `examples` workspace directory. Then, run `cargo build --release`. All examples can be found in: `examples/target/wasm32-unknown-unknown/release/*.wasm`.

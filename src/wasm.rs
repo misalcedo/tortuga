@@ -1,8 +1,10 @@
+use tokio::sync::mpsc::UnboundedSender;
 use wasmer_runtime::{compile, func, imports, Array, Ctx, Func, WasmPtr};
 
 use crate::errors::{Error, Result};
+use crate::Envelope;
 
-pub(crate) struct Module(wasmer_runtime::Module);
+pub struct Module(wasmer_runtime::Module);
 
 impl Module {
     pub fn new(bytes: &[u8]) -> Result<Module> {
@@ -19,7 +21,7 @@ impl Module {
     }
 }
 
-pub(crate) struct Instance(wasmer_runtime::Instance);
+pub struct Instance(wasmer_runtime::Instance);
 
 impl Instance {
     pub fn receive(&self, message: &[u8]) -> Result<()> {
@@ -45,30 +47,23 @@ impl Instance {
     }
 }
 
-pub(crate) struct Store(wasmer_runtime::ImportObject);
+pub struct Store(wasmer_runtime::ImportObject);
 
 impl Store {
-    pub(crate) fn new() -> Result<Store> {
+    pub fn new(sender: UnboundedSender<Envelope>) -> Result<Store> {
         let imports = imports! {
             "system" => {
-                "send" => func!(send),
+                "send" => func!(move |source: &mut Ctx, address: WasmPtr<u8, Array>, length: u32| -> Result<()> {
+                    let bytes = read(source, address, length)?;
+                    let envelope: Envelope = postcard::from_bytes(&bytes)?;
+
+                    Ok(sender.send(envelope)?)
+                }),
             }
         };
 
         Ok(Store(imports))
     }
-}
-
-fn send(source: &mut Ctx, address: WasmPtr<u8, Array>, length: u32) -> Result<()> {
-    let bytes = read(source, address, length)?;
-    let value = std::str::from_utf8(&bytes)?;
-
-    println!(
-        "Address: {:?}, Length: {}, Bytes: {:?}, Value: {:?}",
-        address, length, bytes, value
-    );
-
-    Ok(())
 }
 
 fn read(context: &mut Ctx, address: WasmPtr<u8, Array>, length: u32) -> Result<Vec<u8>> {

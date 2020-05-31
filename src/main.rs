@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use structopt::StructOpt;
 use tokio::net::UdpSocket;
 use tortuga::Envelope;
+use uuid::Uuid;
 
 #[derive(Debug, StructOpt)]
 struct Send {
@@ -19,12 +20,7 @@ struct Send {
 
 #[derive(Debug, StructOpt)]
 struct Act {
-    #[structopt(
-        short,
-        long,
-        default_value = "./resources/wasm/echo.wat",
-        parse(from_os_str)
-    )]
+    #[structopt(short, long, parse(from_os_str))]
     pub intent: PathBuf,
     #[structopt(short, long, default_value = "localhost:2867")]
     pub address: String,
@@ -40,7 +36,7 @@ enum Tortuga {
     Send(Send),
 }
 
-#[tokio::main]
+#[tokio::main(core_threads = 2)]
 async fn main() -> Result<(), Box<dyn Error>> {
     match Tortuga::from_args() {
         Tortuga::Act(options) => act(options).await,
@@ -54,29 +50,39 @@ async fn act(options: Act) -> Result<(), Box<dyn Error>> {
     let mut system = tortuga::System::new();
     let intent = read(options.intent)?;
     let actor = system.register(&intent)?;
-    let mut socket = UdpSocket::bind(options.address).await?;
+    let mut socket = UdpSocket::bind(options.address.as_str()).await?;
 
-    println!("Created actor system with reference: {}", actor);
+    println!("cargo run -- send -r {}", actor);
 
-    let mut buffer = [0u8; MAX_DATAGRAM];
+    let sender = system.sender.clone();
 
-    while let Ok((read, from)) = socket.recv_from(&mut buffer).await {
-        let payload = &buffer[..read];
-        let envelope: Envelope = postcard::from_bytes(payload)?;
+    tokio::task::spawn(async move {
+        let mut buffer = vec![0u8; MAX_DATAGRAM];
 
-        println!("Received '{}' from {}.", envelope, from);
+        loop {
+            match socket.recv_from(&mut buffer).await {
+                Ok((read, from)) => {
+                    let payload = &buffer[..read];
+                    let envelope: Envelope = postcard::from_bytes(payload).unwrap();
 
-        let reference = envelope.to();
+                    println!("Received '{}' from {}.", envelope, from);
 
-        system.send(envelope)?;
-        system.run(reference)?;
-    }
+                    if let Err(e) = sender.send(envelope) {
+                        eprintln!("Encountered an error sending envelope to system: {}", e);
+                    }
+                }
+                Err(e) => eprintln!("Encountered an error reading from UDP socket: {}", e),
+            }
+        }
+    });
+
+    system.run().await;
 
     Ok(())
 }
 
 async fn send(options: Send) -> Result<(), Box<dyn Error>> {
-    let actor = tortuga::Reference::from(options.reference.as_str());
+    let actor = Uuid::parse_str(options.reference.as_str())?;
     let mut system = UdpSocket::bind(options.address).await?;
     let mut buffer = [0u8; MAX_DATAGRAM];
 

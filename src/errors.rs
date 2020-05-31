@@ -22,4 +22,6 @@ pub enum Error {
     NoSuchActor,
     #[error("Unable to send a message to the specified actor.")]
     UnableToSend(#[from] tokio::sync::mpsc::error::SendError<crate::message::Envelope>),
+    #[error("Error serializing.")]
+    Serialization(#[from] postcard::Error),
 }
