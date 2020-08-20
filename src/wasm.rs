@@ -1,77 +1,68 @@
-use tokio::sync::mpsc::UnboundedSender;
-use wasmer_runtime::{compile, func, imports, Array, Ctx, Func, WasmPtr};
+use crate::actor::{Actor, Address};
+use wasmtime::Instance;
 
-use crate::errors::{Error, Result};
-use crate::Envelope;
+impl Actor for Instance {
+    /// Allocates a slice whose length is greater than or equal to the given minimum.
+    fn allocate(&self, minimum_length: u32) -> Address {
+        let module_allocate = self
+            .get_func("allocate")
+            .expect("`allocate` was not an exported function");
+        let module_allocate = module_allocate.get1::<u32, u32>().unwrap();
+        let offset = module_allocate(minimum_length).unwrap();
 
-pub struct Module(wasmer_runtime::Module);
-
-impl Module {
-    pub fn new(bytes: &[u8]) -> Result<Module> {
-        let binary = wat::parse_bytes(bytes)?;
-        let module = compile(&binary)?;
-
-        Ok(Module(module))
+        Address::new(offset, minimum_length)
     }
 
-    pub fn instantiate(&self, store: &Store) -> Result<Instance> {
-        let instance = self.0.instantiate(&store.0)?;
+    /// Receives a message from another actor. The system makes no guarantees about the contents.
+    fn receive(&self, message: Address) {
+        let module_receive = self
+            .get_func("receive")
+            .expect("`receive` was not an exported function");
+        let module_receive = module_receive.get2::<u32, u32, ()>().unwrap();
 
-        Ok(Instance(instance))
-    }
-}
-
-pub struct Instance(wasmer_runtime::Instance);
-
-impl Instance {
-    pub fn receive(&self, message: &[u8]) -> Result<()> {
-        let memory = self.0.context().memory(0);
-        let message_buffer: WasmPtr<u8, Array> = WasmPtr::new(0);
-        let length = message.len() as u32;
-
-        // We deref our WasmPtr to get a &[Cell<u8>]
-        let memory_writer = message_buffer.deref(memory, 0, length).unwrap();
-
-        for i in 0..message.len() {
-            memory_writer[i].set(message[i]);
-        }
-
-        // Let's call the exported function that concatenates a phrase to our string.
-        let receive: Func<(WasmPtr<u8, Array>, u32), ()> = self
-            .0
-            .exports
-            .get("receive")
-            .expect("receive function not defined.");
-
-        receive.call(message_buffer, length).map_err(Error::Runtime)
+        module_receive(message.offset(), message.length()).unwrap();
     }
 }
 
-pub struct Store(wasmer_runtime::ImportObject);
+#[cfg(test)]
+mod tests {
+    use crate::actor::{Actor, Address};
+    use std::sync::mpsc::channel;
+    use wasmtime::{Engine, Func, Instance, Module, Store};
 
-impl Store {
-    pub fn new(sender: UnboundedSender<Envelope>) -> Result<Store> {
-        let imports = imports! {
-            "system" => {
-                "send" => func!(move |source: &mut Ctx, address: WasmPtr<u8, Array>, length: u32| -> Result<()> {
-                    let bytes = read(source, address, length)?;
-                    let envelope: Envelope = postcard::from_bytes(&bytes)?;
+    #[test]
+    fn allocate_happy_case() {
+        let engine = Engine::default();
+        let store = Store::new(&engine);
 
-                    Ok(sender.send(envelope)?)
-                }),
-            }
-        };
+        let intent: &[u8] = include_bytes!("../resources/echo.wat");
+        let module = Module::new(&engine, intent).unwrap();
+        let send = Func::wrap(&store, move |offset: u32, length: u32| {
+            panic!("Allocate must not send any messages.")
+        });
+        let mut instance = Instance::new(&store, &module, &[send.into()]).unwrap();
 
-        Ok(Store(imports))
+        assert_eq!(instance.allocate(42), Address::new(0, 42));
     }
-}
 
-fn read(context: &mut Ctx, address: WasmPtr<u8, Array>, length: u32) -> Result<Vec<u8>> {
-    let memory = context.memory(0);
-    let cells = address
-        .deref(memory, 0, length)
-        .ok_or(Error::PointerReference)?;
-    let bytes: Vec<u8> = cells.iter().map(|cell| cell.get()).collect();
+    #[test]
+    fn receive_happy_case() {
+        let engine = Engine::default();
+        let store = Store::new(&engine);
 
-    Ok(bytes)
+        let intent: &[u8] = include_bytes!("../resources/echo.wat");
+        let module = Module::new(&engine, intent).unwrap();
+
+        let (sender, receiver) = channel();
+        let send = Func::wrap(&store, move |offset: u32, length: u32| {
+            sender.send((offset, length)).unwrap();
+        });
+
+        let mut instance = Instance::new(&store, &module, &[send.into()]).unwrap();
+        let address = Address::new(42, 1);
+
+        instance.receive(address);
+
+        assert_eq!(receiver.recv(), Ok((42, 1)));
+    }
 }
