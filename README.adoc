@@ -14,7 +14,7 @@ RFC 2119.
 
 [abstract]
 == Abstract
-Tortuga is an actor-based programming language and runtime. The runtime is written in Rust to provide performance and memory safety, while the language is compiled to WebAssembly. Using WebAssembly allows developers to utilize their favorite programming language to write actors for the runtime. Also, have WebAssembly as the target architecture allows us to test the runtime itself without a dependency on the programming language, so the two can be developed independently.
+Tortuga is an actor-based programming language and runtime. The runtime is written in Rust to provide performance and memory safety, while the language is compiled to WebAssembly. Using WebAssembly allows developers to utilize their favorite programming language to write actors for the runtime. Targeting WebAssembly as the compilation architecture allows us to test the runtime itself without a dependency on the programming language, so the two can be developed independently.
 
 [glossary]
 == Glossary
@@ -43,13 +43,13 @@ Actors in an actor system may form a supervision tree. The tree is always rooted
 == Usage
 To run the system locally, perform the following steps:
 
-. Clone the repository to your local computer.
-. Run `cargo build --release`.
+. Clone the repository to your local machine.
+. Run `cargo build`.
 . Build the examples as described in the <<Examples>> section.
-. [[system]] Run `cargo run --release -- act --intent examples/target/wasm32-unknown-unknown/release/echo.wasm`
-. [[copy]] Copy the hyphenated Universally Unique Identifier from the console.
-. [[messsage]] Run `cargo run --release -- send --reference $reference --message "Hello, World!"`; replacing `$reference` with the reference copied in the <<copy>> step.
-. In the console that is running the <<system>>, you should see the <<message>> that was sent.
+. [[system]] Run `cargo run -- start
+. [[ping]] Run `cargo run -- deploy --intent examples/target/wasm32-unknown-unknown/release/ping.wasm`
+. [[pong]] Run `cargo run -- deploy --intent examples/target/wasm32-unknown-unknown/release/pong.wasm`
+. In the terminal that is running the <<system>>, you should see the "Ping!" and "Pong!" messages flowing back and forth.
 
 == Limitations
 === System
@@ -66,6 +66,3 @@ While the system sends all numbers in network byte order (i.e. big endian), WebA
 == Examples
 === Rust
 Some examples are Rust-based Tortuga actors that compile to WASM. To build the examples, change to the `examples` workspace directory. Then, run `cargo build --release`. Built examples can be found in: `examples/target/wasm32-unknown-unknown/release/*.wasm`.
-
-=== AssemblyScript
-Some examples use AssemblyScript to compile to WASM. To build the examples, change to the `resources/asc-examples` workspace directory. Then, run `npm run asbuild`. Built examples can be found in: `resources/asc-examples/build/*.wasm`.
