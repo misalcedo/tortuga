@@ -16,7 +16,7 @@ lto = true
 [dependencies]
 bytes = "0.5"
 clap = "2"
-postcard = "0.5.0"
+postcard = "0.5.1"
 serde = { version = "1.0.110", features = ["derive"] }
 structopt = "0.3"
 thiserror = "1"
