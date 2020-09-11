@@ -3,11 +3,6 @@ Miguel D. Salcedo <miguel@salcedo.cc>
 :toc:
 :sectanchors:
 
-image:https://img.shields.io/badge/License-Apache%202.0-yellowgreen.svg[License, link=https://opensource.org/licenses/Apache-2.0]
-image:https://img.shields.io/crates/v/ppp.svg[Crates.io Version, link=https://crates.io/crates/tortuga]
-image:(https://docs.rs/ppp/badge.svg[Docs.rs Version, link=https://docs.rs/tortuga]
-image:https://codecov.io/gh/misalcedo/ppp/branch/master/graph/badge.svg)[Coverage, link=https://codecov.io/gh/misalcedo/tortuga]
-
 [NOTE] 
 .Key words for use in RFCs to Indicate Requirement Levels
 ====
@@ -20,6 +15,13 @@ RFC 2119.
 [abstract]
 == Abstract
 Tortuga is an actor-based programming language and runtime. The runtime is written in Rust to provide performance and memory safety, while the language is compiled to WebAssembly. Using WebAssembly allows developers to utilize their favorite programming language to write actors for the runtime. Targeting WebAssembly as the compilation architecture allows us to test the runtime itself without a dependency on the programming language, so the two can be developed independently.
+
+== Badges
+
+image:https://img.shields.io/badge/License-Apache%202.0-yellowgreen.svg[License, link=https://opensource.org/licenses/Apache-2.0]
+image:https://img.shields.io/crates/v/tortuga.svg[Crates.io Version, link=https://crates.io/crates/tortuga]
+image:https://docs.rs/tortuga/badge.svg[Docs.rs Version, link=https://docs.rs/tortuga]
+image:https://codecov.io/gh/misalcedo/tortuga/branch/master/graph/badge.svg)[Coverage, link=https://codecov.io/gh/misalcedo/tortuga]
 
 [glossary]
 == Glossary
