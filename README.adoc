@@ -21,7 +21,6 @@ Tortuga is an actor-based programming language and runtime. The runtime is writt
 image:https://img.shields.io/badge/License-Apache%202.0-yellowgreen.svg[License, link=https://opensource.org/licenses/Apache-2.0]
 image:https://img.shields.io/crates/v/tortuga.svg[Crates.io Version, link=https://crates.io/crates/tortuga]
 image:https://docs.rs/tortuga/badge.svg[Docs.rs Version, link=https://docs.rs/tortuga]
-image:https://codecov.io/gh/misalcedo/tortuga/branch/master/graph/badge.svg)[Coverage, link=https://codecov.io/gh/misalcedo/tortuga]
 
 [glossary]
 == Glossary
