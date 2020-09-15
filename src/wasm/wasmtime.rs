@@ -4,9 +4,9 @@ use crate::wasm::Error;
 use std::convert::TryInto;
 use wasmtime::Instance;
 
-const EXPORTED_MEMORY: &'static str = "io";
-const ALLOCATE_EXPORT: &'static str = "allocate";
-const RECEIVE_EXPORT: &'static str = "receive";
+const EXPORTED_MEMORY: &str = "io";
+const ALLOCATE_EXPORT: &str = "allocate";
+const RECEIVE_EXPORT: &str = "receive";
 
 impl Guest for Instance {
     /// There is no way for the guest to ensure the host copies the message into the given bytes.
