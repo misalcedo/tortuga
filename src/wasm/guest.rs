@@ -12,5 +12,5 @@ pub trait Guest {
 
     /// Signals to the guest module that a message of the given length in bytes
     /// can be found at the given offset in memory.
-    fn receive(&self, offset: u32, length: u32) -> Result<(), Error>;
+    fn receive(&self, uuid: u128, offset: u32, length: u32) -> Result<(), Error>;
 }

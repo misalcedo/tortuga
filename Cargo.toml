@@ -15,5 +15,6 @@ lto = true
 
 [dependencies]
 anyhow = "1.0"
+uuid = { version = "0.8", features = ["serde", "v4"] }
 thiserror = "1.0"
 wasmtime = "0.19.0"

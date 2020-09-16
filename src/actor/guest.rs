@@ -7,12 +7,12 @@ impl<T> Actor for T
 where
     T: Guest,
 {
-    fn receive(&self, message: &[u8]) -> Result<(), Error> {
+    fn receive(&self, source: u128, message: &[u8]) -> Result<(), Error> {
         let length = message.len().try_into()?;
         let offset = self.allocate(length)?;
 
         self.write(offset, message)?;
 
-        Ok(self.receive(offset, length)?)
+        Ok(self.receive(source, offset, length)?)
     }
 }

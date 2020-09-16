@@ -1,6 +1,6 @@
 use crate::wasm::guest::Guest;
 use crate::wasm::Error;
-use wasmtime::Instance;
+use wasmtime::{ExternRef, Instance};
 
 const EXPORTED_MEMORY: &str = "io";
 const ALLOCATE_EXPORT: &str = "allocate";
@@ -35,14 +35,17 @@ impl Guest for Instance {
 
     /// Receives a message from another actor. The system makes no guarantees about the contents.
     /// The guest implicitly trusts the host to send the previously allocated slice.
-    fn receive(&self, offset: u32, length: u32) -> Result<(), Error> {
+    fn receive(&self, uuid: u128, offset: u32, length: u32) -> Result<(), Error> {
         let module_receive = self
             .get_func(RECEIVE_EXPORT)
             .ok_or_else(|| Error::NoMatchingFunction(String::from(RECEIVE_EXPORT)))?;
 
-        let module_receive = module_receive.get2::<u32, u32, ()>().unwrap();
+        let module_receive = module_receive
+            .get3::<Option<ExternRef>, u32, u32, ()>()
+            .unwrap();
+        let source = ExternRef::new(uuid);
 
-        Ok(module_receive(offset, length)?)
+        Ok(module_receive(Some(source), offset, length)?)
     }
 }
 
@@ -50,16 +53,13 @@ impl Guest for Instance {
 mod tests {
     use crate::wasm::guest::Guest;
     use std::sync::mpsc::channel;
-    use wasmtime::{Engine, Func, Instance, Module, Store};
+    use wasmtime::{Config, Engine, ExternRef, Func, Instance, Module, Store};
 
     #[test]
     fn allocate_happy_case() {
-        let engine = Engine::default();
-        let store = Store::new(&engine);
-
-        let intent: &[u8] = include_bytes!("echo.wat");
-        let module = Module::new(&engine, intent).unwrap();
-        let send = Func::wrap(&store, move |_: u32, _: u32| {
+        let module = create_echo_module();
+        let store = Store::new(module.engine());
+        let send = Func::wrap(&store, move |_: Option<ExternRef>, _: u32, _: u32| {
             panic!("Allocate must not send any messages.")
         });
         let instance = Instance::new(&store, &module, &[send.into()]).unwrap();
@@ -69,33 +69,35 @@ mod tests {
 
     #[test]
     fn receive_happy_case() {
-        let engine = Engine::default();
-        let store = Store::new(&engine);
-
-        let intent: &[u8] = include_bytes!("echo.wat");
-        let module = Module::new(&engine, intent).unwrap();
-
+        let module = create_echo_module();
+        let store = Store::new(module.engine());
         let (sender, receiver) = channel();
-        let send = Func::wrap(&store, move |offset: u32, length: u32| {
-            sender.send((offset, length)).unwrap();
-        });
+        let send = Func::wrap(
+            &store,
+            move |destination: Option<ExternRef>, offset: u32, length: u32| {
+                sender.send((destination, offset, length)).unwrap();
+            },
+        );
 
         let instance = Instance::new(&store, &module, &[send.into()]).unwrap();
 
-        instance.receive(42, 1).unwrap();
+        instance.receive(7, 42, 1).unwrap();
 
-        assert_eq!(receiver.recv(), Ok((42, 1)));
+        let message = receiver.recv().unwrap();
+
+        assert_eq!(
+            message.0.unwrap().data().downcast_ref::<u128>(),
+            Some(7).as_ref()
+        );
+        assert_eq!(message.1, 42);
+        assert_eq!(message.2, 1);
     }
 
     #[test]
-    fn copy_message() {
-        let engine = Engine::default();
-        let store = Store::new(&engine);
-
-        let intent: &[u8] = include_bytes!("echo.wat");
-        let module = Module::new(&engine, intent).unwrap();
-
-        let send = Func::wrap(&store, move |_: u32, _: u32| {
+    fn write_message() {
+        let module = create_echo_module();
+        let store = Store::new(module.engine());
+        let send = Func::wrap(&store, move |_: Option<ExternRef>, _: u32, _: u32| {
             panic!("Copy must not send any messages.")
         });
 
@@ -113,5 +115,16 @@ mod tests {
 
             assert_eq!(message, &data);
         };
+    }
+
+    fn create_echo_module() -> Module {
+        let mut config = Config::new();
+
+        config.wasm_reference_types(true);
+
+        let engine = Engine::new(&config);
+        let intent: &[u8] = include_bytes!("echo.wat");
+
+        Module::new(&engine, intent).unwrap()
     }
 }
