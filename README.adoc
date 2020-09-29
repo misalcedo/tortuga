@@ -46,6 +46,12 @@ An instantiation of an actor's intent in the actor system to process a message. 
 Supervision::
 Actors in an actor system may form a supervision tree. The tree is always rooted in a system-provided root actor. The root actor has children for system actors and user actors. When an actor creates a new actor, the creator becomes the supervisor of the created. On failure to process a message, the supervisor is queried to determine the appropriate action (e.g., create a new continuation and re-process the message, discard the message, etc.).
 
+Host::
+The WebAssembly runtime that instantiates guests for each actor continuation and routes messages.
+
+Guest::
+The guest is an instance of a WebAssembly module with access to the Applicatoin Programming Language (API) of the Tortuga runtime. A guest maps to a continuation of an actor.
+
 == Usage
 To run the system locally, perform the following steps:
 
