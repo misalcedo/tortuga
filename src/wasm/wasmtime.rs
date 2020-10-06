@@ -33,6 +33,18 @@ impl Guest for Instance {
         Ok(())
     }
 
+    fn read(&self, offset: u32, buffer: &mut [u8]) -> Result<(), Error> {
+        let memory = self
+            .get_memory(EXPORTED_MEMORY)
+            .ok_or_else(|| Error::NoMatchingMemory(String::from(EXPORTED_MEMORY)))?;
+
+        unsafe {
+            buffer.copy_from_slice(&memory.data_unchecked()[offset as usize..][..buffer.len()]);
+        }
+
+        Ok(())
+    }
+
     /// Receives a message from another actor. The system makes no guarantees about the contents.
     /// The guest implicitly trusts the host to send the previously allocated slice.
     fn receive(&self, uuid: u128, offset: u32, length: u32) -> Result<(), Error> {
@@ -94,7 +106,7 @@ mod tests {
     }
 
     #[test]
-    fn write_message() {
+    fn read_and_write_message() {
         let module = create_echo_module();
         let store = Store::new(module.engine());
         let send = Func::wrap(&store, move |_: Option<ExternRef>, _: u32, _: u32| {
@@ -109,12 +121,11 @@ mod tests {
 
         instance.write(offset, message).unwrap();
 
-        unsafe {
-            let memory = instance.get_memory("io").unwrap();
-            let data = &memory.data_unchecked()[offset as usize..][..message.len()];
+        let mut data = [0; 13];
 
-            assert_eq!(message, &data);
-        };
+        instance.read(offset, &mut data[..]).unwrap();
+
+        assert_eq!(Vec::from(&message[..]), data);
     }
 
     fn create_echo_module() -> Module {
