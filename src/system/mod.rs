@@ -45,11 +45,19 @@ impl System {
 
         Ok(guest.receive(sender, offset, length)?)
     }
+
+    pub fn register(&self, intent: &[u8]) -> u128 {
+        0
+    }
+
+    pub fn distribute(&self, receipient: u128, sender: u128, message: &[u8]) {
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::system::System;
+    use crate::queue::RingBufferQueue;
     use crate::wasm::Guest;
     use std::sync::mpsc::channel;
     use wasmtime::{ExternRef, Func, Instance};
@@ -85,5 +93,18 @@ mod tests {
             .unwrap();
 
         assert_eq!(b"Pong!\n", &buffer);
+    }
+
+    #[test]
+    fn usability() {
+        let message_distributor = RingBufferQueue::new(3);
+        let mut system = System::new();
+        let ping_intent: &[u8] = include_bytes!("ping.wat");
+        let pong_intent: &[u8] = include_bytes!("pong.wat");
+
+        let ping = system.register(ping_intent);
+        let pong = system.register(pong_intent);
+
+        system.distribute(ping, pong, b"Pong!\n");
     }
 }
