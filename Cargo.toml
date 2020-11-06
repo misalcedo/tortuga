@@ -16,4 +16,4 @@ lto = true
 [dependencies]
 anyhow = "1.0"
 thiserror = "1.0"
-wasmtime = "0.20.0"
+wasmtime = "0.21.0"
