@@ -117,7 +117,7 @@ impl RingBufferQueue {
         let envelope = &mut self.buffer[self.write_index];
 
         // Not an atomic update of the queue.
-        self.size = self.size + 1;
+        self.size += 1;
         self.write_index = (self.write_index + 1) % capacity;
 
         envelope.seal(post_mark, message)
@@ -132,7 +132,7 @@ impl RingBufferQueue {
             let message = envelope.message().unwrap();
 
             // Not an atomic update of the queue.
-            self.size = self.size - 1;
+            self.size -= 1;
             self.read_index = (self.read_index + 1) % self.buffer.len();
 
             Some((post_mark, Cow::from(message)))
