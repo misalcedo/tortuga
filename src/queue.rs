@@ -1,18 +1,14 @@
-
 use std::borrow::Cow;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct PostMark {
     sender: u128,
-    receipient: u128
+    recipient: u128,
 }
 
 impl PostMark {
-    fn new(sender: u128, receipient: u128) -> PostMark {
-        PostMark {
-            sender,
-            receipient
-        }
+    fn new(sender: u128, recipient: u128) -> PostMark {
+        PostMark { sender, recipient }
     }
 }
 
@@ -22,23 +18,25 @@ impl PostMark {
 /// is the actual number of bytes used by the message.
 // If the post mark field is empty, the message in the envelope is invalid.
 pub struct Envelope {
-    post_mark: Option<PostMark>, 
+    post_mark: Option<PostMark>,
     message: [u8; 8192],
-    length: usize
+    length: usize,
 }
 
 impl Envelope {
     fn new() -> Envelope {
         Envelope {
-            post_mark: None, 
+            post_mark: None,
             message: [0u8; 8192],
-            length: 8192
+            length: 8192,
         }
     }
 
     fn seal(&mut self, post_mark: PostMark, message: &[u8]) -> Result<(), String> {
         if message.len() > self.message.len() {
-            return Err(String::from("Cannot seal envelope as the message to send is too large."));
+            return Err(String::from(
+                "Cannot seal envelope as the message to send is too large.",
+            ));
         }
 
         self.post_mark = Some(post_mark);
@@ -49,10 +47,9 @@ impl Envelope {
     }
 
     fn message(&self) -> Option<&[u8]> {
-        if (self.post_mark.is_some()) {
+        if self.post_mark.is_some() {
             Some(&self.message[..self.length])
-        }
-        else {
+        } else {
             None
         }
     }
@@ -71,7 +68,7 @@ pub struct RingBufferQueue {
     read_index: usize,
     write_index: usize,
     buffer: Vec<Envelope>,
-    size: usize
+    size: usize,
 }
 
 impl RingBufferQueue {
@@ -81,20 +78,22 @@ impl RingBufferQueue {
         for i in 0..capacity {
             buffer.push(Envelope::new());
         }
-        
+
         RingBufferQueue {
             buffer,
             read_index: 0,
             write_index: 0,
-            size: 0
+            size: 0,
         }
     }
 
     pub fn push(&mut self, post_mark: PostMark, message: &[u8]) -> Result<(), String> {
         if self.is_full() {
-            return Err(String::from("Writer has caught up to reader. Need t read more to free space for the writer."));
+            return Err(String::from(
+                "Writer has caught up to reader. Need t read more to free space for the writer.",
+            ));
         }
-        
+
         let capacity = self.buffer.len();
         let envelope = &mut self.buffer[self.write_index];
 
@@ -122,7 +121,7 @@ impl RingBufferQueue {
     }
 
     /// Determines whether the queue is full or if the queue is empty.
-    /// When the read and write index are equal, 
+    /// When the read and write index are equal,
     /// the queue is either full or empty and we can determine which by either keeping count or checking the contents.
     fn is_full(&self) -> bool {
         self.write_index == self.read_index && self.size != 0
@@ -138,11 +137,11 @@ mod tests {
         let message = b"Hi!";
         let post_mark = PostMark::new(42, 7);
         let mut queue = RingBufferQueue::new(3);
-        
+
         let result = queue.push(post_mark, message);
 
         assert!(result.is_ok());
-        
+
         let (actual_post_mark, actual_message) = queue.pop().unwrap();
 
         assert_eq!(post_mark, actual_post_mark);
@@ -154,10 +153,42 @@ mod tests {
         let message = b"Hi!";
         let post_mark = PostMark::new(42, 7);
         let mut queue = RingBufferQueue::new(1);
-        
-        let result = queue.push(post_mark, message);
-        let result = queue.push(post_mark, message);
 
+        let result = queue.push(post_mark, message);
+        assert!(result.is_ok());
+
+        let result = queue.push(post_mark, message);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn push_pop_multiple_messages() {
+        let mut queue = RingBufferQueue::new(3);
+
+        for i in 1..10 {
+            let message = b"Hi!";
+            let post_mark = PostMark::new(42 * i, 7 * i);
+            let result = queue.push(post_mark, message);
+
+            assert!(
+                result.is_ok(),
+                "Unable to push message {} to the ring buffer.",
+                i
+            );
+
+            let (actual_post_mark, actual_message) = queue.pop().unwrap();
+
+            assert_eq!(
+                post_mark, actual_post_mark,
+                "Post mark of message {} does not match the expected.",
+                i
+            );
+            assert_eq!(
+                message[..],
+                actual_message[..],
+                "Content of message {} does not match the expected.",
+                i
+            );
+        }
     }
 }
