@@ -8,4 +8,6 @@ pub enum Error {
     WriteFailed(#[from] crate::wasm::Error),
     #[error("WASM runtime encountered an error.")]
     AnyHow(#[from] anyhow::Error),
+    #[error("Encountered an unknown error. Message: {0}.")]
+    Wrapped(String),
 }

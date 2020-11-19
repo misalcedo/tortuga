@@ -11,6 +11,14 @@ impl PostMark {
     pub fn new(sender: u128, recipient: u128) -> PostMark {
         PostMark { sender, recipient }
     }
+
+    pub fn sender(&self) -> u128 {
+        self.sender
+    }
+
+    pub fn recipient(&self) -> u128 {
+        self.recipient
+    }
 }
 
 // 2 ^ 13 == 8 kibibytes.
@@ -136,6 +144,11 @@ impl RingBufferQueue {
     /// We can determine which by either keeping count or checking the contents.
     pub fn is_full(&self) -> bool {
         self.write_index == self.read_index && self.size != 0
+    }
+
+    /// Predicate to test if the queue is empty.
+    pub fn is_empty(&self) -> bool {
+        self.size == 0
     }
 }
 
