@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::fmt::{Debug, Formatter};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct PostMark {
@@ -7,7 +8,7 @@ pub struct PostMark {
 }
 
 impl PostMark {
-    fn new(sender: u128, recipient: u128) -> PostMark {
+    pub fn new(sender: u128, recipient: u128) -> PostMark {
         PostMark { sender, recipient }
     }
 }
@@ -17,14 +18,24 @@ impl PostMark {
 /// The length of the message is the capacity, whereas the length property of the envelope
 /// is the actual number of bytes used by the message.
 // If the post mark field is empty, the message in the envelope is invalid.
+#[derive(Clone, Copy)]
 pub struct Envelope {
     post_mark: Option<PostMark>,
     message: [u8; 8192],
     length: usize,
 }
 
+impl Debug for Envelope {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Envelope")
+            .field("post_mark", &self.post_mark.as_ref())
+            .field("length", &self.length)
+            .finish()
+    }
+}
+
 impl Envelope {
-    fn new() -> Envelope {
+    pub fn new() -> Envelope {
         Envelope {
             post_mark: None,
             message: [0u8; 8192],
@@ -32,7 +43,7 @@ impl Envelope {
         }
     }
 
-    fn seal(&mut self, post_mark: PostMark, message: &[u8]) -> Result<(), String> {
+    pub fn seal(&mut self, post_mark: PostMark, message: &[u8]) -> Result<(), String> {
         if message.len() > self.message.len() {
             return Err(String::from(
                 "Cannot seal envelope as the message to send is too large.",
@@ -121,9 +132,9 @@ impl RingBufferQueue {
     }
 
     /// Determines whether the queue is full or if the queue is empty.
-    /// When the read and write index are equal,
-    /// the queue is either full or empty and we can determine which by either keeping count or checking the contents.
-    fn is_full(&self) -> bool {
+    /// When the read and write indexes are equal the queue is either full or empty.
+    /// We can determine which by either keeping count or checking the contents.
+    pub fn is_full(&self) -> bool {
         self.write_index == self.read_index && self.size != 0
     }
 }
@@ -166,9 +177,10 @@ mod tests {
         let mut queue = RingBufferQueue::new(3);
 
         for i in 1..10 {
-            let message = b"Hi!";
+            let message = format!("Hi {}!", i);
+            let bytes = message.as_bytes();
             let post_mark = PostMark::new(42 * i, 7 * i);
-            let result = queue.push(post_mark, message);
+            let result = queue.push(post_mark, bytes);
 
             assert!(
                 result.is_ok(),
@@ -184,7 +196,7 @@ mod tests {
                 i
             );
             assert_eq!(
-                message[..],
+                bytes[..],
                 actual_message[..],
                 "Content of message {} does not match the expected.",
                 i
