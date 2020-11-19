@@ -94,7 +94,7 @@ impl RingBufferQueue {
     pub fn new(capacity: usize) -> RingBufferQueue {
         let mut buffer = Vec::with_capacity(capacity);
 
-        for i in 0..capacity {
+        for _ in 0..capacity {
             buffer.push(Envelope::new());
         }
 
