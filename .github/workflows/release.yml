@@ -2,6 +2,7 @@ on:
   push:
     tags:
       - "v*" # Run when tag matches v*, i.e. v1.0, v20.15.10
+  workflow_dispatch: {}
 
 name: Release
 
@@ -95,6 +96,11 @@ jobs:
         with:
           name: ${{ matrix.build }}
           path: ./${{ env.RELEASE_DIR }}
+      - name: Publish to Crates.io
+        if: matrix.rust && matrix.build == 'linux'
+        run: |
+          cargo login ${{ secrets.CRATES_IO_TOKEN }}
+          cargo publish
 
   release:
     name: GitHub Release
