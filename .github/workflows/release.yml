@@ -96,12 +96,22 @@ jobs:
         with:
           name: ${{ matrix.build }}
           path: ./${{ env.RELEASE_DIR }}
-      - name: Publish to Crates.io
-        if: matrix.rust && matrix.build == 'linux'
+          
+  publish:
+    name: Pulish to crates.io
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        run: |
+          rustup update stable --no-self-update
+          rustup default stable
+      - name: Publish
         run: |
           cargo login ${{ secrets.CRATES_IO_TOKEN }}
           cargo publish
-
+          
   release:
     name: GitHub Release
     needs: build
