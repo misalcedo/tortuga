@@ -109,7 +109,6 @@ jobs:
           rustup default stable
       - name: Publish
         run: |
-          rm -f Cargo.lock
           cargo login ${{ secrets.CRATES_IO_TOKEN }}
           cargo publish
           
