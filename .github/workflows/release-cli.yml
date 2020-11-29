@@ -3,6 +3,8 @@ on:
     types: [closed]
     tags:
       - "v*" # Run when tag matches v*, i.e. v1.0, v20.15.10
+    paths:
+      - 'tortuga-cli/**'
   workflow_dispatch: {}
 
 name: Release
@@ -56,6 +58,8 @@ jobs:
       - name: Install p7zip (MacOS)
         if: matrix.build == 'macos'
         run: brew install p7zip
+      - name: Change Directory
+        run: cd ${{ env.RELEASE_BIN }}
       - name: Build (Linux)
         if: matrix.build == 'linux'
         run: |
@@ -104,6 +108,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - name: Change Directory
+        run: cd ${{ env.RELEASE_BIN }}
       - name: Install Rust
         run: |
           rustup update stable --no-self-update
