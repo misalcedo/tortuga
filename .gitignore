@@ -1,3 +1,5 @@
 **/target
 **/*.rs.bk
 /.idea
+tortuga-guest/Cargo.lock
+tortuga-runtime/Cargo.lock
