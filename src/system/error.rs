@@ -12,4 +12,6 @@ pub enum Error {
     Wrapped(String),
     #[error("No module registered for {0}.")]
     ModuleNotFound(u128),
+    #[error("No module registered with the name {0}.")]
+    ModuleNotFoundByName(String),
 }

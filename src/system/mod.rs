@@ -3,7 +3,7 @@ use std::convert::TryInto;
 use std::sync::{Arc, Mutex};
 
 use uuid::Uuid;
-use wasmtime::{Caller, Config, Engine, ExternRef, Func, Instance, Module, Store};
+use wasmtime::{Caller, Config, Engine, ExternRef, Func, Instance, Module, Store, Linker};
 
 pub use error::Error;
 
@@ -15,6 +15,7 @@ mod error;
 pub struct System {
     engine: Engine,
     modules: HashMap<u128, Module>,
+    identifiers: HashMap<String, u128>,
     queue: Arc<Mutex<RingBufferQueue>>,
 }
 
@@ -38,63 +39,115 @@ impl System {
         let engine = Engine::new(&config);
         let queue = Arc::new(Mutex::new(RingBufferQueue::new(capacity)));
         let modules = HashMap::new();
+        let identifiers = HashMap::new();
 
-        System { engine, queue, modules }
+        System { engine, queue, modules, identifiers }
     }
 
-    fn register_module(&mut self, name: &str, id: u128, intent: &[u8]) -> Result<Option<Module>, Error> {
+    /// Registers an intent by a given name.
+    /// Overrides existing intents for the name; the internal identifier for the name remains the same.
+    fn register_module(&mut self, name: &str, intent: &[u8]) -> Result<u128, Error> {
         let module = Module::new_with_name(&self.engine, intent, name)?;
+        let identifier = self.identifiers.entry(name.to_string())
+            .or_insert_with(|| Uuid::new_v4().as_u128());
 
-        Ok(self.modules.insert(id, module))
+        self.modules.insert(*identifier, module);
+
+        Ok(*identifier)
     }
 
-    fn module(&self, id: u128) -> Option<&Module> {
+    fn module_by_identifier(&self, id: u128) -> Option<&Module> {
         self.modules.get(&id)
     }
 
+    fn module_by_name(&self, name: &str) -> Option<u128> {
+        self.identifiers.get(name).copied()
+    }
+
     fn instance(&self, identifier: u128) -> Result<Instance, Error> {
-        let module = self.module(identifier)
+        let module = self.module_by_identifier(identifier)
             .ok_or_else(|| Error::ModuleNotFound(identifier))?;
 
         let store = Store::new(&self.engine);
+        let mut linker = Linker::new(&store);
+
+        linker.define("system", "send", self.export_reply_send(identifier, &store))?;
+
+        for import in module.imports() {
+            if linker.get(&import).is_some() {
+                // Skip system send.
+                continue;
+            }
+
+            let child = self.module_by_name(import.module())
+                .ok_or_else(|| Error::ModuleNotFoundByName(import.module().to_string()))?;
+
+            let send = self.export_child_send(identifier, child, &store);
+            linker.define(import.module(), import.name(), send)?;
+        }
+
+        Ok(linker.instantiate(module)?)
+    }
+
+    /// Defines the system export used by guests to reply to messages.
+    fn export_reply_send(&self, sender: u128, store: &Store) -> Func {
         let lock = self.queue.clone();
-        let send = Func::wrap(
+
+        Func::wrap(
             &store,
             move |caller: Caller<'_>, destination: Option<ExternRef>, offset: u32, length: u32| {
                 // TODO: need to expose the array of the next position in the ring during a push operation. Otherwise, every actor instance needs to have its own buffer.
-                let mut buffer = [0u8; 8192];
-                caller.read(offset, &mut buffer[..length as usize]).unwrap();
 
                 if let Some(external_reference) = destination {
                     let recipient = external_reference.data().downcast_ref::<u128>();
 
-                    let mut queue = match lock.lock() {
-                        Ok(guard) => guard,
-                        Err(poisoned) => poisoned.into_inner(),
-                    };
-                    queue
-                        .push(
-                            PostMark::new(identifier, *recipient.unwrap()),
-                            &buffer[..length as usize],
-                        )
-                        .unwrap();
+                    if let Some(recipient) = recipient {
+                        System::enqueue(sender, *recipient, lock.clone(), caller, offset, length);
+                    } else {
+                        panic!("Unable to dereference extern reference into a guest identifier.");
+                    }
                 } else {
                     eprintln!(
                         "Actor instance {} sent a message of {} bytes with no intended recipient.",
-                        identifier, length
+                        sender, length
                     );
                 }
             },
-        );
+        )
+    }
 
-        Ok(Instance::new(&store, module, &[send.into()])?)
+    /// Defines the system export used by guests to send a message to a child guest.
+    fn export_child_send(&self, sender: u128, recipient: u128, store: &Store) -> Func {
+        let lock = self.queue.clone();
+
+        Func::wrap(
+            &store,
+            move |caller: Caller<'_>, offset: u32, length: u32| System::enqueue(sender, recipient, lock.clone(), caller, offset, length),
+        )
+    }
+
+    fn enqueue(sender: u128, recipient: u128, lock: Arc<Mutex<RingBufferQueue>>, caller: Caller, offset: u32, length: u32) {
+        // TODO: need to expose the array of the next position in the ring during a push operation. Otherwise, every actor instance needs to have its own buffer.
+
+        let mut buffer = [0u8; 8192];
+        caller.read(offset, &mut buffer[..length as usize]).unwrap();
+
+        let mut queue = match lock.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+
+        queue
+            .push(
+                PostMark::new(sender, recipient),
+                &buffer[..length as usize],
+            )
+            .unwrap();
     }
 
     /// Registers a guest intent with the system under a given name.
     pub fn register(&mut self, name: &str, intent: &[u8]) -> Result<u128, Error> {
-        let identifier = Uuid::new_v4().as_u128();
-
-        self.register_module(name, identifier, intent)?;
+        let identifier = self.register_module(name, intent)?;
 
         Ok(identifier)
     }
