@@ -1,5 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use tortuga::System;
+use tortuga_runtime::System;
 
 pub fn criterion_benchmark(c: &mut Criterion) {
     let mut system = System::new(1);
