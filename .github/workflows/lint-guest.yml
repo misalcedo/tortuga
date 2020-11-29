@@ -4,6 +4,10 @@ on:
   pull_request:
     paths:
       - 'tortuga-guest/**'
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/ling-guest.yml'
 
 jobs:
   rustfmt:

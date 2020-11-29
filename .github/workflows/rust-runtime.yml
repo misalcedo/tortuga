@@ -5,6 +5,7 @@ on:
     branches: [ main ]
     paths:
       - 'tortuga-runtime/**'
+      - '.github/workflows/rust-runtime.yml'
   pull_request:
     paths:
       - 'tortuga-runtime/**'

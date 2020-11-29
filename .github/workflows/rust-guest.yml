@@ -5,6 +5,7 @@ on:
     branches: [ main ]
     paths:
       - 'tortuga-guest/**'
+      - '.github/workflows/rust-guest.yml'
   pull_request:
     paths:
       - 'tortuga-guest/**'

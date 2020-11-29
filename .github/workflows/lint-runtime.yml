@@ -4,6 +4,10 @@ on:
   pull_request:
     paths:
       - 'tortuga-runtime/**'
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/ling-runtime.yml'
 
 jobs:
   rustfmt:
