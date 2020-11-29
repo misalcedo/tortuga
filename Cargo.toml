@@ -1,13 +1,13 @@
 [package]
 name = "tortuga"
 description = "An actor-based programming language."
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Miguel D. Salcedo <miguel@salcedo.cc>"]
 edition = "2018"
 license = "Apache-2.0"
 homepage = "https://github.com/misalcedo/tortuga"
 repository = "https://github.com/misalcedo/tortuga"
-documentation = "https://docs.rs/tortuga/0.1.1/tortuga/"
+documentation = "https://docs.rs/tortuga"
 autoexamples = false
 
 [profile.release]
