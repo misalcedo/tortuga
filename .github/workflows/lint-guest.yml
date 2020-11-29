@@ -24,9 +24,9 @@ jobs:
           rustup default stable
           rustup component add rustfmt
           rustup component add clippy
-      - name: Change Directory
-        run: cd ${{ env.CRATE_NAME }}
       - name: Check Formatting
+        working-directory: ${{ env.CRATE_NAME }}
         run: cargo fmt --all -- --check
       - name: Check for idiomatic code
+        working-directory: ${{ env.CRATE_NAME }}
         run: cargo clippy --all --all-features -- -D warnings

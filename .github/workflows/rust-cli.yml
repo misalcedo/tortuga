@@ -37,11 +37,11 @@ jobs:
         run: |
           rustup update ${{ matrix.rust }} --no-self-update 
           rustup default ${{ matrix.rust }}
-      - name: Change Directory
-        run: cd ${{ env.CRATE_NAME }}
       - name: Build
+        working-directory: ${{ env.CRATE_NAME }}
         run: cargo build --verbose
       - name: Run tests
+        working-directory: ${{ env.CRATE_NAME }}
         run: cargo test --verbose
         env:
           RUST_BACKTRACE: 1

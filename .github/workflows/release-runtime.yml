@@ -47,18 +47,19 @@ jobs:
       - name: Install p7zip (MacOS)
         if: matrix.build == 'macos'
         run: brew install p7zip
-      - name: Change Directory
-        run: cd ${{ env.CRATE_NAME }}
       - name: Build (Linux)
         if: matrix.build == 'linux'
+        working-directory: ${{ env.CRATE_NAME }}
         run: |
           rustup target add ${{ env.LINUX_TARGET }}
           cargo build --release --target ${{ env.LINUX_TARGET }}
       - name: Build (MacOS)
         if: matrix.build == 'macos'
+        working-directory: ${{ env.CRATE_NAME }}
         run: cargo build --release
       - name: Build (Windows)
         if: matrix.build == 'windows'
+        working-directory: ${{ env.CRATE_NAME }}
         run: cargo build --release
         env:
           RUSTFLAGS: -Ctarget-feature=+crt-static
@@ -73,9 +74,8 @@ jobs:
         run: |
           rustup update stable --no-self-update
           rustup default stable
-      - name: Change Directory
-        run: cd ${{ env.CRATE_NAME }}
       - name: Publish
+        working-directory: ${{ env.CRATE_NAME }}
         run: |
           cargo login ${{ secrets.CRATES_IO_TOKEN }}
           cargo publish
