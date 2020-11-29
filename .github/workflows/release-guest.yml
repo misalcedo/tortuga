@@ -7,7 +7,7 @@ on:
       - 'tortuga-guest/**'
   workflow_dispatch: {}
 
-name: Release
+name: Release - Guest
 
 env:
   WINDOWS_TARGET: x86_64-pc-windows-msvc

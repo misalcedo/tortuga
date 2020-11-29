@@ -7,7 +7,7 @@ on:
       - 'tortuga-cli/**'
   workflow_dispatch: {}
 
-name: Release
+name: Release - CLI
 
 env:
   RELEASE_BIN: tortuga

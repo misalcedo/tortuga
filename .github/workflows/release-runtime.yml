@@ -7,7 +7,7 @@ on:
       - 'tortuga-runtime/**'
   workflow_dispatch: {}
 
-name: Release
+name: Release - Runtime
 
 env:
   WINDOWS_TARGET: x86_64-pc-windows-msvc
