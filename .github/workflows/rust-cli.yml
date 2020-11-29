@@ -11,6 +11,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  CRATE_NAME: tortuga-cli
 
 jobs:
   build:
@@ -35,6 +36,8 @@ jobs:
         run: |
           rustup update ${{ matrix.rust }} --no-self-update 
           rustup default ${{ matrix.rust }}
+      - name: Change Directory
+        run: cd ${{ env.CRATE_NAME }}
       - name: Build
         run: cargo build --verbose
       - name: Run tests
