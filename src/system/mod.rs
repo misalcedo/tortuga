@@ -246,4 +246,19 @@ mod tests {
         assert_eq!(envelope.0, PostMark::new(ping, pong));
         assert_eq!(envelope.1.as_ref(), b"Ping!\n");
     }
+
+    #[test]
+    fn partial_register() {
+        let mut system = System::new(1);
+
+        let ping = system.register("ping", include_bytes!("ping.wat")).unwrap();
+
+        system.distribute(ping, 0, b"Pong!\n").unwrap();
+
+        let result = system.run_step();
+        assert!(result.is_err());
+
+        let queue = system.queue.lock().unwrap();
+        assert!(queue.is_empty());
+    }
 }
