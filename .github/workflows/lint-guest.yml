@@ -7,7 +7,7 @@ on:
   push:
     branches: [ main ]
     paths:
-      - '.github/workflows/ling-guest.yml'
+      - '.github/workflows/lint-guest.yml'
 
 jobs:
   rustfmt:

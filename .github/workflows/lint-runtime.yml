@@ -7,7 +7,7 @@ on:
   push:
     branches: [ main ]
     paths:
-      - '.github/workflows/ling-runtime.yml'
+      - '.github/workflows/lint-runtime.yml'
 
 jobs:
   rustfmt:
