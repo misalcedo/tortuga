@@ -1,8 +1,9 @@
+use std::collections::HashMap;
 use std::convert::TryInto;
 use std::sync::{Arc, Mutex};
 
 use uuid::Uuid;
-use wasmtime::{Caller, Config, Engine, Extern, ExternRef, Func, Instance, Linker, Module, Store};
+use wasmtime::{Caller, Config, Engine, ExternRef, Func, Instance, Module, Store};
 
 pub use error::Error;
 
@@ -12,13 +13,14 @@ use crate::wasm::Guest;
 mod error;
 
 pub struct System {
-    linker: Linker,
+    engine: Engine,
+    modules: HashMap<u128, Module>,
     queue: Arc<Mutex<RingBufferQueue>>,
 }
 
 enum GuestWrite {
     Guest {
-        id: String,
+        instance: Instance,
         sender: u128,
         offset: u32,
         length: u32,
@@ -34,38 +36,30 @@ impl System {
         config.wasm_reference_types(true);
 
         let engine = Engine::new(&config);
-        let store = Store::new(&engine);
-        let linker = Linker::new(&store);
         let queue = Arc::new(Mutex::new(RingBufferQueue::new(capacity)));
+        let modules = HashMap::new();
 
-        System { linker, queue }
+        System { engine, queue, modules }
     }
 
-    fn store(&self) -> &Store {
-        &self.linker.store()
+    fn register_module(&mut self, name: &str, id: u128, intent: &[u8]) -> Result<Option<Module>, Error> {
+        let module = Module::new_with_name(&self.engine, intent, name)?;
+
+        Ok(self.modules.insert(id, module))
     }
 
-    fn engine(&self) -> &Engine {
-        self.store().engine()
+    fn module(&self, id: u128) -> Option<&Module> {
+        self.modules.get(&id)
     }
 
-    fn module(&self, intent: &[u8]) -> Result<Module, Error> {
-        Ok(Module::new(self.engine(), intent)?)
-    }
+    fn instance(&self, identifier: u128) -> Result<Instance, Error> {
+        let module = self.module(identifier)
+            .ok_or_else(|| Error::ModuleNotFound(identifier))?;
 
-    fn instance(&self, module: &Module, imports: &[Extern]) -> Result<Instance, Error> {
-        Ok(Instance::new(&self.store(), module, imports)?)
-    }
-
-    pub fn register(&mut self, name: &str, intent: &[u8]) -> Result<u128, Error> {
-        let module = self.module(intent).unwrap();
-        let uuid = Uuid::new_v4();
-        let id = uuid.as_u128();
-
+        let store = Store::new(&self.engine);
         let lock = self.queue.clone();
-
         let send = Func::wrap(
-            self.store(),
+            &store,
             move |caller: Caller<'_>, destination: Option<ExternRef>, offset: u32, length: u32| {
                 // TODO: need to expose the array of the next position in the ring during a push operation. Otherwise, every actor instance needs to have its own buffer.
                 let mut buffer = [0u8; 8192];
@@ -80,29 +74,33 @@ impl System {
                     };
                     queue
                         .push(
-                            PostMark::new(id, *recipient.unwrap()),
+                            PostMark::new(identifier, *recipient.unwrap()),
                             &buffer[..length as usize],
                         )
                         .unwrap();
                 } else {
                     eprintln!(
                         "Actor instance {} sent a message of {} bytes with no intended recipient.",
-                        id, length
+                        identifier, length
                     );
                 }
             },
         );
 
-        let instance = self.instance(&module, &[send.into()])?;
-        let uuid = uuid.to_string();
+        Ok(Instance::new(&store, module, &[send.into()])?)
+    }
 
-        self.linker.instance(uuid.as_str(), &instance)?;
-        self.linker.alias(uuid.as_str(), name);
+    /// Registers a guest intent with the system under a given name.
+    pub fn register(&mut self, name: &str, intent: &[u8]) -> Result<u128, Error> {
+        let identifier = Uuid::new_v4().as_u128();
 
-        Ok(id)
+        self.register_module(name, identifier, intent)?;
+
+        Ok(identifier)
     }
 
     //TODO: Need to add interrupts to stop running code that runs too long.
+    /// Queues a message in the system.
     pub fn distribute(&self, recipient: u128, sender: u128, message: &[u8]) -> Result<(), Error> {
         let post_mark = PostMark::new(sender, recipient);
 
@@ -113,23 +111,25 @@ impl System {
         queue.push(post_mark, message).map_err(Error::Wrapped)
     }
 
-    // TODO: return different values for empty queue versus the queue with an envelope.
-    pub fn run_step(&self) -> Result<(), Error> {
+    /// Processes a single message from the queue.
+    /// Returns false if the queue is empty, true otherwise.
+    pub fn run_step(&self) -> Result<bool, Error> {
         if let GuestWrite::Guest {
-            id,
+            instance,
             sender,
             offset,
             length,
         } = self.send()?
         {
-            let guest = &(id.as_str(), &self.linker);
-
-            Ok(guest.receive(sender, offset, length)?)
+            instance.receive(sender, offset, length)?;
+            Ok(true)
         } else {
-            Ok(())
+            Ok(false)
         }
     }
 
+    /// Writes the message to the guest memory.
+    /// Does not trigger the guest to receive the message.
     fn send(&self) -> Result<GuestWrite, Error> {
         let mut queue = match self.queue.lock() {
             Ok(guard) => guard,
@@ -142,8 +142,7 @@ impl System {
 
         let (post_mark, message) = queue.pop().unwrap();
 
-        let recipient = Uuid::from_u128(post_mark.recipient()).to_string();
-        let guest = &(recipient.as_str(), &self.linker);
+        let guest = self.instance(post_mark.recipient())?;
 
         let length = message.len().try_into()?;
         let offset = guest.allocate(length)?;
@@ -151,7 +150,7 @@ impl System {
         guest.write(offset, message.as_ref())?;
 
         Ok(GuestWrite::Guest {
-            id: recipient,
+            instance: guest,
             sender: post_mark.sender(),
             offset,
             length,

@@ -10,4 +10,6 @@ pub enum Error {
     AnyHow(#[from] anyhow::Error),
     #[error("Encountered an unknown error. Message: {0}.")]
     Wrapped(String),
+    #[error("No module registered for {0}.")]
+    ModuleNotFound(u128),
 }
