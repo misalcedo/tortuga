@@ -9,6 +9,9 @@ on:
     paths:
       - '.github/workflows/lint-guest.yml'
 
+env:
+  CRATE_NAME: tortuga-guest
+
 jobs:
   rustfmt:
     name: Formatter
@@ -21,6 +24,8 @@ jobs:
           rustup default stable
           rustup component add rustfmt
           rustup component add clippy
+      - name: Change Directory
+        run: cd ${{ env.CRATE_NAME }}
       - name: Check Formatting
         run: cargo fmt --all -- --check
       - name: Check for idiomatic code
