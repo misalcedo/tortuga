@@ -74,6 +74,17 @@ impl System {
         linker.define("system", "send", self.export_reply_send(identifier, &store))?;
 
         for import in module.imports() {
+            if !"send".eq(import.name()) {
+                // Skip any import that is not sending a message.
+                eprintln!(
+                    "Skipping linking of import {}/{} for guest {}.",
+                    import.module(),
+                    import.name(),
+                    identifier
+                );
+                continue;
+            }
+
             if linker.get(&import).is_some() {
                 // Skip system send.
                 continue;
@@ -223,7 +234,7 @@ mod tests {
         let ping = system.register("ping", include_bytes!("ping.wat")).unwrap();
         let pong = system.register("pong", include_bytes!("pong.wat")).unwrap();
 
-        system.distribute(ping, pong, b"Pong!\n").unwrap();
+        system.distribute(ping, 0, b"Pong!\n").unwrap();
 
         for i in 1..10 {
             system.run_step().unwrap();
