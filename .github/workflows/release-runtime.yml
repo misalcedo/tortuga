@@ -5,7 +5,6 @@ on:
       - "v*" # Run when tag matches v*, i.e. v1.0, v20.15.10
     paths:
       - 'tortuga-runtime/**'
-      - '.github/workflows/release-runtime.yml'
   workflow_dispatch: {}
 
 name: Release
