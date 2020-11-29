@@ -3,7 +3,7 @@ use std::convert::TryInto;
 use std::sync::{Arc, Mutex};
 
 use uuid::Uuid;
-use wasmtime::{Caller, Config, Engine, ExternRef, Func, Instance, Module, Store, Linker};
+use wasmtime::{Caller, Config, Engine, ExternRef, Func, Instance, Linker, Module, Store};
 
 pub use error::Error;
 
@@ -41,14 +41,21 @@ impl System {
         let modules = HashMap::new();
         let identifiers = HashMap::new();
 
-        System { engine, queue, modules, identifiers }
+        System {
+            engine,
+            queue,
+            modules,
+            identifiers,
+        }
     }
 
     /// Registers an intent by a given name.
     /// Overrides existing intents for the name; the internal identifier for the name remains the same.
     fn register_module(&mut self, name: &str, intent: &[u8]) -> Result<u128, Error> {
         let module = Module::new_with_name(&self.engine, intent, name)?;
-        let identifier = self.identifiers.entry(name.to_string())
+        let identifier = self
+            .identifiers
+            .entry(name.to_string())
             .or_insert_with(|| Uuid::new_v4().as_u128());
 
         self.modules.insert(*identifier, module);
@@ -65,7 +72,8 @@ impl System {
     }
 
     fn instance(&self, identifier: u128) -> Result<Instance, Error> {
-        let module = self.module_by_identifier(identifier)
+        let module = self
+            .module_by_identifier(identifier)
             .ok_or_else(|| Error::ModuleNotFound(identifier))?;
 
         let store = Store::new(&self.engine);
@@ -90,7 +98,8 @@ impl System {
                 continue;
             }
 
-            let child = self.module_by_name(import.module())
+            let child = self
+                .module_by_name(import.module())
                 .ok_or_else(|| Error::ModuleNotFoundByName(import.module().to_string()))?;
 
             let send = self.export_child_send(identifier, child, &store);
@@ -133,11 +142,20 @@ impl System {
 
         Func::wrap(
             &store,
-            move |caller: Caller<'_>, offset: u32, length: u32| System::enqueue(sender, recipient, lock.clone(), caller, offset, length),
+            move |caller: Caller<'_>, offset: u32, length: u32| {
+                System::enqueue(sender, recipient, lock.clone(), caller, offset, length)
+            },
         )
     }
 
-    fn enqueue(sender: u128, recipient: u128, lock: Arc<Mutex<RingBufferQueue>>, caller: Caller, offset: u32, length: u32) {
+    fn enqueue(
+        sender: u128,
+        recipient: u128,
+        lock: Arc<Mutex<RingBufferQueue>>,
+        caller: Caller,
+        offset: u32,
+        length: u32,
+    ) {
         // TODO: need to expose the array of the next position in the ring during a push operation. Otherwise, every actor instance needs to have its own buffer.
 
         let mut buffer = [0u8; 8192];
@@ -149,10 +167,7 @@ impl System {
         };
 
         queue
-            .push(
-                PostMark::new(sender, recipient),
-                &buffer[..length as usize],
-            )
+            .push(PostMark::new(sender, recipient), &buffer[..length as usize])
             .unwrap();
     }
 
@@ -231,8 +246,12 @@ mod tests {
     fn usability() {
         let mut system = System::new(1);
 
-        let ping = system.register("ping", include_bytes!("../../examples/ping.wat")).unwrap();
-        let pong = system.register("pong", include_bytes!("../../examples/pong.wat")).unwrap();
+        let ping = system
+            .register("ping", include_bytes!("../../examples/ping.wat"))
+            .unwrap();
+        let pong = system
+            .register("pong", include_bytes!("../../examples/pong.wat"))
+            .unwrap();
 
         system.distribute(ping, 0, b"Pong!\n").unwrap();
 
@@ -251,7 +270,9 @@ mod tests {
     fn partial_register() {
         let mut system = System::new(1);
 
-        let ping = system.register("ping", include_bytes!("../../examples/ping.wat")).unwrap();
+        let ping = system
+            .register("ping", include_bytes!("../../examples/ping.wat"))
+            .unwrap();
 
         system.distribute(ping, 0, b"Pong!\n").unwrap();
 

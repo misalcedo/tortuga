@@ -4,7 +4,9 @@ use tortuga_runtime::System;
 pub fn criterion_benchmark(c: &mut Criterion) {
     let mut system = System::new(1);
 
-    let echo = system.register("echo", include_bytes!("../examples/echo.wat")).unwrap();
+    let echo = system
+        .register("echo", include_bytes!("../examples/echo.wat"))
+        .unwrap();
 
     system.distribute(echo, echo, b"Hello, World!");
 
