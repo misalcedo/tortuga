@@ -13,6 +13,13 @@ autoexamples = false
 [profile.release]
 lto = true
 
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "single_message"
+harness = false
+
 [dependencies]
 anyhow = "1.0"
 uuid = { version = "0.8", features = ["serde", "v4"] }

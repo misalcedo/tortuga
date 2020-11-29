@@ -260,7 +260,7 @@ mod tests {
         config.wasm_reference_types(true);
 
         let engine = Engine::new(&config);
-        let intent: &[u8] = include_bytes!("echo.wat");
+        let intent: &[u8] = include_bytes!("../../examples/echo.wat");
 
         Module::new(&engine, intent).unwrap()
     }

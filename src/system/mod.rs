@@ -31,7 +31,7 @@ enum GuestWrite {
 
 impl System {
     /// The capacity determines the maximum number of messages the system can buffer.
-    fn new(capacity: usize) -> System {
+    pub fn new(capacity: usize) -> System {
         let mut config = Config::new();
 
         config.wasm_reference_types(true);
@@ -231,8 +231,8 @@ mod tests {
     fn usability() {
         let mut system = System::new(1);
 
-        let ping = system.register("ping", include_bytes!("ping.wat")).unwrap();
-        let pong = system.register("pong", include_bytes!("pong.wat")).unwrap();
+        let ping = system.register("ping", include_bytes!("../../examples/ping.wat")).unwrap();
+        let pong = system.register("pong", include_bytes!("../../examples/pong.wat")).unwrap();
 
         system.distribute(ping, 0, b"Pong!\n").unwrap();
 
@@ -251,7 +251,7 @@ mod tests {
     fn partial_register() {
         let mut system = System::new(1);
 
-        let ping = system.register("ping", include_bytes!("ping.wat")).unwrap();
+        let ping = system.register("ping", include_bytes!("../../examples/ping.wat")).unwrap();
 
         system.distribute(ping, 0, b"Pong!\n").unwrap();
 
