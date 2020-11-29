@@ -57,7 +57,7 @@ impl System {
         Ok(Instance::new(&self.store(), module, imports)?)
     }
 
-    pub fn register(&mut self, intent: &[u8]) -> Result<u128, Error> {
+    pub fn register(&mut self, name: &str, intent: &[u8]) -> Result<u128, Error> {
         let module = self.module(intent).unwrap();
         let uuid = Uuid::new_v4();
         let id = uuid.as_u128();
@@ -94,7 +94,10 @@ impl System {
         );
 
         let instance = self.instance(&module, &[send.into()])?;
-        self.linker.instance(uuid.to_string().as_str(), &instance)?;
+        let uuid = uuid.to_string();
+
+        self.linker.instance(uuid.as_str(), &instance)?;
+        self.linker.alias(uuid.as_str(), name);
 
         Ok(id)
     }
@@ -165,8 +168,8 @@ mod tests {
     fn usability() {
         let mut system = System::new(1);
 
-        let ping = system.register(include_bytes!("ping.wat")).unwrap();
-        let pong = system.register(include_bytes!("pong.wat")).unwrap();
+        let ping = system.register("ping", include_bytes!("ping.wat")).unwrap();
+        let pong = system.register("pong", include_bytes!("pong.wat")).unwrap();
 
         system.distribute(ping, pong, b"Pong!\n").unwrap();
 
