@@ -3,7 +3,11 @@ name: Rust
 on:
   push:
     branches: [ main ]
-  pull_request: {}
+    paths:
+      - 'tortuga-cli/**'
+  pull_request:
+    paths:
+      - 'tortuga-cli/**'
 
 env:
   CARGO_TERM_COLOR: always

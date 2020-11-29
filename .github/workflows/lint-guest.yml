@@ -1,6 +1,9 @@
 name: Linters
 
-on: [pull_request]
+on:
+  pull_request:
+    paths:
+      - 'tortuga-guest/**'
 
 jobs:
   rustfmt:
