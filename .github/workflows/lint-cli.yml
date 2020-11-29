@@ -10,7 +10,7 @@ on:
       - '.github/workflows/lint-cli.yml'
 
 env:
-  CRATE_NAME: tortuga
+  CRATE_NAME: tortuga-cli
 
 jobs:
   rustfmt:
