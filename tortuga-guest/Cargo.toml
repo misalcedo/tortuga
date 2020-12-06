@@ -9,8 +9,18 @@ homepage = "https://github.com/misalcedo/tortuga"
 repository = "https://github.com/misalcedo/tortuga"
 documentation = "https://docs.rs/tortuga-guest"
 
-[profile.dev]
-panic = "abort"
+[[example]]
+name = "add"
+crate-type = ["cdylib"]
 
-[profile.release]
-panic = "abort"
+[[example]]
+name = "echo"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "ping"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "pong"
+crate-type = ["cdylib"]

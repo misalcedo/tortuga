@@ -1,8 +1,3 @@
-#![no_std]
-#![no_main]
-
-use core::panic::PanicInfo;
-
 #[link(wasm_import_module = "system")]
 extern "C" {
     fn send(address: *const u8, length: usize);
@@ -22,9 +17,4 @@ pub unsafe fn receive(address: *const u8, length: usize) {
     *result = total;
 
     send(result as *const u8, 1);
-}
-
-#[panic_handler]
-fn panic(_panic: &PanicInfo<'_>) -> ! {
-    loop {}
 }
