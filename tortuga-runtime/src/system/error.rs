@@ -1,3 +1,4 @@
+use crate::Envelope;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -14,4 +15,6 @@ pub enum Error {
     ModuleNotFound(u128),
     #[error("No module registered with the name {0}.")]
     ModuleNotFoundByName(String),
+    #[error("Unable to send message to MPSC channel.")]
+    FailedExternalSend(#[from] std::sync::mpsc::SendError<Envelope>),
 }

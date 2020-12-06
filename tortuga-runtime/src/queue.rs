@@ -65,9 +65,19 @@ impl Envelope {
         Ok(())
     }
 
-    fn message(&self) -> Option<&[u8]> {
+    /// The message of a sealed envelope. None if the envelope is not sealed.
+    pub fn message(&self) -> Option<&[u8]> {
         if self.post_mark.is_some() {
             Some(&self.message[..self.length])
+        } else {
+            None
+        }
+    }
+
+    /// The postmark of a sealed envelope. None if the envelope is not sealed.
+    pub fn post_mark(&self) -> Option<PostMark> {
+        if let Some(post_mark) = self.post_mark {
+            Some(post_mark)
         } else {
             None
         }
@@ -109,7 +119,7 @@ impl RingBufferQueue {
     pub fn push(&mut self, post_mark: PostMark, message: &[u8]) -> Result<(), String> {
         if self.is_full() {
             return Err(String::from(
-                "Writer has caught up to reader. Need t read more to free space for the writer.",
+                "Writer has caught up to reader. Need to read more to free space for the writer.",
             ));
         }
 
@@ -135,6 +145,8 @@ impl RingBufferQueue {
             self.size -= 1;
             self.read_index = (self.read_index + 1) % self.buffer.len();
 
+            // TODO figure out a way to reset the envelope to empty without copying the message.
+            
             Some((post_mark, Cow::from(message)))
         }
     }
@@ -187,7 +199,7 @@ mod tests {
 
     #[test]
     fn push_pop_multiple_messages() {
-        let mut queue = RingBufferQueue::new(3);
+        let mut queue = RingBufferQueue::new(1);
 
         for i in 1..10 {
             let message = format!("Hi {}!", i);

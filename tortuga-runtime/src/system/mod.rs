@@ -7,8 +7,9 @@ use wasmtime::{Caller, Config, Engine, ExternRef, Func, Instance, Linker, Module
 
 pub use error::Error;
 
-use crate::queue::{PostMark, RingBufferQueue};
+use crate::queue::{Envelope, PostMark, RingBufferQueue};
 use crate::wasm::Guest;
+use std::sync::mpsc::Sender;
 
 mod error;
 
@@ -17,6 +18,7 @@ pub struct System {
     modules: HashMap<u128, Module>,
     identifiers: HashMap<String, u128>,
     queue: Arc<Mutex<RingBufferQueue>>,
+    externals: HashMap<u128, Sender<Envelope>>,
 }
 
 enum GuestWrite {
@@ -26,6 +28,7 @@ enum GuestWrite {
         offset: u32,
         length: u32,
     },
+    External,
     Empty,
 }
 
@@ -40,12 +43,14 @@ impl System {
         let queue = Arc::new(Mutex::new(RingBufferQueue::new(capacity)));
         let modules = HashMap::new();
         let identifiers = HashMap::new();
+        let externals = HashMap::new();
 
         System {
             engine,
             queue,
             modules,
             identifiers,
+            externals,
         }
     }
 
@@ -69,6 +74,14 @@ impl System {
 
     fn module_by_name(&self, name: &str) -> Option<u128> {
         self.identifiers.get(name).copied()
+    }
+
+    fn register_external(&mut self, sender: Sender<Envelope>) -> u128 {
+        let identifier = Uuid::new_v4().as_u128();
+
+        self.externals.insert(identifier, sender);
+
+        identifier
     }
 
     fn instance(&self, identifier: u128) -> Result<Instance, Error> {
@@ -193,17 +206,18 @@ impl System {
     /// Processes a single message from the queue.
     /// Returns false if the queue is empty, true otherwise.
     pub fn run_step(&self) -> Result<bool, Error> {
-        if let GuestWrite::Guest {
-            instance,
-            sender,
-            offset,
-            length,
-        } = self.send()?
-        {
-            instance.receive(sender, offset, length)?;
-            Ok(true)
-        } else {
-            Ok(false)
+        match self.send()? {
+            GuestWrite::Guest {
+                instance,
+                sender,
+                offset,
+                length,
+            } => {
+                instance.receive(sender, offset, length)?;
+                Ok(true)
+            }
+            GuestWrite::External => Ok(true),
+            GuestWrite::Empty => Ok(false),
         }
     }
 
@@ -220,6 +234,15 @@ impl System {
         }
 
         let (post_mark, message) = queue.pop().unwrap();
+
+        if let Some(sender) = self.externals.get(&post_mark.recipient()) {
+            let mut envelope = Envelope::new();
+
+            envelope.seal(post_mark, &message).map_err(Error::Wrapped)?;
+            sender.send(envelope)?;
+
+            return Ok(GuestWrite::External);
+        }
 
         let guest = self.instance(post_mark.recipient())?;
 
@@ -241,6 +264,8 @@ impl System {
 mod tests {
     use crate::queue::PostMark;
     use crate::system::System;
+    use std::sync::mpsc::channel;
+    use std::time::Duration;
 
     #[test]
     fn usability() {
@@ -264,6 +289,26 @@ mod tests {
 
         assert_eq!(envelope.0, PostMark::new(ping, pong));
         assert_eq!(envelope.1.as_ref(), b"Ping!\n");
+    }
+
+    #[test]
+    fn usability_external() {
+        let mut system = System::new(1);
+        let (sender, receiver) = channel();
+        let timeout = Duration::from_millis(10);
+
+        let pong = system
+            .register("pong", include_bytes!("../../examples/pong.wat"))
+            .unwrap();
+        let external = system.register_external(sender);
+
+        system.distribute(pong, external, b"Ping!\n").unwrap();
+        assert!(system.run_step().unwrap());
+        assert!(system.run_step().unwrap());
+
+        let envelope = receiver.recv_timeout(timeout).unwrap();
+        assert_eq!(envelope.post_mark().unwrap(), PostMark::new(pong, external));
+        assert_eq!(envelope.message().unwrap(), b"Pong!\n");
     }
 
     #[test]

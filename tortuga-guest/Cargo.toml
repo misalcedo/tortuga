@@ -9,6 +9,12 @@ homepage = "https://github.com/misalcedo/tortuga"
 repository = "https://github.com/misalcedo/tortuga"
 documentation = "https://docs.rs/tortuga-guest"
 
+[lib]
+crate-type = ['cdylib']
+
+[dev-dependencies]
+tortuga-runtime = "0.1"
+
 [[example]]
 name = "add"
 crate-type = ["cdylib"]
