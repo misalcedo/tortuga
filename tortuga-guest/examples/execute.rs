@@ -1,7 +1,12 @@
 use tortuga_runtime::System;
+use std::sync::mpsc::channel;
+use std::time::Duration;
 
 fn main () {
     let mut system = System::new(9);
+    let (sender, receiver) = channel();
+    let timeout = Duration::from_millis(10);
+
     let add = system
         .register("add", include_bytes!("./target/wasm32-unknown-unknown/debug/examples/add.wasm"))
         .unwrap();
@@ -15,12 +20,15 @@ fn main () {
         .register("pong", include_bytes!("./target/wasm32-unknown-unknown/debug/examples/pong.wasm"))
         .unwrap();
 
-    system.distribute(echo, 0, b"Hello, World!");
-    system.distribute(add, 0, b"Hello, World!");
+    let external = system.register_external(sender);
+
+    system.distribute(echo, external, b"Hello, World!");
+    system.distribute(add, external, b"Hello, World!");
     system.distribute(ping, pong, b"Hello, World!");
 
-    system.run_step();
-    system.run_step();
-    system.run_step();
-    system.run_step();
+    // Run 2 steps for each message distributed.
+    for i in 0..2 {
+        system.run_step();
+        system.run_step();
+    }
 }
