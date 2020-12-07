@@ -12,9 +12,6 @@ documentation = "https://docs.rs/tortuga-guest"
 [lib]
 crate-type = ['cdylib']
 
-[dev-dependencies]
-tortuga-runtime = { path = "../tortuga-runtime", version = "0.1" }
-
 [[example]]
 name = "add"
 crate-type = ["cdylib"]

@@ -12,3 +12,5 @@ documentation = "https://docs.rs/tortuga"
 [profile.release]
 lto = true
 
+[dependencies]
+tortuga-runtime = { path = "../tortuga-runtime", version = "0.1" }

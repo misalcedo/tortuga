@@ -76,7 +76,7 @@ impl System {
         self.identifiers.get(name).copied()
     }
 
-    fn register_external(&mut self, sender: Sender<Envelope>) -> u128 {
+    pub fn register_external(&mut self, sender: Sender<Envelope>) -> u128 {
         let identifier = Uuid::new_v4().as_u128();
 
         self.externals.insert(identifier, sender);
@@ -95,8 +95,8 @@ impl System {
         linker.define("system", "send", self.export_reply_send(identifier, &store))?;
 
         for import in module.imports() {
-            if !"send".eq(import.name()) {
-                // Skip any import that is not sending a message.
+            if "system".eq(import.module()) || !"send".eq(import.name()) {
+                // Skip any import that is not sending a message, or is system module.
                 eprintln!(
                     "Skipping linking of import {}/{} for guest {}.",
                     import.module(),
@@ -106,14 +106,9 @@ impl System {
                 continue;
             }
 
-            if linker.get(&import).is_some() {
-                // Skip system send.
-                continue;
-            }
-
             let child = self
                 .module_by_name(import.module())
-                .ok_or_else(|| Error::ModuleNotFoundByName(import.module().to_string()))?;
+                .ok_or_else(|| Error::ModuleNotFoundByName(import.module().to_string(), import.name().to_string()))?;
 
             let send = self.export_child_send(identifier, child, &store);
             linker.define(import.module(), import.name(), send)?;
