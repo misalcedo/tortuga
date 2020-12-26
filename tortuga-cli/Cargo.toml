@@ -12,3 +12,6 @@ documentation = "https://docs.rs/tortuga"
 [profile.release]
 lto = true
 
+[dependencies]
+nom = { version = "6.0", features = ["regexp"] }
+regex = "1"

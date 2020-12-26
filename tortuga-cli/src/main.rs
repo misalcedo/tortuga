@@ -1,1 +1,3 @@
+mod graphviz;
+
 fn main() {}
