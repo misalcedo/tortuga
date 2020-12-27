@@ -1,16 +1,24 @@
 use crate::html::{parse_html, HtmlElement};
-use regex::Regex;
 use nom::{
-    IResult,
-    bytes::complete::{tag, tag_no_case, take_while},
     branch::alt,
-    combinator::map,
+    bytes::complete::{tag, tag_no_case, take_while},
+    character::complete::{line_ending, multispace0, space0},
+    combinator::{map, opt},
+    multi::{many1, separated_list1},
     regexp::str::re_find,
-    sequence::delimited};
-    
-#[derive(Debug, Eq, PartialEq)]
-struct Graph {
+    sequence::{delimited, pair, preceded, separated_pair, terminated},
+    IResult,
+};
+use regex::Regex;
 
+#[derive(Debug, Eq, PartialEq)]
+struct Graph {}
+
+#[derive(Debug, Eq, PartialEq)]
+enum Kind {
+    Graph,
+    Node,
+    Edge,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -18,15 +26,15 @@ enum Token {
     // [ strict ] (graph | digraph) [ ID ] '{' Statements '}'
     Graph,
     // [ Statement [ ';' ] Statements ]
-    Statements,	
+    Statements,
     // node_stmt | edge_stmt | attr_stmt | ID '=' ID | subgraph
     Statement,
-    // (graph | node | edge) Attributes	
-    Attribute,
-    // '[' [ a_list ] ']' [ Attributes ]
-    Attributes,
+    // (graph | node | edge) AttributeStatements
+    AttributeStatement(Kind),
+    // '[' [ a_list ] ']' [ AttributeStatements ]
+    AttributeStatements,
     // ID '=' ID [ (';' | ',') ] [ a_list ]
-    AList(Identifier),
+    Attributes(Vec<Attribute>),
     // (node_id | subgraph) edgeRHS [ attr_list ]
     Edge,
     // edgeop (node_id | subgraph) [ edgeRHS ]
@@ -40,7 +48,7 @@ enum Token {
     // [ subgraph [ ID ] ] '{' stmt_list '}'
     Subgraph,
     // (n | ne | e | se | s | sw | w | nw | c | _)
-    CompassPointer(CompassDirection)
+    CompassPointer(CompassDirection),
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -48,8 +56,11 @@ enum Identifier {
     Unquoted(String),
     Quoted(String),
     Numeral(String),
-    Html(HtmlElement)
+    Html(HtmlElement),
 }
+
+#[derive(Debug, Eq, PartialEq)]
+struct Attribute(Identifier, Identifier);
 
 #[derive(Debug, Eq, PartialEq)]
 enum CompassDirection {
@@ -63,14 +74,13 @@ enum CompassDirection {
     NorthWest,
     Center,
     Underscore,
-    Any(Identifier)
+    Any(Identifier),
 }
 
 impl Graph {
-  fn new() -> Graph {
-      Graph {
-      }
-  }
+    fn new() -> Graph {
+        Graph {}
+    }
 }
 
 /// Parse a DOT language file into the corresponding graph.
@@ -82,17 +92,39 @@ fn parse(input: &str) -> IResult<&str, Graph> {
 
 fn parse_compass_pointer(input: &str) -> IResult<&str, Token> {
     alt((
-        map(tag_no_case("ne"), |_| Token::CompassPointer(CompassDirection::NorthEast)),
-        map(tag_no_case("se"), |_| Token::CompassPointer(CompassDirection::SouthEast)),
-        map(tag_no_case("sw"), |_| Token::CompassPointer(CompassDirection::SouthWest)),
-        map(tag_no_case("nw"), |_| Token::CompassPointer(CompassDirection::NorthWest)),
-        map(tag_no_case("n"), |_| Token::CompassPointer(CompassDirection::North)),
-        map(tag_no_case("e"), |_| Token::CompassPointer(CompassDirection::East)),
-        map(tag_no_case("s"), |_| Token::CompassPointer(CompassDirection::South)),
-        map(tag_no_case("w"), |_| Token::CompassPointer(CompassDirection::West)),
-        map(tag_no_case("c"), |_| Token::CompassPointer(CompassDirection::Center)),
-        map(tag("_"), |_| Token::CompassPointer(CompassDirection::Underscore)),
-        map(parse_identifier, |i| Token::CompassPointer(CompassDirection::Any(i)))
+        map(tag_no_case("ne"), |_| {
+            Token::CompassPointer(CompassDirection::NorthEast)
+        }),
+        map(tag_no_case("se"), |_| {
+            Token::CompassPointer(CompassDirection::SouthEast)
+        }),
+        map(tag_no_case("sw"), |_| {
+            Token::CompassPointer(CompassDirection::SouthWest)
+        }),
+        map(tag_no_case("nw"), |_| {
+            Token::CompassPointer(CompassDirection::NorthWest)
+        }),
+        map(tag_no_case("n"), |_| {
+            Token::CompassPointer(CompassDirection::North)
+        }),
+        map(tag_no_case("e"), |_| {
+            Token::CompassPointer(CompassDirection::East)
+        }),
+        map(tag_no_case("s"), |_| {
+            Token::CompassPointer(CompassDirection::South)
+        }),
+        map(tag_no_case("w"), |_| {
+            Token::CompassPointer(CompassDirection::West)
+        }),
+        map(tag_no_case("c"), |_| {
+            Token::CompassPointer(CompassDirection::Center)
+        }),
+        map(tag("_"), |_| {
+            Token::CompassPointer(CompassDirection::Underscore)
+        }),
+        map(parse_identifier, |i| {
+            Token::CompassPointer(CompassDirection::Any(i))
+        }),
     ))(input)
 }
 
@@ -103,26 +135,27 @@ fn parse_compass_pointer(input: &str) -> IResult<&str, Token> {
 /// 4. an HTML string (<...>).
 fn parse_identifier(input: &str) -> IResult<&str, Identifier> {
     let html_parser = map(parse_html, |element| Identifier::Html(element));
-    alt((parse_string, parse_numeral, parse_quoted_string, html_parser))(input)
+    alt((
+        parse_string,
+        parse_numeral,
+        parse_quoted_string,
+        html_parser,
+    ))(input)
 }
 
 fn parse_string(input: &str) -> IResult<&str, Identifier> {
     let re = Regex::new(r"^[\p{Alphabetic}_]{1}[\p{Alphabetic}_\d]*").unwrap();
 
-    map(
-        re_find(re),
-        |s| Identifier::Unquoted(String::from(s))
-    )(input)
+    map(re_find(re), |s| Identifier::Unquoted(String::from(s)))(input)
 }
 
 /// Parse a quoted string. Any characters are alllowed in the quoted string.
 fn parse_quoted_string(input: &str) -> IResult<&str, Identifier> {
     let re = Regex::new(r#"(?:[^\\"]|\\.|\\)*"#).unwrap();
 
-    map(
-        delimited(tag("\""), re_find(re), tag("\"")),
-        |s| Identifier::Quoted(String::from(s))
-    )(input)
+    map(delimited(tag("\""), re_find(re), tag("\"")), |s| {
+        Identifier::Quoted(String::from(s))
+    })(input)
 }
 
 /// Parse a numeral identifier token; uses the decimal number system.
@@ -130,10 +163,38 @@ fn parse_quoted_string(input: &str) -> IResult<&str, Identifier> {
 fn parse_numeral(input: &str) -> IResult<&str, Identifier> {
     let re = Regex::new(r"^-?(?:\.\d+|\d+(?:\.\d*)?)").unwrap();
 
-    map(
-        re_find(re),
-        |s| Identifier::Numeral(String::from(s))
-    )(input)
+    map(re_find(re), |s| Identifier::Numeral(String::from(s)))(input)
+}
+
+/// attr_stmt	:	(graph | node | edge) attr_list
+/// attr_list	:	'[' [ a_list ] ']' [ attr_list ]
+fn parse_attributes(input: &str) -> IResult<&str, Token> {
+    map(pair(parse_kind, many1(tag("1"))), |(kind, attributes)| {
+        Token::Attributes(Vec::new())
+    })(input)
+}
+
+fn parse_kind(input: &str) -> IResult<&str, Kind> {
+    alt((
+        map(tag("graph"), |_| Kind::Graph),
+        map(tag("node"), |_| Kind::Node),
+        map(tag("edge"), |_| Kind::Edge),
+    ))(input)
+}
+
+/// a_list	:	ID '=' ID [ (';' | ',') ] [ a_list ]
+fn parse_attribute(input: &str) -> IResult<&str, Vec<Attribute>> {
+    many1(map(
+        separated_pair(
+            parse_identifier,
+            delimited(space0, tag("="), space0),
+            terminated(
+                parse_identifier,
+                opt(delimited(space0, alt((tag(";"), tag(","))), multispace0)),
+            ),
+        ),
+        |(a, b)| Attribute(a, b),
+    ))(input)
 }
 
 #[cfg(test)]
@@ -142,22 +203,160 @@ mod tests {
     use crate::html::TagPosition;
 
     #[test]
-    fn empty_graph() {
+    fn empty_graph() {}
+
+    #[test]
+    fn attribute() {
+        assert_eq!(
+            parse_attribute("Pedro1=Pedro2"),
+            Ok((
+                "",
+                vec![Attribute(
+                    Identifier::Unquoted("Pedro1".to_string()),
+                    Identifier::Unquoted("Pedro2".to_string())
+                )]
+            ))
+        );
+        assert_eq!(
+            parse_attribute("Pedro1= Pedro2"),
+            Ok((
+                "",
+                vec![Attribute(
+                    Identifier::Unquoted("Pedro1".to_string()),
+                    Identifier::Unquoted("Pedro2".to_string())
+                )]
+            ))
+        );
+        assert_eq!(
+            parse_attribute("Pedro1 = Pedro2"),
+            Ok((
+                "",
+                vec![Attribute(
+                    Identifier::Unquoted("Pedro1".to_string()),
+                    Identifier::Unquoted("Pedro2".to_string())
+                )]
+            ))
+        );
+        assert_eq!(
+            parse_attribute("Pedro1 = Pedro2"),
+            Ok((
+                "",
+                vec![Attribute(
+                    Identifier::Unquoted("Pedro1".to_string()),
+                    Identifier::Unquoted("Pedro2".to_string())
+                )]
+            ))
+        );
+        assert_eq!(
+            parse_attribute("Pedro1 = Pedro2;"),
+            Ok((
+                "",
+                vec![Attribute(
+                    Identifier::Unquoted("Pedro1".to_string()),
+                    Identifier::Unquoted("Pedro2".to_string())
+                )]
+            ))
+        );
+        assert_eq!(
+            parse_attribute("Pedro1 = Pedro2  ,"),
+            Ok((
+                "",
+                vec![Attribute(
+                    Identifier::Unquoted("Pedro1".to_string()),
+                    Identifier::Unquoted("Pedro2".to_string())
+                )]
+            ))
+        );
+        assert_eq!(
+            parse_attribute("Pedro1 = Pedro2  , A=B;"),
+            Ok((
+                "",
+                vec![
+                    Attribute(
+                        Identifier::Unquoted("Pedro1".to_string()),
+                        Identifier::Unquoted("Pedro2".to_string())
+                    ),
+                    Attribute(
+                        Identifier::Unquoted("A".to_string()),
+                        Identifier::Unquoted("B".to_string())
+                    )
+                ]
+            ))
+        );
+        assert_eq!(
+            parse_attribute("Pedro1 = Pedro2  , \nA=B;  "),
+            Ok((
+                "",
+                vec![
+                    Attribute(
+                        Identifier::Unquoted("Pedro1".to_string()),
+                        Identifier::Unquoted("Pedro2".to_string())
+                    ),
+                    Attribute(
+                        Identifier::Unquoted("A".to_string()),
+                        Identifier::Unquoted("B".to_string())
+                    )
+                ]
+            ))
+        );
+    }
+
+    #[test]
+    fn attribute_invalid() {
+        assert!(parse_attribute("* = foo,").is_err());
     }
 
     #[test]
     fn compass_direction() {
-        assert_eq!(parse_compass_pointer("n"), Ok(("", Token::CompassPointer(CompassDirection::North))));
-        assert_eq!(parse_compass_pointer("nE"), Ok(("", Token::CompassPointer(CompassDirection::NorthEast))));
-        assert_eq!(parse_compass_pointer("e"), Ok(("", Token::CompassPointer(CompassDirection::East))));
-        assert_eq!(parse_compass_pointer("Se"), Ok(("", Token::CompassPointer(CompassDirection::SouthEast))));
-        assert_eq!(parse_compass_pointer("s"), Ok(("", Token::CompassPointer(CompassDirection::South))));
-        assert_eq!(parse_compass_pointer("SW"), Ok(("", Token::CompassPointer(CompassDirection::SouthWest))));
-        assert_eq!(parse_compass_pointer("w"), Ok(("", Token::CompassPointer(CompassDirection::West))));
-        assert_eq!(parse_compass_pointer("nw"), Ok(("", Token::CompassPointer(CompassDirection::NorthWest))));
-        assert_eq!(parse_compass_pointer("c"), Ok(("", Token::CompassPointer(CompassDirection::Center))));
-        assert_eq!(parse_compass_pointer("_"), Ok(("", Token::CompassPointer(CompassDirection::Underscore))));
-        assert_eq!(parse_compass_pointer("Pedro"), Ok(("", Token::CompassPointer(CompassDirection::Any(Identifier::Unquoted("Pedro".to_string()))))));
+        assert_eq!(
+            parse_compass_pointer("n"),
+            Ok(("", Token::CompassPointer(CompassDirection::North)))
+        );
+        assert_eq!(
+            parse_compass_pointer("nE"),
+            Ok(("", Token::CompassPointer(CompassDirection::NorthEast)))
+        );
+        assert_eq!(
+            parse_compass_pointer("e"),
+            Ok(("", Token::CompassPointer(CompassDirection::East)))
+        );
+        assert_eq!(
+            parse_compass_pointer("Se"),
+            Ok(("", Token::CompassPointer(CompassDirection::SouthEast)))
+        );
+        assert_eq!(
+            parse_compass_pointer("s"),
+            Ok(("", Token::CompassPointer(CompassDirection::South)))
+        );
+        assert_eq!(
+            parse_compass_pointer("SW"),
+            Ok(("", Token::CompassPointer(CompassDirection::SouthWest)))
+        );
+        assert_eq!(
+            parse_compass_pointer("w"),
+            Ok(("", Token::CompassPointer(CompassDirection::West)))
+        );
+        assert_eq!(
+            parse_compass_pointer("nw"),
+            Ok(("", Token::CompassPointer(CompassDirection::NorthWest)))
+        );
+        assert_eq!(
+            parse_compass_pointer("c"),
+            Ok(("", Token::CompassPointer(CompassDirection::Center)))
+        );
+        assert_eq!(
+            parse_compass_pointer("_"),
+            Ok(("", Token::CompassPointer(CompassDirection::Underscore)))
+        );
+        assert_eq!(
+            parse_compass_pointer("Pedro"),
+            Ok((
+                "",
+                Token::CompassPointer(CompassDirection::Any(Identifier::Unquoted(
+                    "Pedro".to_string()
+                )))
+            ))
+        );
     }
 
     #[test]
@@ -167,25 +366,63 @@ mod tests {
 
     #[test]
     fn identifier() {
-        assert_eq!(parse_identifier("Pedro"), Ok(("", Identifier::Unquoted("Pedro".to_string()))));
-        assert_eq!(parse_identifier("\"Pedro\""), Ok(("", Identifier::Quoted("Pedro".to_string()))));
-        assert_eq!(parse_identifier("123"), Ok(("", Identifier::Numeral("123".to_string()))));
-        assert_eq!(parse_identifier("<p>"), Ok(("", Identifier::Html(HtmlElement::new("p", TagPosition::Open)))));
+        assert_eq!(
+            parse_identifier("Pedro"),
+            Ok(("", Identifier::Unquoted("Pedro".to_string())))
+        );
+        assert_eq!(
+            parse_identifier("Pedro1!"),
+            Ok(("!", Identifier::Unquoted("Pedro1".to_string())))
+        );
+        assert_eq!(
+            parse_identifier("\"Pedro\""),
+            Ok(("", Identifier::Quoted("Pedro".to_string())))
+        );
+        assert_eq!(
+            parse_identifier("123"),
+            Ok(("", Identifier::Numeral("123".to_string())))
+        );
+        assert_eq!(
+            parse_identifier("<p>"),
+            Ok((
+                "",
+                Identifier::Html(HtmlElement::new("p", TagPosition::Open))
+            ))
+        );
     }
 
     #[test]
     fn unquoted_string() {
-        assert_eq!(parse_string("Pedro For President!"), Ok((" For President!", Identifier::Unquoted("Pedro".to_string()))));
+        assert_eq!(
+            parse_string("Pedro For President!"),
+            Ok((" For President!", Identifier::Unquoted("Pedro".to_string())))
+        );
+        assert_eq!(
+            parse_string("Pedro!"),
+            Ok(("!", Identifier::Unquoted("Pedro".to_string())))
+        );
     }
 
     #[test]
     fn unquoted_string_underscore() {
-        assert_eq!(parse_string("_Pedro_ For President!"), Ok((" For President!", Identifier::Unquoted("_Pedro_".to_string()))));
+        assert_eq!(
+            parse_string("_Pedro_ For President!"),
+            Ok((
+                " For President!",
+                Identifier::Unquoted("_Pedro_".to_string())
+            ))
+        );
     }
 
     #[test]
     fn unquoted_string_numeric() {
-        assert_eq!(parse_string("Pedro_123_For_President!"), Ok(("!", Identifier::Unquoted("Pedro_123_For_President".to_string()))));
+        assert_eq!(
+            parse_string("Pedro_123_For_President!"),
+            Ok((
+                "!",
+                Identifier::Unquoted("Pedro_123_For_President".to_string())
+            ))
+        );
     }
 
     #[test]
@@ -195,17 +432,26 @@ mod tests {
 
     #[test]
     fn quoted_string() {
-        assert_eq!(parse_quoted_string(r#""He\"llo", World!"#), Ok((", World!", Identifier::Quoted(r#"He\"llo"#.to_string()))));
+        assert_eq!(
+            parse_quoted_string(r#""He\"llo", World!"#),
+            Ok((", World!", Identifier::Quoted(r#"He\"llo"#.to_string())))
+        );
     }
 
     #[test]
     fn quoted_string_backslash() {
-        assert_eq!(parse_quoted_string("\"He\\llo\n\\r\", World!"), Ok((", World!", Identifier::Quoted("He\\llo\n\\r".to_string()))));
+        assert_eq!(
+            parse_quoted_string("\"He\\llo\n\\r\", World!"),
+            Ok((", World!", Identifier::Quoted("He\\llo\n\\r".to_string())))
+        );
     }
 
     #[test]
     fn quoted_string_empty() {
-        assert_eq!(parse_quoted_string("\"\"Hello, World!"), Ok(("Hello, World!", Identifier::Quoted("".to_string()))));
+        assert_eq!(
+            parse_quoted_string("\"\"Hello, World!"),
+            Ok(("Hello, World!", Identifier::Quoted("".to_string())))
+        );
     }
 
     #[test]
@@ -219,7 +465,14 @@ mod tests {
 
     #[test]
     fn numeral() {
-        assert_eq!(parse_numeral("123"), Ok(("", Identifier::Numeral("123".to_string()))));
+        assert_eq!(
+            parse_numeral("123"),
+            Ok(("", Identifier::Numeral("123".to_string())))
+        );
+        assert_eq!(
+            parse_numeral("123,"),
+            Ok((",", Identifier::Numeral("123".to_string())))
+        );
     }
 
     #[test]
@@ -232,19 +485,37 @@ mod tests {
 
     #[test]
     fn numeral_decimal() {
-        assert_eq!(parse_numeral("123.345"), Ok(("", Identifier::Numeral("123.345".to_string()))));
-        assert_eq!(parse_numeral("-123.345"), Ok(("", Identifier::Numeral("-123.345".to_string()))));
+        assert_eq!(
+            parse_numeral("123.345"),
+            Ok(("", Identifier::Numeral("123.345".to_string())))
+        );
+        assert_eq!(
+            parse_numeral("-123.345"),
+            Ok(("", Identifier::Numeral("-123.345".to_string())))
+        );
     }
 
     #[test]
     fn numeral_decimal_no_tail() {
-        assert_eq!(parse_numeral("123."), Ok(("", Identifier::Numeral("123.".to_string()))));
-        assert_eq!(parse_numeral("-123."), Ok(("", Identifier::Numeral("-123.".to_string()))));
+        assert_eq!(
+            parse_numeral("123."),
+            Ok(("", Identifier::Numeral("123.".to_string())))
+        );
+        assert_eq!(
+            parse_numeral("-123."),
+            Ok(("", Identifier::Numeral("-123.".to_string())))
+        );
     }
 
     #[test]
     fn numeral_decimal_no_head() {
-        assert_eq!(parse_numeral(".123"), Ok(("", Identifier::Numeral(".123".to_string()))));
-        assert_eq!(parse_numeral("-.123"), Ok(("", Identifier::Numeral("-.123".to_string()))));
+        assert_eq!(
+            parse_numeral(".123"),
+            Ok(("", Identifier::Numeral(".123".to_string())))
+        );
+        assert_eq!(
+            parse_numeral("-.123"),
+            Ok(("", Identifier::Numeral("-.123".to_string())))
+        );
     }
 }

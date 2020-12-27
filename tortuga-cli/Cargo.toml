@@ -13,5 +13,5 @@ documentation = "https://docs.rs/tortuga"
 lto = true
 
 [dependencies]
-nom = { version = "6.0", features = ["regexp"] }
+nom = { version = "6.0", features = ["alloc", "regexp"] }
 regex = "1"
