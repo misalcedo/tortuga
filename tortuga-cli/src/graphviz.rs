@@ -110,7 +110,7 @@ fn parse_identifier(input: &str) -> IResult<&str, Identifier> {
 }
 
 fn parse_string(input: &str) -> IResult<&str, Identifier> {
-    let re = Regex::new(r"[\p{Alphabetic}_][\p{Alphabetic}_\d]*").unwrap();
+    let re = Regex::new(r"^[\p{Alphabetic}_]{1}[\p{Alphabetic}_\d]*").unwrap();
 
     map(
         re_find(re),
@@ -118,8 +118,9 @@ fn parse_string(input: &str) -> IResult<&str, Identifier> {
     )(input)
 }
 
+/// Parse a quoted string. Any characters are alllowed in the quoted string.
 fn parse_quoted_string(input: &str) -> IResult<&str, Identifier> {
-    let re = Regex::new(r#"(?:[^\"]|\.)*"#).unwrap();
+    let re = Regex::new(r#"(?:[^\\"]|\\.|\\)*"#).unwrap();
 
     map(
         delimited(tag("\""), re_find(re), tag("\"")),
@@ -127,8 +128,10 @@ fn parse_quoted_string(input: &str) -> IResult<&str, Identifier> {
     )(input)
 }
 
+/// Parse a numeral identifier token; uses the decimal number system.
+/// Allows for positive and negative numerals.
 fn parse_numeral(input: &str) -> IResult<&str, Identifier> {
-    let re = Regex::new(r"-?(?:\.\d+|\d+(?:\.\d*)?)").unwrap();
+    let re = Regex::new(r"^-?(?:\.\d+|\d+(?:\.\d*)?)").unwrap();
 
     map(
         re_find(re),
@@ -145,6 +148,50 @@ mod tests {
     }
 
     #[test]
+    fn unquoted_string() {
+        assert_eq!(parse_string("Pedro For President!"), Ok((" For President!", Identifier::Unquoted("Pedro".to_string()))));
+    }
+
+    #[test]
+    fn unquoted_string_underscore() {
+        assert_eq!(parse_string("_Pedro_ For President!"), Ok((" For President!", Identifier::Unquoted("_Pedro_".to_string()))));
+    }
+
+    #[test]
+    fn unquoted_string_numeric() {
+        assert_eq!(parse_string("Pedro_123_For_President!"), Ok(("!", Identifier::Unquoted("Pedro_123_For_President".to_string()))));
+    }
+
+    #[test]
+    fn unquoted_string_invalid() {
+        assert!(parse_string("123Pedro").is_err());
+    }
+
+    #[test]
+    fn quoted_string() {
+        assert_eq!(parse_quoted_string(r#""He\"llo", World!"#), Ok((", World!", Identifier::Quoted(r#"He\"llo"#.to_string()))));
+    }
+
+    #[test]
+    fn quoted_string_backslash() {
+        assert_eq!(parse_quoted_string("\"He\\llo\n\\r\", World!"), Ok((", World!", Identifier::Quoted("He\\llo\n\\r".to_string()))));
+    }
+
+    #[test]
+    fn quoted_string_empty() {
+        assert_eq!(parse_quoted_string("\"\"Hello, World!"), Ok(("Hello, World!", Identifier::Quoted("".to_string()))));
+    }
+
+    #[test]
+    fn quoted_string_invalid() {
+        assert!(parse_quoted_string("Hello, World!").is_err());
+        assert!(parse_quoted_string("\"Hello, World!").is_err());
+        assert!(parse_quoted_string("Hello, World!\"").is_err());
+        assert!(parse_quoted_string("Hello\", World!\"").is_err());
+        assert!(parse_quoted_string("Hello\"foo\", World!\"").is_err());
+    }
+
+    #[test]
     fn numeral() {
         assert_eq!(parse_numeral("123"), Ok(("", Identifier::Numeric(Numeral("123".to_string())))));
     }
@@ -154,6 +201,7 @@ mod tests {
         assert!(parse_numeral(".").is_err());
         assert!(parse_numeral("-.").is_err());
         assert!(parse_numeral("-sdf.").is_err());
+        assert!(parse_numeral("-sdf.123").is_err());
     }
 
     #[test]
