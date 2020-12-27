@@ -47,12 +47,9 @@ enum Token {
 enum Identifier {
     Unquoted(String),
     Quoted(String),
-    Numeric(Numeral),
+    Numeral(String),
     Html(HtmlElement)
 }
-
-#[derive(Debug, Eq, PartialEq)]
-struct Numeral(String);
 
 #[derive(Debug, Eq, PartialEq)]
 enum CompassDirection {
@@ -85,15 +82,15 @@ fn parse(input: &str) -> IResult<&str, Graph> {
 
 fn parse_compass_pointer(input: &str) -> IResult<&str, Token> {
     alt((
-        map(tag("n"), |_| Token::CompassPointer(CompassDirection::North)),
-        map(tag("ne"), |_| Token::CompassPointer(CompassDirection::NorthEast)),
-        map(tag("e"), |_| Token::CompassPointer(CompassDirection::East)),
-        map(tag("se"), |_| Token::CompassPointer(CompassDirection::SouthEast)),
-        map(tag("s"), |_| Token::CompassPointer(CompassDirection::South)),
-        map(tag("sw"), |_| Token::CompassPointer(CompassDirection::SouthWest)),
-        map(tag("w"), |_| Token::CompassPointer(CompassDirection::West)),
-        map(tag("nw"), |_| Token::CompassPointer(CompassDirection::NorthWest)),
-        map(tag("c"), |_| Token::CompassPointer(CompassDirection::Center)),
+        map(tag_no_case("ne"), |_| Token::CompassPointer(CompassDirection::NorthEast)),
+        map(tag_no_case("se"), |_| Token::CompassPointer(CompassDirection::SouthEast)),
+        map(tag_no_case("sw"), |_| Token::CompassPointer(CompassDirection::SouthWest)),
+        map(tag_no_case("nw"), |_| Token::CompassPointer(CompassDirection::NorthWest)),
+        map(tag_no_case("n"), |_| Token::CompassPointer(CompassDirection::North)),
+        map(tag_no_case("e"), |_| Token::CompassPointer(CompassDirection::East)),
+        map(tag_no_case("s"), |_| Token::CompassPointer(CompassDirection::South)),
+        map(tag_no_case("w"), |_| Token::CompassPointer(CompassDirection::West)),
+        map(tag_no_case("c"), |_| Token::CompassPointer(CompassDirection::Center)),
         map(tag("_"), |_| Token::CompassPointer(CompassDirection::Underscore)),
         map(parse_identifier, |i| Token::CompassPointer(CompassDirection::Any(i)))
     ))(input)
@@ -135,16 +132,45 @@ fn parse_numeral(input: &str) -> IResult<&str, Identifier> {
 
     map(
         re_find(re),
-        |s| Identifier::Numeric(Numeral(String::from(s)))
+        |s| Identifier::Numeral(String::from(s))
     )(input)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::html::TagPosition;
 
     #[test]
     fn empty_graph() {
+    }
+
+    #[test]
+    fn compass_direction() {
+        assert_eq!(parse_compass_pointer("n"), Ok(("", Token::CompassPointer(CompassDirection::North))));
+        assert_eq!(parse_compass_pointer("nE"), Ok(("", Token::CompassPointer(CompassDirection::NorthEast))));
+        assert_eq!(parse_compass_pointer("e"), Ok(("", Token::CompassPointer(CompassDirection::East))));
+        assert_eq!(parse_compass_pointer("Se"), Ok(("", Token::CompassPointer(CompassDirection::SouthEast))));
+        assert_eq!(parse_compass_pointer("s"), Ok(("", Token::CompassPointer(CompassDirection::South))));
+        assert_eq!(parse_compass_pointer("SW"), Ok(("", Token::CompassPointer(CompassDirection::SouthWest))));
+        assert_eq!(parse_compass_pointer("w"), Ok(("", Token::CompassPointer(CompassDirection::West))));
+        assert_eq!(parse_compass_pointer("nw"), Ok(("", Token::CompassPointer(CompassDirection::NorthWest))));
+        assert_eq!(parse_compass_pointer("c"), Ok(("", Token::CompassPointer(CompassDirection::Center))));
+        assert_eq!(parse_compass_pointer("_"), Ok(("", Token::CompassPointer(CompassDirection::Underscore))));
+        assert_eq!(parse_compass_pointer("Pedro"), Ok(("", Token::CompassPointer(CompassDirection::Any(Identifier::Unquoted("Pedro".to_string()))))));
+    }
+
+    #[test]
+    fn compass_direction_invalid() {
+        assert!(parse_compass_pointer("*").is_err());
+    }
+
+    #[test]
+    fn identifier() {
+        assert_eq!(parse_identifier("Pedro"), Ok(("", Identifier::Unquoted("Pedro".to_string()))));
+        assert_eq!(parse_identifier("\"Pedro\""), Ok(("", Identifier::Quoted("Pedro".to_string()))));
+        assert_eq!(parse_identifier("123"), Ok(("", Identifier::Numeral("123".to_string()))));
+        assert_eq!(parse_identifier("<p>"), Ok(("", Identifier::Html(HtmlElement::new("p", TagPosition::Open)))));
     }
 
     #[test]
@@ -193,7 +219,7 @@ mod tests {
 
     #[test]
     fn numeral() {
-        assert_eq!(parse_numeral("123"), Ok(("", Identifier::Numeric(Numeral("123".to_string())))));
+        assert_eq!(parse_numeral("123"), Ok(("", Identifier::Numeral("123".to_string()))));
     }
 
     #[test]
@@ -206,19 +232,19 @@ mod tests {
 
     #[test]
     fn numeral_decimal() {
-        assert_eq!(parse_numeral("123.345"), Ok(("", Identifier::Numeric(Numeral("123.345".to_string())))));
-        assert_eq!(parse_numeral("-123.345"), Ok(("", Identifier::Numeric(Numeral("-123.345".to_string())))));
+        assert_eq!(parse_numeral("123.345"), Ok(("", Identifier::Numeral("123.345".to_string()))));
+        assert_eq!(parse_numeral("-123.345"), Ok(("", Identifier::Numeral("-123.345".to_string()))));
     }
 
     #[test]
     fn numeral_decimal_no_tail() {
-        assert_eq!(parse_numeral("123."), Ok(("", Identifier::Numeric(Numeral("123.".to_string())))));
-        assert_eq!(parse_numeral("-123."), Ok(("", Identifier::Numeric(Numeral("-123.".to_string())))));
+        assert_eq!(parse_numeral("123."), Ok(("", Identifier::Numeral("123.".to_string()))));
+        assert_eq!(parse_numeral("-123."), Ok(("", Identifier::Numeral("-123.".to_string()))));
     }
 
     #[test]
     fn numeral_decimal_no_head() {
-        assert_eq!(parse_numeral(".123"), Ok(("", Identifier::Numeric(Numeral(".123".to_string())))));
-        assert_eq!(parse_numeral("-.123"), Ok(("", Identifier::Numeric(Numeral("-.123".to_string())))));
+        assert_eq!(parse_numeral(".123"), Ok(("", Identifier::Numeral(".123".to_string()))));
+        assert_eq!(parse_numeral("-.123"), Ok(("", Identifier::Numeral("-.123".to_string()))));
     }
 }

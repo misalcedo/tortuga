@@ -8,7 +8,7 @@ use nom::{
     sequence::delimited};
 
 #[derive(Debug, Eq, PartialEq)]
-enum TagPosition {
+pub enum TagPosition {
     Open,
     Close
 }
@@ -22,7 +22,7 @@ pub struct HtmlElement {
 }
 
 impl HtmlElement {
-    fn new(name: &str, position: TagPosition) -> HtmlElement {
+    pub(crate) fn new(name: &str, position: TagPosition) -> HtmlElement {
         HtmlElement {
             tag: name.to_string(),
             attributes: Vec::new(),
