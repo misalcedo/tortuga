@@ -29,12 +29,7 @@ enum Token {
     Statements,
     // node_stmt | edge_stmt | attr_stmt | ID '=' ID | subgraph
     Statement,
-    // (graph | node | edge) AttributeStatements
-    AttributeStatement(Kind),
-    // '[' [ a_list ] ']' [ AttributeStatements ]
-    AttributeStatements,
-    // ID '=' ID [ (';' | ',') ] [ a_list ]
-    Attributes(Vec<Attribute>),
+    Attributes(Kind, Vec<Attribute>),
     // (node_id | subgraph) edgeRHS [ attr_list ]
     Edge,
     // edgeop (node_id | subgraph) [ edgeRHS ]
@@ -169,17 +164,30 @@ fn parse_numeral(input: &str) -> IResult<&str, Identifier> {
 /// attr_stmt	:	(graph | node | edge) attr_list
 /// attr_list	:	'[' [ a_list ] ']' [ attr_list ]
 fn parse_attributes(input: &str) -> IResult<&str, Token> {
-    map(pair(parse_kind, many1(tag("1"))), |(kind, attributes)| {
-        Token::Attributes(Vec::new())
-    })(input)
+    map(
+        pair(
+            parse_kind,
+            many1(delimited(
+                terminated(tag("["), multispace0),
+                opt(parse_attribute), 
+                terminated(tag("]"), multispace0)
+            ))
+        ),
+        |(kind, attributes)| {
+            Token::Attributes(
+                kind,
+                attributes.into_iter().flatten().flatten().collect()
+            )
+        }
+    )(input)
 }
 
 fn parse_kind(input: &str) -> IResult<&str, Kind> {
-    alt((
+    terminated(alt((
         map(tag("graph"), |_| Kind::Graph),
         map(tag("node"), |_| Kind::Node),
         map(tag("edge"), |_| Kind::Edge),
-    ))(input)
+    )), multispace0)(input)
 }
 
 /// a_list	:	ID '=' ID [ (';' | ',') ] [ a_list ]
