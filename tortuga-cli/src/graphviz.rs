@@ -1,3 +1,5 @@
+use crate::html::{parse_html, HtmlElement};
+use regex::Regex;
 use nom::{
     IResult,
     bytes::complete::{tag, tag_no_case, take_while},
@@ -6,10 +8,12 @@ use nom::{
     regexp::str::re_find,
     sequence::delimited};
     
+#[derive(Debug, Eq, PartialEq)]
 struct Graph {
 
 }
 
+#[derive(Debug, Eq, PartialEq)]
 enum Token {
     // [ strict ] (graph | digraph) [ ID ] '{' Statements '}'
     Graph,
@@ -39,6 +43,7 @@ enum Token {
     CompassPointer(CompassDirection)
 }
 
+#[derive(Debug, Eq, PartialEq)]
 enum Identifier {
     Unquoted(String),
     Quoted(String),
@@ -46,8 +51,10 @@ enum Identifier {
     Html(HtmlElement)
 }
 
+#[derive(Debug, Eq, PartialEq)]
 struct Numeral(String);
 
+#[derive(Debug, Eq, PartialEq)]
 enum CompassDirection {
     North,
     NorthEast,
@@ -60,27 +67,6 @@ enum CompassDirection {
     Center,
     Underscore,
     Any(Identifier)
-}
-
-struct HtmlElement {
-    tag: String,
-    attributes: Vec<HtmlAttribute>,
-    children: Vec<HtmlElement> 
-}
-
-impl HtmlElement {
-    fn new() -> HtmlElement {
-        HtmlElement {
-            tag: String::new(),
-            attributes: Vec::new(),
-            children: Vec::new()
-        }
-    }
-}
-
-struct HtmlAttribute {
-    name: String,
-    value: Option<String>
 }
 
 impl Graph {
@@ -119,11 +105,12 @@ fn parse_compass_pointer(input: &str) -> IResult<&str, Token> {
 /// 3. any double-quoted string ("...") possibly containing escaped quotes (\")1;
 /// 4. an HTML string (<...>).
 fn parse_identifier(input: &str) -> IResult<&str, Identifier> {
-    alt((parse_string, parse_numeral, parse_quoted_string, parse_html))(input)
+    let html_parser = map(parse_html, |element| Identifier::Html(element));
+    alt((parse_string, parse_numeral, parse_quoted_string, html_parser))(input)
 }
 
 fn parse_string(input: &str) -> IResult<&str, Identifier> {
-    let re = regex::Regex::new(r"[\p{Alphabetic}_][\p{Alphabetic}_\d]*").unwrap();
+    let re = Regex::new(r"[\p{Alphabetic}_][\p{Alphabetic}_\d]*").unwrap();
 
     map(
         re_find(re),
@@ -132,7 +119,7 @@ fn parse_string(input: &str) -> IResult<&str, Identifier> {
 }
 
 fn parse_quoted_string(input: &str) -> IResult<&str, Identifier> {
-    let re = regex::Regex::new(r#"(?:[^\"]|\.)*"#).unwrap();
+    let re = Regex::new(r#"(?:[^\"]|\.)*"#).unwrap();
 
     map(
         delimited(tag("\""), re_find(re), tag("\"")),
@@ -141,18 +128,11 @@ fn parse_quoted_string(input: &str) -> IResult<&str, Identifier> {
 }
 
 fn parse_numeral(input: &str) -> IResult<&str, Identifier> {
-    let re = regex::Regex::new(r"-?(?:\.\d+|\d+(?:\.\d*)?").unwrap();
+    let re = Regex::new(r"-?(?:\.\d+|\d+(?:\.\d*)?)").unwrap();
 
     map(
         re_find(re),
         |s| Identifier::Numeric(Numeral(String::from(s)))
-    )(input)
-}
-
-fn parse_html(input: &str) -> IResult<&str, Identifier> {
-    map(
-        tag("<...>"),
-        |s| Identifier::Html(HtmlElement::new())
     )(input)
 }
 
@@ -166,6 +146,6 @@ mod tests {
 
     #[test]
     fn numeral() {
-        assert_eq!(parse_numeral(""), Ok(("", Numeral::new("123"))));
+        assert_eq!(parse_numeral("123"), Ok(("", Identifier::Numeric(Numeral("123".to_string())))));
     }
 }
