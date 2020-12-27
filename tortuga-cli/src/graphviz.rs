@@ -29,7 +29,7 @@ enum Token {
     Statements,
     // node_stmt | edge_stmt | attr_stmt | ID '=' ID | subgraph
     Statement,
-    Attributes(Kind, Vec<Attribute>),
+    Attributes(Kind, Vec<Vec<Attribute>>),
     // (node_id | subgraph) edgeRHS [ attr_list ]
     Edge,
     // edgeop (node_id | subgraph) [ edgeRHS ]
@@ -176,7 +176,7 @@ fn parse_attributes(input: &str) -> IResult<&str, Token> {
         |(kind, attributes)| {
             Token::Attributes(
                 kind,
-                attributes.into_iter().flatten().flatten().collect()
+                attributes.into_iter().flatten().collect()
             )
         }
     )(input)
@@ -215,6 +215,53 @@ mod tests {
 
     #[test]
     fn empty_graph() {}
+
+    #[test]
+    fn attributes() {
+        assert_eq!(
+            parse_attributes("edge [] [] [] []"),
+            Ok(("", Token::Attributes(Kind::Edge, vec![])))
+        );
+        assert_eq!(
+            parse_attributes("graph [Pedro1=Pedro2]"),
+            Ok((
+                "",
+                Token::Attributes(
+                    Kind::Graph,
+                    vec![vec![Attribute(
+                        Identifier::Unquoted("Pedro1".to_string()),
+                        Identifier::Unquoted("Pedro2".to_string())
+                    )]]
+                )
+            ))
+        );
+        assert_eq!(
+            parse_attributes("node [Pedro1 = Pedro2 A=B;]"),
+            Ok((
+                "",
+                Token::Attributes(
+                    Kind::Node,
+                    vec![vec![
+                        Attribute(
+                            Identifier::Unquoted("Pedro1".to_string()),
+                            Identifier::Unquoted("Pedro2".to_string())
+                        ),
+                        Attribute(
+                            Identifier::Unquoted("A".to_string()),
+                            Identifier::Unquoted("B".to_string())
+                        )
+                    ]]
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn attributes_invalid() {
+        assert!(parse_attributes("fudge [] [] [] []").is_err());
+        assert!(parse_attributes("edge {}").is_err());
+        assert!(parse_attributes("graph [Pedro1|Pedro2]").is_err());
+    }
 
     #[test]
     fn attribute() {
