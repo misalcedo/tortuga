@@ -148,4 +148,29 @@ mod tests {
     fn numeral() {
         assert_eq!(parse_numeral("123"), Ok(("", Identifier::Numeric(Numeral("123".to_string())))));
     }
+
+    #[test]
+    fn numeral_invalid() {
+        assert!(parse_numeral(".").is_err());
+        assert!(parse_numeral("-.").is_err());
+        assert!(parse_numeral("-sdf.").is_err());
+    }
+
+    #[test]
+    fn numeral_decimal() {
+        assert_eq!(parse_numeral("123.345"), Ok(("", Identifier::Numeric(Numeral("123.345".to_string())))));
+        assert_eq!(parse_numeral("-123.345"), Ok(("", Identifier::Numeric(Numeral("-123.345".to_string())))));
+    }
+
+    #[test]
+    fn numeral_decimal_no_tail() {
+        assert_eq!(parse_numeral("123."), Ok(("", Identifier::Numeric(Numeral("123.".to_string())))));
+        assert_eq!(parse_numeral("-123."), Ok(("", Identifier::Numeric(Numeral("-123.".to_string())))));
+    }
+
+    #[test]
+    fn numeral_decimal_no_head() {
+        assert_eq!(parse_numeral(".123"), Ok(("", Identifier::Numeric(Numeral(".123".to_string())))));
+        assert_eq!(parse_numeral("-.123"), Ok(("", Identifier::Numeric(Numeral("-.123".to_string())))));
+    }
 }
