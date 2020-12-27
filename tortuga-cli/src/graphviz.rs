@@ -2,7 +2,7 @@ use crate::html::{parse_html, HtmlElement};
 use nom::{
     branch::alt,
     bytes::complete::{tag, tag_no_case, take_while},
-    character::complete::{line_ending, multispace0, space0},
+    character::complete::{line_ending, multispace0, multispace1, space0},
     combinator::{map, opt},
     multi::{many1, separated_list1},
     regexp::str::re_find,
@@ -190,7 +190,10 @@ fn parse_attribute(input: &str) -> IResult<&str, Vec<Attribute>> {
             delimited(space0, tag("="), space0),
             terminated(
                 parse_identifier,
-                opt(delimited(space0, alt((tag(";"), tag(","))), multispace0)),
+                terminated(
+                    opt(preceded(space0, alt((tag(";"), tag(","))))),
+                    multispace0
+                ),
             ),
         ),
         |(a, b)| Attribute(a, b),
@@ -268,7 +271,7 @@ mod tests {
             ))
         );
         assert_eq!(
-            parse_attribute("Pedro1 = Pedro2  , A=B;"),
+            parse_attribute("Pedro1 = Pedro2 A=B;"),
             Ok((
                 "",
                 vec![
@@ -297,6 +300,32 @@ mod tests {
                         Identifier::Unquoted("B".to_string())
                     )
                 ]
+            ))
+        );
+        assert_eq!(
+            parse_attribute("Pedro1 = Pedro2\nA=B;  "),
+            Ok((
+                "",
+                vec![
+                    Attribute(
+                        Identifier::Unquoted("Pedro1".to_string()),
+                        Identifier::Unquoted("Pedro2".to_string())
+                    ),
+                    Attribute(
+                        Identifier::Unquoted("A".to_string()),
+                        Identifier::Unquoted("B".to_string())
+                    )
+                ]
+            ))
+        );
+        assert_eq!(
+            parse_attribute("Pedro1 = Pedro2A=B;  "),
+            Ok((
+                "=B;  ",
+                vec![Attribute(
+                    Identifier::Unquoted("Pedro1".to_string()),
+                    Identifier::Unquoted("Pedro2A".to_string())
+                )]
             ))
         );
     }
