@@ -2,17 +2,33 @@ use crate::html::{parse_html, HtmlElement};
 use nom::{
     branch::alt,
     bytes::complete::{tag, tag_no_case, take_while},
-    character::complete::{line_ending, multispace0, multispace1, space0},
+    character::complete::{line_ending, multispace0, multispace1, space0, space1},
     combinator::{map, opt},
     multi::{many1, separated_list1},
     regexp::str::re_find,
-    sequence::{delimited, pair, preceded, separated_pair, terminated},
+    sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
     IResult,
 };
 use regex::Regex;
 
 #[derive(Debug, Eq, PartialEq)]
-struct Graph {}
+struct Graph {
+    strict: bool,
+    kind: GraphKind,
+    identifier: Option<Identifier>,
+    statements: Vec<Token>,
+}
+
+impl Graph {
+    fn new(strict: bool, kind: GraphKind, identifier: Option<Identifier>, statements: Vec<Token>) -> Graph {
+        Graph {
+            strict,
+            kind,
+            identifier, 
+            statements
+        }
+    }
+}
 
 #[derive(Debug, Eq, PartialEq)]
 enum Kind {
@@ -23,8 +39,6 @@ enum Kind {
 
 #[derive(Debug, Eq, PartialEq)]
 enum Token {
-    // [ strict ] (graph | digraph) [ ID ] '{' Statements '}'
-    Graph,
     // [ Statement [ ';' ] Statements ]
     Statements,
     // node_stmt | edge_stmt | attr_stmt | ID '=' ID | subgraph
@@ -41,7 +55,7 @@ enum Token {
     // ':' ID [ ':' compass_pt ] | ':' compass_pt
     Port,
     // [ subgraph [ ID ] ] '{' stmt_list '}'
-    Subgraph,
+    Subgraph(Option<Identifier>, Vec<Token>),
     // (n | ne | e | se | s | sw | w | nw | c | _)
     CompassPointer(CompassDirection),
 }
@@ -72,17 +86,66 @@ enum CompassDirection {
     Any(Identifier),
 }
 
-impl Graph {
-    fn new() -> Graph {
-        Graph {}
-    }
+#[derive(Debug, Eq, PartialEq)]
+enum GraphKind {
+    Graph,
+    DiGraph,
 }
 
 /// Parse a DOT language file into the corresponding graph.
 /// See https://graphviz.org/doc/info/lang.html
+// [ strict ] (graph | digraph) [ ID ] '{' Statements '}'
 fn parse(input: &str) -> IResult<&str, Graph> {
-    let system = Graph::new();
-    Ok((input, system))
+    map(
+        preceded(
+            multispace0,
+            tuple((
+                opt(terminated(tag("strict"), space1)),
+                alt((
+                    map(tag("graph"), |_| GraphKind::Graph),
+                    map(tag("digraph"), |_| GraphKind::DiGraph),
+                )),
+                delimited(space1, opt(parse_identifier), multispace0),
+                delimited(
+                    preceded(tag("{"), multispace0),
+                    parse_statements,
+                    terminated(tag("}"), multispace0),
+                ),
+            )),
+        ),
+        |(strict, kind, identifier, statements)| Graph {
+            strict: strict.is_some(),
+            identifier,
+            kind,
+            statements,
+        },
+    )(input)
+}
+
+// [ subgraph [ ID ] ] '{' stmt_list '}'
+fn parse_subgraph(input: &str) -> IResult<&str, Token> {
+    map(
+        pair(
+            delimited(
+                multispace0,
+                opt(preceded(
+                    terminated(tag("subgraph"), space1),
+                    opt(parse_identifier),
+                )),
+                multispace0,
+            ),
+            delimited(
+                preceded(tag("{"), multispace0),
+                parse_statements,
+                terminated(tag("}"), multispace0),
+            ),
+        ),
+        |(id, statements)| Token::Subgraph(id.flatten(), statements),
+    )(input)
+}
+
+fn parse_statements(input: &str) -> IResult<&str, Vec<Token>> {
+    Ok((input, vec![]))
 }
 
 fn parse_compass_pointer(input: &str) -> IResult<&str, Token> {
@@ -169,25 +232,23 @@ fn parse_attributes(input: &str) -> IResult<&str, Token> {
             parse_kind,
             many1(delimited(
                 terminated(tag("["), multispace0),
-                opt(parse_attribute), 
-                terminated(tag("]"), multispace0)
-            ))
+                opt(parse_attribute),
+                terminated(tag("]"), multispace0),
+            )),
         ),
-        |(kind, attributes)| {
-            Token::Attributes(
-                kind,
-                attributes.into_iter().flatten().collect()
-            )
-        }
+        |(kind, attributes)| Token::Attributes(kind, attributes.into_iter().flatten().collect()),
     )(input)
 }
 
 fn parse_kind(input: &str) -> IResult<&str, Kind> {
-    terminated(alt((
-        map(tag("graph"), |_| Kind::Graph),
-        map(tag("node"), |_| Kind::Node),
-        map(tag("edge"), |_| Kind::Edge),
-    )), multispace0)(input)
+    terminated(
+        alt((
+            map(tag("graph"), |_| Kind::Graph),
+            map(tag("node"), |_| Kind::Node),
+            map(tag("edge"), |_| Kind::Edge),
+        )),
+        multispace0,
+    )(input)
 }
 
 /// a_list	:	ID '=' ID [ (';' | ',') ] [ a_list ]
@@ -200,7 +261,7 @@ fn parse_attribute(input: &str) -> IResult<&str, Vec<Attribute>> {
                 parse_identifier,
                 terminated(
                     opt(preceded(space0, alt((tag(";"), tag(","))))),
-                    multispace0
+                    multispace0,
                 ),
             ),
         ),
@@ -214,7 +275,46 @@ mod tests {
     use crate::html::TagPosition;
 
     #[test]
-    fn empty_graph() {}
+    fn graph() {
+        assert_eq!(
+            parse("strict digraph {}"),
+            Ok(("", Graph::new(true, GraphKind::DiGraph, None, vec![])))
+        );
+        assert_eq!(
+            parse("graph 123 {}"),
+            Ok(("", Graph::new(false, GraphKind::Graph, Some(Identifier::Numeral("123".to_string())), vec![])))
+        );
+        assert_eq!(
+            parse("graph {}"),
+            Ok((
+                "",
+                Graph::new(false, GraphKind::Graph, None, vec![])
+            ))
+        );
+    }
+
+    fn graph_invalid() {
+        assert!(parse("strict graphFoo {}").is_err());
+    }
+    #[test]
+    fn subgraph() {
+        assert_eq!(
+            parse_subgraph("subgraph {}"),
+            Ok(("", Token::Subgraph(None, vec![])))
+        );
+
+        assert_eq!(
+            parse_subgraph("subgraph Pedro {}"),
+            Ok((
+                "",
+                Token::Subgraph(Some(Identifier::Unquoted("Pedro".to_string())), vec![])
+            ))
+        );
+    }
+
+    fn subgraph_invalid() {
+        assert!(parse_subgraph("subgraphFoo {}").is_err());
+    }
 
     #[test]
     fn attributes() {
