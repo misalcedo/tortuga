@@ -49,9 +49,7 @@ enum Token {
     // edgeop (node_id | subgraph) [ edgeRHS ]
     EdgeRHS,
     // node_id [ attr_list ]
-    Node,
-    // ID [ port ]
-    NodeIdentifier(Identifier),
+    Node(Identifier, Option<Identifier>),
     // ':' ID [ ':' compass_pt ] | ':' compass_pt
     Port,
     // [ subgraph [ ID ] ] '{' stmt_list '}'
@@ -230,13 +228,20 @@ fn parse_attributes(input: &str) -> IResult<&str, Token> {
     map(
         pair(
             parse_kind,
-            many1(delimited(
-                terminated(tag("["), multispace0),
-                opt(parse_attribute),
-                terminated(tag("]"), multispace0),
-            )),
+            parse_attribute_list,
         ),
-        |(kind, attributes)| Token::Attributes(kind, attributes.into_iter().flatten().collect()),
+        |(kind, attributes)| Token::Attributes(kind, attributes),
+    )(input)
+}
+
+fn parse_attribute_list(input: &str) -> IResult<&str, Vec<Vec<Attribute>>> {
+    map(
+        many1(delimited(
+            terminated(tag("["), multispace0),
+            opt(parse_attribute),
+            terminated(tag("]"), multispace0),
+        )),
+        |attributes| attributes.into_iter().flatten().collect(),
     )(input)
 }
 
