@@ -20,12 +20,17 @@ struct Graph {
 }
 
 impl Graph {
-    fn new(strict: bool, kind: GraphKind, identifier: Option<Identifier>, statements: Vec<Token>) -> Graph {
+    fn new(
+        strict: bool,
+        kind: GraphKind,
+        identifier: Option<Identifier>,
+        statements: Vec<Token>,
+    ) -> Graph {
         Graph {
             strict,
             kind,
-            identifier, 
-            statements
+            identifier,
+            statements,
         }
     }
 }
@@ -50,12 +55,10 @@ enum Token {
     EdgeRHS,
     // node_id [ attr_list ]
     Node(Identifier, Option<Identifier>),
-    // ':' ID [ ':' compass_pt ] | ':' compass_pt
-    Port,
+    IdentifiedPort(Identifier, Option<CompassDirection>),
+    AnonymousPort(CompassDirection),
     // [ subgraph [ ID ] ] '{' stmt_list '}'
     Subgraph(Option<Identifier>, Vec<Token>),
-    // (n | ne | e | se | s | sw | w | nw | c | _)
-    CompassPointer(CompassDirection),
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -81,7 +84,6 @@ enum CompassDirection {
     NorthWest,
     Center,
     Underscore,
-    Any(Identifier),
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -146,41 +148,18 @@ fn parse_statements(input: &str) -> IResult<&str, Vec<Token>> {
     Ok((input, vec![]))
 }
 
-fn parse_compass_pointer(input: &str) -> IResult<&str, Token> {
+fn parse_compass_pointer(input: &str) -> IResult<&str, CompassDirection> {
     alt((
-        map(tag_no_case("ne"), |_| {
-            Token::CompassPointer(CompassDirection::NorthEast)
-        }),
-        map(tag_no_case("se"), |_| {
-            Token::CompassPointer(CompassDirection::SouthEast)
-        }),
-        map(tag_no_case("sw"), |_| {
-            Token::CompassPointer(CompassDirection::SouthWest)
-        }),
-        map(tag_no_case("nw"), |_| {
-            Token::CompassPointer(CompassDirection::NorthWest)
-        }),
-        map(tag_no_case("n"), |_| {
-            Token::CompassPointer(CompassDirection::North)
-        }),
-        map(tag_no_case("e"), |_| {
-            Token::CompassPointer(CompassDirection::East)
-        }),
-        map(tag_no_case("s"), |_| {
-            Token::CompassPointer(CompassDirection::South)
-        }),
-        map(tag_no_case("w"), |_| {
-            Token::CompassPointer(CompassDirection::West)
-        }),
-        map(tag_no_case("c"), |_| {
-            Token::CompassPointer(CompassDirection::Center)
-        }),
-        map(tag("_"), |_| {
-            Token::CompassPointer(CompassDirection::Underscore)
-        }),
-        map(parse_identifier, |i| {
-            Token::CompassPointer(CompassDirection::Any(i))
-        }),
+        map(tag_no_case("ne"), |_| CompassDirection::NorthEast),
+        map(tag_no_case("se"), |_| CompassDirection::SouthEast),
+        map(tag_no_case("sw"), |_| CompassDirection::SouthWest),
+        map(tag_no_case("nw"), |_| CompassDirection::NorthWest),
+        map(tag_no_case("n"), |_| CompassDirection::North),
+        map(tag_no_case("e"), |_| CompassDirection::East),
+        map(tag_no_case("s"), |_| CompassDirection::South),
+        map(tag_no_case("w"), |_| CompassDirection::West),
+        map(tag_no_case("c"), |_| CompassDirection::Center),
+        map(tag("_"), |_| CompassDirection::Underscore),
     ))(input)
 }
 
@@ -226,10 +205,7 @@ fn parse_numeral(input: &str) -> IResult<&str, Identifier> {
 /// attr_list	:	'[' [ a_list ] ']' [ attr_list ]
 fn parse_attributes(input: &str) -> IResult<&str, Token> {
     map(
-        pair(
-            parse_kind,
-            parse_attribute_list,
-        ),
+        pair(parse_kind, parse_attribute_list),
         |(kind, attributes)| Token::Attributes(kind, attributes),
     )(input)
 }
@@ -274,6 +250,26 @@ fn parse_attribute(input: &str) -> IResult<&str, Vec<Attribute>> {
     ))(input)
 }
 
+// port	:	':' ID [ ':' compass_pt ] | ':' compass_pt
+fn parse_port(input: &str) -> IResult<&str, Token> {
+    alt((
+        map(
+            preceded(terminated(tag(":"), space0), parse_compass_pointer),
+            |direction| Token::AnonymousPort(direction),
+        ),
+        map(
+            pair(
+                delimited(terminated(tag(":"), space0), parse_identifier, space0),
+                opt(preceded(
+                    terminated(tag(":"), space0),
+                    parse_compass_pointer,
+                )),
+            ),
+            |(identifier, direction)| Token::IdentifiedPort(identifier, direction),
+        ),
+    ))(input)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -287,14 +283,19 @@ mod tests {
         );
         assert_eq!(
             parse("graph 123 {}"),
-            Ok(("", Graph::new(false, GraphKind::Graph, Some(Identifier::Numeral("123".to_string())), vec![])))
+            Ok((
+                "",
+                Graph::new(
+                    false,
+                    GraphKind::Graph,
+                    Some(Identifier::Numeral("123".to_string())),
+                    vec![]
+                )
+            ))
         );
         assert_eq!(
             parse("graph {}"),
-            Ok((
-                "",
-                Graph::new(false, GraphKind::Graph, None, vec![])
-            ))
+            Ok(("", Graph::new(false, GraphKind::Graph, None, vec![])))
         );
     }
 
@@ -496,55 +497,111 @@ mod tests {
     }
 
     #[test]
+    fn port() {
+        assert_eq!(
+            parse_port(": Pedro:se"),
+            Ok((
+                "",
+                Token::IdentifiedPort(
+                    Identifier::Unquoted("Pedro".to_string()),
+                    Some(CompassDirection::SouthEast)
+                )
+            ))
+        );
+        assert_eq!(
+            parse_port(":Pedro:se"),
+            Ok((
+                "",
+                Token::IdentifiedPort(
+                    Identifier::Unquoted("Pedro".to_string()),
+                    Some(CompassDirection::SouthEast)
+                )
+            ))
+        );
+        assert_eq!(
+            parse_port(":Pedro: se"),
+            Ok((
+                "",
+                Token::IdentifiedPort(
+                    Identifier::Unquoted("Pedro".to_string()),
+                    Some(CompassDirection::SouthEast)
+                )
+            ))
+        );
+        assert_eq!(
+            parse_port(":Pedro : se"),
+            Ok((
+                "",
+                Token::IdentifiedPort(
+                    Identifier::Unquoted("Pedro".to_string()),
+                    Some(CompassDirection::SouthEast)
+                )
+            ))
+        );
+        assert_eq!(
+            parse_port(":Pedro"),
+            Ok((
+                "",
+                Token::IdentifiedPort(Identifier::Unquoted("Pedro".to_string()), None)
+            ))
+        );
+        assert_eq!(
+            parse_port(":Pedro:"),
+            Ok((
+                ":",
+                Token::IdentifiedPort(Identifier::Unquoted("Pedro".to_string()), None)
+            ))
+        );
+        assert_eq!(
+            parse_port(":ne"),
+            Ok(("", Token::AnonymousPort(CompassDirection::NorthEast)))
+        );
+        assert_eq!(
+            parse_port(": ne"),
+            Ok(("", Token::AnonymousPort(CompassDirection::NorthEast)))
+        );
+    }
+
+    #[test]
+    fn port_invalid() {
+        assert!(parse_port(":").is_err());
+    }
+
+    #[test]
     fn compass_direction() {
         assert_eq!(
             parse_compass_pointer("n"),
-            Ok(("", Token::CompassPointer(CompassDirection::North)))
+            Ok(("", CompassDirection::North))
         );
         assert_eq!(
             parse_compass_pointer("nE"),
-            Ok(("", Token::CompassPointer(CompassDirection::NorthEast)))
+            Ok(("", CompassDirection::NorthEast))
         );
-        assert_eq!(
-            parse_compass_pointer("e"),
-            Ok(("", Token::CompassPointer(CompassDirection::East)))
-        );
+        assert_eq!(parse_compass_pointer("e"), Ok(("", CompassDirection::East)));
         assert_eq!(
             parse_compass_pointer("Se"),
-            Ok(("", Token::CompassPointer(CompassDirection::SouthEast)))
+            Ok(("", CompassDirection::SouthEast))
         );
         assert_eq!(
             parse_compass_pointer("s"),
-            Ok(("", Token::CompassPointer(CompassDirection::South)))
+            Ok(("", CompassDirection::South))
         );
         assert_eq!(
             parse_compass_pointer("SW"),
-            Ok(("", Token::CompassPointer(CompassDirection::SouthWest)))
+            Ok(("", CompassDirection::SouthWest))
         );
-        assert_eq!(
-            parse_compass_pointer("w"),
-            Ok(("", Token::CompassPointer(CompassDirection::West)))
-        );
+        assert_eq!(parse_compass_pointer("w"), Ok(("", CompassDirection::West)));
         assert_eq!(
             parse_compass_pointer("nw"),
-            Ok(("", Token::CompassPointer(CompassDirection::NorthWest)))
+            Ok(("", CompassDirection::NorthWest))
         );
         assert_eq!(
             parse_compass_pointer("c"),
-            Ok(("", Token::CompassPointer(CompassDirection::Center)))
+            Ok(("", CompassDirection::Center))
         );
         assert_eq!(
             parse_compass_pointer("_"),
-            Ok(("", Token::CompassPointer(CompassDirection::Underscore)))
-        );
-        assert_eq!(
-            parse_compass_pointer("Pedro"),
-            Ok((
-                "",
-                Token::CompassPointer(CompassDirection::Any(Identifier::Unquoted(
-                    "Pedro".to_string()
-                )))
-            ))
+            Ok(("", CompassDirection::Underscore))
         );
     }
 
