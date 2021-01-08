@@ -55,10 +55,15 @@ enum Token {
     EdgeRHS,
     // node_id [ attr_list ]
     Node(Identifier, Option<Identifier>),
-    IdentifiedPort(Identifier, Option<CompassDirection>),
-    AnonymousPort(CompassDirection),
+    Port(Ports),
     // [ subgraph [ ID ] ] '{' stmt_list '}'
     Subgraph(Option<Identifier>, Vec<Token>),
+}
+
+#[derive(Debug, Eq, PartialEq)]
+enum Ports {
+    Identified(Identifier, Option<CompassDirection>),
+    Anonymous(CompassDirection),
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -256,7 +261,7 @@ fn parse_port(input: &str) -> IResult<&str, Token> {
     alt((
         map(
             preceded(terminated(tag(":"), space0), parse_compass_pointer),
-            |direction| Token::AnonymousPort(direction),
+            |direction| Token::Port(Ports::Anonymous(direction)),
         ),
         map(
             pair(
@@ -266,7 +271,7 @@ fn parse_port(input: &str) -> IResult<&str, Token> {
                     parse_compass_pointer,
                 )),
             ),
-            |(identifier, direction)| Token::IdentifiedPort(identifier, direction),
+            |(identifier, direction)| Token::Port(Ports::Identified(identifier, direction)),
         ),
     ))(input)
 }
@@ -503,63 +508,63 @@ mod tests {
             parse_port(": Pedro:se"),
             Ok((
                 "",
-                Token::IdentifiedPort(
+                Token::Port(Ports::Identified(
                     Identifier::Unquoted("Pedro".to_string()),
                     Some(CompassDirection::SouthEast)
-                )
+                ))
             ))
         );
         assert_eq!(
             parse_port(":Pedro:se"),
             Ok((
                 "",
-                Token::IdentifiedPort(
+                Token::Port(Ports::Identified(
                     Identifier::Unquoted("Pedro".to_string()),
                     Some(CompassDirection::SouthEast)
-                )
+                ))
             ))
         );
         assert_eq!(
             parse_port(":Pedro: se"),
             Ok((
                 "",
-                Token::IdentifiedPort(
+                Token::Port(Ports::Identified(
                     Identifier::Unquoted("Pedro".to_string()),
                     Some(CompassDirection::SouthEast)
-                )
+                ))
             ))
         );
         assert_eq!(
             parse_port(":Pedro : se"),
             Ok((
                 "",
-                Token::IdentifiedPort(
+                Token::Port(Ports::Identified(
                     Identifier::Unquoted("Pedro".to_string()),
                     Some(CompassDirection::SouthEast)
-                )
+                ))
             ))
         );
         assert_eq!(
             parse_port(":Pedro"),
             Ok((
                 "",
-                Token::IdentifiedPort(Identifier::Unquoted("Pedro".to_string()), None)
+                Token::Port(Ports::Identified(Identifier::Unquoted("Pedro".to_string()), None))
             ))
         );
         assert_eq!(
             parse_port(":Pedro:"),
             Ok((
                 ":",
-                Token::IdentifiedPort(Identifier::Unquoted("Pedro".to_string()), None)
+                Token::Port(Ports::Identified(Identifier::Unquoted("Pedro".to_string()), None))
             ))
         );
         assert_eq!(
             parse_port(":ne"),
-            Ok(("", Token::AnonymousPort(CompassDirection::NorthEast)))
+            Ok(("", Token::Port(Ports::Anonymous(CompassDirection::NorthEast))))
         );
         assert_eq!(
             parse_port(": ne"),
-            Ok(("", Token::AnonymousPort(CompassDirection::NorthEast)))
+            Ok(("", Token::Port(Ports::Anonymous(CompassDirection::NorthEast))))
         );
     }
 
