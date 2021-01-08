@@ -3,7 +3,6 @@ mod nodes;
 mod edges;
 mod identifiers;
 mod html;
-mod graph;
 
 use attributes::*;
 use identifiers::*;
@@ -131,7 +130,6 @@ fn parse_comment(input: &str) -> IResult<&str, ()> { Ok((input, ()))}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::html::TagPosition;
 
     #[test]
     fn graph() {

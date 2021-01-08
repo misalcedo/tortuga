@@ -64,7 +64,7 @@ fn parse_numeral(input: &str) -> IResult<&str, Identifier> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::html::TagPosition;
+    use crate::graphviz::html::TagPosition;
 
     #[test]
     fn identifier() {
