@@ -1,4 +1,83 @@
 
+use nom::{
+    branch::alt,
+    bytes::complete::{tag, tag_no_case},
+    character::complete::{multispace0, space0, space1},
+    combinator::{map, opt},
+    multi::many1,
+    sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
+    IResult,
+};
+use crate::graphviz::identifiers::{Identifier, parse_identifier};
+use crate::graphviz::attributes::{Attributes, parse_attributes};
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum Port {
+    Identified(Identifier, Option<CompassDirection>),
+    Anonymous(CompassDirection),
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum CompassDirection {
+    North,
+    NorthEast,
+    East,
+    SouthEast,
+    South,
+    SouthWest,
+    West,
+    NorthWest,
+    Center,
+    Underscore,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct Node(Identifier, Option<Port>, Option<Attributes>);
+
+fn parse_compass_pointer(input: &str) -> IResult<&str, CompassDirection> {
+    alt((
+        map(tag_no_case("ne"), |_| CompassDirection::NorthEast),
+        map(tag_no_case("se"), |_| CompassDirection::SouthEast),
+        map(tag_no_case("sw"), |_| CompassDirection::SouthWest),
+        map(tag_no_case("nw"), |_| CompassDirection::NorthWest),
+        map(tag_no_case("n"), |_| CompassDirection::North),
+        map(tag_no_case("e"), |_| CompassDirection::East),
+        map(tag_no_case("s"), |_| CompassDirection::South),
+        map(tag_no_case("w"), |_| CompassDirection::West),
+        map(tag_no_case("c"), |_| CompassDirection::Center),
+        map(tag("_"), |_| CompassDirection::Underscore),
+    ))(input)
+}
+
+// port	:	':' ID [ ':' compass_pt ] | ':' compass_pt
+fn parse_port(input: &str) -> IResult<&str, Port> {
+    alt((
+        map(
+            preceded(terminated(tag(":"), space0), parse_compass_pointer),
+            Port::Anonymous,
+        ),
+        map(
+            pair(
+                delimited(terminated(tag(":"), space0), parse_identifier, space0),
+                opt(preceded(
+                    terminated(tag(":"), space0),
+                    parse_compass_pointer,
+                )),
+            ),
+            |(identifier, direction)| Port::Identified(identifier, direction),
+        ),
+    ))(input)
+}
+
+// node_stmt 	: 	node_id [ attr_list ]
+// node_id 	: 	ID [ port ]
+pub(crate) fn parse_node(input: &str) -> IResult<&str, Node> {
+    map(
+        tuple((parse_identifier, opt(parse_port), opt(parse_attributes))),
+        |(identifier, port, attributes)| Node(identifier, port, attributes),
+    )(input)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -9,14 +88,14 @@ mod tests {
             parse_node("Pedro:::"),
             Ok((
                 ":::",
-                Token::Node(Identifier::Unquoted("Pedro".to_string()), None, None)
+                Node(Identifier::Unquoted("Pedro".to_string()), None, None)
             ))
         );
         assert_eq!(
             parse_node("Pedro:Foo:"),
             Ok((
                 ":",
-                Token::Node(
+                Node(
                     Identifier::Unquoted("Pedro".to_string()),
                     Some(Port::Identified(
                         Identifier::Unquoted("Foo".to_string()),

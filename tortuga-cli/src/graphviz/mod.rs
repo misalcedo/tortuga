@@ -7,6 +7,8 @@ mod graph;
 
 use attributes::*;
 use identifiers::*;
+use nodes::*;
+use edges::*;
 
 use nom::{
     branch::alt,
@@ -56,29 +58,9 @@ enum Token {
     EdgeRHS,
     // node_stmt 	: 	node_id [ attr_list ]
     // node_id 	: 	ID [ port ]
-    Node(Identifier, Option<Port>, Option<Attributes>),
+    NodeStatement(Node),
     // [ subgraph [ ID ] ] '{' stmt_list '}'
     Subgraph(Option<Identifier>, Vec<Token>),
-}
-
-#[derive(Debug, Eq, PartialEq)]
-enum Port {
-    Identified(Identifier, Option<CompassDirection>),
-    Anonymous(CompassDirection),
-}
-
-#[derive(Debug, Eq, PartialEq)]
-enum CompassDirection {
-    North,
-    NorthEast,
-    East,
-    SouthEast,
-    South,
-    SouthWest,
-    West,
-    NorthWest,
-    Center,
-    Underscore,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -141,50 +123,6 @@ fn parse_subgraph(input: &str) -> IResult<&str, Token> {
 
 fn parse_statements(input: &str) -> IResult<&str, Vec<Token>> {
     Ok((input, vec![]))
-}
-
-fn parse_compass_pointer(input: &str) -> IResult<&str, CompassDirection> {
-    alt((
-        map(tag_no_case("ne"), |_| CompassDirection::NorthEast),
-        map(tag_no_case("se"), |_| CompassDirection::SouthEast),
-        map(tag_no_case("sw"), |_| CompassDirection::SouthWest),
-        map(tag_no_case("nw"), |_| CompassDirection::NorthWest),
-        map(tag_no_case("n"), |_| CompassDirection::North),
-        map(tag_no_case("e"), |_| CompassDirection::East),
-        map(tag_no_case("s"), |_| CompassDirection::South),
-        map(tag_no_case("w"), |_| CompassDirection::West),
-        map(tag_no_case("c"), |_| CompassDirection::Center),
-        map(tag("_"), |_| CompassDirection::Underscore),
-    ))(input)
-}
-
-// port	:	':' ID [ ':' compass_pt ] | ':' compass_pt
-fn parse_port(input: &str) -> IResult<&str, Port> {
-    alt((
-        map(
-            preceded(terminated(tag(":"), space0), parse_compass_pointer),
-            Port::Anonymous,
-        ),
-        map(
-            pair(
-                delimited(terminated(tag(":"), space0), parse_identifier, space0),
-                opt(preceded(
-                    terminated(tag(":"), space0),
-                    parse_compass_pointer,
-                )),
-            ),
-            |(identifier, direction)| Port::Identified(identifier, direction),
-        ),
-    ))(input)
-}
-
-// node_stmt 	: 	node_id [ attr_list ]
-// node_id 	: 	ID [ port ]
-fn parse_node(input: &str) -> IResult<&str, Token> {
-    map(
-        tuple((parse_identifier, opt(parse_port), opt(parse_attributes))),
-        |(identifier, port, attributes)| Token::Node(identifier, port, attributes),
-    )(input)
 }
 
 // TODO
