@@ -5,7 +5,7 @@ use nom::{
     character::complete::{line_ending, multispace0, multispace1, space0, space1},
     combinator::{map, opt},
     multi::{many1, separated_list1},
-    regexp::str::re_find,
+    regexp::str::{re_capture,re_find},
     sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
     IResult,
 };
@@ -186,10 +186,11 @@ fn parse_string(input: &str) -> IResult<&str, Identifier> {
 
 /// Parse a quoted string. Any characters are alllowed in the quoted string.
 fn parse_quoted_string(input: &str) -> IResult<&str, Identifier> {
-    let re = Regex::new(r#"(?:[^\\"]|\\.|\\)*"#).unwrap();
+    let re = Regex::new(r#"^((?:[^\\"]|\\.|\\)*)""#).unwrap();
 
-    map(delimited(tag("\""), re_find(re), tag("\"")), |s| {
-        Identifier::Quoted(String::from(s))
+    map(delimited(tag("\""), re_capture(re), tag("\"")), |s| {
+        // The 0 index is the entire match, the 1 index is the first and only capture.
+        Identifier::Quoted(String::from(s[1]))
     })(input)
 }
 
@@ -689,6 +690,14 @@ mod tests {
         assert_eq!(
             parse_quoted_string("\"He\\llo\n\\r\", World!"),
             Ok((", World!", Identifier::Quoted("He\\llo\n\\r".to_string())))
+        );
+    }
+
+    #[test]
+    fn quoted_string_backslash_only() {
+        assert_eq!(
+            parse_quoted_string("\"Hi\\\""),
+            Ok(("", Identifier::Quoted("Hi\\".to_string())))
         );
     }
 
