@@ -1,3 +1,10 @@
+mod attributes;
+mod nodes;
+mod edges;
+mod identifiers;
+mod html;
+mod graph;
+
 use crate::html::{parse_html, HtmlElement};
 use nom::{
     branch::alt,
