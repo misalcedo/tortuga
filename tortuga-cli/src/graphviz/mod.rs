@@ -5,7 +5,9 @@ mod identifiers;
 mod html;
 mod graph;
 
-use crate::html::{parse_html, HtmlElement};
+use attributes::*;
+use identifiers::*;
+
 use nom::{
     branch::alt,
     bytes::complete::{tag, tag_no_case},
@@ -43,13 +45,6 @@ impl Graph {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-enum Kind {
-    Graph,
-    Node,
-    Edge,
-}
-
-#[derive(Debug, Eq, PartialEq)]
 enum Token {
     // [ Statement [ ';' ] Statements ]
     Statements,
@@ -67,30 +62,10 @@ enum Token {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-struct Attributes(Kind, Vec<Vec<Attribute>>);
-
-#[derive(Debug, Eq, PartialEq)]
-enum EdgeOperator {
-    Directed,
-    Undirected,
-}
-
-#[derive(Debug, Eq, PartialEq)]
 enum Port {
     Identified(Identifier, Option<CompassDirection>),
     Anonymous(CompassDirection),
 }
-
-#[derive(Debug, Eq, PartialEq)]
-enum Identifier {
-    Unquoted(String),
-    Quoted(String),
-    Numeral(String),
-    Html(HtmlElement),
-}
-
-#[derive(Debug, Eq, PartialEq)]
-struct Attribute(Identifier, Identifier);
 
 #[derive(Debug, Eq, PartialEq)]
 enum CompassDirection {
@@ -183,96 +158,6 @@ fn parse_compass_pointer(input: &str) -> IResult<&str, CompassDirection> {
     ))(input)
 }
 
-/// An ID is one of the following:
-/// 1. Any string of alphabetic ([a-zA-Zf \200-\377]) characters, underscores ('_') or digits ([0-9]), not beginning with a digit;
-/// 2. a numeral [-]?(.[0-9]+ | [0-9]+(.[0-9]*)? );
-/// 3. any double-quoted string ("...") possibly containing escaped quotes (\")1;
-/// 4. an HTML string (<...>).
-fn parse_identifier(input: &str) -> IResult<&str, Identifier> {
-    let html_parser = map(parse_html, Identifier::Html);
-    alt((
-        parse_string,
-        parse_numeral,
-        parse_quoted_string,
-        html_parser,
-    ))(input)
-}
-
-fn parse_string(input: &str) -> IResult<&str, Identifier> {
-    let re = Regex::new(r"^[\p{Alphabetic}_]{1}[\p{Alphabetic}_\d]*").unwrap();
-
-    map(re_find(re), |s| Identifier::Unquoted(String::from(s)))(input)
-}
-
-/// Parse a quoted string. All characters are valid in quoted strings.
-// TODO: allow multi-line strings.
-// TODO: allow string concatenation.
-fn parse_quoted_string(input: &str) -> IResult<&str, Identifier> {
-    let re = Regex::new(r#"^((?:[^\\"]|\\.|\\)*)""#).unwrap();
-
-    map(delimited(tag("\""), re_capture(re), tag("\"")), |s| {
-        // The 0 index is the entire match, the 1 index is the first and only capture.
-        Identifier::Quoted(String::from(s[1]))
-    })(input)
-}
-
-/// Parse a numeral identifier token; uses the decimal number system.
-/// Allows for positive and negative numerals.
-fn parse_numeral(input: &str) -> IResult<&str, Identifier> {
-    let re = Regex::new(r"^-?(?:\.\d+|\d+(?:\.\d*)?)").unwrap();
-
-    map(re_find(re), |s| Identifier::Numeral(String::from(s)))(input)
-}
-
-/// attr_stmt	:	(graph | node | edge) attr_list
-/// attr_list	:	'[' [ a_list ] ']' [ attr_list ]
-fn parse_attributes(input: &str) -> IResult<&str, Attributes> {
-    map(
-        pair(parse_kind, parse_attribute_list),
-        |(kind, attributes)| Attributes(kind, attributes),
-    )(input)
-}
-
-fn parse_attribute_list(input: &str) -> IResult<&str, Vec<Vec<Attribute>>> {
-    map(
-        many1(delimited(
-            terminated(tag("["), multispace0),
-            opt(parse_attribute),
-            terminated(tag("]"), multispace0),
-        )),
-        |attributes| attributes.into_iter().flatten().collect(),
-    )(input)
-}
-
-fn parse_kind(input: &str) -> IResult<&str, Kind> {
-    terminated(
-        alt((
-            map(tag("graph"), |_| Kind::Graph),
-            map(tag("node"), |_| Kind::Node),
-            map(tag("edge"), |_| Kind::Edge),
-        )),
-        multispace0,
-    )(input)
-}
-
-/// a_list	:	ID '=' ID [ (';' | ',') ] [ a_list ]
-fn parse_attribute(input: &str) -> IResult<&str, Vec<Attribute>> {
-    many1(map(
-        separated_pair(
-            parse_identifier,
-            delimited(space0, tag("="), space0),
-            terminated(
-                parse_identifier,
-                terminated(
-                    opt(preceded(space0, alt((tag(";"), tag(","))))),
-                    multispace0,
-                ),
-            ),
-        ),
-        |(a, b)| Attribute(a, b),
-    ))(input)
-}
-
 // port	:	':' ID [ ':' compass_pt ] | ':' compass_pt
 fn parse_port(input: &str) -> IResult<&str, Port> {
     alt((
@@ -299,18 +184,6 @@ fn parse_node(input: &str) -> IResult<&str, Token> {
     map(
         tuple((parse_identifier, opt(parse_port), opt(parse_attributes))),
         |(identifier, port, attributes)| Token::Node(identifier, port, attributes),
-    )(input)
-}
-
-// An edgeop is -> in directed graphs and -- in undirected graphs.
-fn parse_edge_operator(input: &str) -> IResult<&str, EdgeOperator> {
-    delimited(
-        space0,
-    alt((
-            map(tag("->"), |_| EdgeOperator::Directed),
-            map(tag("--"), |_| EdgeOperator::Undirected),
-        )),
-        space0
     )(input)
 }
 

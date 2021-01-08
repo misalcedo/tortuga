@@ -1,4 +1,66 @@
 
+use crate::graphviz::html::{parse_html, HtmlElement};
+use nom::{
+    branch::alt,
+    bytes::complete::{tag, tag_no_case},
+    character::complete::{multispace0, space0, space1},
+    combinator::{map, opt},
+    multi::many1,
+    regexp::str::{re_capture, re_find},
+    sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
+    IResult,
+};
+use regex::Regex;
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum Identifier {
+    Unquoted(String),
+    Quoted(String),
+    Numeral(String),
+    Html(HtmlElement),
+}
+
+/// An ID is one of the following:
+/// 1. Any string of alphabetic ([a-zA-Zf \200-\377]) characters, underscores ('_') or digits ([0-9]), not beginning with a digit;
+/// 2. a numeral [-]?(.[0-9]+ | [0-9]+(.[0-9]*)? );
+/// 3. any double-quoted string ("...") possibly containing escaped quotes (\")1;
+/// 4. an HTML string (<...>).
+pub(crate) fn parse_identifier(input: &str) -> IResult<&str, Identifier> {
+    let html_parser = map(parse_html, Identifier::Html);
+    alt((
+        parse_string,
+        parse_numeral,
+        parse_quoted_string,
+        html_parser,
+    ))(input)
+}
+
+fn parse_string(input: &str) -> IResult<&str, Identifier> {
+    let re = Regex::new(r"^[\p{Alphabetic}_]{1}[\p{Alphabetic}_\d]*").unwrap();
+
+    map(re_find(re), |s| Identifier::Unquoted(String::from(s)))(input)
+}
+
+/// Parse a quoted string. All characters are valid in quoted strings.
+// TODO: allow multi-line strings.
+// TODO: allow string concatenation.
+fn parse_quoted_string(input: &str) -> IResult<&str, Identifier> {
+    let re = Regex::new(r#"^((?:[^\\"]|\\.|\\)*)""#).unwrap();
+
+    map(delimited(tag("\""), re_capture(re), tag("\"")), |s| {
+        // The 0 index is the entire match, the 1 index is the first and only capture.
+        Identifier::Quoted(String::from(s[1]))
+    })(input)
+}
+
+/// Parse a numeral identifier token; uses the decimal number system.
+/// Allows for positive and negative numerals.
+fn parse_numeral(input: &str) -> IResult<&str, Identifier> {
+    let re = Regex::new(r"^-?(?:\.\d+|\d+(?:\.\d*)?)").unwrap();
+
+    map(re_find(re), |s| Identifier::Numeral(String::from(s)))(input)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
