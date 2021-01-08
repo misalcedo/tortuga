@@ -1,11 +1,11 @@
 use crate::html::{parse_html, HtmlElement};
 use nom::{
     branch::alt,
-    bytes::complete::{tag, tag_no_case, take_while},
-    character::complete::{line_ending, multispace0, multispace1, space0, space1},
+    bytes::complete::{tag, tag_no_case},
+    character::complete::{multispace0, space0, space1},
     combinator::{map, opt},
-    multi::{many1, separated_list1},
-    regexp::str::{re_capture,re_find},
+    multi::many1,
+    regexp::str::{re_capture, re_find},
     sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
     IResult,
 };
@@ -48,20 +48,22 @@ enum Token {
     Statements,
     // node_stmt | edge_stmt | attr_stmt | ID '=' ID | subgraph
     Statement,
-    Attributes(Kind, Vec<Vec<Attribute>>),
     // (node_id | subgraph) edgeRHS [ attr_list ]
     Edge,
     // edgeop (node_id | subgraph) [ edgeRHS ]
     EdgeRHS,
-    // node_id [ attr_list ]
-    Node(Identifier, Option<Identifier>),
-    Port(Ports),
+    // node_stmt 	: 	node_id [ attr_list ]
+    // node_id 	: 	ID [ port ]
+    Node(Identifier, Option<Port>, Option<Attributes>),
     // [ subgraph [ ID ] ] '{' stmt_list '}'
     Subgraph(Option<Identifier>, Vec<Token>),
 }
 
 #[derive(Debug, Eq, PartialEq)]
-enum Ports {
+struct Attributes(Kind, Vec<Vec<Attribute>>);
+
+#[derive(Debug, Eq, PartialEq)]
+enum Port {
     Identified(Identifier, Option<CompassDirection>),
     Anonymous(CompassDirection),
 }
@@ -174,7 +176,7 @@ fn parse_compass_pointer(input: &str) -> IResult<&str, CompassDirection> {
 /// 3. any double-quoted string ("...") possibly containing escaped quotes (\")1;
 /// 4. an HTML string (<...>).
 fn parse_identifier(input: &str) -> IResult<&str, Identifier> {
-    let html_parser = map(parse_html, |element| Identifier::Html(element));
+    let html_parser = map(parse_html, Identifier::Html);
     alt((
         parse_string,
         parse_numeral,
@@ -209,10 +211,10 @@ fn parse_numeral(input: &str) -> IResult<&str, Identifier> {
 
 /// attr_stmt	:	(graph | node | edge) attr_list
 /// attr_list	:	'[' [ a_list ] ']' [ attr_list ]
-fn parse_attributes(input: &str) -> IResult<&str, Token> {
+fn parse_attributes(input: &str) -> IResult<&str, Attributes> {
     map(
         pair(parse_kind, parse_attribute_list),
-        |(kind, attributes)| Token::Attributes(kind, attributes),
+        |(kind, attributes)| Attributes(kind, attributes),
     )(input)
 }
 
@@ -257,11 +259,11 @@ fn parse_attribute(input: &str) -> IResult<&str, Vec<Attribute>> {
 }
 
 // port	:	':' ID [ ':' compass_pt ] | ':' compass_pt
-fn parse_port(input: &str) -> IResult<&str, Token> {
+fn parse_port(input: &str) -> IResult<&str, Port> {
     alt((
         map(
             preceded(terminated(tag(":"), space0), parse_compass_pointer),
-            |direction| Token::Port(Ports::Anonymous(direction)),
+            Port::Anonymous,
         ),
         map(
             pair(
@@ -271,9 +273,18 @@ fn parse_port(input: &str) -> IResult<&str, Token> {
                     parse_compass_pointer,
                 )),
             ),
-            |(identifier, direction)| Token::Port(Ports::Identified(identifier, direction)),
+            |(identifier, direction)| Port::Identified(identifier, direction),
         ),
     ))(input)
+}
+
+// node_stmt 	: 	node_id [ attr_list ]
+// node_id 	: 	ID [ port ]
+fn parse_node(input: &str) -> IResult<&str, Token> {
+    map(
+        tuple((parse_identifier, opt(parse_port), opt(parse_attributes))),
+        |(identifier, port, attributes)| Token::Node(identifier, port, attributes),
+    )(input)
 }
 
 #[cfg(test)]
@@ -305,9 +316,11 @@ mod tests {
         );
     }
 
+    #[test]
     fn graph_invalid() {
         assert!(parse("strict graphFoo {}").is_err());
     }
+
     #[test]
     fn subgraph() {
         assert_eq!(
@@ -324,21 +337,52 @@ mod tests {
         );
     }
 
+    #[test]
     fn subgraph_invalid() {
         assert!(parse_subgraph("subgraphFoo {}").is_err());
+    }
+
+    #[test]
+    fn node() {
+        assert_eq!(
+            parse_node("Pedro:::"),
+            Ok((
+                ":::",
+                Token::Node(Identifier::Unquoted("Pedro".to_string()), None, None)
+            ))
+        );
+        assert_eq!(
+            parse_node("Pedro:Foo:"),
+            Ok((
+                ":",
+                Token::Node(
+                    Identifier::Unquoted("Pedro".to_string()),
+                    Some(Port::Identified(
+                        Identifier::Unquoted("Foo".to_string()),
+                        None
+                    )),
+                    None
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn node_invalid() {
+        assert!(parse_node("*").is_err());
     }
 
     #[test]
     fn attributes() {
         assert_eq!(
             parse_attributes("edge [] [] [] []"),
-            Ok(("", Token::Attributes(Kind::Edge, vec![])))
+            Ok(("", Attributes(Kind::Edge, vec![])))
         );
         assert_eq!(
             parse_attributes("graph [Pedro1=Pedro2]"),
             Ok((
                 "",
-                Token::Attributes(
+                Attributes(
                     Kind::Graph,
                     vec![vec![Attribute(
                         Identifier::Unquoted("Pedro1".to_string()),
@@ -351,7 +395,7 @@ mod tests {
             parse_attributes("node [Pedro1 = Pedro2 A=B;]"),
             Ok((
                 "",
-                Token::Attributes(
+                Attributes(
                     Kind::Node,
                     vec![vec![
                         Attribute(
@@ -508,63 +552,63 @@ mod tests {
             parse_port(": Pedro:se"),
             Ok((
                 "",
-                Token::Port(Ports::Identified(
+                Port::Identified(
                     Identifier::Unquoted("Pedro".to_string()),
                     Some(CompassDirection::SouthEast)
-                ))
+                )
             ))
         );
         assert_eq!(
             parse_port(":Pedro:se"),
             Ok((
                 "",
-                Token::Port(Ports::Identified(
+                Port::Identified(
                     Identifier::Unquoted("Pedro".to_string()),
                     Some(CompassDirection::SouthEast)
-                ))
+                )
             ))
         );
         assert_eq!(
             parse_port(":Pedro: se"),
             Ok((
                 "",
-                Token::Port(Ports::Identified(
+                Port::Identified(
                     Identifier::Unquoted("Pedro".to_string()),
                     Some(CompassDirection::SouthEast)
-                ))
+                )
             ))
         );
         assert_eq!(
             parse_port(":Pedro : se"),
             Ok((
                 "",
-                Token::Port(Ports::Identified(
+                Port::Identified(
                     Identifier::Unquoted("Pedro".to_string()),
                     Some(CompassDirection::SouthEast)
-                ))
+                )
             ))
         );
         assert_eq!(
             parse_port(":Pedro"),
             Ok((
                 "",
-                Token::Port(Ports::Identified(Identifier::Unquoted("Pedro".to_string()), None))
+                Port::Identified(Identifier::Unquoted("Pedro".to_string()), None)
             ))
         );
         assert_eq!(
             parse_port(":Pedro:"),
             Ok((
                 ":",
-                Token::Port(Ports::Identified(Identifier::Unquoted("Pedro".to_string()), None))
+                Port::Identified(Identifier::Unquoted("Pedro".to_string()), None)
             ))
         );
         assert_eq!(
             parse_port(":ne"),
-            Ok(("", Token::Port(Ports::Anonymous(CompassDirection::NorthEast))))
+            Ok(("", Port::Anonymous(CompassDirection::NorthEast)))
         );
         assert_eq!(
             parse_port(": ne"),
-            Ok(("", Token::Port(Ports::Anonymous(CompassDirection::NorthEast))))
+            Ok(("", Port::Anonymous(CompassDirection::NorthEast)))
         );
     }
 
@@ -641,6 +685,12 @@ mod tests {
                 Identifier::Html(HtmlElement::new("p", TagPosition::Open))
             ))
         );
+    }
+
+    #[test]
+    fn identifier_invalid() {
+        assert!(parse_identifier("").is_err());
+        assert!(parse_identifier("*").is_err());
     }
 
     #[test]

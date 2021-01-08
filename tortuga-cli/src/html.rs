@@ -1,10 +1,5 @@
 use nom::{
-    branch::alt,
-    bytes::complete::{tag, tag_no_case, take_while},
-    character::complete::alphanumeric1,
-    combinator::map,
-    regexp::str::re_find,
-    sequence::delimited,
+    bytes::complete::tag, character::complete::alphanumeric1, combinator::map, sequence::delimited,
     IResult,
 };
 
