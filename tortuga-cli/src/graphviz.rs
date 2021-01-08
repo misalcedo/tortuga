@@ -63,6 +63,12 @@ enum Token {
 struct Attributes(Kind, Vec<Vec<Attribute>>);
 
 #[derive(Debug, Eq, PartialEq)]
+enum EdgeOperator {
+    Directed,
+    Undirected,
+}
+
+#[derive(Debug, Eq, PartialEq)]
 enum Port {
     Identified(Identifier, Option<CompassDirection>),
     Anonymous(CompassDirection),
@@ -191,7 +197,9 @@ fn parse_string(input: &str) -> IResult<&str, Identifier> {
     map(re_find(re), |s| Identifier::Unquoted(String::from(s)))(input)
 }
 
-/// Parse a quoted string. Any characters are alllowed in the quoted string.
+/// Parse a quoted string. All characters are valid in quoted strings.
+// TODO: allow multi-line strings.
+// TODO: allow string concatenation.
 fn parse_quoted_string(input: &str) -> IResult<&str, Identifier> {
     let re = Regex::new(r#"^((?:[^\\"]|\\.|\\)*)""#).unwrap();
 
@@ -287,6 +295,21 @@ fn parse_node(input: &str) -> IResult<&str, Token> {
     )(input)
 }
 
+// An edgeop is -> in directed graphs and -- in undirected graphs.
+fn parse_edge_operator(input: &str) -> IResult<&str, EdgeOperator> {
+    delimited(
+        space0,
+    alt((
+            map(tag("->"), |_| EdgeOperator::Directed),
+            map(tag("--"), |_| EdgeOperator::Undirected),
+        )),
+        space0
+    )(input)
+}
+
+// TODO
+fn parse_comment(input: &str) -> IResult<&str, ()> { Ok((input, ()))}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -340,6 +363,28 @@ mod tests {
     #[test]
     fn subgraph_invalid() {
         assert!(parse_subgraph("subgraphFoo {}").is_err());
+    }
+
+    #[test]
+    fn edgeop() {
+        assert_eq!(
+            parse_edge_operator("  -> "),
+            Ok(("", EdgeOperator::Directed))
+        );
+        assert_eq!(
+            parse_edge_operator(" --  "),
+            Ok(("", EdgeOperator::Undirected))
+        );
+        assert_eq!(
+            parse_edge_operator(" ---"),
+            Ok(("-", EdgeOperator::Undirected))
+        );
+    }
+
+    #[test]
+    fn edgeop_invalid() {
+        assert!(parse_edge_operator("<->").is_err());
+        assert!(parse_edge_operator("<>").is_err());
     }
 
     #[test]
