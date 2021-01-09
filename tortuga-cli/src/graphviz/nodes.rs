@@ -1,4 +1,5 @@
-
+use crate::graphviz::attributes::{parse_attributes, Attributes};
+use crate::graphviz::identifiers::{parse_identifier, Identifier};
 use nom::{
     branch::alt,
     bytes::complete::{tag, tag_no_case},
@@ -8,8 +9,6 @@ use nom::{
     sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
     IResult,
 };
-use crate::graphviz::identifiers::{Identifier, parse_identifier};
-use crate::graphviz::attributes::{Attributes, parse_attributes};
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum Port {
@@ -32,7 +31,10 @@ pub enum CompassDirection {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct Node(Identifier, Option<Port>, Option<Attributes>);
+pub struct NodeId(pub Identifier, pub Option<Port>);
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct Node(NodeId, Option<Attributes>);
 
 fn parse_compass_pointer(input: &str) -> IResult<&str, CompassDirection> {
     alt((
@@ -73,22 +75,32 @@ fn parse_port(input: &str) -> IResult<&str, Port> {
 // node_id 	: 	ID [ port ]
 pub(crate) fn parse_node(input: &str) -> IResult<&str, Node> {
     map(
-        tuple((parse_identifier, opt(parse_port), opt(parse_attributes))),
-        |(identifier, port, attributes)| Node(identifier, port, attributes),
+        pair(parse_node_id, opt(parse_attributes)),
+        |(node_id, attributes)| Node(node_id, attributes),
+    )(input)
+}
+
+pub(crate) fn parse_node_id(input: &str) -> IResult<&str, NodeId> {
+    map(
+        pair(parse_identifier, opt(parse_port)),
+        |(identifier, port)| NodeId(identifier, port),
     )(input)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn node() {
         assert_eq!(
             parse_node("Pedro:::"),
             Ok((
                 ":::",
-                Node(Identifier::Unquoted("Pedro".to_string()), None, None)
+                Node(
+                    NodeId(Identifier::Unquoted("Pedro".to_string()), None),
+                    None
+                )
             ))
         );
         assert_eq!(
@@ -96,11 +108,13 @@ mod tests {
             Ok((
                 ":",
                 Node(
-                    Identifier::Unquoted("Pedro".to_string()),
-                    Some(Port::Identified(
-                        Identifier::Unquoted("Foo".to_string()),
-                        None
-                    )),
+                    NodeId(
+                        Identifier::Unquoted("Pedro".to_string()),
+                        Some(Port::Identified(
+                            Identifier::Unquoted("Foo".to_string()),
+                            None
+                        ))
+                    ),
                     None
                 )
             ))

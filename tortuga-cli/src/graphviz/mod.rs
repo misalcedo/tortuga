@@ -1,13 +1,13 @@
 mod attributes;
-mod nodes;
 mod edges;
-mod identifiers;
 mod html;
+mod identifiers;
+mod nodes;
 
 use attributes::*;
+use edges::*;
 use identifiers::*;
 use nodes::*;
-use edges::*;
 
 use nom::{
     branch::alt,
@@ -22,7 +22,7 @@ use nom::{
 use regex::Regex;
 
 #[derive(Debug, Eq, PartialEq)]
-struct Graph {
+pub struct Graph {
     strict: bool,
     kind: GraphKind,
     identifier: Option<Identifier>,
@@ -46,7 +46,7 @@ impl Graph {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-enum Token {
+pub enum Token {
     // [ Statement [ ';' ] Statements ]
     Statements,
     // node_stmt | edge_stmt | attr_stmt | ID '=' ID | subgraph
@@ -63,7 +63,7 @@ enum Token {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-enum GraphKind {
+pub enum GraphKind {
     Graph,
     DiGraph,
 }
@@ -125,7 +125,9 @@ fn parse_statements(input: &str) -> IResult<&str, Vec<Token>> {
 }
 
 // TODO
-fn parse_comment(input: &str) -> IResult<&str, ()> { Ok((input, ()))}
+fn parse_comment(input: &str) -> IResult<&str, ()> {
+    Ok((input, ()))
+}
 
 #[cfg(test)]
 mod tests {

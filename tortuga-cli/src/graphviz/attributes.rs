@@ -1,3 +1,4 @@
+use crate::graphviz::identifiers::{parse_identifier, Identifier};
 use nom::{
     branch::alt,
     bytes::complete::{tag, tag_no_case},
@@ -7,7 +8,6 @@ use nom::{
     sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
     IResult,
 };
-use crate::graphviz::identifiers::{Identifier, parse_identifier};
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum Kind {
@@ -17,11 +17,13 @@ pub enum Kind {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct Attributes(Kind, Vec<Vec<Attribute>>);
+pub struct Attributes(Kind, AttributeList);
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct AttributeList(pub Vec<Vec<Attribute>>);
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Attribute(Identifier, Identifier);
-
 
 /// attr_stmt	:	(graph | node | edge) attr_list
 /// attr_list	:	'[' [ a_list ] ']' [ attr_list ]
@@ -31,7 +33,6 @@ pub(crate) fn parse_attributes(input: &str) -> IResult<&str, Attributes> {
         |(kind, attributes)| Attributes(kind, attributes),
     )(input)
 }
-
 
 fn parse_kind(input: &str) -> IResult<&str, Kind> {
     terminated(
@@ -44,17 +45,16 @@ fn parse_kind(input: &str) -> IResult<&str, Kind> {
     )(input)
 }
 
-fn parse_attribute_list(input: &str) -> IResult<&str, Vec<Vec<Attribute>>> {
+pub(crate) fn parse_attribute_list(input: &str) -> IResult<&str, AttributeList> {
     map(
         many1(delimited(
             terminated(tag("["), multispace0),
             opt(parse_attribute),
             terminated(tag("]"), multispace0),
         )),
-        |attributes| attributes.into_iter().flatten().collect(),
+        |attributes| AttributeList(attributes.into_iter().flatten().collect()),
     )(input)
 }
-
 
 /// a_list	:	ID '=' ID [ (';' | ',') ] [ a_list ]
 fn parse_attribute(input: &str) -> IResult<&str, Vec<Attribute>> {
@@ -82,7 +82,7 @@ mod tests {
     fn attributes() {
         assert_eq!(
             parse_attributes("edge [] [] [] []"),
-            Ok(("", Attributes(Kind::Edge, vec![])))
+            Ok(("", Attributes(Kind::Edge, AttributeList(vec![]))))
         );
         assert_eq!(
             parse_attributes("graph [Pedro1=Pedro2]"),
@@ -90,10 +90,10 @@ mod tests {
                 "",
                 Attributes(
                     Kind::Graph,
-                    vec![vec![Attribute(
+                    AttributeList(vec![vec![Attribute(
                         Identifier::Unquoted("Pedro1".to_string()),
                         Identifier::Unquoted("Pedro2".to_string())
-                    )]]
+                    )]])
                 )
             ))
         );
@@ -103,7 +103,7 @@ mod tests {
                 "",
                 Attributes(
                     Kind::Node,
-                    vec![vec![
+                    AttributeList(vec![vec![
                         Attribute(
                             Identifier::Unquoted("Pedro1".to_string()),
                             Identifier::Unquoted("Pedro2".to_string())
@@ -112,7 +112,7 @@ mod tests {
                             Identifier::Unquoted("A".to_string()),
                             Identifier::Unquoted("B".to_string())
                         )
-                    ]]
+                    ]])
                 )
             ))
         );
