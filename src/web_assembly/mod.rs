@@ -1,7 +1,9 @@
 mod data;
 mod element;
+mod export;
 mod expression;
 mod function;
+mod global;
 mod identifier;
 mod instruction;
 mod memory;
@@ -14,12 +16,14 @@ mod types;
 
 pub use data::Data;
 pub use element::Element;
+pub use export::Export;
 pub use expression::Expression;
 pub use function::FunctionIndex;
+pub use global::GlobalIndex;
 pub use identifier::Identifier;
 pub use instruction::Instruction;
-pub use memory::MemoryUse;
+pub use memory::{MemoryIndex, MemoryUse};
 pub use offset::Offset;
-pub use table::TableUse;
-pub use text::String;
+pub use table::{TableIndex, TableUse};
+pub use text::{Name, String};
 pub use types::ReferenceType;
