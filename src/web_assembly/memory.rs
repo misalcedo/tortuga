@@ -1,6 +1,9 @@
 use crate::web_assembly::{Identifier, Limit};
 
-pub struct Memory {}
+pub struct Memory {
+    id: Identifier,
+    signature: MemoryType,
+}
 
 pub struct MemoryIndex(Identifier);
 

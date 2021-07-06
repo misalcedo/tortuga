@@ -1,4 +1,4 @@
-use crate::web_assembly::{Expression, Identifier, Offset, ReferenceType, TableUse};
+use crate::web_assembly::{ConstantExpression, Identifier, Offset, ReferenceType, TableUse};
 
 /// Element segments allow for an optional table index to identify the table to initialize.
 pub struct Element {
@@ -13,4 +13,4 @@ pub struct ElementList {
     elements: Vec<ElementExpression>,
 }
 
-pub struct ElementExpression(Expression);
+pub struct ElementExpression(ConstantExpression);

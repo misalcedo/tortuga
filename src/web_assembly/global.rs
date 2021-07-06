@@ -1,6 +1,10 @@
-use crate::web_assembly::{Identifier, ValueType};
+use crate::web_assembly::{ConstantExpression, Identifier, ValueType};
 
-pub struct Global {}
+pub struct Global {
+    id: Identifier,
+    signature: GlobalType,
+    expression: ConstantExpression,
+}
 
 pub struct GlobalIndex(Identifier);
 

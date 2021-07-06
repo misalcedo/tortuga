@@ -1,6 +1,9 @@
 use crate::web_assembly::{Identifier, Limit, ReferenceType};
 
-pub struct Table {}
+pub struct Table {
+    id: Identifier,
+    signature: TableType,
+}
 
 pub struct TableIndex(Identifier);
 
