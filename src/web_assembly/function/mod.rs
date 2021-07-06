@@ -5,3 +5,9 @@ pub struct Function {
 }
 
 pub struct FunctionIndex(Identifier);
+
+pub struct Type {}
+
+pub struct TypeIndex(Identifier);
+
+pub struct TypeUse(TypeIndex);

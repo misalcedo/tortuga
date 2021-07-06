@@ -14,3 +14,8 @@ pub enum HeapType {
     Function, // func
     External, // extern
 }
+
+pub enum ValueType {
+    Number(NumberType),
+    Reference(ReferenceType),
+}

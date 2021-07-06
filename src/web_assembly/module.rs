@@ -1,3 +1,7 @@
+use crate::web_assembly::{
+    Data, Element, Export, Function, Global, Import, Memory, Start, Table, Type,
+};
+
 pub struct Module {
     types: Vec<Type>,
     imports: Vec<Import>,
@@ -7,6 +11,6 @@ pub struct Module {
     globals: Vec<Global>,
     exports: Vec<Export>,
     start: Start,
-    elements: Vec<Elements>,
+    elements: Vec<Element>,
     data: Vec<Data>,
 }
