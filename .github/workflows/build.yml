@@ -1,18 +1,12 @@
-name: Rust - CLI
+name: Build
 
 on:
+  pull_request: {}
   push:
     branches: [ main ]
-    paths:
-      - 'tortuga-cli/**'
-      - '.github/workflows/rust-cli.yml'
-  pull_request:
-    paths:
-      - 'tortuga-cli/**'
 
 env:
   CARGO_TERM_COLOR: always
-  CRATE_NAME: tortuga-cli
 
 jobs:
   build:
@@ -38,10 +32,8 @@ jobs:
           rustup update ${{ matrix.rust }} --no-self-update 
           rustup default ${{ matrix.rust }}
       - name: Build
-        working-directory: ${{ env.CRATE_NAME }}
         run: cargo build --verbose
       - name: Run tests
-        working-directory: ${{ env.CRATE_NAME }}
         run: cargo test --verbose
         env:
           RUST_BACKTRACE: 1
