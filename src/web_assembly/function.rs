@@ -1,7 +1,10 @@
-use crate::web_assembly::{Identifier, ValueType};
+use crate::web_assembly::{Expression, Identifier, ValueType};
 
 pub struct Function {
     id: Identifier,
+    signature: TypeUse,
+    locals: Vec<Local>,
+    expression: Expression,
 }
 
 pub struct FunctionIndex(Identifier);
@@ -9,6 +12,11 @@ pub struct FunctionIndex(Identifier);
 pub struct FunctionType {
     parameters: Vec<Parameter>,
     result: Vec<Result>,
+}
+
+pub struct Local {
+    id: Identifier,
+    value_type: ValueType,
 }
 
 pub struct Parameter {
