@@ -1,4 +1,4 @@
-use crate::web_assembly::instruction::Instruction;
+use crate::web_assembly::Instruction;
 
 pub struct Expression {
     instructions: Vec<Instruction>,

@@ -1,11 +1,20 @@
 mod data;
+mod element;
 mod expression;
 mod identifier;
 mod instruction;
 mod memory;
 mod module;
-mod name;
-mod string;
-mod value_type;
+mod offset;
+mod table;
+mod text;
+mod types;
 
-pub use string::String;
+pub use expression::Expression;
+pub use identifier::Identifier;
+pub use instruction::Instruction;
+pub use memory::MemoryUse;
+pub use offset::Offset;
+pub use table::TableUse;
+pub use text::String;
+pub use types::ReferenceType;

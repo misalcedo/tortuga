@@ -1,7 +1,7 @@
 use crate::web_assembly::Identifier;
 
-pub struct Memory {}
+pub struct Table {}
 
-pub struct MemoryUse {
+pub struct TableUse {
     reference: Identifier,
 }
