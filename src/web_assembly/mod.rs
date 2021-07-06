@@ -20,7 +20,7 @@ pub use data::Data;
 pub use element::Element;
 pub use export::Export;
 pub use expression::Expression;
-pub use function::{Function, FunctionIndex, Type, TypeIndex, TypeUse};
+pub use function::{Function, FunctionIndex, Parameter, Result, Type, TypeIndex, TypeUse};
 pub use global::{Global, GlobalIndex, GlobalType};
 pub use identifier::Identifier;
 pub use import::Import;
