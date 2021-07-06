@@ -1,16 +1,21 @@
 mod data;
 mod element;
 mod expression;
+mod function;
 mod identifier;
 mod instruction;
 mod memory;
 mod module;
 mod offset;
+mod start;
 mod table;
 mod text;
 mod types;
 
+pub use data::Data;
+pub use element::Element;
 pub use expression::Expression;
+pub use function::FunctionIndex;
 pub use identifier::Identifier;
 pub use instruction::Instruction;
 pub use memory::MemoryUse;

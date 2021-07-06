@@ -10,7 +10,7 @@ pub struct Element {
 
 pub struct ElementList {
     reference_type: ReferenceType,
-    elements: ElementExpression,
+    elements: Vec<ElementExpression>,
 }
 
 pub struct ElementExpression(Expression);
