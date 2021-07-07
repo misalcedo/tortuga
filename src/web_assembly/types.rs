@@ -5,6 +5,16 @@ pub enum NumberType {
     F64,
 }
 
+pub enum IntegerType {
+    I32,
+    I64,
+}
+
+pub enum FloatType {
+    F32,
+    F64,
+}
+
 pub enum ReferenceType {
     Function, // funcref
     External, // externref

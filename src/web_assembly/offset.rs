@@ -1,5 +1,5 @@
-use crate::web_assembly::ConstantExpression;
+use crate::web_assembly::Expression;
 
 pub struct Offset {
-    expression: ConstantExpression,
+    expression: Expression,
 }

@@ -1,9 +1,5 @@
-use crate::web_assembly::{ConstantInstruction, Instruction};
+use crate::web_assembly::Instruction;
 
 pub struct Expression {
     instructions: Vec<Instruction>,
-}
-
-pub struct ConstantExpression {
-    instructions: Vec<ConstantInstruction>,
 }

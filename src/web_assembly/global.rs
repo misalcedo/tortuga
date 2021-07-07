@@ -1,9 +1,9 @@
-use crate::web_assembly::{ConstantExpression, Identifier, ValueType};
+use crate::web_assembly::{Expression, Identifier, ValueType};
 
 pub struct Global {
     id: Identifier,
     signature: GlobalType,
-    expression: ConstantExpression,
+    expression: Expression,
 }
 
 pub struct GlobalIndex(Identifier);

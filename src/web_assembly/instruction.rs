@@ -1,6 +1,6 @@
 use crate::web_assembly::{
-    DataIndex, ElementIndex, Expression, FunctionIndex, GlobalIndex, Identifier, LocalIndex,
-    NumberType, ReferenceType, TableIndex, TypeIndex, TypeUse, ValueType,
+    DataIndex, ElementIndex, Expression, FloatType, FunctionIndex, GlobalIndex, Identifier,
+    IntegerType, LocalIndex, NumberType, ReferenceType, TableIndex, TypeIndex, TypeUse, ValueType,
 };
 
 pub struct LabelIndex(Identifier);
@@ -8,6 +8,57 @@ pub struct LabelIndex(Identifier);
 /// Instructions are syntactically distinguished into plain and structured instructions.
 pub enum Instruction {
     // Numeric
+    I32Constant(i32),
+    I64Constant(i64),
+    F32Constant(f32),
+    F64Constant(f64),
+    CountLeadingZeros(IntegerType),  // clz
+    CountTrailingZeros(IntegerType), // ctz
+    CountOnes(IntegerType),          // popcnt
+    AbsoluteValue(FloatType),
+    Negate(FloatType),
+    SquareRoot(FloatType),
+    Ceiling(FloatType),
+    Floor(FloatType),
+    Truncate(FloatType),
+    Nearest(FloatType),
+    Add(NumberType),
+    Subtract(NumberType),
+    Multiply(NumberType),
+    DivideInteger(IntegerType, SignExtension),
+    DivideFloat(FloatType),
+    Remainder(IntegerType, SignExtension),
+    And(IntegerType),
+    Or(IntegerType),
+    Xor(IntegerType),
+    ShiftLeft(IntegerType),
+    ShiftRight(IntegerType, SignExtension),
+    RotateLeft(IntegerType),
+    RotateRight(IntegerType),
+    Minimum(FloatType),
+    Maximum(FloatType),
+    CopySign(FloatType),
+    EqualToZero(IntegerType),
+    Equal(NumberType),
+    NotEqual(NumberType),
+    LessThanInteger(IntegerType, SignExtension),
+    LessThanFloat(FloatType),
+    GreaterThanInteger(IntegerType, SignExtension),
+    GreaterThanFloat(FloatType),
+    LessThanOrEqualToInteger(IntegerType, SignExtension),
+    LessThanOrEqualToFloat(FloatType),
+    GreaterThanOrEqualToInteger(IntegerType, SignExtension),
+    GreaterThanOrEqualToFloat(FloatType),
+    Extend(StorageSize),
+    Wrap,
+    ExtendWithSignExtension(SignExtension),
+    ConvertAndTruncate(IntegerType, FloatType, SignExtension), // trunc
+    ConvertAndTruncateWithSaturation(IntegerType, FloatType, SignExtension), // trunc_sat
+    Demote,
+    Promote,
+    Convert(FloatType, IntegerType, SignExtension),
+    ReinterpretFloat(IntegerType, FloatType),
+    ReinterpretInteger(FloatType, IntegerType),
     // Reference
     ReferenceNull(ReferenceType),
     ReferenceIsNull,
@@ -77,8 +128,6 @@ pub struct MemoryArgument {
     offset: usize,
     align: usize,
 }
-
-pub enum ConstantInstruction {}
 
 pub enum StorageSize {
     I32_8,

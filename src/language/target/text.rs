@@ -1,15 +1,13 @@
-use std::io::Write;
 use crate::language::target::emitter::{Emitter, EmitterError, ErrorKind};
-use crate::language::target::model::{self, Module, Type, FunctionType, Param, ValueType};
+use crate::language::target::model::Module;
+use std::io::Write;
 
-struct TextEmitter {
-}
+struct TextEmitter {}
 
 impl TextEmitter {
     /// Create a new WebAssembly text emitter.
     pub fn new() -> TextEmitter {
-        TextEmitter {
-        }
+        TextEmitter {}
     }
 }
 
@@ -17,10 +15,12 @@ impl Emitter for TextEmitter {
     fn write(&self, module: &Module, output: &mut impl Write) -> Result<(), EmitterError> {
         match module.name {
             Some(ref name) => {
-                write!(output, "(module ${})", name.value).map_err(|_| EmitterError::new(ErrorKind::WriteFailure))?;
-            },
+                write!(output, "(module ${})", name.value)
+                    .map_err(|_| EmitterError::new(ErrorKind::WriteFailure))?;
+            }
             None => {
-                write!(output, "(module)").map_err(|_| EmitterError::new(ErrorKind::WriteFailure))?;
+                write!(output, "(module)")
+                    .map_err(|_| EmitterError::new(ErrorKind::WriteFailure))?;
             }
         };
 
@@ -65,15 +65,20 @@ mod tests {
         let mut module = Module::new(Option::Some("test"));
         let kind = Type::new(
             Option::Some("foo"),
-     FunctionType::new(vec![
+            FunctionType::new(
+                vec![
                     Param::new(Option::Some("a"), ValueType::I32),
-                    Param::new(Option::Some("a"), ValueType::F64)],
-                    vec![model::Result::new(ValueType::I64)]
-            )
+                    Param::new(Option::Some("a"), ValueType::F64),
+                ],
+                vec![model::Result::new(ValueType::I64)],
+            ),
         );
         let result = emitter.write(&module, &mut buffer);
 
         assert!(result.is_ok());
-        assert_eq!(buffer.len(), b"(module $test (type $foo (func (param $a i32) (param f64) (result i64))))".len())
+        assert_eq!(
+            buffer.len(),
+            b"(module $test (type $foo (func (param $a i32) (param f64) (result i64))))".len()
+        )
     }
 }
