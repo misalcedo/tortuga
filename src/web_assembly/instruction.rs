@@ -3,6 +3,7 @@ use crate::web_assembly::{
     LocalIndex, NumberType, ReferenceType, TableIndex, TypeIndex, ValueType,
 };
 
+// TODO Update to have explicit instructions for every type pair, storage width, and sign extension to make emitting opcodes easier
 /// Instructions are syntactically distinguished into plain and structured instructions.
 pub enum Instruction {
     // Numeric
