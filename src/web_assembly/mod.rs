@@ -17,7 +17,7 @@ mod text;
 mod types;
 
 pub use data::{Data, DataIndex};
-pub use element::Element;
+pub use element::{Element, ElementIndex};
 pub use export::Export;
 pub use expression::{ConstantExpression, Expression};
 pub use function::{Function, FunctionIndex, Parameter, Result, Type, TypeIndex, TypeUse};

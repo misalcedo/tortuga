@@ -14,3 +14,5 @@ pub struct ElementList {
 }
 
 pub struct ElementExpression(ConstantExpression);
+
+pub struct ElementIndex(Identifier);

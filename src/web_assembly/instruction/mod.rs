@@ -1,6 +1,6 @@
 use crate::web_assembly::{
-    DataIndex, Expression, FunctionIndex, Identifier, NumberType, TableIndex, TypeIndex, TypeUse,
-    ValueType,
+    DataIndex, ElementIndex, Expression, FunctionIndex, Identifier, NumberType, TableIndex,
+    TypeIndex, TypeUse, ValueType,
 };
 
 pub struct LabelIndex(Identifier);
@@ -12,6 +12,14 @@ pub enum Instruction {
     // Parametric
     // Variable
     // Table
+    TableGet(TableIndex),
+    TableSet(TableIndex),
+    TableSize(TableIndex),
+    TableGrow(TableIndex),
+    TableFill(TableIndex),
+    TableCopy(TableIndex, TableIndex),
+    TableInit(TableIndex, ElementIndex),
+    ElementDrop(ElementIndex),
     // Memory
     Load(NumberType, MemoryArgument),
     Store(NumberType, MemoryArgument),
