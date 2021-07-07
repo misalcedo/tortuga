@@ -1,3 +1,4 @@
+mod instruction;
 mod module;
 mod types;
 mod values;

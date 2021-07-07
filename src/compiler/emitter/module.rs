@@ -1,6 +1,9 @@
 use crate::compiler::emitter::Emit;
 use crate::compiler::errors::CompilerError;
-use crate::web_assembly::{Module, Name};
+use crate::web_assembly::{
+    Export, ExportDescription, Function, Global, Import, ImportDescription, Memory, Module, Name,
+    Start, Table, TypeIndex,
+};
 use byteorder::WriteBytesExt;
 use std::io::{Cursor, Write};
 use std::mem::size_of;
@@ -17,7 +20,149 @@ impl Emit for Module {
         bytes += output.write(PREAMBLE)?;
         bytes += output.write(VERSION)?;
 
+        if !self.types().is_empty() {
+            self.types().emit(&mut buffer)?;
+            emit_section(ModuleSection::TypeSection, &mut buffer, &mut output)?;
+        }
+
+        if !self.imports().is_empty() {
+            self.imports().emit(&mut buffer)?;
+            emit_section(ModuleSection::ImportSection, &mut buffer, &mut output)?;
+        }
+
+        if !self.functions().is_empty() {
+            let types: Vec<TypeIndex> = self.functions().iter().map(Function::type_index).collect();
+
+            types.as_slice().emit(&mut buffer)?;
+
+            emit_section(ModuleSection::FunctionSection, &mut buffer, &mut output)?;
+        }
+
+        if !self.tables().is_empty() {
+            self.tables().emit(&mut buffer)?;
+            emit_section(ModuleSection::TableSection, &mut buffer, &mut output)?;
+        }
+
+        if !self.memories().is_empty() {
+            self.memories().emit(&mut buffer)?;
+            emit_section(ModuleSection::MemorySection, &mut buffer, &mut output)?;
+        }
+
+        if !self.globals().is_empty() {
+            self.globals().emit(&mut buffer)?;
+            emit_section(ModuleSection::GlobalSection, &mut buffer, &mut output)?;
+        }
+
+        if !self.exports().is_empty() {
+            self.exports().emit(&mut buffer)?;
+            emit_section(ModuleSection::ExportSection, &mut buffer, &mut output)?;
+        }
+
+        if let Some(start) = self.start() {
+            start.emit(&mut buffer)?;
+            emit_section(ModuleSection::ExportSection, &mut buffer, &mut output)?;
+        }
+
         Ok(bytes)
+    }
+}
+
+impl Emit for Import {
+    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+        let mut bytes = 0;
+
+        bytes += self.module().emit(&mut output)?;
+        bytes += self.name().emit(&mut output)?;
+        bytes += self.description().emit(&mut output)?;
+
+        Ok(bytes)
+    }
+}
+
+impl Emit for ImportDescription {
+    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+        let value: u8 = match self {
+            ImportDescription::Function(_) => 0x00,
+            ImportDescription::Table(_) => 0x01,
+            ImportDescription::Memory(_) => 0x02,
+            ImportDescription::Global(_) => 0x03,
+        };
+
+        output.write_u8(value)?;
+
+        let mut bytes = size_of::<u8>();
+
+        bytes += match self {
+            ImportDescription::Function(index) => index.emit(&mut output)?,
+            ImportDescription::Table(table_type) => table_type.emit(&mut output)?,
+            ImportDescription::Memory(memory_type) => memory_type.emit(&mut output)?,
+            ImportDescription::Global(global_type) => global_type.emit(&mut output)?,
+        };
+
+        Ok(bytes)
+    }
+}
+
+impl Emit for Table {
+    fn emit<O: Write>(&self, output: O) -> Result<usize, CompilerError> {
+        self.table_type().emit(output)
+    }
+}
+
+impl Emit for Memory {
+    fn emit<O: Write>(&self, output: O) -> Result<usize, CompilerError> {
+        self.memory_type().emit(output)
+    }
+}
+
+impl Emit for Global {
+    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+        let mut bytes = 0;
+
+        bytes += self.global_type().emit(&mut output)?;
+        bytes += self.initializer().emit(&mut output)?;
+
+        Ok(bytes)
+    }
+}
+
+impl Emit for Export {
+    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+        let mut bytes = 0;
+
+        bytes += self.name().emit(&mut output)?;
+        bytes += self.description().emit(&mut output)?;
+
+        Ok(bytes)
+    }
+}
+
+impl Emit for ExportDescription {
+    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+        let value: u8 = match self {
+            ExportDescription::Function(_) => 0x00,
+            ExportDescription::Table(_) => 0x01,
+            ExportDescription::Memory(_) => 0x02,
+            ExportDescription::Global(_) => 0x03,
+        };
+        let index = match self {
+            ExportDescription::Function(index) => index,
+            ExportDescription::Table(index) => index,
+            ExportDescription::Memory(index) => index,
+            ExportDescription::Global(index) => index,
+        };
+        let mut bytes = size_of::<u8>();
+
+        output.write_u8(value)?;
+        bytes += index.emit(&mut output)?;
+
+        Ok(bytes)
+    }
+}
+
+impl Emit for Start {
+    fn emit<O: Write>(&self, output: O) -> Result<usize, CompilerError> {
+        self.function_index().emit(output)
     }
 }
 
@@ -34,9 +179,14 @@ fn emit_custom_section<O: Write>(
     Ok(bytes)
 }
 
+/// Emits a module section to the given output.
+/// Sections need to be prefixed by their length.
+/// Since we do not know the length of the emitted contents ahead of time,
+/// we use a buffer to hold the emitted values and copy the buffer contents to the output.
+/// The buffer is reset after it is copied.
 fn emit_section<O: Write>(
     section: ModuleSection,
-    mut buffer: &mut Cursor<Vec<u8>>,
+    buffer: &mut Cursor<Vec<u8>>,
     mut output: O,
 ) -> Result<usize, CompilerError> {
     let mut bytes = 0;

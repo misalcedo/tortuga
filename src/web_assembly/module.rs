@@ -71,15 +71,15 @@ impl Module {
     }
 }
 
-pub struct TypeIndex(usize);
-pub struct FunctionIndex(usize);
-pub struct TableIndex(usize);
-pub struct MemoryIndex(usize);
-pub struct GlobalIndex(usize);
-pub struct ElementIndex(usize);
-pub struct DataIndex(usize);
-pub struct LocalIndex(usize);
-pub struct LabelIndex(usize);
+pub type TypeIndex = usize;
+pub type FunctionIndex = usize;
+pub type TableIndex = usize;
+pub type MemoryIndex = usize;
+pub type GlobalIndex = usize;
+pub type ElementIndex = usize;
+pub type DataIndex = usize;
+pub type LocalIndex = usize;
+pub type LabelIndex = usize;
 
 /// The 𝗍𝗒𝗉𝖾 of a function declares its signature by reference to a type defined in the module.
 /// The parameters of the function are referenced through 0-based local indices in the function’s
@@ -97,10 +97,22 @@ pub struct Function {
     body: Expression,
 }
 
+impl Function {
+    pub fn type_index(&self) -> TypeIndex {
+        self.signature
+    }
+}
+
 /// A table is a vector of opaque values of a particular reference type.
 /// The 𝗆𝗂𝗇 size in the limits of the table type specifies the initial size of that table,
 /// while its 𝗆𝖺𝗑, if present, restricts the size to which it can grow later.
 pub struct Table(TableType);
+
+impl Table {
+    pub fn table_type(&self) -> &TableType {
+        &self.0
+    }
+}
 
 /// A memory is a vector of raw uninterpreted bytes.
 /// The 𝗆𝗂𝗇 size in the limits of the memory type specifies the initial size of that memory,
@@ -108,10 +120,26 @@ pub struct Table(TableType);
 /// Both are in units of page size.
 pub struct Memory(MemoryType);
 
+impl Memory {
+    pub fn memory_type(&self) -> &MemoryType {
+        &self.0
+    }
+}
+
 /// The 𝗀𝗅𝗈𝖻𝖺𝗅𝗌 component of a module defines a vector of global variables (or globals for short):
 pub struct Global {
     global_type: GlobalType,
     initializer: Expression,
+}
+
+impl Global {
+    pub fn global_type(&self) -> &GlobalType {
+        &self.global_type
+    }
+
+    pub fn initializer(&self) -> &Expression {
+        &self.initializer
+    }
 }
 
 /// The initial contents of a table is uninitialized.
@@ -151,12 +179,28 @@ pub enum DataMode {
 /// after tables and memories have been initialized.
 pub struct Start(FunctionIndex);
 
+impl Start {
+    pub fn function_index(&self) -> FunctionIndex {
+        self.0
+    }
+}
+
 /// Each export is labeled by a unique name.
 /// Exportable definitions are functions, tables, memories, and globals,
 /// which are referenced through a respective descriptor.
 pub struct Export {
     name: Name,
     description: ExportDescription,
+}
+
+impl Export {
+    pub fn name(&self) -> &Name {
+        &self.name
+    }
+
+    pub fn description(&self) -> &ExportDescription {
+        &self.description
+    }
 }
 
 pub enum ExportDescription {
@@ -177,6 +221,20 @@ pub struct Import {
     module: Name,
     name: Name,
     description: ImportDescription,
+}
+
+impl Import {
+    pub fn module(&self) -> &Name {
+        &self.module
+    }
+
+    pub fn name(&self) -> &Name {
+        &self.name
+    }
+
+    pub fn description(&self) -> &ImportDescription {
+        &self.description
+    }
 }
 
 pub enum ImportDescription {
