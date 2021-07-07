@@ -18,13 +18,6 @@ impl Emit for i64 {
     }
 }
 
-impl Emit for u8 {
-    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
-        output.write_u8(*self)?;
-        Ok(size_of::<u8>())
-    }
-}
-
 impl Emit for u32 {
     fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
         Ok(leb128::write::unsigned(&mut output, *self as u64)?)
@@ -61,7 +54,18 @@ impl Emit for f64 {
 
 impl Emit for Name {
     fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
-        Ok(output.write(self.as_bytes())?)
+        let mut bytes = 0;
+
+        bytes += self.len().emit(&mut output)?;
+        bytes += self.as_bytes().emit(&mut output)?;
+
+        Ok(bytes)
+    }
+}
+
+impl Emit for [u8] {
+    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+        Ok(output.write(self)?)
     }
 }
 
@@ -70,9 +74,9 @@ where
     T: Emit,
 {
     fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
-        output.write_u32::<LittleEndian>(self.len() as u32)?;
+        let mut bytes = 0;
 
-        let mut bytes = size_of::<u32>();
+        bytes += self.len().emit(&mut output)?;
 
         for item in self {
             bytes += item.emit(&mut output)?;

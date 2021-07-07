@@ -29,6 +29,46 @@ impl Module {
             exports: Vec::new(),
         }
     }
+
+    pub fn types(&self) -> &[FunctionType] {
+        &self.types
+    }
+
+    pub fn functions(&self) -> &[Function] {
+        &self.functions
+    }
+
+    pub fn tables(&self) -> &[Table] {
+        &self.tables
+    }
+
+    pub fn memories(&self) -> &[Memory] {
+        &self.memories
+    }
+
+    pub fn globals(&self) -> &[Global] {
+        &self.globals
+    }
+
+    pub fn elements(&self) -> &[Element] {
+        &self.elements
+    }
+
+    pub fn data(&self) -> &[Data] {
+        &self.data
+    }
+
+    pub fn start(&self) -> Option<&Start> {
+        self.start.as_ref()
+    }
+
+    pub fn imports(&self) -> &[Import] {
+        &self.imports
+    }
+
+    pub fn exports(&self) -> &[Export] {
+        &self.exports
+    }
 }
 
 pub struct TypeIndex(usize);
