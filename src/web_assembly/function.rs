@@ -19,6 +19,8 @@ pub struct Local {
     value_type: ValueType,
 }
 
+pub struct LocalIndex(Identifier);
+
 pub struct Parameter {
     id: Identifier,
     value_type: ValueType,
