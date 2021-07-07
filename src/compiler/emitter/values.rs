@@ -1,4 +1,4 @@
-use crate::compiler::emitter::{BinaryWebAssemblyEmitter, Emitter};
+use crate::compiler::emitter::Emit;
 use crate::compiler::errors::CompilerError;
 use crate::web_assembly::Name;
 use byteorder::{LittleEndian, WriteBytesExt};
@@ -6,61 +6,78 @@ use std::io::Write;
 use std::mem::size_of;
 
 /// See https://webassembly.github.io/spec/core/binary/values.html
-impl Emitter<i32> for BinaryWebAssemblyEmitter {
-    fn emit<O: Write>(&self, number: &i32, mut output: O) -> Result<usize, CompilerError> {
-        Ok(leb128::write::signed(&mut output, *number as i64)?)
+impl Emit for i32 {
+    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+        Ok(leb128::write::signed(&mut output, *self as i64)?)
     }
 }
 
-impl Emitter<i64> for BinaryWebAssemblyEmitter {
-    fn emit<O: Write>(&self, number: &i64, mut output: O) -> Result<usize, CompilerError> {
-        Ok(leb128::write::signed(&mut output, *number)?)
+impl Emit for i64 {
+    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+        Ok(leb128::write::signed(&mut output, *self)?)
     }
 }
 
-impl Emitter<u8> for BinaryWebAssemblyEmitter {
-    fn emit<O: Write>(&self, number: &u8, mut output: O) -> Result<usize, CompilerError> {
-        output.write_u8(*number)?;
+impl Emit for u8 {
+    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+        output.write_u8(*self)?;
         Ok(size_of::<u8>())
     }
 }
 
-impl Emitter<u32> for BinaryWebAssemblyEmitter {
-    fn emit<O: Write>(&self, number: &u32, mut output: O) -> Result<usize, CompilerError> {
-        Ok(leb128::write::unsigned(&mut output, *number as u64)?)
+impl Emit for u32 {
+    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+        Ok(leb128::write::unsigned(&mut output, *self as u64)?)
     }
 }
 
-impl Emitter<u64> for BinaryWebAssemblyEmitter {
-    fn emit<O: Write>(&self, number: &u64, mut output: O) -> Result<usize, CompilerError> {
-        Ok(leb128::write::unsigned(&mut output, *number)?)
+impl Emit for u64 {
+    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+        Ok(leb128::write::unsigned(&mut output, *self)?)
     }
 }
 
-impl Emitter<usize> for BinaryWebAssemblyEmitter {
-    fn emit<O: Write>(&self, number: &usize, mut output: O) -> Result<usize, CompilerError> {
-        Ok(leb128::write::unsigned(&mut output, *number as u64)?)
+impl Emit for usize {
+    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+        Ok(leb128::write::unsigned(&mut output, *self as u64)?)
     }
 }
 
-impl Emitter<f32> for BinaryWebAssemblyEmitter {
-    fn emit<O: Write>(&self, number: &f32, mut output: O) -> Result<usize, CompilerError> {
-        output.write_f32::<LittleEndian>(*number)?;
+impl Emit for f32 {
+    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+        output.write_f32::<LittleEndian>(*self)?;
 
         Ok(size_of::<f32>())
     }
 }
 
-impl Emitter<f64> for BinaryWebAssemblyEmitter {
-    fn emit<O: Write>(&self, number: &f64, mut output: O) -> Result<usize, CompilerError> {
-        output.write_f64::<LittleEndian>(*number)?;
+impl Emit for f64 {
+    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+        output.write_f64::<LittleEndian>(*self)?;
 
         Ok(size_of::<f64>())
     }
 }
 
-impl Emitter<Name> for BinaryWebAssemblyEmitter {
-    fn emit<O: Write>(&self, name: &Name, mut output: O) -> Result<usize, CompilerError> {
-        Ok(output.write(name.as_bytes())?)
+impl Emit for Name {
+    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+        Ok(output.write(self.as_bytes())?)
+    }
+}
+
+impl<T> Emit for [T]
+where
+    T: Emit,
+{
+    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+        output.write_u32::<LittleEndian>(self.len() as u32)?;
+
+        let mut bytes = size_of::<u32>();
+
+        for item in self {
+            bytes += item.emit(&mut output)?;
+        }
+
+        Ok(bytes)
     }
 }

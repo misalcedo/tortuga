@@ -1,20 +1,16 @@
-use crate::compiler::emitter::{BinaryWebAssemblyEmitter, Emitter};
+use crate::compiler::emitter::Emit;
 use crate::compiler::errors::CompilerError;
 use crate::web_assembly::{
     FunctionType, GlobalType, Limit, MemoryType, NumberType, ReferenceType, ResultType, TableType,
     ValueType,
 };
-use byteorder::{LittleEndian, WriteBytesExt};
+use byteorder::WriteBytesExt;
 use std::io::Write;
 use std::mem::size_of;
 
-impl Emitter<NumberType> for BinaryWebAssemblyEmitter {
-    fn emit<O: Write>(
-        &self,
-        number_type: &NumberType,
-        mut output: O,
-    ) -> Result<usize, CompilerError> {
-        let value: u8 = match number_type {
+impl Emit for NumberType {
+    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+        let value: u8 = match self {
             NumberType::I32 => 0x7F,
             NumberType::I64 => 0x7E,
             NumberType::F32 => 0x7D,
@@ -27,13 +23,9 @@ impl Emitter<NumberType> for BinaryWebAssemblyEmitter {
     }
 }
 
-impl Emitter<ReferenceType> for BinaryWebAssemblyEmitter {
-    fn emit<O: Write>(
-        &self,
-        reference_type: &ReferenceType,
-        mut output: O,
-    ) -> Result<usize, CompilerError> {
-        let value: u8 = match reference_type {
+impl Emit for ReferenceType {
+    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+        let value: u8 = match self {
             ReferenceType::Function => 0x70,
             ReferenceType::External => 0x6F,
         };
@@ -44,67 +36,49 @@ impl Emitter<ReferenceType> for BinaryWebAssemblyEmitter {
     }
 }
 
-impl Emitter<ValueType> for BinaryWebAssemblyEmitter {
-    fn emit<O: Write>(&self, value_type: &ValueType, output: O) -> Result<usize, CompilerError> {
-        match value_type {
-            ValueType::Number(number_type) => self.emit(number_type, output),
-            ValueType::Reference(reference_type) => self.emit(reference_type, output),
+impl Emit for ValueType {
+    fn emit<O: Write>(&self, output: O) -> Result<usize, CompilerError> {
+        match self {
+            ValueType::Number(number_type) => number_type.emit(output),
+            ValueType::Reference(reference_type) => reference_type.emit(output),
         }
     }
 }
 
-impl Emitter<ResultType> for BinaryWebAssemblyEmitter {
-    fn emit<O: Write>(
-        &self,
-        result_type: &ResultType,
-        mut output: O,
-    ) -> Result<usize, CompilerError> {
-        let value_types = result_type.value_types();
-
-        output.write_u32::<LittleEndian>(value_types.len() as u32)?;
-
-        let mut bytes = size_of::<u32>();
-
-        for value_type in value_types {
-            bytes += self.emit(value_type, &mut output)?;
-        }
-
-        Ok(bytes)
+impl Emit for ResultType {
+    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+        self.value_types().emit(&mut output)
     }
 }
 
-impl Emitter<FunctionType> for BinaryWebAssemblyEmitter {
-    fn emit<O: Write>(
-        &self,
-        function_type: &FunctionType,
-        mut output: O,
-    ) -> Result<usize, CompilerError> {
+impl Emit for FunctionType {
+    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
         output.write_u8(0x60)?;
 
         let mut bytes = size_of::<u8>();
 
-        bytes += self.emit(function_type.parameters(), &mut output)?;
-        bytes += self.emit(function_type.results(), &mut output)?;
+        bytes += self.parameters().emit(&mut output)?;
+        bytes += self.results().emit(&mut output)?;
 
         Ok(bytes)
     }
 }
 
-impl Emitter<Limit> for BinaryWebAssemblyEmitter {
-    fn emit<O: Write>(&self, limit: &Limit, mut output: O) -> Result<usize, CompilerError> {
+impl Emit for Limit {
+    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
         let mut bytes = size_of::<u8>();
 
-        match limit.max() {
+        match self.max() {
             Some(max) => {
                 output.write_u8(0x00)?;
 
-                bytes += self.emit(&limit.min(), &mut output)?;
-                bytes += self.emit(&max, &mut output)?;
+                bytes += self.min().emit(&mut output)?;
+                bytes += max.emit(&mut output)?;
             }
             None => {
                 output.write_u8(0x01)?;
 
-                bytes += self.emit(&limit.min(), &mut output)?;
+                bytes += self.min().emit(&mut output)?;
             }
         };
 
@@ -112,38 +86,30 @@ impl Emitter<Limit> for BinaryWebAssemblyEmitter {
     }
 }
 
-impl Emitter<MemoryType> for BinaryWebAssemblyEmitter {
-    fn emit<O: Write>(&self, memory_type: &MemoryType, output: O) -> Result<usize, CompilerError> {
-        self.emit(memory_type.limits(), output)
+impl Emit for MemoryType {
+    fn emit<O: Write>(&self, output: O) -> Result<usize, CompilerError> {
+        self.limits().emit(output)
     }
 }
 
-impl Emitter<TableType> for BinaryWebAssemblyEmitter {
-    fn emit<O: Write>(
-        &self,
-        table_type: &TableType,
-        mut output: O,
-    ) -> Result<usize, CompilerError> {
+impl Emit for TableType {
+    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        bytes += self.emit(table_type.reference_type(), &mut output)?;
-        bytes += self.emit(table_type.limits(), &mut output)?;
+        bytes += self.reference_type().emit(&mut output)?;
+        bytes += self.limits().emit(&mut output)?;
 
         Ok(bytes)
     }
 }
 
-impl Emitter<GlobalType> for BinaryWebAssemblyEmitter {
-    fn emit<O: Write>(
-        &self,
-        global_type: &GlobalType,
-        mut output: O,
-    ) -> Result<usize, CompilerError> {
+impl Emit for GlobalType {
+    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        bytes += self.emit(global_type.value_type(), &mut output)?;
+        bytes += self.value_type().emit(&mut output)?;
 
-        let mutability: u8 = match global_type.is_mutable() {
+        let mutability: u8 = match self.is_mutable() {
             false => 0x00,
             true => 0x01,
         };

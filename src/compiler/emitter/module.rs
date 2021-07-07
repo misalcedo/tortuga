@@ -1,13 +1,18 @@
-use crate::compiler::emitter::{BinaryWebAssemblyEmitter, Emitter};
+use crate::compiler::emitter::Emit;
 use crate::compiler::errors::CompilerError;
 use crate::web_assembly::Module;
-use std::io::Write;
+use std::io::{Cursor, Write};
+
+const PREAMBLE: &[u8; 4] = b"\x00\x61\x73\x6D";
+const VERSION: &[u8; 4] = b"\x01\x00\x00\x00";
 
 /// See https://webassembly.github.io/spec/core/binary/modules.html
-impl Emitter<Module> for BinaryWebAssemblyEmitter {
-    fn emit<O: Write>(&self, module: &Module, mut output: O) -> Result<usize, CompilerError> {
-        let mut bytes = output.write(b"\x00\x61\x73\x6D")?;
-        bytes += output.write(b"\x01\x00\x00\x00")?;
+impl Emit for Module {
+    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+        let mut bytes = output.write(PREAMBLE)?;
+        let mut buffer: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+
+        bytes += output.write(VERSION)?;
 
         Ok(bytes)
     }
