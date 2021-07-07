@@ -1,9 +1,8 @@
+use crate::web_assembly::module::LabelIndex;
 use crate::web_assembly::{
-    DataIndex, ElementIndex, Expression, FloatType, FunctionIndex, GlobalIndex, Identifier,
-    IntegerType, LocalIndex, NumberType, ReferenceType, TableIndex, TypeIndex, TypeUse, ValueType,
+    DataIndex, ElementIndex, Expression, FloatType, FunctionIndex, GlobalIndex, IntegerType,
+    LocalIndex, NumberType, ReferenceType, TableIndex, TypeIndex, ValueType,
 };
-
-pub struct LabelIndex(Identifier);
 
 /// Instructions are syntactically distinguished into plain and structured instructions.
 pub enum Instruction {
@@ -113,7 +112,7 @@ pub enum Instruction {
     BranchTable(Vec<LabelIndex>, LabelIndex),
     Return,
     Call(FunctionIndex),
-    CallIndirect(TableIndex, TypeUse),
+    CallIndirect(TableIndex, TypeIndex),
 }
 
 pub struct BlockType {
