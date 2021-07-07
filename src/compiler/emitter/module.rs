@@ -101,22 +101,25 @@ impl Emit for Import {
 
 impl Emit for ImportDescription {
     fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
-        let value: u8 = match self {
-            ImportDescription::Function(_) => 0x00,
-            ImportDescription::Table(_) => 0x01,
-            ImportDescription::Memory(_) => 0x02,
-            ImportDescription::Global(_) => 0x03,
-        };
-
-        output.write_u8(value)?;
-
         let mut bytes = size_of::<u8>();
 
         bytes += match self {
-            ImportDescription::Function(index) => index.emit(&mut output)?,
-            ImportDescription::Table(table_type) => table_type.emit(&mut output)?,
-            ImportDescription::Memory(memory_type) => memory_type.emit(&mut output)?,
-            ImportDescription::Global(global_type) => global_type.emit(&mut output)?,
+            ImportDescription::Function(index) => {
+                output.write_u8(0x00)?;
+                index.emit(&mut output)?
+            }
+            ImportDescription::Table(table_type) => {
+                output.write_u8(0x01)?;
+                table_type.emit(&mut output)?
+            }
+            ImportDescription::Memory(memory_type) => {
+                output.write_u8(0x02)?;
+                memory_type.emit(&mut output)?
+            }
+            ImportDescription::Global(global_type) => {
+                output.write_u8(0x03)?;
+                global_type.emit(&mut output)?
+            }
         };
 
         Ok(bytes)
@@ -159,17 +162,11 @@ impl Emit for Export {
 
 impl Emit for ExportDescription {
     fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
-        let value: u8 = match self {
-            ExportDescription::Function(_) => 0x00,
-            ExportDescription::Table(_) => 0x01,
-            ExportDescription::Memory(_) => 0x02,
-            ExportDescription::Global(_) => 0x03,
-        };
-        let index = match self {
-            ExportDescription::Function(index) => index,
-            ExportDescription::Table(index) => index,
-            ExportDescription::Memory(index) => index,
-            ExportDescription::Global(index) => index,
+        let (value, index) = match self {
+            ExportDescription::Function(index) => (0x00, index),
+            ExportDescription::Table(index) => (0x01, index),
+            ExportDescription::Memory(index) => (0x02, index),
+            ExportDescription::Global(index) => (0x03, index),
         };
         let mut bytes = size_of::<u8>();
 
@@ -280,21 +277,18 @@ impl Emit for ElementKind {
 
 impl Emit for Data {
     fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
-        let value = match self.mode() {
-            DataMode::Active { memory: 0, .. } => 0x00,
-            DataMode::Passive => 0x01,
-            DataMode::Active { .. } => 0x02,
-        };
         let mut bytes = size_of::<u8>();
-
-        output.write_u8(value)?;
 
         match self.mode() {
             DataMode::Active { memory: 0, offset } => {
+                output.write_u8(0x00)?;
                 bytes += offset.emit(&mut output)?;
             }
-            DataMode::Passive => {}
+            DataMode::Passive => {
+                output.write_u8(0x01)?;
+            }
             DataMode::Active { memory, offset } => {
+                output.write_u8(0x02)?;
                 bytes += memory.emit(&mut output)?;
                 bytes += offset.emit(&mut output)?;
             }
