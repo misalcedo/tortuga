@@ -29,6 +29,7 @@ pub use import::Import;
 pub use instruction::Instruction;
 pub use limit::Limit;
 pub use memory::{Memory, MemoryIndex, MemoryType, MemoryUse};
+pub use module::Module;
 pub use offset::Offset;
 pub use start::Start;
 pub use table::{Table, TableIndex, TableType, TableUse};

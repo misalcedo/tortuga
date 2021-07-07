@@ -21,6 +21,8 @@ harness = false
 
 [dependencies]
 anyhow = "1.0"
+byteorder = "1.4.3"
+leb128 = "0.2.4"
 uuid = { version = "0.8", features = ["serde", "v4"] }
 thiserror = "1.0"
 wasmtime = "0.21.0"
