@@ -140,3 +140,9 @@ pub enum SignExtension {
 pub struct Expression {
     instructions: Vec<Instruction>,
 }
+
+impl Expression {
+    pub fn instructions(&self) -> &[Instruction] {
+        &self.instructions
+    }
+}
