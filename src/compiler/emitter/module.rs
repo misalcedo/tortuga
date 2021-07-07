@@ -65,6 +65,7 @@ impl Emit for Module {
         }
 
         if !self.elements().is_empty() {
+            self.elements().emit(&mut buffer)?;
             emit_section(ModuleSection::ElementSection, &mut buffer, &mut output)?;
         }
 
