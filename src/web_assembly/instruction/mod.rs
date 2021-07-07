@@ -10,6 +10,8 @@ pub enum Instruction {
     // Numeric
     // Reference
     // Parametric
+    Drop,
+    Select(Vec<ValueType>),
     // Variable
     LocalGet(LocalIndex),
     LocalSet(LocalIndex),
