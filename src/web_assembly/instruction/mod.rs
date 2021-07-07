@@ -1,12 +1,29 @@
 use crate::web_assembly::{
-    Expression, FunctionIndex, Identifier, TableIndex, TypeIndex, TypeUse, ValueType,
+    DataIndex, Expression, FunctionIndex, Identifier, NumberType, TableIndex, TypeIndex, TypeUse,
+    ValueType,
 };
 
 pub struct LabelIndex(Identifier);
 
 /// Instructions are syntactically distinguished into plain and structured instructions.
 pub enum Instruction {
-    // Blocks
+    // Numeric
+    // Reference
+    // Parametric
+    // Variable
+    // Table
+    // Memory
+    Load(NumberType, MemoryArgument),
+    Store(NumberType, MemoryArgument),
+    LoadPartial(StorageSize, SignExtension, MemoryArgument),
+    StorePartial(StorageSize, MemoryArgument),
+    MemorySize,
+    MemoryGrow,
+    MemoryFill,
+    MemoryCopy,
+    MemoryInit(DataIndex),
+    DatDrop(DataIndex),
+    // Control
     Block {
         label: Identifier,
         expression: Expression,
@@ -23,7 +40,6 @@ pub enum Instruction {
         negative: Expression,
         signature: BlockType,
     },
-    // Control
     Unreachable,
     Nop,
     Branch(LabelIndex),
@@ -32,7 +48,6 @@ pub enum Instruction {
     Return,
     Call(FunctionIndex),
     CallIndirect(TableIndex, TypeUse),
-    // Numerical
 }
 
 pub struct BlockType {
@@ -40,4 +55,22 @@ pub struct BlockType {
     value_type: ValueType,
 }
 
+pub struct MemoryArgument {
+    offset: usize,
+    align: usize,
+}
+
 pub enum ConstantInstruction {}
+
+pub enum StorageSize {
+    I32_8,
+    I64_8,
+    I32_16,
+    I64_16,
+    I64_32,
+}
+
+pub enum SignExtension {
+    Signed,
+    Unsigned,
+}

@@ -16,7 +16,7 @@ mod table;
 mod text;
 mod types;
 
-pub use data::Data;
+pub use data::{Data, DataIndex};
 pub use element::Element;
 pub use export::Export;
 pub use expression::{ConstantExpression, Expression};

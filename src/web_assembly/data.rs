@@ -16,3 +16,5 @@ pub struct Data {
 pub struct DataString {
     strings: Vec<web_assembly::String>,
 }
+
+pub struct DataIndex(Identifier);
