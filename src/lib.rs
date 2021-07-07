@@ -1,4 +1,4 @@
-mod language;
+mod compiler;
 mod queue;
 mod system;
 mod wasm;
