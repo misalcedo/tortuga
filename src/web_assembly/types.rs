@@ -1,5 +1,3 @@
-use crate::web_assembly::Limit;
-
 #[derive(Copy, Clone)]
 pub enum NumberType {
     I32,
@@ -62,6 +60,22 @@ impl FunctionType {
 
     pub fn results(&self) -> &[ValueType] {
         self.results.value_types()
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct Limit {
+    min: usize,
+    max: Option<usize>,
+}
+
+impl Limit {
+    pub fn min(&self) -> usize {
+        self.min
+    }
+
+    pub fn max(&self) -> Option<usize> {
+        self.max
     }
 }
 

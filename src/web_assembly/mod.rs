@@ -9,7 +9,6 @@ mod import;
 mod instruction;
 mod memory;
 mod module;
-mod name;
 mod offset;
 mod start;
 mod table;
@@ -27,14 +26,13 @@ pub use import::Import;
 pub use instruction::Instruction;
 pub use memory::{Memory, MemoryIndex, MemoryUse};
 pub use module::Module;
-pub use name::Name;
 pub use offset::Offset;
 pub use start::Start;
 pub use table::{Table, TableIndex, TableUse};
 pub use types::{
-    FloatType, FunctionType, GlobalType, IntegerType, MemoryType, NumberType, ReferenceType,
+    FloatType, FunctionType, GlobalType, IntegerType, Limit, MemoryType, NumberType, ReferenceType,
     ResultType, TableType, ValueType,
 };
-pub use values::Limit;
+pub use values::Name;
 
 // TODO: Update syntax to follow the binary format not the text one. We will generate binary output.

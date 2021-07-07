@@ -94,17 +94,14 @@ pub enum Instruction {
     DatDrop(DataIndex),
     // Control
     Block {
-        label: Identifier,
         expression: Expression,
         signature: BlockType,
     },
     Loop {
-        label: Identifier,
         expression: Expression,
         signature: BlockType,
     },
     If {
-        label: Identifier,
         positive: Expression,
         negative: Expression,
         signature: BlockType,
