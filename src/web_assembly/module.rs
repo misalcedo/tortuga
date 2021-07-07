@@ -166,6 +166,20 @@ pub struct Data {
     mode: DataMode,
 }
 
+impl Data {
+    pub fn mode(&self) -> &DataMode {
+        &self.mode
+    }
+
+    pub fn initializer(&self) -> &[u8] {
+        &self.initializer
+    }
+
+    pub fn len(&self) -> usize {
+        self.initializer.len()
+    }
+}
+
 pub enum DataMode {
     Passive,
     Active {

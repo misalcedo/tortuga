@@ -1,8 +1,8 @@
 use crate::compiler::emitter::Emit;
 use crate::compiler::errors::CompilerError;
 use crate::web_assembly::{
-    Export, ExportDescription, Function, Global, Import, ImportDescription, Memory, Module, Name,
-    Start, Table, TypeIndex,
+    Data, DataMode, Export, ExportDescription, Function, Global, Import, ImportDescription, Memory,
+    Module, Name, Start, Table, TypeIndex,
 };
 use byteorder::WriteBytesExt;
 use std::io::{Cursor, Write};
@@ -60,7 +60,25 @@ impl Emit for Module {
 
         if let Some(start) = self.start() {
             start.emit(&mut buffer)?;
-            emit_section(ModuleSection::ExportSection, &mut buffer, &mut output)?;
+            emit_section(ModuleSection::StartSection, &mut buffer, &mut output)?;
+        }
+
+        if !self.elements().is_empty() {
+            emit_section(ModuleSection::ElementSection, &mut buffer, &mut output)?;
+        }
+
+        if !self.data().is_empty() {
+            self.data().len().emit(&mut buffer)?;
+            emit_section(ModuleSection::DataCountSection, &mut buffer, &mut output)?;
+        }
+
+        if !self.functions().is_empty() {
+            emit_section(ModuleSection::CodeSection, &mut buffer, &mut output)?;
+        }
+
+        if !self.data().is_empty() {
+            self.data().emit(&mut buffer)?;
+            emit_section(ModuleSection::DataSection, &mut buffer, &mut output)?;
         }
 
         Ok(bytes)
@@ -163,6 +181,35 @@ impl Emit for ExportDescription {
 impl Emit for Start {
     fn emit<O: Write>(&self, output: O) -> Result<usize, CompilerError> {
         self.function_index().emit(output)
+    }
+}
+
+impl Emit for Data {
+    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+        let value = match self.mode() {
+            DataMode::Active { memory: 0, .. } => 0x00,
+            DataMode::Passive => 0x01,
+            DataMode::Active { .. } => 0x02,
+        };
+        let mut bytes = size_of::<u8>();
+
+        output.write_u8(value)?;
+
+        match self.mode() {
+            DataMode::Active { memory: 0, offset } => {
+                bytes += offset.emit(&mut output)?;
+            }
+            DataMode::Passive => {}
+            DataMode::Active { memory, offset } => {
+                bytes += memory.emit(&mut output)?;
+                bytes += offset.emit(&mut output)?;
+            }
+        };
+
+        bytes += self.len().emit(&mut output)?;
+        bytes += self.initializer().emit(&mut output)?;
+
+        Ok(bytes)
     }
 }
 
