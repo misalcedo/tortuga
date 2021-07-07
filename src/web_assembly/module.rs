@@ -145,9 +145,33 @@ impl Global {
 /// The initial contents of a table is uninitialized.
 /// Element segments can be used to initialize a subrange of a table from a static vector of elements.
 pub struct Element {
-    reference_type: ReferenceType,
-    initializers: Vec<Expression>,
+    kind: ElementKind,
+    initializers: ElementInitializer,
     mode: ElementMode,
+}
+
+pub enum ElementInitializer {
+    Expression(Vec<Expression>),
+    FunctionIndex(Vec<FunctionIndex>),
+}
+
+pub enum ElementKind {
+    FunctionReference,
+    ReferenceType(ReferenceType),
+}
+
+impl Element {
+    pub fn kind(&self) -> &ElementKind {
+        &self.kind
+    }
+
+    pub fn initializers(&self) -> &ElementInitializer {
+        &self.initializers
+    }
+
+    pub fn mode(&self) -> &ElementMode {
+        &self.mode
+    }
 }
 
 pub enum ElementMode {

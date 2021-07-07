@@ -26,6 +26,7 @@ impl Error for CompilerError {}
 #[derive(Debug)]
 pub enum ErrorKind {
     IO(std::io::Error),
+    InvalidSyntax,
 }
 
 impl Display for ErrorKind {

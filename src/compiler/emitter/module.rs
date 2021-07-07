@@ -1,8 +1,9 @@
 use crate::compiler::emitter::Emit;
-use crate::compiler::errors::CompilerError;
+use crate::compiler::errors::{CompilerError, ErrorKind};
 use crate::web_assembly::{
-    Data, DataMode, Export, ExportDescription, Function, Global, Import, ImportDescription, Memory,
-    Module, Name, Start, Table, TypeIndex,
+    Data, DataMode, Element, ElementInitializer, ElementKind, ElementMode, Export,
+    ExportDescription, Function, Global, Import, ImportDescription, Memory, Module, Name, Start,
+    Table, TypeIndex,
 };
 use byteorder::WriteBytesExt;
 use std::io::{Cursor, Write};
@@ -181,6 +182,98 @@ impl Emit for ExportDescription {
 impl Emit for Start {
     fn emit<O: Write>(&self, output: O) -> Result<usize, CompilerError> {
         self.function_index().emit(output)
+    }
+}
+
+impl Emit for Element {
+    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+        let mut bytes = size_of::<u8>();
+
+        match (self.initializers(), self.mode(), self.kind()) {
+            (
+                ElementInitializer::FunctionIndex(indices),
+                ElementMode::Active { table: 0, offset },
+                ElementKind::FunctionReference,
+            ) => {
+                output.write_u8(0x00)?;
+                bytes += offset.emit(&mut output)?;
+                bytes += indices.emit(&mut output)?;
+            }
+            (ElementInitializer::FunctionIndex(indices), ElementMode::Passive, kind) => {
+                output.write_u8(0x01)?;
+                bytes += kind.emit(&mut output)?;
+                bytes += indices.emit(&mut output)?;
+            }
+            (
+                ElementInitializer::FunctionIndex(indices),
+                ElementMode::Active { table, offset },
+                kind,
+            ) => {
+                output.write_u8(0x02)?;
+                bytes += table.emit(&mut output)?;
+                bytes += offset.emit(&mut output)?;
+                bytes += kind.emit(&mut output)?;
+                bytes += indices.emit(&mut output)?;
+            }
+            (ElementInitializer::FunctionIndex(indices), ElementMode::Declarative, kind) => {
+                output.write_u8(0x03)?;
+                bytes += kind.emit(&mut output)?;
+                bytes += indices.emit(&mut output)?;
+            }
+            (
+                ElementInitializer::Expression(expressions),
+                ElementMode::Active { table: 0, offset },
+                ElementKind::FunctionReference,
+            ) => {
+                output.write_u8(0x04)?;
+                bytes += offset.emit(&mut output)?;
+                bytes += expressions.emit(&mut output)?;
+            }
+            (
+                ElementInitializer::Expression(expressions),
+                ElementMode::Passive,
+                ElementKind::ReferenceType(kind),
+            ) => {
+                output.write_u8(0x05)?;
+                bytes += kind.emit(&mut output)?;
+                bytes += expressions.emit(&mut output)?;
+            }
+            (
+                ElementInitializer::Expression(expressions),
+                ElementMode::Active { table, offset },
+                ElementKind::ReferenceType(kind),
+            ) => {
+                output.write_u8(0x06)?;
+                bytes += table.emit(&mut output)?;
+                bytes += offset.emit(&mut output)?;
+                bytes += kind.emit(&mut output)?;
+                bytes += expressions.emit(&mut output)?;
+            }
+            (
+                ElementInitializer::Expression(expressions),
+                ElementMode::Declarative,
+                ElementKind::ReferenceType(kind),
+            ) => {
+                output.write_u8(0x07)?;
+                bytes += kind.emit(&mut output)?;
+                bytes += expressions.emit(&mut output)?;
+            }
+            _ => return Err(ErrorKind::InvalidSyntax.into()),
+        };
+
+        Ok(bytes)
+    }
+}
+
+impl Emit for ElementKind {
+    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+        match self {
+            ElementKind::FunctionReference => {
+                output.write_u8(0x00)?;
+                Ok(size_of::<u8>())
+            }
+            ElementKind::ReferenceType(kind) => kind.emit(output),
+        }
     }
 }
 
