@@ -14,13 +14,14 @@ pub struct Module {
     exports: Vec<Export>,
 }
 
-pub struct DataIndex(usize);
-pub struct FunctionIndex(usize);
-pub struct LocalIndex(usize);
 pub struct TypeIndex(usize);
+pub struct FunctionIndex(usize);
 pub struct TableIndex(usize);
 pub struct MemoryIndex(usize);
 pub struct GlobalIndex(usize);
+pub struct ElementIndex(usize);
+pub struct DataIndex(usize);
+pub struct LocalIndex(usize);
 pub struct LabelIndex(usize);
 
 /// The 𝗍𝗒𝗉𝖾 of a function declares its signature by reference to a type defined in the module.

@@ -1,6 +1,5 @@
-use crate::web_assembly::module::LabelIndex;
 use crate::web_assembly::{
-    DataIndex, ElementIndex, Expression, FloatType, FunctionIndex, GlobalIndex, IntegerType,
+    DataIndex, ElementIndex, FloatType, FunctionIndex, GlobalIndex, IntegerType, LabelIndex,
     LocalIndex, NumberType, ReferenceType, TableIndex, TypeIndex, ValueType,
 };
 
@@ -136,4 +135,8 @@ pub enum StorageSize {
 pub enum SignExtension {
     Signed,
     Unsigned,
+}
+
+pub struct Expression {
+    instructions: Vec<Instruction>,
 }
