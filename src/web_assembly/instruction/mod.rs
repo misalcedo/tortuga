@@ -1,6 +1,6 @@
 use crate::web_assembly::{
     DataIndex, ElementIndex, Expression, FunctionIndex, GlobalIndex, Identifier, LocalIndex,
-    NumberType, TableIndex, TypeIndex, TypeUse, ValueType,
+    NumberType, ReferenceType, TableIndex, TypeIndex, TypeUse, ValueType,
 };
 
 pub struct LabelIndex(Identifier);
@@ -9,6 +9,9 @@ pub struct LabelIndex(Identifier);
 pub enum Instruction {
     // Numeric
     // Reference
+    ReferenceNull(ReferenceType),
+    ReferenceIsNull,
+    ReferenceFunction(FunctionIndex),
     // Parametric
     Drop,
     Select(Vec<ValueType>),
