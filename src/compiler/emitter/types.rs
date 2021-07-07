@@ -1,8 +1,7 @@
 use crate::compiler::emitter::{BinaryWebAssemblyEmitter, Emitter};
 use crate::compiler::errors::CompilerError;
 use crate::web_assembly::{
-    FunctionType, GlobalType, Limit, MemoryType, Mutability, NumberType, ReferenceType, TableType,
-    ValueType,
+    FunctionType, GlobalType, Limit, MemoryType, NumberType, ReferenceType, TableType, ValueType,
 };
 use byteorder::{LittleEndian, WriteBytesExt};
 use std::io::Write;
@@ -53,10 +52,10 @@ impl Emitter<ValueType> for BinaryWebAssemblyEmitter {
     }
 }
 
-impl Emitter<[&ValueType]> for BinaryWebAssemblyEmitter {
+impl Emitter<[ValueType]> for BinaryWebAssemblyEmitter {
     fn emit<O: Write>(
         &self,
-        value_types: &[&ValueType],
+        value_types: &[ValueType],
         mut output: O,
     ) -> Result<usize, CompilerError> {
         output.write_u32::<LittleEndian>(value_types.len() as u32)?;
@@ -64,7 +63,7 @@ impl Emitter<[&ValueType]> for BinaryWebAssemblyEmitter {
         let mut bytes = size_of::<u32>();
 
         for value_type in value_types {
-            bytes += self.emit(*value_type, &mut output)?;
+            bytes += self.emit(value_type, &mut output)?;
         }
 
         Ok(bytes)
@@ -81,8 +80,8 @@ impl Emitter<FunctionType> for BinaryWebAssemblyEmitter {
 
         let mut bytes = size_of::<u8>();
 
-        bytes += self.emit(&function_type.parameters()[..], &mut output)?;
-        bytes += self.emit(&function_type.results()[..], &mut output)?;
+        bytes += self.emit(function_type.parameters(), &mut output)?;
+        bytes += self.emit(function_type.results(), &mut output)?;
 
         Ok(bytes)
     }
@@ -92,17 +91,17 @@ impl Emitter<Limit> for BinaryWebAssemblyEmitter {
     fn emit<O: Write>(&self, limit: &Limit, mut output: O) -> Result<usize, CompilerError> {
         let mut bytes = size_of::<u8>();
 
-        match limit {
-            Limit::Min(min) => {
+        match limit.max() {
+            Some(max) => {
                 output.write_u8(0x00)?;
 
-                bytes += self.emit(min, &mut output)?;
+                bytes += self.emit(&limit.min(), &mut output)?;
+                bytes += self.emit(&max, &mut output)?;
             }
-            Limit::MinMax { min, max } => {
+            None => {
                 output.write_u8(0x01)?;
 
-                bytes += self.emit(min, &mut output)?;
-                bytes += self.emit(max, &mut output)?;
+                bytes += self.emit(&limit.min(), &mut output)?;
             }
         };
 
@@ -141,9 +140,9 @@ impl Emitter<GlobalType> for BinaryWebAssemblyEmitter {
 
         bytes += self.emit(global_type.value_type(), &mut output)?;
 
-        let mutability: u8 = match global_type.mutability() {
-            Mutability::Constant => 0x00,
-            Mutability::Variable => 0x01,
+        let mutability: u8 = match global_type.is_mutable() {
+            false => 0x00,
+            true => 0x01,
         };
 
         output.write_u8(mutability)?;

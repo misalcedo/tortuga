@@ -1,4 +1,4 @@
-use crate::web_assembly::{Identifier, Limit};
+use crate::web_assembly::{Identifier, MemoryType};
 
 pub struct Memory {
     id: Identifier,
@@ -8,14 +8,3 @@ pub struct Memory {
 pub struct MemoryIndex(Identifier);
 
 pub struct MemoryUse(MemoryIndex);
-
-#[derive(Copy, Clone)]
-pub struct MemoryType {
-    limits: Limit,
-}
-
-impl MemoryType {
-    pub fn limits(&self) -> &Limit {
-        &self.limits
-    }
-}

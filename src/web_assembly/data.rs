@@ -1,4 +1,3 @@
-use crate::web_assembly;
 use crate::web_assembly::Identifier;
 use crate::web_assembly::MemoryUse;
 use crate::web_assembly::Offset;
@@ -10,11 +9,7 @@ pub struct Data {
     id: Identifier,
     memory: MemoryUse,
     offset: Offset,
-    string: DataString,
-}
-
-pub struct DataString {
-    strings: Vec<web_assembly::String>,
+    string: Vec<u8>,
 }
 
 pub struct DataIndex(Identifier);
