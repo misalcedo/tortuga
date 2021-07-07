@@ -54,12 +54,12 @@ pub struct FunctionType {
 }
 
 impl FunctionType {
-    pub fn parameters(&self) -> &[ValueType] {
-        self.parameters.value_types()
+    pub fn parameters(&self) -> &ResultType {
+        &self.parameters
     }
 
-    pub fn results(&self) -> &[ValueType] {
-        self.results.value_types()
+    pub fn results(&self) -> &ResultType {
+        &self.results
     }
 }
 

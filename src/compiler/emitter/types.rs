@@ -1,7 +1,8 @@
 use crate::compiler::emitter::{BinaryWebAssemblyEmitter, Emitter};
 use crate::compiler::errors::CompilerError;
 use crate::web_assembly::{
-    FunctionType, GlobalType, Limit, MemoryType, NumberType, ReferenceType, TableType, ValueType,
+    FunctionType, GlobalType, Limit, MemoryType, NumberType, ReferenceType, ResultType, TableType,
+    ValueType,
 };
 use byteorder::{LittleEndian, WriteBytesExt};
 use std::io::Write;
@@ -52,12 +53,14 @@ impl Emitter<ValueType> for BinaryWebAssemblyEmitter {
     }
 }
 
-impl Emitter<[ValueType]> for BinaryWebAssemblyEmitter {
+impl Emitter<ResultType> for BinaryWebAssemblyEmitter {
     fn emit<O: Write>(
         &self,
-        value_types: &[ValueType],
+        result_type: &ResultType,
         mut output: O,
     ) -> Result<usize, CompilerError> {
+        let value_types = result_type.value_types();
+
         output.write_u32::<LittleEndian>(value_types.len() as u32)?;
 
         let mut bytes = size_of::<u32>();

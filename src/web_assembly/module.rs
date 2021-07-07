@@ -9,9 +9,26 @@ pub struct Module {
     globals: Vec<Global>,
     elements: Vec<Element>,
     data: Vec<Data>,
-    start: Start,
+    start: Option<Start>,
     imports: Vec<Import>,
     exports: Vec<Export>,
+}
+
+impl Module {
+    pub fn new() -> Module {
+        Module {
+            types: Vec::new(),
+            functions: Vec::new(),
+            tables: Vec::new(),
+            memories: Vec::new(),
+            globals: Vec::new(),
+            elements: Vec::new(),
+            data: Vec::new(),
+            start: None,
+            imports: Vec::new(),
+            exports: Vec::new(),
+        }
+    }
 }
 
 pub struct TypeIndex(usize);
