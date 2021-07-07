@@ -11,7 +11,17 @@ pub struct FunctionIndex(Identifier);
 
 pub struct FunctionType {
     parameters: Vec<Parameter>,
-    result: Vec<Result>,
+    results: Vec<Result>,
+}
+
+impl FunctionType {
+    pub fn parameters(&self) -> Vec<&ValueType> {
+        self.parameters.iter().map(Parameter::value_type).collect()
+    }
+
+    pub fn results(&self) -> Vec<&ValueType> {
+        self.results.iter().map(Result::value_type).collect()
+    }
 }
 
 pub struct Local {
@@ -26,8 +36,20 @@ pub struct Parameter {
     value_type: ValueType,
 }
 
+impl Parameter {
+    pub fn value_type(&self) -> &ValueType {
+        &self.value_type
+    }
+}
+
 pub struct Result {
     value_type: ValueType,
+}
+
+impl Result {
+    pub fn value_type(&self) -> &ValueType {
+        &self.value_type
+    }
 }
 
 pub struct Type {

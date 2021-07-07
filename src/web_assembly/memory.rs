@@ -9,6 +9,13 @@ pub struct MemoryIndex(Identifier);
 
 pub struct MemoryUse(MemoryIndex);
 
+#[derive(Copy, Clone)]
 pub struct MemoryType {
     limits: Limit,
+}
+
+impl MemoryType {
+    pub fn limits(&self) -> &Limit {
+        &self.limits
+    }
 }

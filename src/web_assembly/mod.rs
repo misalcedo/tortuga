@@ -21,9 +21,9 @@ pub use element::{Element, ElementIndex};
 pub use export::Export;
 pub use expression::Expression;
 pub use function::{
-    Function, FunctionIndex, LocalIndex, Parameter, Result, Type, TypeIndex, TypeUse,
+    Function, FunctionIndex, FunctionType, LocalIndex, Parameter, Result, Type, TypeIndex, TypeUse,
 };
-pub use global::{Global, GlobalIndex, GlobalType};
+pub use global::{Global, GlobalIndex, GlobalType, Mutability};
 pub use identifier::Identifier;
 pub use import::Import;
 pub use instruction::Instruction;
