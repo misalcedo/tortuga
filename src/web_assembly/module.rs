@@ -483,7 +483,7 @@ pub enum ImportDescription {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::web_assembly::Instruction;
+    use crate::web_assembly::{ControlInstruction, Instruction, NumericInstruction};
 
     #[test]
     fn empty_module() {
@@ -513,7 +513,7 @@ mod tests {
         let function = Function::new(
             0,
             ResultType::new(vec![ValueType::Number(NumberType::I32)]),
-            Expression::new(vec![Instruction::Nop]),
+            Expression::new(vec![Instruction::Control(ControlInstruction::Nop)]),
         );
         module.add_function(function.clone());
 
@@ -551,7 +551,9 @@ mod tests {
 
         let global = Global::new(
             GlobalType::new(false, ValueType::Number(NumberType::I64)),
-            Expression::new(vec![Instruction::I64Constant(0)]),
+            Expression::new(vec![Instruction::Numeric(NumericInstruction::I64Constant(
+                0,
+            ))]),
         );
         module.add_global(global.clone());
 

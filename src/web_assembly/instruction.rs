@@ -34,7 +34,7 @@ pub enum Instruction {
 /// for the signed interpretation means that they behave the same regardless of signedness.
 ///
 /// See https://webassembly.github.io/spec/core/syntax/instructions.html#numeric-instructions
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum NumericInstruction {
     I32Constant(i32),
     I64Constant(i64),
@@ -209,7 +209,7 @@ pub enum MemoryInstruction {
     /// This instruction is intended to be used as an optimization hint.
     /// After a data segment is dropped its data can no longer be retrieved,
     /// so the memory used by this segment may be freed.
-    DatDrop(DataIndex),
+    DataDrop(DataIndex),
 }
 
 /// Instructions in this group affect the flow of control.
@@ -243,7 +243,7 @@ pub enum MemoryInstruction {
 /// represent the values consumed by the restarted block.
 ///
 /// See https://webassembly.github.io/spec/core/syntax/instructions.html#control-instructions
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ControlInstruction {
     /// The 𝗇𝗈𝗉 instruction does nothing.
     Nop,
@@ -365,7 +365,7 @@ mod tests {
 
     #[test]
     fn new_expression() {
-        let instruction = Instruction::Nop;
+        let instruction = Instruction::Control(ControlInstruction::Nop);
         let expression = Expression::new(vec![instruction.clone()]);
 
         assert_eq!(expression.instructions(), &[instruction]);
