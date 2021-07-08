@@ -307,12 +307,14 @@ impl Element {
     }
 }
 
+/// TODO get rid of the need for this type.
 #[derive(Clone, Debug, PartialEq)]
 pub enum ElementInitializer {
     Expression(Vec<Expression>),
     FunctionIndex(Vec<FunctionIndex>),
 }
 
+/// TODO get rid of the need for this type.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ElementKind {
     FunctionReference,
