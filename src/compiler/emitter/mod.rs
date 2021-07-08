@@ -25,7 +25,7 @@ mod tests {
         let mut buffer = Cursor::new(Vec::new());
         let module = Module::new();
 
-        module.emit(&mut buffer);
+        module.emit(&mut buffer).unwrap();
 
         assert_eq!(buffer.get_ref(), b"\x00\x61\x73\x6D\x01\x00\x00\x00")
     }

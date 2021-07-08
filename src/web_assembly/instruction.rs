@@ -126,6 +126,16 @@ pub struct MemoryArgument {
     align: usize,
 }
 
+impl MemoryArgument {
+    pub fn offset(&self) -> usize {
+        self.offset
+    }
+
+    pub fn align(&self) -> usize {
+        self.align
+    }
+}
+
 pub enum StorageSize {
     I32_8,
     I64_8,

@@ -1,6 +1,6 @@
 use crate::compiler::emitter::Emit;
 use crate::compiler::errors::CompilerError;
-use crate::web_assembly::{BlockType, Expression, Instruction};
+use crate::web_assembly::{BlockType, Expression, Instruction, MemoryArgument};
 use byteorder::WriteBytesExt;
 use std::io::Write;
 use std::mem::size_of;
@@ -192,6 +192,17 @@ impl Emit for BlockType {
                 bytes += size_of::<u8>();
             }
         }
+
+        Ok(bytes)
+    }
+}
+
+impl Emit for MemoryArgument {
+    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
+        let mut bytes = 0;
+
+        bytes += self.align().emit(output)?;
+        bytes += self.offset().emit(output)?;
 
         Ok(bytes)
     }
