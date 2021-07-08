@@ -94,16 +94,16 @@ pub enum Instruction {
     // Control
     Block {
         expression: Expression,
-        signature: BlockType,
+        kind: BlockType,
     },
     Loop {
         expression: Expression,
-        signature: BlockType,
+        kind: BlockType,
     },
     If {
         positive: Expression,
-        negative: Expression,
-        signature: BlockType,
+        negative: Option<Expression>,
+        kind: BlockType,
     },
     Unreachable,
     Nop,
@@ -112,12 +112,13 @@ pub enum Instruction {
     BranchTable(Vec<LabelIndex>, LabelIndex),
     Return,
     Call(FunctionIndex),
-    CallIndirect(TableIndex, TypeIndex),
+    CallIndirect(TypeIndex, TableIndex),
 }
 
-pub struct BlockType {
-    signature: TypeIndex,
-    value_type: ValueType,
+pub enum BlockType {
+    None,
+    Index(TypeIndex),
+    ValueType(ValueType),
 }
 
 pub struct MemoryArgument {
@@ -145,5 +146,9 @@ pub struct Expression {
 impl Expression {
     pub fn instructions(&self) -> &[Instruction] {
         &self.instructions
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.instructions.is_empty()
     }
 }

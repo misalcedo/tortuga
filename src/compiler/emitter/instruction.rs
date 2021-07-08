@@ -1,6 +1,6 @@
 use crate::compiler::emitter::Emit;
 use crate::compiler::errors::CompilerError;
-use crate::web_assembly::{Expression, Instruction};
+use crate::web_assembly::{BlockType, Expression, Instruction};
 use byteorder::WriteBytesExt;
 use std::io::Write;
 use std::mem::size_of;
@@ -24,6 +24,69 @@ impl Emit for Instruction {
         let mut bytes = size_of::<u8>();
 
         match self {
+            Instruction::Unreachable => {
+                output.write_u8(0x00)?;
+            }
+            Instruction::Nop => {
+                output.write_u8(0x01)?;
+            }
+            Instruction::Block { expression, kind } => {
+                output.write_u8(0x02)?;
+                bytes += kind.emit(&mut output)?;
+                bytes += expression.emit(&mut output)?;
+            }
+            Instruction::Loop { expression, kind } => {
+                output.write_u8(0x03)?;
+                bytes += kind.emit(&mut output)?;
+                bytes += expression.emit(&mut output)?;
+            }
+            Instruction::If {
+                positive,
+                negative,
+                kind,
+            } => {
+                output.write_u8(0x04)?;
+
+                bytes += kind.emit(&mut output)?;
+
+                if let Some(negative) = negative {
+                    for instruction in positive.instructions() {
+                        bytes += instruction.emit(&mut output)?;
+                    }
+
+                    output.write_u8(0x05)?;
+
+                    bytes += size_of::<u8>();
+                    bytes += negative.emit(&mut output)?;
+                } else {
+                    bytes += positive.emit(&mut output)?;
+                }
+            }
+            Instruction::Branch(index) => {
+                output.write_u8(0x0C)?;
+                bytes += index.emit(&mut output)?;
+            }
+            Instruction::BranchIf(index) => {
+                output.write_u8(0x0D)?;
+                bytes += index.emit(&mut output)?;
+            }
+            Instruction::BranchTable(indices, index) => {
+                output.write_u8(0x0E)?;
+                bytes += indices.emit(&mut output)?;
+                bytes += index.emit(&mut output)?;
+            }
+            Instruction::Return => {
+                output.write_u8(0x0F)?;
+            }
+            Instruction::Call(index) => {
+                output.write_u8(0x10)?;
+                bytes += index.emit(&mut output)?;
+            }
+            Instruction::CallIndirect(table, kind) => {
+                output.write_u8(0x11)?;
+                bytes += kind.emit(&mut output)?;
+                bytes += table.emit(&mut output)?;
+            }
             Instruction::ReferenceNull(kind) => {
                 output.write_u8(0xD0)?;
                 bytes += kind.emit(&mut output)?;
@@ -107,6 +170,27 @@ impl Emit for Instruction {
                 bytes += index.emit(&mut output)?;
             }
         };
+
+        Ok(bytes)
+    }
+}
+
+impl Emit for BlockType {
+    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+        let mut bytes = 0;
+
+        match self {
+            BlockType::Index(index) => {
+                bytes += (*index as i64).emit(&mut output)?;
+            }
+            BlockType::ValueType(kind) => {
+                bytes += kind.emit(&mut output)?;
+            }
+            BlockType::None => {
+                output.write_u8(0x40)?;
+                bytes += size_of::<u8>();
+            }
+        }
 
         Ok(bytes)
     }
