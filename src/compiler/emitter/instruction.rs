@@ -1,9 +1,9 @@
 use crate::compiler::emitter::Emit;
 use crate::compiler::errors::CompilerError;
 use crate::web_assembly::{
-    BlockType, ControlInstruction, Expression, Instruction, MemoryArgument, MemoryInstruction,
-    NumberType, NumericInstruction, ParametricInstruction, ReferenceInstruction, SignExtension,
-    StorageSize, TableInstruction, VariableInstruction,
+    BlockType, ControlInstruction, Expression, FloatType, Instruction, IntegerType, MemoryArgument,
+    MemoryInstruction, NumberType, NumericInstruction, ParametricInstruction, ReferenceInstruction,
+    SignExtension, StorageSize, TableInstruction, VariableInstruction,
 };
 use std::io::Write;
 
@@ -40,50 +40,208 @@ impl Emit for NumericInstruction {
         let mut bytes = 0;
 
         match self {
-            Self::I32Constant(_) => {}
-            Self::I64Constant(_) => {}
-            Self::F32Constant(_) => {}
-            Self::F64Constant(_) => {}
-            Self::CountLeadingZeros(_) => {}
-            Self::CountTrailingZeros(_) => {}
-            Self::CountOnes(_) => {}
-            Self::AbsoluteValue(_) => {}
-            Self::Negate(_) => {}
-            Self::SquareRoot(_) => {}
-            Self::Ceiling(_) => {}
-            Self::Floor(_) => {}
-            Self::Truncate(_) => {}
-            Self::Nearest(_) => {}
-            Self::Add(_) => {}
-            Self::Subtract(_) => {}
-            Self::Multiply(_) => {}
+            // Constant Operations
+            Self::I32Constant(value) => {
+                bytes += 0x41u8.emit(output)?;
+                bytes += value.emit(output)?;
+            }
+            Self::I64Constant(value) => {
+                bytes += 0x42u8.emit(output)?;
+                bytes += value.emit(output)?;
+            }
+            Self::F32Constant(value) => {
+                bytes += 0x43u8.emit(output)?;
+                bytes += value.emit(output)?;
+            }
+            Self::F64Constant(value) => {
+                bytes += 0x44u8.emit(output)?;
+                bytes += value.emit(output)?;
+            }
+            // i32 Test Operations
+            Self::EqualToZero(IntegerType::I32) => {
+                bytes += 0x45u8.emit(output)?;
+            }
+            // i32 Relation Operations
+            Self::Equal(NumberType::I32) => {
+                bytes += 0x46u8.emit(output)?;
+            }
+            Self::NotEqual(NumberType::I32) => {
+                bytes += 0x47u8.emit(output)?;
+            }
+            Self::LessThanInteger(IntegerType::I32, SignExtension::Signed) => {
+                bytes += 0x48u8.emit(output)?;
+            }
+            Self::LessThanInteger(IntegerType::I32, SignExtension::Unsigned) => {
+                bytes += 0x49u8.emit(output)?;
+            }
+            Self::GreaterThanInteger(IntegerType::I32, SignExtension::Signed) => {
+                bytes += 0x4Au8.emit(output)?;
+            }
+            Self::GreaterThanInteger(IntegerType::I32, SignExtension::Unsigned) => {
+                bytes += 0x4Bu8.emit(output)?;
+            }
+            Self::LessThanOrEqualToInteger(IntegerType::I32, SignExtension::Signed) => {
+                bytes += 0x4Cu8.emit(output)?;
+            }
+            Self::LessThanOrEqualToInteger(IntegerType::I32, SignExtension::Unsigned) => {
+                bytes += 0x4Du8.emit(output)?;
+            }
+            Self::GreaterThanOrEqualToInteger(IntegerType::I32, SignExtension::Signed) => {
+                bytes += 0x4Eu8.emit(output)?;
+            }
+            Self::GreaterThanOrEqualToInteger(IntegerType::I32, SignExtension::Unsigned) => {
+                bytes += 0x4Fu8.emit(output)?;
+            }
+            // i64 Test Operations
+            Self::EqualToZero(IntegerType::I64) => {
+                bytes += 0x50u8.emit(output)?;
+            }
+            // i64 Relation Operations
+            Self::Equal(NumberType::I64) => {
+                bytes += 0x51u8.emit(output)?;
+            }
+            Self::NotEqual(NumberType::I64) => {
+                bytes += 0x52u8.emit(output)?;
+            }
+            Self::LessThanInteger(IntegerType::I64, SignExtension::Signed) => {
+                bytes += 0x53u8.emit(output)?;
+            }
+            Self::LessThanInteger(IntegerType::I64, SignExtension::Unsigned) => {
+                bytes += 0x54u8.emit(output)?;
+            }
+            Self::GreaterThanInteger(IntegerType::I64, SignExtension::Signed) => {
+                bytes += 0x55u8.emit(output)?;
+            }
+            Self::GreaterThanInteger(IntegerType::I64, SignExtension::Unsigned) => {
+                bytes += 0x56u8.emit(output)?;
+            }
+            Self::LessThanOrEqualToInteger(IntegerType::I64, SignExtension::Signed) => {
+                bytes += 0x57u8.emit(output)?;
+            }
+            Self::LessThanOrEqualToInteger(IntegerType::I64, SignExtension::Unsigned) => {
+                bytes += 0x58u8.emit(output)?;
+            }
+            Self::GreaterThanOrEqualToInteger(IntegerType::I64, SignExtension::Signed) => {
+                bytes += 0x59u8.emit(output)?;
+            }
+            Self::GreaterThanOrEqualToInteger(IntegerType::I64, SignExtension::Unsigned) => {
+                bytes += 0x5Au8.emit(output)?;
+            }
+            // f32 Relation Operations
+            Self::Equal(NumberType::F32) => {
+                bytes += 0x5Bu8.emit(output)?;
+            }
+            Self::NotEqual(NumberType::F32) => {
+                bytes += 0x5Cu8.emit(output)?;
+            }
+            Self::LessThanFloat(FloatType::F32) => {
+                bytes += 0x5Du8.emit(output)?;
+            }
+            Self::GreaterThanFloat(FloatType::F32) => {
+                bytes += 0x5Eu8.emit(output)?;
+            }
+            Self::LessThanOrEqualToFloat(FloatType::F32) => {
+                bytes += 0x5Fu8.emit(output)?;
+            }
+            Self::GreaterThanOrEqualToFloat(FloatType::F32) => {
+                bytes += 0x60u8.emit(output)?;
+            }
+            // f64 Relation Operations
+            Self::Equal(NumberType::F64) => {
+                bytes += 0x61u8.emit(output)?;
+            }
+            Self::NotEqual(NumberType::F64) => {
+                bytes += 0x62u8.emit(output)?;
+            }
+            Self::LessThanFloat(FloatType::F64) => {
+                bytes += 0x63u8.emit(output)?;
+            }
+            Self::GreaterThanFloat(FloatType::F64) => {
+                bytes += 0x64u8.emit(output)?;
+            }
+            Self::LessThanOrEqualToFloat(FloatType::F64) => {
+                bytes += 0x65u8.emit(output)?;
+            }
+            Self::GreaterThanOrEqualToFloat(FloatType::F64) => {
+                bytes += 0x66u8.emit(output)?;
+            }
+
+            // i32 Unary Operations
+            Self::CountLeadingZeros(IntegerType::I32) => {}
+            Self::CountTrailingZeros(IntegerType::I32) => {}
+            Self::CountOnes(IntegerType::I32) => {}
+            // i32 Binary Operations
+            Self::Add(NumberType::I32) => {}
+            Self::Subtract(NumberType::I32) => {}
+            Self::Multiply(NumberType::I32) => {}
+            Self::DivideInteger(IntegerType::I32, SignExtension::Signed) => {}
+            Self::DivideInteger(IntegerType::I32, SignExtension::Unsigned) => {}
+            Self::Remainder(IntegerType::I32, SignExtension::Signed) => {}
+            Self::Remainder(IntegerType::I32, SignExtension::Unsigned) => {}
+            Self::And(IntegerType::I32) => {}
+            Self::Or(IntegerType::I32) => {}
+            Self::Xor(IntegerType::I32) => {}
+            Self::ShiftLeft(IntegerType::I32) => {}
+            Self::ShiftRight(IntegerType::I32, SignExtension::Signed) => {}
+            Self::ShiftRight(IntegerType::I32, SignExtension::Unsigned) => {}
+            Self::RotateLeft(IntegerType::I32) => {}
+            Self::RotateRight(IntegerType::I32) => {}
+            // i64 Unary Operations
+            Self::CountLeadingZeros(IntegerType::I64) => {}
+            Self::CountTrailingZeros(IntegerType::I64) => {}
+            Self::CountOnes(IntegerType::I64) => {}
+            // i64 Binary Operations
+            Self::Add(NumberType::I64) => {}
+            Self::Subtract(NumberType::I64) => {}
+            Self::Multiply(NumberType::I64) => {}
+            Self::DivideInteger(IntegerType::I64, SignExtension::Signed) => {}
+            Self::DivideInteger(IntegerType::I64, SignExtension::Unsigned) => {}
+            Self::Remainder(IntegerType::I64, SignExtension::Signed) => {}
+            Self::Remainder(IntegerType::I64, SignExtension::Unsigned) => {}
+            Self::And(IntegerType::I64) => {}
+            Self::Or(IntegerType::I64) => {}
+            Self::Xor(IntegerType::I64) => {}
+            Self::ShiftLeft(IntegerType::I64) => {}
+            Self::ShiftRight(IntegerType::I64, SignExtension::Signed) => {}
+            Self::ShiftRight(IntegerType::I64, SignExtension::Unsigned) => {}
+            Self::RotateLeft(IntegerType::I64) => {}
+            Self::RotateRight(IntegerType::I64) => {}
+            // f32 Unary Operations
+            // f32 Binary Operations
+            // f64 Unary Operations
+            // f64 Binary Operations
+            // Extend Operations
+            // Convert Operations
+            Self::AbsoluteValue(kind) => {}
+            Self::Negate(kind) => {}
+            Self::SquareRoot(kind) => {}
+            Self::Ceiling(kind) => {}
+            Self::Floor(kind) => {}
+            Self::Truncate(kind) => {}
+            Self::Nearest(kind) => {}
+            Self::Add(kind) => {}
+            Self::Subtract(kind) => {}
+            Self::Multiply(kind) => {}
             Self::DivideInteger(_, _) => {}
-            Self::DivideFloat(_) => {}
+            Self::DivideFloat(kind) => {}
             Self::Remainder(_, _) => {}
-            Self::And(_) => {}
-            Self::Or(_) => {}
-            Self::Xor(_) => {}
-            Self::ShiftLeft(_) => {}
+            Self::And(kind) => {}
+            Self::Or(kind) => {}
+            Self::Xor(kind) => {}
+            Self::ShiftLeft(kind) => {}
             Self::ShiftRight(_, _) => {}
-            Self::RotateLeft(_) => {}
-            Self::RotateRight(_) => {}
-            Self::Minimum(_) => {}
-            Self::Maximum(_) => {}
-            Self::CopySign(_) => {}
-            Self::EqualToZero(_) => {}
-            Self::Equal(_) => {}
-            Self::NotEqual(_) => {}
-            Self::LessThanInteger(_, _) => {}
-            Self::LessThanFloat(_) => {}
-            Self::GreaterThanInteger(_, _) => {}
-            Self::GreaterThanFloat(_) => {}
-            Self::LessThanOrEqualToInteger(_, _) => {}
-            Self::LessThanOrEqualToFloat(_) => {}
-            Self::GreaterThanOrEqualToInteger(_, _) => {}
-            Self::GreaterThanOrEqualToFloat(_) => {}
-            Self::Extend(_) => {}
+            Self::RotateLeft(kind) => {}
+            Self::RotateRight(kind) => {}
+            Self::Minimum(kind) => {}
+            Self::Maximum(kind) => {}
+            Self::CopySign(kind) => {}
+            Self::LessThanFloat(kind) => {}
+            Self::GreaterThanFloat(kind) => {}
+            Self::LessThanOrEqualToFloat(kind) => {}
+            Self::GreaterThanOrEqualToFloat(kind) => {}
+            Self::Extend(kind) => {}
             Self::Wrap => {}
-            Self::ExtendWithSignExtension(_) => {}
+            Self::ExtendWithSignExtension(kind) => {}
             Self::ConvertAndTruncate(_, _, _) => {}
             Self::ConvertAndTruncateWithSaturation(_, _, _) => {}
             Self::Demote => {}
