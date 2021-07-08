@@ -1,43 +1,49 @@
 /// Names are strings denoting a literal character sequence.
 /// A name string must form a valid UTF-8 encoding as defined by Unicode (Section 2.5)
 /// and is interpreted as a string of Unicode scalar values.
-pub struct Name(String);
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Name {
+    value: String,
+}
 
 impl Name {
     pub fn new(name: String) -> Self {
-        Name(name)
+        Name { value: name }
     }
 
     pub fn as_bytes(&self) -> &[u8] {
-        &self.0.as_bytes()
+        &self.value.as_bytes()
     }
 
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.value.len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.value.is_empty()
     }
 }
 
-pub struct Bytes<'a>(&'a [u8]);
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub struct Bytes<'a> {
+    value: &'a [u8],
+}
 
 impl<'a> Bytes<'a> {
     pub fn new(bytes: &'a [u8]) -> Self {
-        Bytes::<'a>(bytes)
+        Bytes::<'a> { value: bytes }
     }
 
     pub fn as_ref(&self) -> &[u8] {
-        self.0
+        self.value
     }
 
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.value.len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.value.is_empty()
     }
 }
 

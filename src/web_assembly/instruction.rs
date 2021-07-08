@@ -5,6 +5,7 @@ use crate::web_assembly::{
 
 // TODO Update to have explicit instructions for every type pair, storage width, and sign extension to make emitting opcodes easier
 /// Instructions are syntactically distinguished into plain and structured instructions.
+#[derive(Clone, Debug, PartialEq)]
 pub enum Instruction {
     // Numeric
     I32Constant(i32),
@@ -115,12 +116,14 @@ pub enum Instruction {
     CallIndirect(TypeIndex, TableIndex),
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum BlockType {
     None,
     Index(TypeIndex),
     ValueType(ValueType),
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct MemoryArgument {
     offset: usize,
     align: usize,
@@ -136,6 +139,7 @@ impl MemoryArgument {
     }
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum StorageSize {
     I32_8,
     I64_8,
@@ -144,11 +148,13 @@ pub enum StorageSize {
     I64_32,
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum SignExtension {
     Signed,
     Unsigned,
 }
 
+#[derive(Clone, Debug, PartialEq)]
 pub struct Expression {
     instructions: Vec<Instruction>,
 }

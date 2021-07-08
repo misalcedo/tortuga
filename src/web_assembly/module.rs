@@ -1,6 +1,7 @@
 use crate::web_assembly::types::*;
 use crate::web_assembly::{Expression, Name};
 
+#[derive(Clone, Debug, PartialEq)]
 pub struct Module {
     types: Vec<FunctionType>,
     functions: Vec<Function>,
@@ -91,26 +92,38 @@ pub type LabelIndex = usize;
 /// function type’s result type.
 /// Functions are referenced through function indices,
 /// starting with the smallest index not referencing a function import.
+#[derive(Clone, Debug, PartialEq)]
 pub struct Function {
-    signature: TypeIndex,
+    kind: TypeIndex,
     locals: Vec<ValueType>,
     body: Expression,
 }
 
 impl Function {
+    pub fn new(kind: TypeIndex, locals: Vec<ValueType>, body: Expression) -> Self {
+        Function { kind, locals, body }
+    }
+
     pub fn type_index(&self) -> TypeIndex {
-        self.signature
+        self.kind
     }
 }
 
 /// A table is a vector of opaque values of a particular reference type.
 /// The 𝗆𝗂𝗇 size in the limits of the table type specifies the initial size of that table,
 /// while its 𝗆𝖺𝗑, if present, restricts the size to which it can grow later.
-pub struct Table(TableType);
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub struct Table {
+    kind: TableType,
+}
 
 impl Table {
-    pub fn table_type(&self) -> &TableType {
-        &self.0
+    pub fn new(kind: TableType) -> Self {
+        Table { kind }
+    }
+
+    pub fn kind(&self) -> &TableType {
+        &self.kind
     }
 }
 
@@ -118,23 +131,35 @@ impl Table {
 /// The 𝗆𝗂𝗇 size in the limits of the memory type specifies the initial size of that memory,
 /// while its 𝗆𝖺𝗑, if present, restricts the size to which it can grow later.
 /// Both are in units of page size.
-pub struct Memory(MemoryType);
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub struct Memory {
+    kind: MemoryType,
+}
 
 impl Memory {
+    pub fn new(kind: MemoryType) -> Self {
+        Memory { kind }
+    }
+
     pub fn memory_type(&self) -> &MemoryType {
-        &self.0
+        &self.kind
     }
 }
 
 /// The 𝗀𝗅𝗈𝖻𝖺𝗅𝗌 component of a module defines a vector of global variables (or globals for short):
+#[derive(Clone, Debug, PartialEq)]
 pub struct Global {
-    global_type: GlobalType,
+    kind: GlobalType,
     initializer: Expression,
 }
 
 impl Global {
-    pub fn global_type(&self) -> &GlobalType {
-        &self.global_type
+    pub fn new(kind: GlobalType, initializer: Expression) -> Self {
+        Global { kind, initializer }
+    }
+
+    pub fn kind(&self) -> &GlobalType {
+        &self.kind
     }
 
     pub fn initializer(&self) -> &Expression {
@@ -144,23 +169,22 @@ impl Global {
 
 /// The initial contents of a table is uninitialized.
 /// Element segments can be used to initialize a subrange of a table from a static vector of elements.
+#[derive(Clone, Debug, PartialEq)]
 pub struct Element {
     kind: ElementKind,
-    initializers: ElementInitializer,
     mode: ElementMode,
-}
-
-pub enum ElementInitializer {
-    Expression(Vec<Expression>),
-    FunctionIndex(Vec<FunctionIndex>),
-}
-
-pub enum ElementKind {
-    FunctionReference,
-    ReferenceType(ReferenceType),
+    initializers: ElementInitializer,
 }
 
 impl Element {
+    pub fn new(kind: ElementKind, mode: ElementMode, initializers: ElementInitializer) -> Self {
+        Element {
+            kind,
+            mode,
+            initializers,
+        }
+    }
+
     pub fn kind(&self) -> &ElementKind {
         &self.kind
     }
@@ -174,23 +198,38 @@ impl Element {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub enum ElementInitializer {
+    Expression(Vec<Expression>),
+    FunctionIndex(Vec<FunctionIndex>),
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum ElementKind {
+    FunctionReference,
+    ReferenceType(ReferenceType),
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum ElementMode {
     Passive,
-    Active {
-        table: TableIndex,
-        offset: Expression,
-    },
+    Active(TableIndex, Expression),
     Declarative,
 }
 
 /// The initial contents of a memory are zero bytes.
 /// Data segments can be used to initialize a range of memory from a static vector of bytes.
+#[derive(Clone, Debug, PartialEq)]
 pub struct Data {
-    initializer: Vec<u8>,
     mode: DataMode,
+    initializer: Vec<u8>,
 }
 
 impl Data {
+    pub fn new(mode: DataMode, initializer: Vec<u8>) -> Self {
+        Data { mode, initializer }
+    }
+
     pub fn mode(&self) -> &DataMode {
         &self.mode
     }
@@ -204,34 +243,44 @@ impl Data {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
 pub enum DataMode {
     Passive,
-    Active {
-        memory: MemoryIndex,
-        offset: Expression,
-    },
+    Active(MemoryIndex, Expression),
 }
 
 /// The 𝗌𝗍𝖺𝗋𝗍 component of a module declares the function index of a start function that
 /// is automatically invoked when the module is instantiated,
 /// after tables and memories have been initialized.
-pub struct Start(FunctionIndex);
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub struct Start {
+    function: FunctionIndex,
+}
 
 impl Start {
-    pub fn function_index(&self) -> FunctionIndex {
-        self.0
+    pub fn new(function: FunctionIndex) -> Self {
+        Start { function }
+    }
+
+    pub fn function(&self) -> FunctionIndex {
+        self.function
     }
 }
 
 /// Each export is labeled by a unique name.
 /// Exportable definitions are functions, tables, memories, and globals,
 /// which are referenced through a respective descriptor.
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Export {
     name: Name,
     description: ExportDescription,
 }
 
 impl Export {
+    pub fn new(name: Name, description: ExportDescription) -> Self {
+        Export { name, description }
+    }
+
     pub fn name(&self) -> &Name {
         &self.name
     }
@@ -241,6 +290,7 @@ impl Export {
     }
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ExportDescription {
     Function(FunctionIndex),
     Table(TableIndex),
@@ -255,6 +305,7 @@ pub enum ExportDescription {
 /// Every import defines an index in the respective index space.
 /// In each index space, the indices of imports go before the first index of any definition
 /// contained in the module itself.
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Import {
     module: Name,
     name: Name,
@@ -262,6 +313,14 @@ pub struct Import {
 }
 
 impl Import {
+    pub fn new(module: Name, name: Name, description: ImportDescription) -> Self {
+        Import {
+            module,
+            name,
+            description,
+        }
+    }
+
     pub fn module(&self) -> &Name {
         &self.module
     }
@@ -275,9 +334,34 @@ impl Import {
     }
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ImportDescription {
     Function(TypeIndex),
     Table(TableType),
     Memory(MemoryType),
     Global(GlobalType),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_module() {
+        let module = Module::new();
+
+        assert!(module.types().is_empty());
+        assert!(module.functions().is_empty());
+        assert!(module.tables().is_empty());
+        assert!(module.memories().is_empty());
+        assert!(module.globals().is_empty());
+        assert!(module.imports().is_empty());
+        assert!(module.exports().is_empty());
+        assert!(module.data().is_empty());
+        assert!(module.elements().is_empty());
+        assert!(module.start().is_none());
+    }
+
+    #[test]
+    fn new_module() {}
 }

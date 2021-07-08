@@ -126,7 +126,7 @@ impl Emit for ImportDescription {
 
 impl Emit for Table {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        self.table_type().emit(output)
+        self.kind().emit(output)
     }
 }
 
@@ -140,7 +140,7 @@ impl Emit for Global {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        bytes += self.global_type().emit(output)?;
+        bytes += self.kind().emit(output)?;
         bytes += self.initializer().emit(output)?;
 
         Ok(bytes)
@@ -177,7 +177,7 @@ impl Emit for ExportDescription {
 
 impl Emit for Start {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        self.function_index().emit(output)
+        self.function().emit(output)
     }
 }
 
@@ -188,7 +188,7 @@ impl Emit for Element {
         match (self.initializers(), self.mode(), self.kind()) {
             (
                 ElementInitializer::FunctionIndex(indices),
-                ElementMode::Active { table: 0, offset },
+                ElementMode::Active(0, offset),
                 ElementKind::FunctionReference,
             ) => {
                 bytes += 0x00u8.emit(output)?;
@@ -202,7 +202,7 @@ impl Emit for Element {
             }
             (
                 ElementInitializer::FunctionIndex(indices),
-                ElementMode::Active { table, offset },
+                ElementMode::Active(table, offset),
                 kind,
             ) => {
                 bytes += 0x02u8.emit(output)?;
@@ -218,7 +218,7 @@ impl Emit for Element {
             }
             (
                 ElementInitializer::Expression(expressions),
-                ElementMode::Active { table: 0, offset },
+                ElementMode::Active(0, offset),
                 ElementKind::FunctionReference,
             ) => {
                 bytes += 0x04u8.emit(output)?;
@@ -236,7 +236,7 @@ impl Emit for Element {
             }
             (
                 ElementInitializer::Expression(expressions),
-                ElementMode::Active { table, offset },
+                ElementMode::Active(table, offset),
                 ElementKind::ReferenceType(kind),
             ) => {
                 bytes += 0x06u8.emit(output)?;
@@ -275,14 +275,14 @@ impl Emit for Data {
         let mut bytes = 0;
 
         match self.mode() {
-            DataMode::Active { memory: 0, offset } => {
+            DataMode::Active(0, offset) => {
                 bytes += 0x00u8.emit(output)?;
                 bytes += offset.emit(output)?;
             }
             DataMode::Passive => {
                 bytes += 0x01u8.emit(output)?;
             }
-            DataMode::Active { memory, offset } => {
+            DataMode::Active(memory, offset) => {
                 bytes += 0x02u8.emit(output)?;
                 bytes += memory.emit(output)?;
                 bytes += offset.emit(output)?;
