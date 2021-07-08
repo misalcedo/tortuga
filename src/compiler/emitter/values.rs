@@ -69,6 +69,7 @@ impl Emit for [u8] {
     }
 }
 
+// TODO create distinction between emit vector vs. emit so I can emit a u8 and write all of the size_of and write_u8 uses.
 impl<T> Emit for [T]
 where
     T: Emit,
