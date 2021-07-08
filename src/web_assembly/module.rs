@@ -95,17 +95,25 @@ pub type LabelIndex = usize;
 #[derive(Clone, Debug, PartialEq)]
 pub struct Function {
     kind: TypeIndex,
-    locals: Vec<ValueType>,
+    locals: ResultType,
     body: Expression,
 }
 
 impl Function {
-    pub fn new(kind: TypeIndex, locals: Vec<ValueType>, body: Expression) -> Self {
+    pub fn new(kind: TypeIndex, locals: ResultType, body: Expression) -> Self {
         Function { kind, locals, body }
     }
 
-    pub fn type_index(&self) -> TypeIndex {
+    pub fn kind(&self) -> TypeIndex {
         self.kind
+    }
+
+    pub fn locals(&self) -> &ResultType {
+        &self.locals
+    }
+
+    pub fn body(&self) -> &Expression {
+        &self.body
     }
 }
 
@@ -141,7 +149,7 @@ impl Memory {
         Memory { kind }
     }
 
-    pub fn memory_type(&self) -> &MemoryType {
+    pub fn kind(&self) -> &MemoryType {
         &self.kind
     }
 }
@@ -363,5 +371,94 @@ mod tests {
     }
 
     #[test]
-    fn new_module() {}
+    fn new_function() {
+        let kind = 1;
+        let locals = ResultType::new(vec![ValueType::Number(NumberType::I64)]);
+        let body = Expression::new(Vec::new());
+        let function = Function::new(kind, locals.clone(), body.clone());
+
+        assert_eq!(function.kind(), 1);
+        assert_eq!(function.locals(), &locals);
+        assert_eq!(function.body(), &body);
+    }
+
+    #[test]
+    fn new_elements() {
+        let kind = ElementKind::ReferenceType(ReferenceType::Function);
+        let mode = ElementMode::Active(0, Expression::new(Vec::new()));
+        let initializers = ElementInitializer::FunctionIndex(vec![1]);
+        let element = Element::new(kind, mode.clone(), initializers.clone());
+
+        assert_eq!(element.mode(), &mode);
+        assert_eq!(element.initializers(), &initializers);
+        assert_eq!(element.kind(), &kind);
+    }
+
+    #[test]
+    fn new_data() {
+        let mode = DataMode::Active(0, Expression::new(Vec::new()));
+        let initializer = vec![42];
+        let data = Data::new(mode.clone(), initializer.clone());
+
+        assert_eq!(data.mode(), &mode);
+        assert_eq!(data.initializer(), &initializer);
+        assert_eq!(data.len(), initializer.len());
+    }
+
+    #[test]
+    fn new_table() {
+        let kind = TableType::new(Limit::new(0, None), ReferenceType::Function);
+        let table = Table::new(kind);
+
+        assert_eq!(table.kind(), &kind);
+    }
+
+    #[test]
+    fn new_memory() {
+        let kind = MemoryType::new(Limit::new(0, None));
+        let memory = Memory::new(kind);
+
+        assert_eq!(memory.kind(), &kind);
+    }
+
+    #[test]
+    fn new_import() {
+        let module = Name::new("test".to_string());
+        let name = Name::new("foobar".to_string());
+        let kind = MemoryType::new(Limit::new(0, None));
+        let description = ImportDescription::Memory(kind);
+        let import = Import::new(module.clone(), name.clone(), description);
+
+        assert_eq!(import.module(), &module);
+        assert_eq!(import.name(), &name);
+        assert_eq!(import.description(), &description);
+    }
+
+    #[test]
+    fn new_export() {
+        let name = Name::new("foobar".to_string());
+        let description = ExportDescription::Function(42);
+        let export = Export::new(name.clone(), description);
+
+        assert_eq!(export.name(), &name);
+        assert_eq!(export.description(), &description);
+    }
+
+    #[test]
+    fn new_start() {
+        let function = 42;
+        let start = Start::new(function);
+
+        assert_eq!(start.function(), function);
+    }
+
+    #[test]
+    fn new_global() {
+        let kind = GlobalType::new(true, ValueType::Number(NumberType::I64));
+        let expression = Expression::new(Vec::new());
+        let global = Global::new(kind, expression.clone());
+
+        assert_eq!(global.kind(), &kind);
+        assert_eq!(global.initializer(), &expression);
+    }
 }

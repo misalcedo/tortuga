@@ -30,7 +30,7 @@ impl Emit for Module {
         }
 
         if !self.functions().is_empty() {
-            let types: Vec<TypeIndex> = self.functions().iter().map(Function::type_index).collect();
+            let types: Vec<TypeIndex> = self.functions().iter().map(Function::kind).collect();
 
             types.as_slice().emit(&mut buffer)?;
 
@@ -132,7 +132,7 @@ impl Emit for Table {
 
 impl Emit for Memory {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        self.memory_type().emit(output)
+        self.kind().emit(output)
     }
 }
 

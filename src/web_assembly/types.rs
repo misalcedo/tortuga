@@ -231,7 +231,7 @@ mod tests {
     fn new_global_type() {
         let is_mutable = true;
         let kind = ValueType::Number(NumberType::I64);
-        let global_type = GlobalType::new(is_mutable, ValueType::Number(NumberType::I64));
+        let global_type = GlobalType::new(is_mutable, kind);
 
         assert_eq!(global_type.is_mutable(), is_mutable);
         assert_eq!(global_type.kind(), &kind);

@@ -125,11 +125,15 @@ pub enum BlockType {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct MemoryArgument {
-    offset: usize,
     align: usize,
+    offset: usize,
 }
 
 impl MemoryArgument {
+    pub fn new(align: usize, offset: usize) -> Self {
+        MemoryArgument { align, offset }
+    }
+
     pub fn offset(&self) -> usize {
         self.offset
     }
@@ -160,11 +164,39 @@ pub struct Expression {
 }
 
 impl Expression {
+    pub fn new(instructions: Vec<Instruction>) -> Self {
+        Expression { instructions }
+    }
+
     pub fn instructions(&self) -> &[Instruction] {
         &self.instructions
     }
 
     pub fn is_empty(&self) -> bool {
         self.instructions.is_empty()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_expression() {
+        let instruction = Instruction::Nop;
+        let expression = Expression::new(vec![instruction.clone()]);
+
+        assert_eq!(expression.instructions(), &[instruction]);
+        assert!(!expression.is_empty());
+    }
+
+    #[test]
+    fn new_memory_argument() {
+        let align = 0;
+        let offset = 42;
+        let argument = MemoryArgument::new(align, offset);
+
+        assert_eq!(argument.align(), align);
+        assert_eq!(argument.offset(), offset);
     }
 }
