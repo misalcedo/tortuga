@@ -112,14 +112,40 @@ impl Module {
     }
 }
 
+/// All indices are encoded with their respective value.
+/// See https://webassembly.github.io/spec/core/binary/modules.html#indices
 pub type TypeIndex = usize;
+
+/// All indices are encoded with their respective value.
+/// See https://webassembly.github.io/spec/core/binary/modules.html#indices
 pub type FunctionIndex = usize;
+
+/// All indices are encoded with their respective value.
+/// See https://webassembly.github.io/spec/core/binary/modules.html#indices
 pub type TableIndex = usize;
+
+/// All indices are encoded with their respective value.
+/// See https://webassembly.github.io/spec/core/binary/modules.html#indices
 pub type MemoryIndex = usize;
+
+/// All indices are encoded with their respective value.
+/// See https://webassembly.github.io/spec/core/binary/modules.html#indices
 pub type GlobalIndex = usize;
+
+/// All indices are encoded with their respective value.
+/// See https://webassembly.github.io/spec/core/binary/modules.html#indices
 pub type ElementIndex = usize;
+
+/// All indices are encoded with their respective value.
+/// See https://webassembly.github.io/spec/core/binary/modules.html#indices
 pub type DataIndex = usize;
+
+/// All indices are encoded with their respective value.
+/// See https://webassembly.github.io/spec/core/binary/modules.html#indices
 pub type LocalIndex = usize;
+
+/// All indices are encoded with their respective value.
+/// See https://webassembly.github.io/spec/core/binary/modules.html#indices
 pub type LabelIndex = usize;
 
 /// The 𝗍𝗒𝗉𝖾 of a function declares its signature by reference to a type defined in the module.

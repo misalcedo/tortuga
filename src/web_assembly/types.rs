@@ -41,16 +41,18 @@ pub enum ReferenceType {
     External, // externref
 }
 
-/// Value types are encoded with their respective encoding as a number type or reference type.
-/// See https://webassembly.github.io/spec/core/binary/types.html#value-types
+/// Value types classify the individual values that WebAssembly code can compute with and the values that a variable accepts.
+/// They are either number types or reference types.
+/// See https://webassembly.github.io/spec/core/syntax/types.html#value-types
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ValueType {
     Number(NumberType),
     Reference(ReferenceType),
 }
 
-/// Result types are encoded by the respective vectors of value types.
-/// See https://webassembly.github.io/spec/core/binary/types.html#result-types
+/// Result types classify the result of executing instructions or functions,
+/// which is a sequence of values, written with brackets.
+/// See https://webassembly.github.io/spec/core/syntax/types.html#result-types
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ResultType {
     types: Vec<ValueType>,
@@ -74,8 +76,10 @@ impl ResultType {
     }
 }
 
-/// Function types are encoded by the byte 𝟶𝚡𝟼𝟶 followed by the respective vectors of parameter and result types.
-/// See https://webassembly.github.io/spec/core/binary/types.html#function-types
+/// Function types classify the signature of functions,
+/// mapping a vector of parameters to a vector of results.
+/// They are also used to classify the inputs and outputs of instructions.
+/// See https://webassembly.github.io/spec/core/syntax/types.html#function-types
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FunctionType {
     parameters: ResultType,
@@ -99,8 +103,8 @@ impl FunctionType {
     }
 }
 
-/// Limits are encoded with a preceding flag indicating whether a maximum is present.
-/// See https://webassembly.github.io/spec/core/binary/types.html#limits
+/// Limits classify the size range of resizeable storage associated with memory types and table types.
+/// See https://webassembly.github.io/spec/core/syntax/types.html#limits
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Limit {
     min: usize,
@@ -121,8 +125,10 @@ impl Limit {
     }
 }
 
-/// Memory types are encoded with their limits.
-/// See https://webassembly.github.io/spec/core/binary/types.html#memory-types
+/// Memory types classify linear memories and their size range.
+/// The limits constrain the minimum and optionally the maximum size of a memory.
+/// The limits are given in units of page size.
+/// See https://webassembly.github.io/spec/core/syntax/types.html#memory-types
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct MemoryType {
     limits: Limit,
@@ -138,8 +144,10 @@ impl MemoryType {
     }
 }
 
-/// Table types are encoded with their limits and the encoding of their element reference type.
-/// See https://webassembly.github.io/spec/core/binary/types.html#table-types
+/// Table types classify tables over elements of reference type within a size range.
+/// Like memories, tables are constrained by limits for their minimum and optionally maximum size.
+/// The limits are given in numbers of entries.
+/// See https://webassembly.github.io/spec/core/syntax/types.html#table-types
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct TableType {
     limits: Limit,
@@ -163,8 +171,8 @@ impl TableType {
     }
 }
 
-/// Global types are encoded by their value type and a flag for their mutability.
-/// See https://webassembly.github.io/spec/core/binary/types.html#global-types
+/// Global types classify global variables, which hold a value and can either be mutable or immutable.
+/// See https://webassembly.github.io/spec/core/syntax/types.html#global-types
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct GlobalType {
     is_mutable: bool,
@@ -185,6 +193,8 @@ impl GlobalType {
     }
 }
 
+/// External types classify imports and external values with their respective types.
+/// See https://webassembly.github.io/spec/core/syntax/types.html#external-types
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ExternalType {
     Function(FunctionType),
