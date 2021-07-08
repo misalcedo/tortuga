@@ -35,6 +35,17 @@ impl Emit for Instruction {
                 output.write_u8(0xD2)?;
                 bytes += index.emit(&mut output)?;
             }
+            Instruction::Drop => {
+                output.write_u8(0x1A)?;
+            }
+            Instruction::Select(types) => {
+                if types.is_empty() {
+                    output.write_u8(0x1B)?;
+                } else {
+                    output.write_u8(0x1C)?;
+                    bytes += types.emit(&mut output)?;
+                }
+            }
         };
 
         Ok(bytes)
