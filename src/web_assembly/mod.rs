@@ -27,13 +27,4 @@ mod tests {
         assert!(module.elements().is_empty());
         assert!(module.start().is_none());
     }
-
-    #[test]
-    fn empty_type() {
-        let result_type = ResultType::new(Vec::new());
-        let function_type = FunctionType::new(result_type.clone(), result_type.clone());
-
-        assert!(function_type.parameters().is_empty());
-        assert!(function_type.results().is_empty());
-    }
 }
