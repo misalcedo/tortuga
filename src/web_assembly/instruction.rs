@@ -3,7 +3,17 @@ use crate::web_assembly::{
     LocalIndex, NumberType, ReferenceType, TableIndex, TypeIndex, ValueType,
 };
 
-/// Instructions are syntactically distinguished into plain and structured instructions.
+/// WebAssembly code consists of sequences of instructions.
+/// Its computational model is based on a stack machine in that instructions manipulate values on
+/// an implicit operand stack, consuming (popping) argument values and producing or returning
+/// (pushing) result values.
+/// In addition to dynamic operands from the stack,
+/// some instructions also have static immediate arguments,
+/// typically indices or type annotations, which are part of the instruction itself.
+/// Some instructions are structured in that they bracket nested sequences of instructions.
+/// The following sections group instructions into a number of different categories.
+///
+/// See https://webassembly.github.io/spec/core/syntax/instructions.html#instructions
 #[derive(Clone, Debug, PartialEq)]
 pub enum Instruction {
     // Numeric
@@ -105,6 +115,12 @@ pub enum Instruction {
     CallIndirect(TypeIndex, TableIndex),
 }
 
+/// A structured instruction can consume input and produce output on the operand stack according to
+/// its annotated block type.
+/// It is given either as a type index that refers to a suitable function type,
+/// or as an optional value type inline, which is a shorthand for the function type []→[valtype?].
+///
+/// See https://webassembly.github.io/spec/core/syntax/instructions.html#control-instructions
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum BlockType {
     None,
@@ -132,6 +148,9 @@ impl MemoryArgument {
     }
 }
 
+/// Modifier to numeric operations (e.g.,  load, store, extend, etc.) to treat an integer as
+/// smaller than its type suggest.
+// TODO: get rid of this.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum StorageSize {
     I32_8,
@@ -141,12 +160,24 @@ pub enum StorageSize {
     I64_32,
 }
 
+/// Some integer instructions come in two flavors, where a signedness annotation sx distinguishes
+/// whether the operands are to be interpreted as unsigned or signed integers.
+/// For the other integer instructions, the use of two’s complement for the signed interpretation
+/// means that they behave the same regardless of signedness.
+///
+/// See https://webassembly.github.io/spec/core/syntax/instructions.html#numeric-instructions
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum SignExtension {
     Signed,
     Unsigned,
 }
 
+/// Function bodies, initialization values for globals,
+/// and offsets of element or data segments are given as expressions, which are sequences of instructions terminated by an 𝖾𝗇𝖽 marker.
+/// In some places, validation restricts expressions to be constant,
+/// which limits the set of allowable instructions.
+///
+/// See https://webassembly.github.io/spec/core/syntax/instructions.html#expressions
 #[derive(Clone, Debug, PartialEq)]
 pub struct Expression {
     instructions: Vec<Instruction>,

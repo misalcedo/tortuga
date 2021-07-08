@@ -307,7 +307,9 @@ impl Element {
     }
 }
 
-/// TODO get rid of the need for this type.
+/// The specification only describes elements as allowing expressions for the initializer.
+/// However, the binary specification allows a vector of function indices.
+/// We need to deviate from the specification here in order to support the full binary format.
 #[derive(Clone, Debug, PartialEq)]
 pub enum ElementInitializer {
     Expression(Vec<Expression>),
