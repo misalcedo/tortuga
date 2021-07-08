@@ -69,18 +69,11 @@ pub enum Instruction {
     ReinterpretFloat(IntegerType, FloatType),
     ReinterpretInteger(FloatType, IntegerType),
     // Reference
-    ReferenceNull(ReferenceType),
-    ReferenceIsNull,
-    ReferenceFunction(FunctionIndex),
+    Reference(ReferenceInstruction),
     // Parametric
-    Drop,
-    Select(Vec<ValueType>),
+    Parametric(ParametricInstruction),
     // Variable
-    LocalGet(LocalIndex),
-    LocalSet(LocalIndex),
-    LocalTee(LocalIndex),
-    GlobalGet(GlobalIndex),
-    GlobalSet(GlobalIndex),
+    Variable(VariableInstruction),
     // Table
     TableGet(TableIndex),
     TableSet(TableIndex),
@@ -113,6 +106,49 @@ pub enum Instruction {
     Return,
     Call(FunctionIndex),
     CallIndirect(TypeIndex, TableIndex),
+}
+
+/// Instructions in this group are concerned with accessing references.
+/// These instruction produce a null value, check for a null value, or produce a reference to a given function, respectively.
+///
+/// See https://webassembly.github.io/spec/core/syntax/instructions.html#reference-instructions
+pub enum ReferenceInstruction {
+    /// Produce a null value.
+    ReferenceNull(ReferenceType),
+    /// Check for a null value.
+    ReferenceIsNull,
+    /// Produce a reference to a given function.
+    ReferenceFunction(FunctionIndex),
+}
+
+/// Instructions in this group can operate on operands of any value type.
+///
+/// https://webassembly.github.io/spec/core/syntax/instructions.html#parametric-instructions
+pub enum ParametricInstruction {
+    /// The 𝖽𝗋𝗈𝗉 instruction simply throws away a single operand.
+    Drop,
+    /// The 𝗌𝖾𝗅𝖾𝖼𝗍 instruction selects one of its first two operands based on whether its third
+    /// operand is zero or not. It may include a value type determining the type of these operands.
+    /// If missing, the operands must be of numeric type.
+    Select(Option<Vec<ValueType>>),
+}
+
+/// Variable instructions are concerned with access to local or global variables.
+/// These instructions get or set the values of variables, respectively.
+/// The 𝗅𝗈𝖼𝖺𝗅.𝗍𝖾𝖾 instruction is like 𝗅𝗈𝖼𝖺𝗅.𝗌𝖾𝗍 but also returns its argument.
+///
+/// See https://webassembly.github.io/spec/core/syntax/instructions.html#variable-instructions
+pub enum VariableInstruction {
+    /// Get the value of a local variable.
+    LocalGet(LocalIndex),
+    /// Set the value of a local variable.
+    LocalSet(LocalIndex),
+    /// The 𝗅𝗈𝖼𝖺𝗅.𝗍𝖾𝖾 instruction is like 𝗅𝗈𝖼𝖺𝗅.𝗌𝖾𝗍 but also returns its argument.
+    LocalTee(LocalIndex),
+    /// Get the value of a global variable.
+    GlobalGet(GlobalIndex),
+    /// Set the value of a global variable.
+    GlobalSet(GlobalIndex),
 }
 
 /// A structured instruction can consume input and produce output on the operand stack according to
