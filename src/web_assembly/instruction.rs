@@ -16,7 +16,26 @@ use crate::web_assembly::{
 /// See https://webassembly.github.io/spec/core/syntax/instructions.html#instructions
 #[derive(Clone, Debug, PartialEq)]
 pub enum Instruction {
-    // Numeric
+    Numeric(NumericInstruction),
+    Reference(ReferenceInstruction),
+    Parametric(ParametricInstruction),
+    Variable(VariableInstruction),
+    Table(TableInstruction),
+    Memory(MemoryInstruction),
+    Control(ControlInstruction),
+}
+
+/// Numeric instructions provide basic operations over numeric values of specific type.
+/// These operations closely match respective operations available in hardware.
+///
+/// Some integer instructions come in two flavors,
+/// where a signedness annotation sx distinguishes whether the operands are to be interpreted as
+/// unsigned or signed integers. For the other integer instructions, the use of two’s complement
+/// for the signed interpretation means that they behave the same regardless of signedness.
+///
+/// See https://webassembly.github.io/spec/core/syntax/instructions.html#numeric-instructions
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum NumericInstruction {
     I32Constant(i32),
     I64Constant(i64),
     F32Constant(f32),
@@ -68,50 +87,13 @@ pub enum Instruction {
     Convert(FloatType, IntegerType, SignExtension),
     ReinterpretFloat(IntegerType, FloatType),
     ReinterpretInteger(FloatType, IntegerType),
-    // Reference
-    Reference(ReferenceInstruction),
-    // Parametric
-    Parametric(ParametricInstruction),
-    // Variable
-    Variable(VariableInstruction),
-    // Table
-    TableGet(TableIndex),
-    TableSet(TableIndex),
-    TableSize(TableIndex),
-    TableGrow(TableIndex),
-    TableFill(TableIndex),
-    TableCopy(TableIndex, TableIndex),
-    TableInit(ElementIndex, TableIndex),
-    ElementDrop(ElementIndex),
-    // Memory
-    Load(NumberType, MemoryArgument),
-    Store(NumberType, MemoryArgument),
-    LoadPartial(StorageSize, SignExtension, MemoryArgument),
-    StorePartial(StorageSize, MemoryArgument),
-    MemorySize,
-    MemoryGrow,
-    MemoryFill,
-    MemoryCopy,
-    MemoryInit(DataIndex),
-    DatDrop(DataIndex),
-    // Control
-    Block(BlockType, Expression),
-    Loop(BlockType, Expression),
-    If(BlockType, Expression, Option<Expression>),
-    Unreachable,
-    Nop,
-    Branch(LabelIndex),
-    BranchIf(LabelIndex),
-    BranchTable(Vec<LabelIndex>, LabelIndex),
-    Return,
-    Call(FunctionIndex),
-    CallIndirect(TypeIndex, TableIndex),
 }
 
 /// Instructions in this group are concerned with accessing references.
 /// These instruction produce a null value, check for a null value, or produce a reference to a given function, respectively.
 ///
 /// See https://webassembly.github.io/spec/core/syntax/instructions.html#reference-instructions
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ReferenceInstruction {
     /// Produce a null value.
     ReferenceNull(ReferenceType),
@@ -124,6 +106,7 @@ pub enum ReferenceInstruction {
 /// Instructions in this group can operate on operands of any value type.
 ///
 /// https://webassembly.github.io/spec/core/syntax/instructions.html#parametric-instructions
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ParametricInstruction {
     /// The 𝖽𝗋𝗈𝗉 instruction simply throws away a single operand.
     Drop,
@@ -138,6 +121,7 @@ pub enum ParametricInstruction {
 /// The 𝗅𝗈𝖼𝖺𝗅.𝗍𝖾𝖾 instruction is like 𝗅𝗈𝖼𝖺𝗅.𝗌𝖾𝗍 but also returns its argument.
 ///
 /// See https://webassembly.github.io/spec/core/syntax/instructions.html#variable-instructions
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum VariableInstruction {
     /// Get the value of a local variable.
     LocalGet(LocalIndex),
@@ -149,6 +133,148 @@ pub enum VariableInstruction {
     GlobalGet(GlobalIndex),
     /// Set the value of a global variable.
     GlobalSet(GlobalIndex),
+}
+
+/// Instructions in this group are concerned with tables table.
+/// An additional instruction that accesses a table is the control instruction 𝖼𝖺𝗅𝗅_𝗂𝗇𝖽𝗂𝗋𝖾𝖼𝗍.
+///
+/// See https://webassembly.github.io/spec/core/syntax/instructions.html#table-instructions
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum TableInstruction {
+    /// The 𝗍𝖺𝖻𝗅𝖾.𝗀𝖾𝗍 instruction loads an element in a table.
+    TableGet(TableIndex),
+    /// The 𝗍𝖺𝖻𝗅𝖾.𝗌𝖾𝗍 instruction stores an element in a table.
+    TableSet(TableIndex),
+    /// The 𝗍𝖺𝖻𝗅𝖾.𝗌𝗂𝗓𝖾 instruction returns the current size of a table.
+    TableSize(TableIndex),
+    /// The 𝗍𝖺𝖻𝗅𝖾.𝗀𝗋𝗈𝗐 instruction grows table by a given delta and returns the previous size,
+    /// or −1 if enough space cannot be allocated.
+    /// It also takes an initialization value for the newly allocated entries.
+    TableGrow(TableIndex),
+    /// The 𝗍𝖺𝖻𝗅𝖾.𝖿𝗂𝗅𝗅 instruction sets all entries in a range to a given value.
+    TableFill(TableIndex),
+    /// The 𝗍𝖺𝖻𝗅𝖾.𝖼𝗈𝗉𝗒 instruction copies elements from a source table region to a
+    /// possibly overlapping destination region; the first index denotes the destination.
+    TableCopy(TableIndex, TableIndex),
+    /// The 𝗍𝖺𝖻𝗅𝖾.𝗂𝗇𝗂𝗍 instruction copies elements from a passive element segment into a table.
+    TableInit(ElementIndex, TableIndex),
+    /// The 𝖾𝗅𝖾𝗆.𝖽𝗋𝗈𝗉 instruction prevents further use of a passive element segment.
+    /// This instruction is intended to be used as an optimization hint.
+    /// After an element segment is dropped its elements can no longer be retrieved,
+    /// so the memory used by this segment may be freed.
+    ElementDrop(ElementIndex),
+}
+
+/// Instructions in this group are concerned with linear memory.
+/// Memory is accessed with 𝗅𝗈𝖺𝖽 and 𝗌𝗍𝗈𝗋𝖾 instructions for the different value types.
+/// They all take a memory immediate memarg that contains an address offset and
+/// the expected alignment (expressed as the exponent of a power of 2).
+/// Integer loads and stores can optionally specify a storage size that is smaller than
+/// the bit width of the respective value type.
+/// In the case of loads, a sign extension mode sx is then required to select appropriate behavior.
+///
+/// The static address offset is added to the dynamic address operand,
+/// yielding a 33 bit effective address that is the zero-based index at which the memory is accessed.
+/// All values are read and written in little endian byte order.
+/// A trap results if any of the accessed memory bytes lies outside the address range implied by
+/// the memory’s current size.
+///
+/// See https://webassembly.github.io/spec/core/syntax/instructions.html#memory-instructions
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum MemoryInstruction {
+    /// Load a number type from memory.
+    Load(NumberType, MemoryArgument),
+    /// Store a number type from memory.
+    Store(NumberType, MemoryArgument),
+    /// Integer load that specifies a storage size that is smaller than
+    /// the bit width of the respective value type.
+    LoadPartial(StorageSize, SignExtension, MemoryArgument),
+    /// Integer store that specifies a storage size that is smaller than
+    /// the bit width of the respective value type.
+    StorePartial(StorageSize, MemoryArgument),
+    /// The 𝗆𝖾𝗆𝗈𝗋𝗒.𝗌𝗂𝗓𝖾 instruction returns the current size of a memory.
+    /// Operates in units of page size.
+    MemorySize,
+    /// The 𝗆𝖾𝗆𝗈𝗋𝗒.𝗀𝗋𝗈𝗐 instruction grows memory by a given delta and returns the previous size,
+    /// or −1 if enough memory cannot be allocated.
+    MemoryGrow,
+    /// The 𝗆𝖾𝗆𝗈𝗋𝗒.𝖿𝗂𝗅𝗅 instruction sets all values in a region to a given byte.
+    MemoryFill,
+    /// The 𝗆𝖾𝗆𝗈𝗋𝗒.𝖼𝗈𝗉𝗒 instruction copies data from a source memory region to
+    /// a possibly overlapping destination region.
+    MemoryCopy,
+    /// The 𝗆𝖾𝗆𝗈𝗋𝗒.𝗂𝗇𝗂𝗍 instruction copies data from a passive data segment into a memory.
+    MemoryInit(DataIndex),
+    /// he 𝖽𝖺𝗍𝖺.𝖽𝗋𝗈𝗉 instruction prevents further use of a passive data segment.
+    /// This instruction is intended to be used as an optimization hint.
+    /// After a data segment is dropped its data can no longer be retrieved,
+    /// so the memory used by this segment may be freed.
+    DatDrop(DataIndex),
+}
+
+/// Instructions in this group affect the flow of control.
+/// The 𝖻𝗅𝗈𝖼𝗄, 𝗅𝗈𝗈𝗉 and 𝗂𝖿 instructions are structured instructions.
+/// They bracket nested sequences of instructions, called blocks, terminated with, or separated by,
+/// 𝖾𝗇𝖽 or 𝖾𝗅𝗌𝖾 pseudo-instructions. As the grammar prescribes, they must be well-nested.
+///
+/// A structured instruction can consume input and produce output on the operand stack according to
+/// its annotated block type. It is given either as a type index that refers to a suitable function
+/// type, or as an optional value type inline,
+/// which is a shorthand for the function type []→[valtype?].
+///
+/// Each structured control instruction introduces an implicit label.
+/// Labels are targets for branch instructions that reference them with label indices.
+/// Unlike with other index spaces, indexing of labels is relative by nesting depth, that is,
+/// label 0 refers to the innermost structured control instruction enclosing the referring branch
+/// instruction, while increasing indices refer to those farther out.
+/// Consequently, labels can only be referenced from within the associated structured control
+/// instruction. This also implies that branches can only be directed outwards,
+/// “breaking” from the block of the control construct they target.
+/// The exact effect depends on that control construct.
+/// In case of 𝖻𝗅𝗈𝖼𝗄 or 𝗂𝖿 it is a forward jump, resuming execution after the matching 𝖾𝗇𝖽.
+/// In case of 𝗅𝗈𝗈𝗉 it is a backward jump to the beginning of the loop.
+///
+/// Taking a branch unwinds the operand stack up to the height where the targeted structured
+/// control instruction was entered. However, branches may additionally consume operands themselves,
+/// which they push back on the operand stack after unwinding.
+/// Forward branches require operands according to the output of the targeted block’s type, i.e.,
+/// represent the values produced by the terminated block.
+/// Backward branches require operands according to the input of the targeted block’s type, i.e.,
+/// represent the values consumed by the restarted block.
+///
+/// See https://webassembly.github.io/spec/core/syntax/instructions.html#control-instructions
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ControlInstruction {
+    /// The 𝗇𝗈𝗉 instruction does nothing.
+    Nop,
+    /// The 𝗎𝗇𝗋𝖾𝖺𝖼𝗁𝖺𝖻𝗅𝖾 instruction causes an unconditional trap.
+    Unreachable,
+    /// A logical grouping used introduce a label around an expression.
+    Block(BlockType, Expression),
+    /// Executes the expression in a loop.
+    Loop(BlockType, Expression),
+    /// Conditionally executes a positive or (optional) negative branch based on a test value.
+    If(BlockType, Expression, Option<Expression>),
+    /// The 𝖻𝗋 instruction performs an unconditional branch.
+    Branch(LabelIndex),
+    /// The 𝖻𝗋_𝗂𝖿 instruction performs a conditional branch
+    BranchIf(LabelIndex),
+    /// The 𝖻𝗋_𝗍𝖺𝖻𝗅𝖾 instruction performs an indirect branch through an operand indexing into
+    /// the label vector that is an immediate to the instruction,
+    /// or to a default target if the operand is out of bounds.
+    BranchTable(Vec<LabelIndex>, LabelIndex),
+    /// he 𝗋𝖾𝗍𝗎𝗋𝗇 instruction is a shortcut for an unconditional branch to the outermost block,
+    /// which implicitly is the body of the current function.
+    Return,
+    /// The 𝖼𝖺𝗅𝗅 instruction invokes another function, consuming the necessary arguments from
+    /// the stack and returning the result values of the call.
+    Call(FunctionIndex),
+    /// The 𝖼𝖺𝗅𝗅_𝗂𝗇𝖽𝗂𝗋𝖾𝖼𝗍 instruction calls a function indirectly through an operand indexing into
+    /// a table that is denoted by a table index and must have type 𝖿𝗎𝗇𝖼𝗋𝖾𝖿.
+    /// Since it may contain functions of heterogeneous type,
+    /// the callee is dynamically checked against the function type indexed by the instruction’s
+    /// second immediate, and the call is aborted with a trap if it does not match.
+    CallIndirect(TypeIndex, TableIndex),
 }
 
 /// A structured instruction can consume input and produce output on the operand stack according to
