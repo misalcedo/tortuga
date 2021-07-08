@@ -1,6 +1,14 @@
 use crate::web_assembly::types::*;
 use crate::web_assembly::{Expression, Name};
 
+/// WebAssembly programs are organized into modules, which are the unit of deployment, loading, and compilation.
+/// A module collects definitions for types, functions, tables, memories, and globals.
+/// In addition,
+/// it can declare imports and exports and provide initialization in the form of data and element segments,
+/// or a start function.
+/// Each of the vectors – and thus the entire module – may be empty.
+///
+/// See https://webassembly.github.io/spec/core/syntax/modules.html#modules
 #[derive(Clone, Debug, PartialEq)]
 pub struct Module {
     function_types: Vec<FunctionType>,
@@ -31,14 +39,16 @@ impl Module {
         }
     }
 
-    pub fn function_types(&self) -> &[FunctionType] {
+    /// The 𝗍𝗒𝗉𝖾𝗌 component of a module defines a vector of function types.
+    pub fn types(&self) -> &[FunctionType] {
         &self.function_types
     }
 
-    pub fn add_function_type(&mut self, function_type: FunctionType) {
+    pub fn add_type(&mut self, function_type: FunctionType) {
         self.function_types.push(function_type);
     }
 
+    /// The 𝖿𝗎𝗇𝖼𝗌 component of a module defines a vector of functions.
     pub fn functions(&self) -> &[Function] {
         &self.functions
     }
@@ -47,6 +57,7 @@ impl Module {
         self.functions.push(function);
     }
 
+    /// The 𝗍𝖺𝖻𝗅𝖾𝗌 component of a module defines a vector of tables described by their table type.
     pub fn tables(&self) -> &[Table] {
         &self.tables
     }
@@ -55,6 +66,8 @@ impl Module {
         self.tables.push(table);
     }
 
+    /// The 𝗆𝖾𝗆𝗌 component of a module defines a vector of linear memories (or memories for short)
+    /// as described by their memory type.
     pub fn memories(&self) -> &[Memory] {
         &self.memories
     }
@@ -63,6 +76,7 @@ impl Module {
         self.memories.push(memory);
     }
 
+    /// The 𝗀𝗅𝗈𝖻𝖺𝗅𝗌 component of a module defines a vector of global variables (or globals for short).
     pub fn globals(&self) -> &[Global] {
         &self.globals
     }
@@ -71,6 +85,7 @@ impl Module {
         self.globals.push(global);
     }
 
+    /// The 𝖾𝗅𝖾𝗆𝗌 component of a module defines a vector of element segments.
     pub fn elements(&self) -> &[Element] {
         &self.elements
     }
@@ -79,6 +94,7 @@ impl Module {
         self.elements.push(element);
     }
 
+    /// The 𝖽𝖺𝗍𝖺𝗌 component of a module defines a vector of data segments.
     pub fn data(&self) -> &[Data] {
         &self.data
     }
@@ -87,6 +103,8 @@ impl Module {
         self.data.push(data);
     }
 
+    /// The 𝗌𝗍𝖺𝗋𝗍 component of a module declares the function index of a start function that is
+    /// automatically invoked when the module is instantiated, after tables and memories have been initialized.
     pub fn start(&self) -> Option<&Start> {
         self.start.as_ref()
     }
@@ -95,6 +113,7 @@ impl Module {
         self.start = start;
     }
 
+    /// The 𝗂𝗆𝗉𝗈𝗋𝗍𝗌 component of a module defines a set of imports that are required for instantiation.
     pub fn imports(&self) -> &[Import] {
         &self.imports
     }
@@ -103,6 +122,8 @@ impl Module {
         self.imports.push(import);
     }
 
+    /// The 𝖾𝗑𝗉𝗈𝗋𝗍𝗌 component of a module defines a set of exports that become accessible to the
+    /// host environment once the module has been instantiated.
     pub fn exports(&self) -> &[Export] {
         &self.exports
     }
@@ -112,52 +133,39 @@ impl Module {
     }
 }
 
-/// All indices are encoded with their respective value.
-/// See https://webassembly.github.io/spec/core/binary/modules.html#indices
+/// Definitions are referenced with zero-based indices.
+/// Each class of definition has its own index space, as distinguished by the following classes.
+///
+/// The index space for functions, tables,
+/// memories and globals includes respective imports declared in the same module.
+/// The indices of these imports precede the indices of other definitions in the same index space.
+///
+/// Element indices reference element segments and data indices reference data segments.
+///
+/// The index space for locals is only accessible inside a function and includes the parameters of that function,
+/// which precede the local variables.
+///
+/// Label indices reference structured control instructions inside an instruction sequence.
+/// See https://webassembly.github.io/spec/core/syntax/modules.html#indices
+
 pub type TypeIndex = usize;
-
-/// All indices are encoded with their respective value.
-/// See https://webassembly.github.io/spec/core/binary/modules.html#indices
 pub type FunctionIndex = usize;
-
-/// All indices are encoded with their respective value.
-/// See https://webassembly.github.io/spec/core/binary/modules.html#indices
 pub type TableIndex = usize;
-
-/// All indices are encoded with their respective value.
-/// See https://webassembly.github.io/spec/core/binary/modules.html#indices
 pub type MemoryIndex = usize;
-
-/// All indices are encoded with their respective value.
-/// See https://webassembly.github.io/spec/core/binary/modules.html#indices
 pub type GlobalIndex = usize;
-
-/// All indices are encoded with their respective value.
-/// See https://webassembly.github.io/spec/core/binary/modules.html#indices
 pub type ElementIndex = usize;
-
-/// All indices are encoded with their respective value.
-/// See https://webassembly.github.io/spec/core/binary/modules.html#indices
 pub type DataIndex = usize;
-
-/// All indices are encoded with their respective value.
-/// See https://webassembly.github.io/spec/core/binary/modules.html#indices
 pub type LocalIndex = usize;
-
-/// All indices are encoded with their respective value.
-/// See https://webassembly.github.io/spec/core/binary/modules.html#indices
 pub type LabelIndex = usize;
 
 /// The 𝗍𝗒𝗉𝖾 of a function declares its signature by reference to a type defined in the module.
-/// The parameters of the function are referenced through 0-based local indices in the function’s
-/// body;they are mutable.
+/// The parameters of the function are referenced through 0-based local indices in the function’s body; they are mutable.
 /// The 𝗅𝗈𝖼𝖺𝗅𝗌 declare a vector of mutable local variables and their types.
 /// These variables are referenced through local indices in the function’s body.
 /// The index of the first local is the smallest index not referencing a parameter.
-/// The 𝖻𝗈𝖽𝗒 is an instruction sequence that upon termination must produce a stack matching the
-/// function type’s result type.
-/// Functions are referenced through function indices,
-/// starting with the smallest index not referencing a function import.
+/// The 𝖻𝗈𝖽𝗒 is an instruction sequence that upon termination must produce a stack matching the function type’s result type.
+///
+/// See https://webassembly.github.io/spec/core/syntax/modules.html#functions
 #[derive(Clone, Debug, PartialEq)]
 pub struct Function {
     kind: TypeIndex,
@@ -184,8 +192,13 @@ impl Function {
 }
 
 /// A table is a vector of opaque values of a particular reference type.
-/// The 𝗆𝗂𝗇 size in the limits of the table type specifies the initial size of that table,
-/// while its 𝗆𝖺𝗑, if present, restricts the size to which it can grow later.
+/// The 𝗆𝗂𝗇 size in the limits of the table type specifies the initial size of that table, while its 𝗆𝖺𝗑, if present, restricts the size to which it can grow later.
+/// Tables can be initialized through element segments.
+/// Tables are referenced through table indices,
+/// starting with the smallest index not referencing a table import.
+/// Most constructs implicitly reference table index 0.
+///
+/// See https://webassembly.github.io/spec/core/syntax/modules.html#tables
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Table {
     kind: TableType,
@@ -203,8 +216,13 @@ impl Table {
 
 /// A memory is a vector of raw uninterpreted bytes.
 /// The 𝗆𝗂𝗇 size in the limits of the memory type specifies the initial size of that memory,
-/// while its 𝗆𝖺𝗑, if present, restricts the size to which it can grow later.
-/// Both are in units of page size.
+/// while its 𝗆𝖺𝗑, if present, restricts the size to which it can grow later. Both are in units of page size.
+/// Memories can be initialized through data segments.
+/// Memories are referenced through memory indices
+/// starting with the smallest index not referencing a memory import.
+/// Most constructs implicitly reference memory index 0.
+///
+/// See https://webassembly.github.io/spec/core/syntax/modules.html#memories
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Memory {
     kind: MemoryType,
@@ -220,7 +238,13 @@ impl Memory {
     }
 }
 
-/// The 𝗀𝗅𝗈𝖻𝖺𝗅𝗌 component of a module defines a vector of global variables (or globals for short):
+/// Each global stores a single value of the given global type.
+/// Its 𝗍𝗒𝗉𝖾 also specifies whether a global is immutable or mutable.
+/// Moreover, each global is initialized with an 𝗂𝗇𝗂𝗍 value given by a constant initializer expression.
+/// Globals are referenced through global indices,
+/// starting with the smallest index not referencing a global import.
+///
+/// See https://webassembly.github.io/spec/core/syntax/modules.html#globals
 #[derive(Clone, Debug, PartialEq)]
 pub struct Global {
     kind: GlobalType,
@@ -243,6 +267,17 @@ impl Global {
 
 /// The initial contents of a table is uninitialized.
 /// Element segments can be used to initialize a subrange of a table from a static vector of elements.
+/// Each element segment defines a reference type and a corresponding list of constant element expressions.
+/// Element segments have a mode that identifies them as either passive, active, or declarative.
+/// A passive element segment’s elements can be copied to a table using the 𝗍𝖺𝖻𝗅𝖾.𝗂𝗇𝗂𝗍 instruction.
+/// An active element segment copies its elements into a table during instantiation,
+/// as specified by a table index and a constant expression defining an offset into that table.
+/// A declarative element segment is not available at runtime but merely serves to forward-declare
+/// references that are formed in code with instructions like 𝗋𝖾𝖿.𝖿𝗎𝗇𝖼.
+/// The 𝗈𝖿𝖿𝗌𝖾𝗍 is given by a constant expression.
+/// Element segments are referenced through element indices.
+///
+/// See https://webassembly.github.io/spec/core/syntax/modules.html#element-segments
 #[derive(Clone, Debug, PartialEq)]
 pub struct Element {
     kind: ElementKind,
@@ -284,15 +319,29 @@ pub enum ElementKind {
     ReferenceType(ReferenceType),
 }
 
+/// Element segments have a mode that identifies them as either passive, active, or declarative.
 #[derive(Clone, Debug, PartialEq)]
 pub enum ElementMode {
+    /// A passive element segment’s elements can be copied to a table using the 𝗍𝖺𝖻𝗅𝖾.𝗂𝗇𝗂𝗍 instruction.
     Passive,
+    /// An active element segment copies its elements into a table during instantiation,
+    /// as specified by a table index and a constant expression defining an offset into that table.
+    /// The 𝗈𝖿𝖿𝗌𝖾𝗍 is given by a constant expression.
     Active(TableIndex, Expression),
+    /// A declarative element segment is not available at runtime but merely serves to forward-declare
+    /// references that are formed in code with instructions like 𝗋𝖾𝖿.𝖿𝗎𝗇𝖼.
     Declarative,
 }
 
 /// The initial contents of a memory are zero bytes.
 /// Data segments can be used to initialize a range of memory from a static vector of bytes.
+/// Like element segments, data segments have a mode that identifies them as either passive or active.
+/// A passive data segment’s contents can be copied into a memory using the 𝗆𝖾𝗆𝗈𝗋𝗒.𝗂𝗇𝗂𝗍 instruction.
+/// An active data segment copies its contents into a memory during instantiation,
+/// as specified by a memory index and a constant expression defining an offset into that memory.
+/// Data segments are referenced through data indices.
+///
+/// See https://webassembly.github.io/spec/core/syntax/modules.html#data-segments
 #[derive(Clone, Debug, PartialEq)]
 pub struct Data {
     mode: DataMode,
@@ -317,15 +366,22 @@ impl Data {
     }
 }
 
+/// Like element segments, data segments have a mode that identifies them as either passive or active.
 #[derive(Clone, Debug, PartialEq)]
 pub enum DataMode {
+    /// A passive data segment’s contents can be copied into a memory using the 𝗆𝖾𝗆𝗈𝗋𝗒.𝗂𝗇𝗂𝗍 instruction.
     Passive,
+    /// An active data segment copies its contents into a memory during instantiation,
+    /// as specified by a memory index and a constant expression defining an offset into that memory.
     Active(MemoryIndex, Expression),
 }
 
 /// The 𝗌𝗍𝖺𝗋𝗍 component of a module declares the function index of a start function that
 /// is automatically invoked when the module is instantiated,
 /// after tables and memories have been initialized.
+/// start::={𝖿𝗎𝗇𝖼 funcidx}
+///
+/// See https://webassembly.github.io/spec/core/syntax/modules.html#start-function
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Start {
     function: FunctionIndex,
@@ -341,9 +397,13 @@ impl Start {
     }
 }
 
+/// The 𝖾𝗑𝗉𝗈𝗋𝗍𝗌 component of a module defines a set of exports that become accessible to the
+/// host environment once the module has been instantiated.
 /// Each export is labeled by a unique name.
 /// Exportable definitions are functions, tables, memories, and globals,
 /// which are referenced through a respective descriptor.
+///
+/// See https://webassembly.github.io/spec/core/syntax/modules.html#exports
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Export {
     name: Name,
@@ -364,6 +424,8 @@ impl Export {
     }
 }
 
+/// Exportable definitions are functions, tables, memories, and globals,
+/// which are referenced through a respective descriptor.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ExportDescription {
     Function(FunctionIndex),
@@ -372,13 +434,16 @@ pub enum ExportDescription {
     Global(GlobalIndex),
 }
 
-/// Each import is labeled by a two-level name space, consisting of a 𝗆𝗈𝖽𝗎𝗅𝖾 name and a 𝗇𝖺𝗆𝖾 for an
-/// entity within that module. Importable definitions are functions, tables, memories, and globals.
+/// Each import is labeled by a two-level name space,
+/// consisting of a 𝗆𝗈𝖽𝗎𝗅𝖾 name and a 𝗇𝖺𝗆𝖾 for an entity within that module.
+/// Importable definitions are functions, tables, memories, and globals.
 /// Each import is specified by a descriptor with a respective type that a definition provided
 /// during instantiation is required to match.
 /// Every import defines an index in the respective index space.
-/// In each index space, the indices of imports go before the first index of any definition
-/// contained in the module itself.
+/// In each index space, the indices of imports go before the first index of any
+/// definition contained in the module itself.
+///
+/// See https://webassembly.github.io/spec/core/syntax/modules.html#imports
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Import {
     module: Name,
@@ -408,6 +473,8 @@ impl Import {
     }
 }
 
+/// Each import is specified by a descriptor with a respective type that a definition provided
+/// during instantiation is required to match.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ImportDescription {
     Function(TypeIndex),
@@ -425,7 +492,7 @@ mod tests {
     fn empty_module() {
         let module = Module::new();
 
-        assert!(module.function_types().is_empty());
+        assert!(module.types().is_empty());
         assert!(module.functions().is_empty());
         assert!(module.tables().is_empty());
         assert!(module.memories().is_empty());
@@ -444,7 +511,7 @@ mod tests {
             ResultType::new(vec![ValueType::Number(NumberType::I64)]),
             ResultType::new(vec![ValueType::Number(NumberType::F64)]),
         );
-        module.add_function_type(function_type.clone());
+        module.add_type(function_type.clone());
 
         let function = Function::new(
             0,
@@ -491,7 +558,7 @@ mod tests {
         );
         module.add_global(global.clone());
 
-        assert_eq!(module.function_types(), &[function_type]);
+        assert_eq!(module.types(), &[function_type]);
         assert_eq!(module.functions(), &[function]);
         assert_eq!(module.tables(), &[table]);
         assert_eq!(module.memories(), &[memory]);
