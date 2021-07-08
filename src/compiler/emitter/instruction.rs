@@ -1,6 +1,8 @@
 use crate::compiler::emitter::Emit;
 use crate::compiler::errors::CompilerError;
-use crate::web_assembly::{BlockType, Expression, Instruction, MemoryArgument};
+use crate::web_assembly::{
+    BlockType, Expression, Instruction, MemoryArgument, NumberType, SignExtension, StorageSize,
+};
 use byteorder::WriteBytesExt;
 use std::io::Write;
 use std::mem::size_of;
@@ -168,6 +170,183 @@ impl Emit for Instruction {
                 output.write_u8(0xFC)?;
                 bytes += 17u32.emit(output)?;
                 bytes += index.emit(output)?;
+            }
+            Instruction::Load(NumberType::I32, memory_argument) => {
+                output.write_u8(0x28)?;
+                bytes += memory_argument.emit(output)?;
+            }
+            Instruction::Load(NumberType::I64, memory_argument) => {
+                output.write_u8(0x29)?;
+                bytes += memory_argument.emit(output)?;
+            }
+            Instruction::Load(NumberType::F32, memory_argument) => {
+                output.write_u8(0x2A)?;
+                bytes += memory_argument.emit(output)?;
+            }
+            Instruction::Load(NumberType::F64, memory_argument) => {
+                output.write_u8(0x2B)?;
+                bytes += memory_argument.emit(output)?;
+            }
+            Instruction::LoadPartial(
+                StorageSize::I32_8,
+                SignExtension::Signed,
+                memory_argument,
+            ) => {
+                output.write_u8(0x2C)?;
+                bytes += memory_argument.emit(output)?;
+            }
+            Instruction::LoadPartial(
+                StorageSize::I32_8,
+                SignExtension::Unsigned,
+                memory_argument,
+            ) => {
+                output.write_u8(0x2D)?;
+                bytes += memory_argument.emit(output)?;
+            }
+            Instruction::LoadPartial(
+                StorageSize::I32_16,
+                SignExtension::Signed,
+                memory_argument,
+            ) => {
+                output.write_u8(0x2E)?;
+                bytes += memory_argument.emit(output)?;
+            }
+            Instruction::LoadPartial(
+                StorageSize::I32_16,
+                SignExtension::Unsigned,
+                memory_argument,
+            ) => {
+                output.write_u8(0x2F)?;
+                bytes += memory_argument.emit(output)?;
+            }
+            Instruction::LoadPartial(
+                StorageSize::I64_8,
+                SignExtension::Signed,
+                memory_argument,
+            ) => {
+                output.write_u8(0x30)?;
+                bytes += memory_argument.emit(output)?;
+            }
+            Instruction::LoadPartial(
+                StorageSize::I64_8,
+                SignExtension::Unsigned,
+                memory_argument,
+            ) => {
+                output.write_u8(0x31)?;
+                bytes += memory_argument.emit(output)?;
+            }
+            Instruction::LoadPartial(
+                StorageSize::I64_16,
+                SignExtension::Signed,
+                memory_argument,
+            ) => {
+                output.write_u8(0x32)?;
+                bytes += memory_argument.emit(output)?;
+            }
+            Instruction::LoadPartial(
+                StorageSize::I64_16,
+                SignExtension::Unsigned,
+                memory_argument,
+            ) => {
+                output.write_u8(0x33)?;
+                bytes += memory_argument.emit(output)?;
+            }
+            Instruction::LoadPartial(
+                StorageSize::I64_32,
+                SignExtension::Signed,
+                memory_argument,
+            ) => {
+                output.write_u8(0x34)?;
+                bytes += memory_argument.emit(output)?;
+            }
+            Instruction::LoadPartial(
+                StorageSize::I64_32,
+                SignExtension::Unsigned,
+                memory_argument,
+            ) => {
+                output.write_u8(0x35)?;
+                bytes += memory_argument.emit(output)?;
+            }
+            Instruction::Store(NumberType::I32, memory_argument) => {
+                output.write_u8(0x36)?;
+                bytes += memory_argument.emit(output)?;
+            }
+            Instruction::Store(NumberType::I64, memory_argument) => {
+                output.write_u8(0x37)?;
+                bytes += memory_argument.emit(output)?;
+            }
+            Instruction::Store(NumberType::F32, memory_argument) => {
+                output.write_u8(0x38)?;
+                bytes += memory_argument.emit(output)?;
+            }
+            Instruction::Store(NumberType::F64, memory_argument) => {
+                output.write_u8(0x39)?;
+                bytes += memory_argument.emit(output)?;
+            }
+            Instruction::StorePartial(StorageSize::I32_8, memory_argument) => {
+                output.write_u8(0x3A)?;
+                bytes += memory_argument.emit(output)?;
+            }
+            Instruction::StorePartial(StorageSize::I32_16, memory_argument) => {
+                output.write_u8(0x3B)?;
+                bytes += memory_argument.emit(output)?;
+            }
+            Instruction::StorePartial(StorageSize::I64_8, memory_argument) => {
+                output.write_u8(0x3C)?;
+                bytes += memory_argument.emit(output)?;
+            }
+            Instruction::StorePartial(StorageSize::I64_16, memory_argument) => {
+                output.write_u8(0x3D)?;
+                bytes += memory_argument.emit(output)?;
+            }
+            Instruction::StorePartial(StorageSize::I64_32, memory_argument) => {
+                output.write_u8(0x3E)?;
+                bytes += memory_argument.emit(output)?;
+            }
+            Instruction::MemorySize => {
+                output.write_u8(0x3F)?;
+                output.write_u8(0x00)?;
+
+                bytes += size_of::<u8>();
+            }
+            Instruction::MemoryGrow => {
+                output.write_u8(0x40)?;
+                output.write_u8(0x00)?;
+
+                bytes += size_of::<u8>();
+            }
+            Instruction::MemoryInit(index) => {
+                output.write_u8(0xFC)?;
+
+                bytes += 8u32.emit(output)?;
+                bytes += index.emit(output)?;
+                bytes += size_of::<u8>();
+
+                output.write_u8(0x00)?;
+            }
+            Instruction::DatDrop(index) => {
+                output.write_u8(0xFC)?;
+
+                bytes += 9u32.emit(output)?;
+                bytes += index.emit(output)?;
+            }
+            Instruction::MemoryCopy => {
+                output.write_u8(0xFC)?;
+
+                bytes += 10u32.emit(output)?;
+                bytes += size_of::<u8>();
+                bytes += size_of::<u8>();
+
+                output.write_u8(0x00)?;
+                output.write_u8(0x00)?;
+            }
+            Instruction::MemoryFill => {
+                output.write_u8(0xFC)?;
+
+                bytes += 11u32.emit(output)?;
+                bytes += size_of::<u8>();
+
+                output.write_u8(0x00)?;
             }
             _ => (),
         };
