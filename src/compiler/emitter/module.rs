@@ -19,8 +19,8 @@ impl Emit for Module {
         bytes += output.write(PREAMBLE)?;
         bytes += output.write(VERSION)?;
 
-        if !self.types().is_empty() {
-            self.types().emit(&mut buffer)?;
+        if !self.function_types().is_empty() {
+            self.function_types().emit(&mut buffer)?;
             emit_section(ModuleSection::TypeSection, &mut buffer, output)?;
         }
 

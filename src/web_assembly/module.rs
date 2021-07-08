@@ -3,7 +3,7 @@ use crate::web_assembly::{Expression, Name};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Module {
-    types: Vec<FunctionType>,
+    function_types: Vec<FunctionType>,
     functions: Vec<Function>,
     tables: Vec<Table>,
     memories: Vec<Memory>,
@@ -18,7 +18,7 @@ pub struct Module {
 impl Module {
     pub fn new() -> Module {
         Module {
-            types: Vec::new(),
+            function_types: Vec::new(),
             functions: Vec::new(),
             tables: Vec::new(),
             memories: Vec::new(),
@@ -31,44 +31,84 @@ impl Module {
         }
     }
 
-    pub fn types(&self) -> &[FunctionType] {
-        &self.types
+    pub fn function_types(&self) -> &[FunctionType] {
+        &self.function_types
+    }
+
+    pub fn add_function_type(&mut self, function_type: FunctionType) {
+        self.function_types.push(function_type);
     }
 
     pub fn functions(&self) -> &[Function] {
         &self.functions
     }
 
+    pub fn add_function(&mut self, function: Function) {
+        self.functions.push(function);
+    }
+
     pub fn tables(&self) -> &[Table] {
         &self.tables
+    }
+
+    pub fn add_table(&mut self, table: Table) {
+        self.tables.push(table);
     }
 
     pub fn memories(&self) -> &[Memory] {
         &self.memories
     }
 
+    pub fn add_memory(&mut self, memory: Memory) {
+        self.memories.push(memory);
+    }
+
     pub fn globals(&self) -> &[Global] {
         &self.globals
+    }
+
+    pub fn add_global(&mut self, global: Global) {
+        self.globals.push(global);
     }
 
     pub fn elements(&self) -> &[Element] {
         &self.elements
     }
 
+    pub fn add_element(&mut self, element: Element) {
+        self.elements.push(element);
+    }
+
     pub fn data(&self) -> &[Data] {
         &self.data
+    }
+
+    pub fn add_data(&mut self, data: Data) {
+        self.data.push(data);
     }
 
     pub fn start(&self) -> Option<&Start> {
         self.start.as_ref()
     }
 
+    pub fn set_start(&mut self, start: Option<Start>) {
+        self.start = start;
+    }
+
     pub fn imports(&self) -> &[Import] {
         &self.imports
     }
 
+    pub fn add_import(&mut self, import: Import) {
+        self.imports.push(import);
+    }
+
     pub fn exports(&self) -> &[Export] {
         &self.exports
+    }
+
+    pub fn add_export(&mut self, export: Export) {
+        self.exports.push(export);
     }
 }
 
@@ -353,12 +393,13 @@ pub enum ImportDescription {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::web_assembly::Instruction;
 
     #[test]
     fn empty_module() {
         let module = Module::new();
 
-        assert!(module.types().is_empty());
+        assert!(module.function_types().is_empty());
         assert!(module.functions().is_empty());
         assert!(module.tables().is_empty());
         assert!(module.memories().is_empty());
@@ -368,6 +409,72 @@ mod tests {
         assert!(module.data().is_empty());
         assert!(module.elements().is_empty());
         assert!(module.start().is_none());
+    }
+
+    #[test]
+    fn module() {
+        let mut module = Module::new();
+        let function_type = FunctionType::new(
+            ResultType::new(vec![ValueType::Number(NumberType::I64)]),
+            ResultType::new(vec![ValueType::Number(NumberType::F64)]),
+        );
+        module.add_function_type(function_type.clone());
+
+        let function = Function::new(
+            0,
+            ResultType::new(vec![ValueType::Number(NumberType::I32)]),
+            Expression::new(vec![Instruction::Nop]),
+        );
+        module.add_function(function.clone());
+
+        let element = Element::new(
+            ElementKind::ReferenceType(ReferenceType::Function),
+            ElementMode::Passive,
+            ElementInitializer::FunctionIndex(vec![0]),
+        );
+        module.add_element(element.clone());
+
+        let data = Data::new(DataMode::Passive, vec![42]);
+        module.add_data(data.clone());
+
+        let table = Table::new(TableType::new(Limit::new(0, None), ReferenceType::Function));
+        module.add_table(table);
+
+        let memory = Memory::new(MemoryType::new(Limit::new(0, None)));
+        module.add_memory(memory);
+
+        let import = Import::new(
+            Name::new("test".to_string()),
+            Name::new("foobar".to_string()),
+            ImportDescription::Function(0),
+        );
+        module.add_import(import.clone());
+
+        let export = Export::new(
+            Name::new("foobar".to_string()),
+            ExportDescription::Function(0),
+        );
+        module.add_export(export.clone());
+
+        let start = Start::new(0);
+        module.set_start(Some(start));
+
+        let global = Global::new(
+            GlobalType::new(false, ValueType::Number(NumberType::I64)),
+            Expression::new(vec![Instruction::I64Constant(0)]),
+        );
+        module.add_global(global.clone());
+
+        assert_eq!(module.function_types(), &[function_type]);
+        assert_eq!(module.functions(), &[function]);
+        assert_eq!(module.tables(), &[table]);
+        assert_eq!(module.memories(), &[memory]);
+        assert_eq!(module.globals(), &[global]);
+        assert_eq!(module.imports(), &[import]);
+        assert_eq!(module.exports(), &[export]);
+        assert_eq!(module.data(), &[data]);
+        assert_eq!(module.elements(), &[element]);
+        assert_eq!(module.start(), Some(&start));
     }
 
     #[test]
