@@ -23,8 +23,6 @@ impl Emit for Expression {
 
 impl Emit for Instruction {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        let mut bytes = 0;
-
         match self {
             Self::Numeric(instruction) => instruction.emit(output),
             Self::Reference(instruction) => instruction.emit(output),
@@ -33,9 +31,7 @@ impl Emit for Instruction {
             Self::Table(instruction) => instruction.emit(output),
             Self::Memory(instruction) => instruction.emit(output),
             Self::Control(instruction) => instruction.emit(output),
-        };
-
-        Ok(bytes)
+        }
     }
 }
 
