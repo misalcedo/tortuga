@@ -3,7 +3,6 @@ use crate::web_assembly::{
     LocalIndex, NumberType, ReferenceType, TableIndex, TypeIndex, ValueType,
 };
 
-// TODO Update to have explicit instructions for every type pair, storage width, and sign extension to make emitting opcodes easier
 /// Instructions are syntactically distinguished into plain and structured instructions.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Instruction {
@@ -93,19 +92,9 @@ pub enum Instruction {
     MemoryInit(DataIndex),
     DatDrop(DataIndex),
     // Control
-    Block {
-        expression: Expression,
-        kind: BlockType,
-    },
-    Loop {
-        expression: Expression,
-        kind: BlockType,
-    },
-    If {
-        positive: Expression,
-        negative: Option<Expression>,
-        kind: BlockType,
-    },
+    Block(BlockType, Expression),
+    Loop(BlockType, Expression),
+    If(BlockType, Expression, Option<Expression>),
     Unreachable,
     Nop,
     Branch(LabelIndex),

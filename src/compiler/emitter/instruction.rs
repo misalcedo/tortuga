@@ -30,21 +30,17 @@ impl Emit for Instruction {
             Instruction::Nop => {
                 bytes += 0x01u8.emit(output)?;
             }
-            Instruction::Block { expression, kind } => {
+            Instruction::Block(kind, expression) => {
                 bytes += 0x02u8.emit(output)?;
                 bytes += kind.emit(output)?;
                 bytes += expression.emit(output)?;
             }
-            Instruction::Loop { expression, kind } => {
+            Instruction::Loop(kind, expression) => {
                 bytes += 0x03u8.emit(output)?;
                 bytes += kind.emit(output)?;
                 bytes += expression.emit(output)?;
             }
-            Instruction::If {
-                positive,
-                negative,
-                kind,
-            } => {
+            Instruction::If(kind, positive, negative) => {
                 bytes += 0x04u8.emit(output)?;
                 bytes += kind.emit(output)?;
 
@@ -328,7 +324,57 @@ impl Emit for Instruction {
                 bytes += 11u32.emit(output)?;
                 bytes += 0x00u8.emit(output)?;
             }
-            _ => (),
+            Instruction::I32Constant(_) => {}
+            Instruction::I64Constant(_) => {}
+            Instruction::F32Constant(_) => {}
+            Instruction::F64Constant(_) => {}
+            Instruction::CountLeadingZeros(_) => {}
+            Instruction::CountTrailingZeros(_) => {}
+            Instruction::CountOnes(_) => {}
+            Instruction::AbsoluteValue(_) => {}
+            Instruction::Negate(_) => {}
+            Instruction::SquareRoot(_) => {}
+            Instruction::Ceiling(_) => {}
+            Instruction::Floor(_) => {}
+            Instruction::Truncate(_) => {}
+            Instruction::Nearest(_) => {}
+            Instruction::Add(_) => {}
+            Instruction::Subtract(_) => {}
+            Instruction::Multiply(_) => {}
+            Instruction::DivideInteger(_, _) => {}
+            Instruction::DivideFloat(_) => {}
+            Instruction::Remainder(_, _) => {}
+            Instruction::And(_) => {}
+            Instruction::Or(_) => {}
+            Instruction::Xor(_) => {}
+            Instruction::ShiftLeft(_) => {}
+            Instruction::ShiftRight(_, _) => {}
+            Instruction::RotateLeft(_) => {}
+            Instruction::RotateRight(_) => {}
+            Instruction::Minimum(_) => {}
+            Instruction::Maximum(_) => {}
+            Instruction::CopySign(_) => {}
+            Instruction::EqualToZero(_) => {}
+            Instruction::Equal(_) => {}
+            Instruction::NotEqual(_) => {}
+            Instruction::LessThanInteger(_, _) => {}
+            Instruction::LessThanFloat(_) => {}
+            Instruction::GreaterThanInteger(_, _) => {}
+            Instruction::GreaterThanFloat(_) => {}
+            Instruction::LessThanOrEqualToInteger(_, _) => {}
+            Instruction::LessThanOrEqualToFloat(_) => {}
+            Instruction::GreaterThanOrEqualToInteger(_, _) => {}
+            Instruction::GreaterThanOrEqualToFloat(_) => {}
+            Instruction::Extend(_) => {}
+            Instruction::Wrap => {}
+            Instruction::ExtendWithSignExtension(_) => {}
+            Instruction::ConvertAndTruncate(_, _, _) => {}
+            Instruction::ConvertAndTruncateWithSaturation(_, _, _) => {}
+            Instruction::Demote => {}
+            Instruction::Promote => {}
+            Instruction::Convert(_, _, _) => {}
+            Instruction::ReinterpretFloat(_, _) => {}
+            Instruction::ReinterpretInteger(_, _) => {}
         };
 
         Ok(bytes)

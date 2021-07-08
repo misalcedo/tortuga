@@ -1,6 +1,5 @@
-/// Names are strings denoting a literal character sequence.
-/// A name string must form a valid UTF-8 encoding as defined by Unicode (Section 2.5)
-/// and is interpreted as a string of Unicode scalar values.
+/// Names are sequences of characters, which are scalar values as defined by Unicode (Section 2.4).
+/// See https://webassembly.github.io/spec/core/syntax/values.html#names
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Name {
     value: String,
@@ -24,6 +23,9 @@ impl Name {
     }
 }
 
+/// The simplest form of value are raw uninterpreted bytes.
+/// In the abstract syntax they are represented as hexadecimal literals.
+/// See https://webassembly.github.io/spec/core/syntax/values.html#bytes
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Bytes<'a> {
     value: &'a [u8],
