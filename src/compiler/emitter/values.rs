@@ -1,6 +1,6 @@
 use crate::compiler::emitter::Emit;
 use crate::compiler::errors::CompilerError;
-use crate::web_assembly::Name;
+use crate::web_assembly::{Bytes, Name};
 use byteorder::{LittleEndian, WriteBytesExt};
 use std::io::Write;
 use std::mem::size_of;
@@ -15,6 +15,13 @@ impl Emit for i32 {
 impl Emit for i64 {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
         Ok(leb128::write::signed(output, *self)?)
+    }
+}
+
+impl Emit for u8 {
+    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
+        output.write_u8(*self)?;
+        Ok(size_of::<u8>())
     }
 }
 
@@ -63,13 +70,18 @@ impl Emit for Name {
     }
 }
 
-impl Emit for [u8] {
+impl Emit for Bytes {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        Ok(output.write(self)?)
+        let mut bytes = 0;
+
+        for item in self.as_ref() {
+            bytes += item.emit(output)?;
+        }
+
+        Ok(bytes)
     }
 }
 
-// TODO create distinction between emit vector vs. emit so I can emit a u8 and write all of the size_of and write_u8 uses.
 impl<T> Emit for [T]
 where
     T: Emit,

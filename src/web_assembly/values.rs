@@ -12,3 +12,15 @@ impl Name {
         self.0.len()
     }
 }
+
+pub struct Bytes([u8]);
+
+impl Bytes {
+    pub fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+}

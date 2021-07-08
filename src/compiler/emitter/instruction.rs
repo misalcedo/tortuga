@@ -3,19 +3,17 @@ use crate::compiler::errors::CompilerError;
 use crate::web_assembly::{
     BlockType, Expression, Instruction, MemoryArgument, NumberType, SignExtension, StorageSize,
 };
-use byteorder::WriteBytesExt;
 use std::io::Write;
-use std::mem::size_of;
 
 impl Emit for Expression {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        let mut bytes = size_of::<u8>();
+        let mut bytes = 0;
 
         for instruction in self.instructions() {
             bytes += instruction.emit(output)?;
         }
 
-        output.write_u8(0x0B)?;
+        bytes += 0x0Bu8.emit(output)?;
 
         Ok(bytes)
     }
@@ -23,22 +21,22 @@ impl Emit for Expression {
 
 impl Emit for Instruction {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        let mut bytes = size_of::<u8>();
+        let mut bytes = 0;
 
         match self {
             Instruction::Unreachable => {
-                output.write_u8(0x00)?;
+                bytes += 0x00u8.emit(output)?;
             }
             Instruction::Nop => {
-                output.write_u8(0x01)?;
+                bytes += 0x01u8.emit(output)?;
             }
             Instruction::Block { expression, kind } => {
-                output.write_u8(0x02)?;
+                bytes += 0x02u8.emit(output)?;
                 bytes += kind.emit(output)?;
                 bytes += expression.emit(output)?;
             }
             Instruction::Loop { expression, kind } => {
-                output.write_u8(0x03)?;
+                bytes += 0x03u8.emit(output)?;
                 bytes += kind.emit(output)?;
                 bytes += expression.emit(output)?;
             }
@@ -47,8 +45,7 @@ impl Emit for Instruction {
                 negative,
                 kind,
             } => {
-                output.write_u8(0x04)?;
-
+                bytes += 0x04u8.emit(output)?;
                 bytes += kind.emit(output)?;
 
                 if let Some(negative) = negative {
@@ -56,135 +53,133 @@ impl Emit for Instruction {
                         bytes += instruction.emit(output)?;
                     }
 
-                    output.write_u8(0x05)?;
-
-                    bytes += size_of::<u8>();
+                    bytes += 0x05u8.emit(output)?;
                     bytes += negative.emit(output)?;
                 } else {
                     bytes += positive.emit(output)?;
                 }
             }
             Instruction::Branch(index) => {
-                output.write_u8(0x0C)?;
+                bytes += 0x0Cu8.emit(output)?;
                 bytes += index.emit(output)?;
             }
             Instruction::BranchIf(index) => {
-                output.write_u8(0x0D)?;
+                bytes += 0x0Du8.emit(output)?;
                 bytes += index.emit(output)?;
             }
             Instruction::BranchTable(indices, index) => {
-                output.write_u8(0x0E)?;
+                bytes += 0x0Eu8.emit(output)?;
                 bytes += indices.emit(output)?;
                 bytes += index.emit(output)?;
             }
             Instruction::Return => {
-                output.write_u8(0x0F)?;
+                bytes += 0x0Fu8.emit(output)?;
             }
             Instruction::Call(index) => {
-                output.write_u8(0x10)?;
+                bytes += 0x10u8.emit(output)?;
                 bytes += index.emit(output)?;
             }
             Instruction::CallIndirect(table, kind) => {
-                output.write_u8(0x11)?;
+                bytes += 0x11u8.emit(output)?;
                 bytes += kind.emit(output)?;
                 bytes += table.emit(output)?;
             }
             Instruction::ReferenceNull(kind) => {
-                output.write_u8(0xD0)?;
+                bytes += 0xD0u8.emit(output)?;
                 bytes += kind.emit(output)?;
             }
             Instruction::ReferenceIsNull => {
-                output.write_u8(0xD1)?;
+                bytes += 0xD1u8.emit(output)?;
             }
             Instruction::ReferenceFunction(index) => {
-                output.write_u8(0xD2)?;
+                bytes += 0xD2u8.emit(output)?;
                 bytes += index.emit(output)?;
             }
             Instruction::Drop => {
-                output.write_u8(0x1A)?;
+                bytes += 0x1Au8.emit(output)?;
             }
             Instruction::Select(types) => {
                 if types.is_empty() {
-                    output.write_u8(0x1B)?;
+                    bytes += 0x1Bu8.emit(output)?;
                 } else {
-                    output.write_u8(0x1C)?;
+                    bytes += 0x1Cu8.emit(output)?;
                     bytes += types.emit(output)?;
                 }
             }
             Instruction::LocalGet(index) => {
-                output.write_u8(0x20)?;
+                bytes += 0x20u8.emit(output)?;
                 bytes += index.emit(output)?;
             }
             Instruction::LocalSet(index) => {
-                output.write_u8(0x21)?;
+                bytes += 0x21u8.emit(output)?;
                 bytes += index.emit(output)?;
             }
             Instruction::LocalTee(index) => {
-                output.write_u8(0x22)?;
+                bytes += 0x22u8.emit(output)?;
                 bytes += index.emit(output)?;
             }
             Instruction::GlobalGet(index) => {
-                output.write_u8(0x23)?;
+                bytes += 0x23u8.emit(output)?;
                 bytes += index.emit(output)?;
             }
             Instruction::GlobalSet(index) => {
-                output.write_u8(0x24)?;
+                bytes += 0x24u8.emit(output)?;
                 bytes += index.emit(output)?;
             }
             Instruction::TableGet(index) => {
-                output.write_u8(0x25)?;
+                bytes += 0x25u8.emit(output)?;
                 bytes += index.emit(output)?;
             }
             Instruction::TableSet(index) => {
-                output.write_u8(0x26)?;
+                bytes += 0x26u8.emit(output)?;
                 bytes += index.emit(output)?;
             }
             Instruction::TableInit(element, table) => {
-                output.write_u8(0xFC)?;
+                bytes += 0xFCu8.emit(output)?;
                 bytes += 12u32.emit(output)?;
                 bytes += element.emit(output)?;
                 bytes += table.emit(output)?;
             }
             Instruction::ElementDrop(index) => {
-                output.write_u8(0xFC)?;
+                bytes += 0xFCu8.emit(output)?;
                 bytes += 13u32.emit(output)?;
                 bytes += index.emit(output)?;
             }
             Instruction::TableCopy(table_a, table_b) => {
-                output.write_u8(0xFC)?;
+                bytes += 0xFCu8.emit(output)?;
                 bytes += 14u32.emit(output)?;
                 bytes += table_a.emit(output)?;
                 bytes += table_b.emit(output)?;
             }
             Instruction::TableGrow(index) => {
-                output.write_u8(0xFC)?;
+                bytes += 0xFCu8.emit(output)?;
                 bytes += 15u32.emit(output)?;
                 bytes += index.emit(output)?;
             }
             Instruction::TableSize(index) => {
-                output.write_u8(0xFC)?;
+                bytes += 0xFCu8.emit(output)?;
                 bytes += 16u32.emit(output)?;
                 bytes += index.emit(output)?;
             }
             Instruction::TableFill(index) => {
-                output.write_u8(0xFC)?;
+                bytes += 0xFCu8.emit(output)?;
                 bytes += 17u32.emit(output)?;
                 bytes += index.emit(output)?;
             }
             Instruction::Load(NumberType::I32, memory_argument) => {
-                output.write_u8(0x28)?;
+                bytes += 0x28u8.emit(output)?;
                 bytes += memory_argument.emit(output)?;
             }
             Instruction::Load(NumberType::I64, memory_argument) => {
-                output.write_u8(0x29)?;
+                bytes += 0x29u8.emit(output)?;
                 bytes += memory_argument.emit(output)?;
             }
             Instruction::Load(NumberType::F32, memory_argument) => {
-                output.write_u8(0x2A)?;
+                bytes += 0x2Au8.emit(output)?;
                 bytes += memory_argument.emit(output)?;
             }
             Instruction::Load(NumberType::F64, memory_argument) => {
-                output.write_u8(0x2B)?;
+                bytes += 0x2Bu8.emit(output)?;
                 bytes += memory_argument.emit(output)?;
             }
             Instruction::LoadPartial(
@@ -192,7 +187,7 @@ impl Emit for Instruction {
                 SignExtension::Signed,
                 memory_argument,
             ) => {
-                output.write_u8(0x2C)?;
+                bytes += 0x2Cu8.emit(output)?;
                 bytes += memory_argument.emit(output)?;
             }
             Instruction::LoadPartial(
@@ -200,7 +195,7 @@ impl Emit for Instruction {
                 SignExtension::Unsigned,
                 memory_argument,
             ) => {
-                output.write_u8(0x2D)?;
+                bytes += 0x2Du8.emit(output)?;
                 bytes += memory_argument.emit(output)?;
             }
             Instruction::LoadPartial(
@@ -208,7 +203,7 @@ impl Emit for Instruction {
                 SignExtension::Signed,
                 memory_argument,
             ) => {
-                output.write_u8(0x2E)?;
+                bytes += 0x2Eu8.emit(output)?;
                 bytes += memory_argument.emit(output)?;
             }
             Instruction::LoadPartial(
@@ -216,7 +211,7 @@ impl Emit for Instruction {
                 SignExtension::Unsigned,
                 memory_argument,
             ) => {
-                output.write_u8(0x2F)?;
+                bytes += 0x2Fu8.emit(output)?;
                 bytes += memory_argument.emit(output)?;
             }
             Instruction::LoadPartial(
@@ -224,7 +219,7 @@ impl Emit for Instruction {
                 SignExtension::Signed,
                 memory_argument,
             ) => {
-                output.write_u8(0x30)?;
+                bytes += 0x30u8.emit(output)?;
                 bytes += memory_argument.emit(output)?;
             }
             Instruction::LoadPartial(
@@ -232,7 +227,7 @@ impl Emit for Instruction {
                 SignExtension::Unsigned,
                 memory_argument,
             ) => {
-                output.write_u8(0x31)?;
+                bytes += 0x31u8.emit(output)?;
                 bytes += memory_argument.emit(output)?;
             }
             Instruction::LoadPartial(
@@ -240,7 +235,7 @@ impl Emit for Instruction {
                 SignExtension::Signed,
                 memory_argument,
             ) => {
-                output.write_u8(0x32)?;
+                bytes += 0x32u8.emit(output)?;
                 bytes += memory_argument.emit(output)?;
             }
             Instruction::LoadPartial(
@@ -248,7 +243,7 @@ impl Emit for Instruction {
                 SignExtension::Unsigned,
                 memory_argument,
             ) => {
-                output.write_u8(0x33)?;
+                bytes += 0x33u8.emit(output)?;
                 bytes += memory_argument.emit(output)?;
             }
             Instruction::LoadPartial(
@@ -256,7 +251,7 @@ impl Emit for Instruction {
                 SignExtension::Signed,
                 memory_argument,
             ) => {
-                output.write_u8(0x34)?;
+                bytes += 0x34u8.emit(output)?;
                 bytes += memory_argument.emit(output)?;
             }
             Instruction::LoadPartial(
@@ -264,89 +259,74 @@ impl Emit for Instruction {
                 SignExtension::Unsigned,
                 memory_argument,
             ) => {
-                output.write_u8(0x35)?;
+                bytes += 0x35u8.emit(output)?;
                 bytes += memory_argument.emit(output)?;
             }
             Instruction::Store(NumberType::I32, memory_argument) => {
-                output.write_u8(0x36)?;
+                bytes += 0x36u8.emit(output)?;
                 bytes += memory_argument.emit(output)?;
             }
             Instruction::Store(NumberType::I64, memory_argument) => {
-                output.write_u8(0x37)?;
+                bytes += 0x37u8.emit(output)?;
                 bytes += memory_argument.emit(output)?;
             }
             Instruction::Store(NumberType::F32, memory_argument) => {
-                output.write_u8(0x38)?;
+                bytes += 0x38u8.emit(output)?;
                 bytes += memory_argument.emit(output)?;
             }
             Instruction::Store(NumberType::F64, memory_argument) => {
-                output.write_u8(0x39)?;
+                bytes += 0x39u8.emit(output)?;
                 bytes += memory_argument.emit(output)?;
             }
             Instruction::StorePartial(StorageSize::I32_8, memory_argument) => {
-                output.write_u8(0x3A)?;
+                bytes += 0x3Au8.emit(output)?;
                 bytes += memory_argument.emit(output)?;
             }
             Instruction::StorePartial(StorageSize::I32_16, memory_argument) => {
-                output.write_u8(0x3B)?;
+                bytes += 0x3Bu8.emit(output)?;
                 bytes += memory_argument.emit(output)?;
             }
             Instruction::StorePartial(StorageSize::I64_8, memory_argument) => {
-                output.write_u8(0x3C)?;
+                bytes += 0x3Cu8.emit(output)?;
                 bytes += memory_argument.emit(output)?;
             }
             Instruction::StorePartial(StorageSize::I64_16, memory_argument) => {
-                output.write_u8(0x3D)?;
+                bytes += 0x3Du8.emit(output)?;
                 bytes += memory_argument.emit(output)?;
             }
             Instruction::StorePartial(StorageSize::I64_32, memory_argument) => {
-                output.write_u8(0x3E)?;
+                bytes += 0x3Eu8.emit(output)?;
                 bytes += memory_argument.emit(output)?;
             }
             Instruction::MemorySize => {
-                output.write_u8(0x3F)?;
-                output.write_u8(0x00)?;
-
-                bytes += size_of::<u8>();
+                bytes += 0x3Fu8.emit(output)?;
+                bytes += 0x00u8.emit(output)?;
             }
             Instruction::MemoryGrow => {
-                output.write_u8(0x40)?;
-                output.write_u8(0x00)?;
-
-                bytes += size_of::<u8>();
+                bytes += 0x40u8.emit(output)?;
+                bytes += 0x00u8.emit(output)?;
             }
             Instruction::MemoryInit(index) => {
-                output.write_u8(0xFC)?;
-
+                bytes += 0xFCu8.emit(output)?;
                 bytes += 8u32.emit(output)?;
                 bytes += index.emit(output)?;
-                bytes += size_of::<u8>();
-
-                output.write_u8(0x00)?;
+                bytes += 0x00u8.emit(output)?;
             }
             Instruction::DatDrop(index) => {
-                output.write_u8(0xFC)?;
-
+                bytes += 0xFCu8.emit(output)?;
                 bytes += 9u32.emit(output)?;
                 bytes += index.emit(output)?;
             }
             Instruction::MemoryCopy => {
-                output.write_u8(0xFC)?;
-
+                bytes += 0xFCu8.emit(output)?;
                 bytes += 10u32.emit(output)?;
-                bytes += size_of::<u8>();
-                bytes += size_of::<u8>();
-
-                output.write_u8(0x00)?;
-                output.write_u8(0x00)?;
+                bytes += 0x00u8.emit(output)?;
+                bytes += 0x00u8.emit(output)?;
             }
             Instruction::MemoryFill => {
-                output.write_u8(0xFC)?;
-
+                bytes += 0xFCu8.emit(output)?;
                 bytes += 11u32.emit(output)?;
-                bytes += size_of::<u8>();
-
-                output.write_u8(0x00)?;
+                bytes += 0x00u8.emit(output)?;
             }
             _ => (),
         };
@@ -357,22 +337,11 @@ impl Emit for Instruction {
 
 impl Emit for BlockType {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        let mut bytes = 0;
-
         match self {
-            BlockType::Index(index) => {
-                bytes += (*index as i64).emit(output)?;
-            }
-            BlockType::ValueType(kind) => {
-                bytes += kind.emit(output)?;
-            }
-            BlockType::None => {
-                output.write_u8(0x40)?;
-                bytes += size_of::<u8>();
-            }
+            BlockType::Index(index) => (*index as i64).emit(output),
+            BlockType::ValueType(kind) => kind.emit(output),
+            BlockType::None => 0x40u8.emit(output),
         }
-
-        Ok(bytes)
     }
 }
 

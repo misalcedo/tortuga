@@ -5,9 +5,7 @@ use crate::web_assembly::{
     ExportDescription, Function, Global, Import, ImportDescription, Memory, Module, Name, Start,
     Table, TypeIndex,
 };
-use byteorder::WriteBytesExt;
 use std::io::{Cursor, Write};
-use std::mem::size_of;
 
 const PREAMBLE: &[u8; 4] = b"\x00\x61\x73\x6D";
 const VERSION: &[u8; 4] = b"\x01\x00\x00\x00";
@@ -101,24 +99,24 @@ impl Emit for Import {
 
 impl Emit for ImportDescription {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        let mut bytes = size_of::<u8>();
+        let mut bytes = 0;
 
-        bytes += match self {
+        match self {
             ImportDescription::Function(index) => {
-                output.write_u8(0x00)?;
-                index.emit(output)?
+                bytes += 0x00u8.emit(output)?;
+                bytes += index.emit(output)?;
             }
             ImportDescription::Table(table_type) => {
-                output.write_u8(0x01)?;
-                table_type.emit(output)?
+                bytes += 0x01u8.emit(output)?;
+                bytes += table_type.emit(output)?;
             }
             ImportDescription::Memory(memory_type) => {
-                output.write_u8(0x02)?;
-                memory_type.emit(output)?
+                bytes += 0x02u8.emit(output)?;
+                bytes += memory_type.emit(output)?;
             }
             ImportDescription::Global(global_type) => {
-                output.write_u8(0x03)?;
-                global_type.emit(output)?
+                bytes += 0x03u8.emit(output)?;
+                bytes += global_type.emit(output)?;
             }
         };
 
@@ -168,9 +166,9 @@ impl Emit for ExportDescription {
             ExportDescription::Memory(index) => (0x02, index),
             ExportDescription::Global(index) => (0x03, index),
         };
-        let mut bytes = size_of::<u8>();
+        let mut bytes = 0;
 
-        output.write_u8(value)?;
+        bytes += value.emit(output)?;
         bytes += index.emit(output)?;
 
         Ok(bytes)
@@ -185,7 +183,7 @@ impl Emit for Start {
 
 impl Emit for Element {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        let mut bytes = size_of::<u8>();
+        let mut bytes = 0;
 
         match (self.initializers(), self.mode(), self.kind()) {
             (
@@ -193,12 +191,12 @@ impl Emit for Element {
                 ElementMode::Active { table: 0, offset },
                 ElementKind::FunctionReference,
             ) => {
-                output.write_u8(0x00)?;
+                bytes += 0x00u8.emit(output)?;
                 bytes += offset.emit(output)?;
                 bytes += indices.emit(output)?;
             }
             (ElementInitializer::FunctionIndex(indices), ElementMode::Passive, kind) => {
-                output.write_u8(0x01)?;
+                bytes += 0x01u8.emit(output)?;
                 bytes += kind.emit(output)?;
                 bytes += indices.emit(output)?;
             }
@@ -207,14 +205,14 @@ impl Emit for Element {
                 ElementMode::Active { table, offset },
                 kind,
             ) => {
-                output.write_u8(0x02)?;
+                bytes += 0x02u8.emit(output)?;
                 bytes += table.emit(output)?;
                 bytes += offset.emit(output)?;
                 bytes += kind.emit(output)?;
                 bytes += indices.emit(output)?;
             }
             (ElementInitializer::FunctionIndex(indices), ElementMode::Declarative, kind) => {
-                output.write_u8(0x03)?;
+                bytes += 0x03u8.emit(output)?;
                 bytes += kind.emit(output)?;
                 bytes += indices.emit(output)?;
             }
@@ -223,7 +221,7 @@ impl Emit for Element {
                 ElementMode::Active { table: 0, offset },
                 ElementKind::FunctionReference,
             ) => {
-                output.write_u8(0x04)?;
+                bytes += 0x04u8.emit(output)?;
                 bytes += offset.emit(output)?;
                 bytes += expressions.emit(output)?;
             }
@@ -232,7 +230,7 @@ impl Emit for Element {
                 ElementMode::Passive,
                 ElementKind::ReferenceType(kind),
             ) => {
-                output.write_u8(0x05)?;
+                bytes += 0x05u8.emit(output)?;
                 bytes += kind.emit(output)?;
                 bytes += expressions.emit(output)?;
             }
@@ -241,7 +239,7 @@ impl Emit for Element {
                 ElementMode::Active { table, offset },
                 ElementKind::ReferenceType(kind),
             ) => {
-                output.write_u8(0x06)?;
+                bytes += 0x06u8.emit(output)?;
                 bytes += table.emit(output)?;
                 bytes += offset.emit(output)?;
                 bytes += kind.emit(output)?;
@@ -252,7 +250,7 @@ impl Emit for Element {
                 ElementMode::Declarative,
                 ElementKind::ReferenceType(kind),
             ) => {
-                output.write_u8(0x07)?;
+                bytes += 0x07u8.emit(output)?;
                 bytes += kind.emit(output)?;
                 bytes += expressions.emit(output)?;
             }
@@ -266,10 +264,7 @@ impl Emit for Element {
 impl Emit for ElementKind {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
         match self {
-            ElementKind::FunctionReference => {
-                output.write_u8(0x00)?;
-                Ok(size_of::<u8>())
-            }
+            ElementKind::FunctionReference => 0x00u8.emit(output),
             ElementKind::ReferenceType(kind) => kind.emit(output),
         }
     }
@@ -277,18 +272,18 @@ impl Emit for ElementKind {
 
 impl Emit for Data {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        let mut bytes = size_of::<u8>();
+        let mut bytes = 0;
 
         match self.mode() {
             DataMode::Active { memory: 0, offset } => {
-                output.write_u8(0x00)?;
+                bytes += 0x00u8.emit(output)?;
                 bytes += offset.emit(output)?;
             }
             DataMode::Passive => {
-                output.write_u8(0x01)?;
+                bytes += 0x01u8.emit(output)?;
             }
             DataMode::Active { memory, offset } => {
-                output.write_u8(0x02)?;
+                bytes += 0x02u8.emit(output)?;
                 bytes += memory.emit(output)?;
                 bytes += offset.emit(output)?;
             }
@@ -388,8 +383,6 @@ pub enum ModuleSection {
 
 impl Emit for ModuleSection {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        output.write_u8(*self as u8)?;
-
-        Ok(size_of::<u8>())
+        (*self as u8).emit(output)
     }
 }
