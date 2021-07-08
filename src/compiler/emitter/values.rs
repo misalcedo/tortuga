@@ -61,12 +61,7 @@ impl Emit for f64 {
 
 impl Emit for Name {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        let mut bytes = 0;
-
-        bytes += self.len().emit(output)?;
-        bytes += self.as_bytes().emit(output)?;
-
-        Ok(bytes)
+        self.as_bytes().emit(output)
     }
 }
 
