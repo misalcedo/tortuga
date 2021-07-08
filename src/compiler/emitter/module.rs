@@ -14,7 +14,7 @@ const VERSION: &[u8; 4] = b"\x01\x00\x00\x00";
 
 /// See https://webassembly.github.io/spec/core/binary/modules.html
 impl Emit for Module {
-    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
         let mut bytes = 0;
         let mut buffer: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 
@@ -23,12 +23,12 @@ impl Emit for Module {
 
         if !self.types().is_empty() {
             self.types().emit(&mut buffer)?;
-            emit_section(ModuleSection::TypeSection, &mut buffer, &mut output)?;
+            emit_section(ModuleSection::TypeSection, &mut buffer, output)?;
         }
 
         if !self.imports().is_empty() {
             self.imports().emit(&mut buffer)?;
-            emit_section(ModuleSection::ImportSection, &mut buffer, &mut output)?;
+            emit_section(ModuleSection::ImportSection, &mut buffer, output)?;
         }
 
         if !self.functions().is_empty() {
@@ -36,51 +36,51 @@ impl Emit for Module {
 
             types.as_slice().emit(&mut buffer)?;
 
-            emit_section(ModuleSection::FunctionSection, &mut buffer, &mut output)?;
+            emit_section(ModuleSection::FunctionSection, &mut buffer, output)?;
         }
 
         if !self.tables().is_empty() {
             self.tables().emit(&mut buffer)?;
-            emit_section(ModuleSection::TableSection, &mut buffer, &mut output)?;
+            emit_section(ModuleSection::TableSection, &mut buffer, output)?;
         }
 
         if !self.memories().is_empty() {
             self.memories().emit(&mut buffer)?;
-            emit_section(ModuleSection::MemorySection, &mut buffer, &mut output)?;
+            emit_section(ModuleSection::MemorySection, &mut buffer, output)?;
         }
 
         if !self.globals().is_empty() {
             self.globals().emit(&mut buffer)?;
-            emit_section(ModuleSection::GlobalSection, &mut buffer, &mut output)?;
+            emit_section(ModuleSection::GlobalSection, &mut buffer, output)?;
         }
 
         if !self.exports().is_empty() {
             self.exports().emit(&mut buffer)?;
-            emit_section(ModuleSection::ExportSection, &mut buffer, &mut output)?;
+            emit_section(ModuleSection::ExportSection, &mut buffer, output)?;
         }
 
         if let Some(start) = self.start() {
             start.emit(&mut buffer)?;
-            emit_section(ModuleSection::StartSection, &mut buffer, &mut output)?;
+            emit_section(ModuleSection::StartSection, &mut buffer, output)?;
         }
 
         if !self.elements().is_empty() {
             self.elements().emit(&mut buffer)?;
-            emit_section(ModuleSection::ElementSection, &mut buffer, &mut output)?;
+            emit_section(ModuleSection::ElementSection, &mut buffer, output)?;
         }
 
         if !self.data().is_empty() {
             self.data().len().emit(&mut buffer)?;
-            emit_section(ModuleSection::DataCountSection, &mut buffer, &mut output)?;
+            emit_section(ModuleSection::DataCountSection, &mut buffer, output)?;
         }
 
         if !self.functions().is_empty() {
-            emit_section(ModuleSection::CodeSection, &mut buffer, &mut output)?;
+            emit_section(ModuleSection::CodeSection, &mut buffer, output)?;
         }
 
         if !self.data().is_empty() {
             self.data().emit(&mut buffer)?;
-            emit_section(ModuleSection::DataSection, &mut buffer, &mut output)?;
+            emit_section(ModuleSection::DataSection, &mut buffer, output)?;
         }
 
         Ok(bytes)
@@ -88,37 +88,37 @@ impl Emit for Module {
 }
 
 impl Emit for Import {
-    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        bytes += self.module().emit(&mut output)?;
-        bytes += self.name().emit(&mut output)?;
-        bytes += self.description().emit(&mut output)?;
+        bytes += self.module().emit(output)?;
+        bytes += self.name().emit(output)?;
+        bytes += self.description().emit(output)?;
 
         Ok(bytes)
     }
 }
 
 impl Emit for ImportDescription {
-    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
         let mut bytes = size_of::<u8>();
 
         bytes += match self {
             ImportDescription::Function(index) => {
                 output.write_u8(0x00)?;
-                index.emit(&mut output)?
+                index.emit(output)?
             }
             ImportDescription::Table(table_type) => {
                 output.write_u8(0x01)?;
-                table_type.emit(&mut output)?
+                table_type.emit(output)?
             }
             ImportDescription::Memory(memory_type) => {
                 output.write_u8(0x02)?;
-                memory_type.emit(&mut output)?
+                memory_type.emit(output)?
             }
             ImportDescription::Global(global_type) => {
                 output.write_u8(0x03)?;
-                global_type.emit(&mut output)?
+                global_type.emit(output)?
             }
         };
 
@@ -127,41 +127,41 @@ impl Emit for ImportDescription {
 }
 
 impl Emit for Table {
-    fn emit<O: Write>(&self, output: O) -> Result<usize, CompilerError> {
+    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
         self.table_type().emit(output)
     }
 }
 
 impl Emit for Memory {
-    fn emit<O: Write>(&self, output: O) -> Result<usize, CompilerError> {
+    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
         self.memory_type().emit(output)
     }
 }
 
 impl Emit for Global {
-    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        bytes += self.global_type().emit(&mut output)?;
-        bytes += self.initializer().emit(&mut output)?;
+        bytes += self.global_type().emit(output)?;
+        bytes += self.initializer().emit(output)?;
 
         Ok(bytes)
     }
 }
 
 impl Emit for Export {
-    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        bytes += self.name().emit(&mut output)?;
-        bytes += self.description().emit(&mut output)?;
+        bytes += self.name().emit(output)?;
+        bytes += self.description().emit(output)?;
 
         Ok(bytes)
     }
 }
 
 impl Emit for ExportDescription {
-    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
         let (value, index) = match self {
             ExportDescription::Function(index) => (0x00, index),
             ExportDescription::Table(index) => (0x01, index),
@@ -171,20 +171,20 @@ impl Emit for ExportDescription {
         let mut bytes = size_of::<u8>();
 
         output.write_u8(value)?;
-        bytes += index.emit(&mut output)?;
+        bytes += index.emit(output)?;
 
         Ok(bytes)
     }
 }
 
 impl Emit for Start {
-    fn emit<O: Write>(&self, output: O) -> Result<usize, CompilerError> {
+    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
         self.function_index().emit(output)
     }
 }
 
 impl Emit for Element {
-    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
         let mut bytes = size_of::<u8>();
 
         match (self.initializers(), self.mode(), self.kind()) {
@@ -194,13 +194,13 @@ impl Emit for Element {
                 ElementKind::FunctionReference,
             ) => {
                 output.write_u8(0x00)?;
-                bytes += offset.emit(&mut output)?;
-                bytes += indices.emit(&mut output)?;
+                bytes += offset.emit(output)?;
+                bytes += indices.emit(output)?;
             }
             (ElementInitializer::FunctionIndex(indices), ElementMode::Passive, kind) => {
                 output.write_u8(0x01)?;
-                bytes += kind.emit(&mut output)?;
-                bytes += indices.emit(&mut output)?;
+                bytes += kind.emit(output)?;
+                bytes += indices.emit(output)?;
             }
             (
                 ElementInitializer::FunctionIndex(indices),
@@ -208,15 +208,15 @@ impl Emit for Element {
                 kind,
             ) => {
                 output.write_u8(0x02)?;
-                bytes += table.emit(&mut output)?;
-                bytes += offset.emit(&mut output)?;
-                bytes += kind.emit(&mut output)?;
-                bytes += indices.emit(&mut output)?;
+                bytes += table.emit(output)?;
+                bytes += offset.emit(output)?;
+                bytes += kind.emit(output)?;
+                bytes += indices.emit(output)?;
             }
             (ElementInitializer::FunctionIndex(indices), ElementMode::Declarative, kind) => {
                 output.write_u8(0x03)?;
-                bytes += kind.emit(&mut output)?;
-                bytes += indices.emit(&mut output)?;
+                bytes += kind.emit(output)?;
+                bytes += indices.emit(output)?;
             }
             (
                 ElementInitializer::Expression(expressions),
@@ -224,8 +224,8 @@ impl Emit for Element {
                 ElementKind::FunctionReference,
             ) => {
                 output.write_u8(0x04)?;
-                bytes += offset.emit(&mut output)?;
-                bytes += expressions.emit(&mut output)?;
+                bytes += offset.emit(output)?;
+                bytes += expressions.emit(output)?;
             }
             (
                 ElementInitializer::Expression(expressions),
@@ -233,8 +233,8 @@ impl Emit for Element {
                 ElementKind::ReferenceType(kind),
             ) => {
                 output.write_u8(0x05)?;
-                bytes += kind.emit(&mut output)?;
-                bytes += expressions.emit(&mut output)?;
+                bytes += kind.emit(output)?;
+                bytes += expressions.emit(output)?;
             }
             (
                 ElementInitializer::Expression(expressions),
@@ -242,10 +242,10 @@ impl Emit for Element {
                 ElementKind::ReferenceType(kind),
             ) => {
                 output.write_u8(0x06)?;
-                bytes += table.emit(&mut output)?;
-                bytes += offset.emit(&mut output)?;
-                bytes += kind.emit(&mut output)?;
-                bytes += expressions.emit(&mut output)?;
+                bytes += table.emit(output)?;
+                bytes += offset.emit(output)?;
+                bytes += kind.emit(output)?;
+                bytes += expressions.emit(output)?;
             }
             (
                 ElementInitializer::Expression(expressions),
@@ -253,8 +253,8 @@ impl Emit for Element {
                 ElementKind::ReferenceType(kind),
             ) => {
                 output.write_u8(0x07)?;
-                bytes += kind.emit(&mut output)?;
-                bytes += expressions.emit(&mut output)?;
+                bytes += kind.emit(output)?;
+                bytes += expressions.emit(output)?;
             }
             _ => return Err(ErrorKind::InvalidSyntax.into()),
         };
@@ -264,7 +264,7 @@ impl Emit for Element {
 }
 
 impl Emit for ElementKind {
-    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
         match self {
             ElementKind::FunctionReference => {
                 output.write_u8(0x00)?;
@@ -276,26 +276,26 @@ impl Emit for ElementKind {
 }
 
 impl Emit for Data {
-    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
         let mut bytes = size_of::<u8>();
 
         match self.mode() {
             DataMode::Active { memory: 0, offset } => {
                 output.write_u8(0x00)?;
-                bytes += offset.emit(&mut output)?;
+                bytes += offset.emit(output)?;
             }
             DataMode::Passive => {
                 output.write_u8(0x01)?;
             }
             DataMode::Active { memory, offset } => {
                 output.write_u8(0x02)?;
-                bytes += memory.emit(&mut output)?;
-                bytes += offset.emit(&mut output)?;
+                bytes += memory.emit(output)?;
+                bytes += offset.emit(output)?;
             }
         };
 
-        bytes += self.len().emit(&mut output)?;
-        bytes += self.initializer().emit(&mut output)?;
+        bytes += self.len().emit(output)?;
+        bytes += self.initializer().emit(output)?;
 
         Ok(bytes)
     }
@@ -304,12 +304,12 @@ impl Emit for Data {
 fn emit_custom_section<O: Write>(
     name: &Name,
     content: &[u8],
-    mut output: O,
+    output: &mut O,
 ) -> Result<usize, CompilerError> {
     let mut bytes = 0;
 
-    bytes += name.emit(&mut output)?;
-    bytes += content.emit(&mut output)?;
+    bytes += name.emit(output)?;
+    bytes += content.emit(output)?;
 
     Ok(bytes)
 }
@@ -322,13 +322,13 @@ fn emit_custom_section<O: Write>(
 fn emit_section<O: Write>(
     section: ModuleSection,
     buffer: &mut Cursor<Vec<u8>>,
-    mut output: O,
+    output: &mut O,
 ) -> Result<usize, CompilerError> {
     let mut bytes = 0;
 
-    bytes += section.emit(&mut output)?;
-    bytes += buffer.position().emit(&mut output)?;
-    bytes += std::io::copy(buffer, &mut output)? as usize;
+    bytes += section.emit(output)?;
+    bytes += buffer.position().emit(output)?;
+    bytes += std::io::copy(buffer, output)? as usize;
 
     buffer.set_position(0);
 
@@ -387,7 +387,7 @@ pub enum ModuleSection {
 }
 
 impl Emit for ModuleSection {
-    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
         output.write_u8(*self as u8)?;
 
         Ok(size_of::<u8>())

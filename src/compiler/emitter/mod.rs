@@ -11,7 +11,7 @@ pub use values::*;
 
 /// Emits a binary representation of a WebAssembly Abstract Syntax Tree (AST) to a `Write` output.
 pub trait Emit {
-    fn emit<O: Write>(&self, output: O) -> Result<usize, CompilerError>;
+    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError>;
 }
 
 #[cfg(test)]
