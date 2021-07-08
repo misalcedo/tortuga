@@ -66,6 +66,46 @@ impl Emit for Instruction {
                 output.write_u8(0x24)?;
                 bytes += index.emit(&mut output)?;
             }
+            Instruction::TableGet(index) => {
+                output.write_u8(0x25)?;
+                bytes += index.emit(&mut output)?;
+            }
+            Instruction::TableSet(index) => {
+                output.write_u8(0x26)?;
+                bytes += index.emit(&mut output)?;
+            }
+            Instruction::TableInit(element, table) => {
+                output.write_u8(0xFC)?;
+                bytes += 12u32.emit(&mut output)?;
+                bytes += element.emit(&mut output)?;
+                bytes += table.emit(&mut output)?;
+            }
+            Instruction::ElementDrop(index) => {
+                output.write_u8(0xFC)?;
+                bytes += 13u32.emit(&mut output)?;
+                bytes += index.emit(&mut output)?;
+            }
+            Instruction::TableCopy(table_a, table_b) => {
+                output.write_u8(0xFC)?;
+                bytes += 14u32.emit(&mut output)?;
+                bytes += table_a.emit(&mut output)?;
+                bytes += table_b.emit(&mut output)?;
+            }
+            Instruction::TableGrow(index) => {
+                output.write_u8(0xFC)?;
+                bytes += 15u32.emit(&mut output)?;
+                bytes += index.emit(&mut output)?;
+            }
+            Instruction::TableSize(index) => {
+                output.write_u8(0xFC)?;
+                bytes += 16u32.emit(&mut output)?;
+                bytes += index.emit(&mut output)?;
+            }
+            Instruction::TableFill(index) => {
+                output.write_u8(0xFC)?;
+                bytes += 17u32.emit(&mut output)?;
+                bytes += index.emit(&mut output)?;
+            }
         };
 
         Ok(bytes)

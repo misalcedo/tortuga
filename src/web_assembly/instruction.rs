@@ -78,7 +78,7 @@ pub enum Instruction {
     TableGrow(TableIndex),
     TableFill(TableIndex),
     TableCopy(TableIndex, TableIndex),
-    TableInit(TableIndex, ElementIndex),
+    TableInit(ElementIndex, TableIndex),
     ElementDrop(ElementIndex),
     // Memory
     Load(NumberType, MemoryArgument),
