@@ -42,6 +42,10 @@ pub struct ResultType {
 }
 
 impl ResultType {
+    pub fn new(types: Vec<ValueType>) -> Self {
+        ResultType { types }
+    }
+
     pub fn value_types(&self) -> &[ValueType] {
         &self.types
     }
@@ -54,6 +58,13 @@ pub struct FunctionType {
 }
 
 impl FunctionType {
+    pub fn new(parameters: ResultType, results: ResultType) -> Self {
+        FunctionType {
+            parameters,
+            results,
+        }
+    }
+
     pub fn parameters(&self) -> &ResultType {
         &self.parameters
     }
@@ -70,6 +81,10 @@ pub struct Limit {
 }
 
 impl Limit {
+    pub fn new(min: usize, max: Option<usize>) -> Self {
+        Limit { min, max }
+    }
+
     pub fn min(&self) -> usize {
         self.min
     }
@@ -85,6 +100,10 @@ pub struct MemoryType {
 }
 
 impl MemoryType {
+    pub fn new(limits: Limit) -> Self {
+        MemoryType { limits }
+    }
+
     pub fn limits(&self) -> &Limit {
         &self.limits
     }
@@ -93,28 +112,39 @@ impl MemoryType {
 #[derive(Copy, Clone)]
 pub struct TableType {
     limits: Limit,
-    reference_type: ReferenceType,
+    kind: ReferenceType,
 }
 
 impl TableType {
+    pub fn new(limits: Limit, reference_type: ReferenceType) -> Self {
+        TableType {
+            limits,
+            kind: reference_type,
+        }
+    }
+
     pub fn limits(&self) -> &Limit {
         &self.limits
     }
 
-    pub fn reference_type(&self) -> &ReferenceType {
-        &self.reference_type
+    pub fn kind(&self) -> &ReferenceType {
+        &self.kind
     }
 }
 
 #[derive(Copy, Clone)]
 pub struct GlobalType {
     is_mutable: bool,
-    value_type: ValueType,
+    kind: ValueType,
 }
 
 impl GlobalType {
-    pub fn value_type(&self) -> &ValueType {
-        &self.value_type
+    pub fn new(is_mutable: bool, kind: ValueType) -> Self {
+        GlobalType { is_mutable, kind }
+    }
+
+    pub fn kind(&self) -> &ValueType {
+        &self.kind
     }
 
     pub fn is_mutable(&self) -> bool {

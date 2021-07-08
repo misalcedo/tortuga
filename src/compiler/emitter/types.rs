@@ -96,7 +96,7 @@ impl Emit for TableType {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        bytes += self.reference_type().emit(output)?;
+        bytes += self.kind().emit(output)?;
         bytes += self.limits().emit(output)?;
 
         Ok(bytes)
@@ -107,7 +107,7 @@ impl Emit for GlobalType {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        bytes += self.value_type().emit(output)?;
+        bytes += self.kind().emit(output)?;
 
         let mutability: u8 = match self.is_mutable() {
             false => 0x00,
