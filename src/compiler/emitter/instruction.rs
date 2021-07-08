@@ -20,7 +20,23 @@ impl Emit for Expression {
 }
 
 impl Emit for Instruction {
-    fn emit<O: Write>(&self, output: O) -> Result<usize, CompilerError> {
-        Ok(0)
+    fn emit<O: Write>(&self, mut output: O) -> Result<usize, CompilerError> {
+        let mut bytes = size_of::<u8>();
+
+        match self {
+            Instruction::ReferenceNull(kind) => {
+                output.write_u8(0xD0)?;
+                bytes += kind.emit(&mut output)?;
+            }
+            Instruction::ReferenceIsNull => {
+                output.write_u8(0xD1)?;
+            }
+            Instruction::ReferenceFunction(index) => {
+                output.write_u8(0xD2)?;
+                bytes += index.emit(&mut output)?;
+            }
+        };
+
+        Ok(bytes)
     }
 }
