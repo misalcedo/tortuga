@@ -280,13 +280,13 @@ impl Global {
 /// See https://webassembly.github.io/spec/core/syntax/modules.html#element-segments
 #[derive(Clone, Debug, PartialEq)]
 pub struct Element {
-    kind: ElementKind,
+    kind: ReferenceType,
     mode: ElementMode,
     initializers: ElementInitializer,
 }
 
 impl Element {
-    pub fn new(kind: ElementKind, mode: ElementMode, initializers: ElementInitializer) -> Self {
+    pub fn new(kind: ReferenceType, mode: ElementMode, initializers: ElementInitializer) -> Self {
         Element {
             kind,
             mode,
@@ -294,7 +294,7 @@ impl Element {
         }
     }
 
-    pub fn kind(&self) -> &ElementKind {
+    pub fn kind(&self) -> &ReferenceType {
         &self.kind
     }
 
@@ -312,13 +312,6 @@ impl Element {
 pub enum ElementInitializer {
     Expression(Vec<Expression>),
     FunctionIndex(Vec<FunctionIndex>),
-}
-
-/// TODO get rid of the need for this type.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum ElementKind {
-    FunctionReference,
-    ReferenceType(ReferenceType),
 }
 
 /// Element segments have a mode that identifies them as either passive, active, or declarative.
@@ -523,7 +516,7 @@ mod tests {
         module.add_function(function.clone());
 
         let element = Element::new(
-            ElementKind::ReferenceType(ReferenceType::Function),
+            ReferenceType::Function,
             ElementMode::Passive,
             ElementInitializer::FunctionIndex(vec![0]),
         );
@@ -586,7 +579,7 @@ mod tests {
 
     #[test]
     fn new_elements() {
-        let kind = ElementKind::ReferenceType(ReferenceType::Function);
+        let kind = ReferenceType::Function;
         let mode = ElementMode::Active(0, Expression::new(Vec::new()));
         let initializers = ElementInitializer::FunctionIndex(vec![1]);
         let element = Element::new(kind, mode.clone(), initializers.clone());

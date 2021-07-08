@@ -1,9 +1,9 @@
 use crate::compiler::emitter::Emit;
 use crate::compiler::errors::{CompilerError, ErrorKind};
 use crate::web_assembly::{
-    Data, DataMode, Element, ElementInitializer, ElementKind, ElementMode, Export,
-    ExportDescription, Function, Global, Import, ImportDescription, Memory, Module, Name, Start,
-    Table, TypeIndex,
+    Data, DataMode, Element, ElementInitializer, ElementMode, Export, ExportDescription, Function,
+    Global, Import, ImportDescription, Memory, Module, Name, ReferenceType, Start, Table,
+    TypeIndex,
 };
 use std::io::{Cursor, Write};
 
@@ -189,15 +189,19 @@ impl Emit for Element {
             (
                 ElementInitializer::FunctionIndex(indices),
                 ElementMode::Active(0, offset),
-                ElementKind::FunctionReference,
+                ReferenceType::Function,
             ) => {
                 bytes += 0x00u8.emit(output)?;
                 bytes += offset.emit(output)?;
                 bytes += indices.emit(output)?;
             }
-            (ElementInitializer::FunctionIndex(indices), ElementMode::Passive, kind) => {
+            (
+                ElementInitializer::FunctionIndex(indices),
+                ElementMode::Passive,
+                ReferenceType::Function,
+            ) => {
                 bytes += 0x01u8.emit(output)?;
-                bytes += kind.emit(output)?;
+                bytes += 0x00u8.emit(output)?;
                 bytes += indices.emit(output)?;
             }
             (
@@ -219,17 +223,13 @@ impl Emit for Element {
             (
                 ElementInitializer::Expression(expressions),
                 ElementMode::Active(0, offset),
-                ElementKind::FunctionReference,
+                ReferenceType::Function,
             ) => {
                 bytes += 0x04u8.emit(output)?;
                 bytes += offset.emit(output)?;
                 bytes += expressions.emit(output)?;
             }
-            (
-                ElementInitializer::Expression(expressions),
-                ElementMode::Passive,
-                ElementKind::ReferenceType(kind),
-            ) => {
+            (ElementInitializer::Expression(expressions), ElementMode::Passive, kind) => {
                 bytes += 0x05u8.emit(output)?;
                 bytes += kind.emit(output)?;
                 bytes += expressions.emit(output)?;
@@ -237,7 +237,7 @@ impl Emit for Element {
             (
                 ElementInitializer::Expression(expressions),
                 ElementMode::Active(table, offset),
-                ElementKind::ReferenceType(kind),
+                kind,
             ) => {
                 bytes += 0x06u8.emit(output)?;
                 bytes += table.emit(output)?;
@@ -245,11 +245,7 @@ impl Emit for Element {
                 bytes += kind.emit(output)?;
                 bytes += expressions.emit(output)?;
             }
-            (
-                ElementInitializer::Expression(expressions),
-                ElementMode::Declarative,
-                ElementKind::ReferenceType(kind),
-            ) => {
+            (ElementInitializer::Expression(expressions), ElementMode::Declarative, kind) => {
                 bytes += 0x07u8.emit(output)?;
                 bytes += kind.emit(output)?;
                 bytes += expressions.emit(output)?;
@@ -258,15 +254,6 @@ impl Emit for Element {
         };
 
         Ok(bytes)
-    }
-}
-
-impl Emit for ElementKind {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        match self {
-            ElementKind::FunctionReference => 0x00u8.emit(output),
-            ElementKind::ReferenceType(kind) => kind.emit(output),
-        }
     }
 }
 
