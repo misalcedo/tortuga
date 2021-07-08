@@ -207,39 +207,38 @@ impl Emit for NumericInstruction {
             Self::RotateLeft(IntegerType::I64) => {}
             Self::RotateRight(IntegerType::I64) => {}
             // f32 Unary Operations
+            Self::AbsoluteValue(FloatType::F32) => {}
+            Self::Negate(FloatType::F32) => {}
+            Self::SquareRoot(FloatType::F32) => {}
+            Self::Ceiling(FloatType::F32) => {}
+            Self::Floor(FloatType::F32) => {}
+            Self::Truncate(FloatType::F32) => {}
+            Self::Nearest(FloatType::F32) => {}
             // f32 Binary Operations
+            Self::Add(NumberType::F32) => {}
+            Self::Subtract(NumberType::F32) => {}
+            Self::Multiply(NumberType::F32) => {}
+            Self::DivideFloat(FloatType::F32) => {}
+            Self::Minimum(FloatType::F32) => {}
+            Self::Maximum(FloatType::F32) => {}
+            Self::CopySign(FloatType::F32) => {}
             // f64 Unary Operations
+            Self::AbsoluteValue(FloatType::F64) => {}
+            Self::Negate(FloatType::F64) => {}
+            Self::SquareRoot(FloatType::F64) => {}
+            Self::Ceiling(FloatType::F64) => {}
+            Self::Floor(FloatType::F64) => {}
+            Self::Truncate(FloatType::F64) => {}
+            Self::Nearest(FloatType::F64) => {}
             // f64 Binary Operations
-            // Extend Operations
+            Self::Add(NumberType::F64) => {}
+            Self::Subtract(NumberType::F64) => {}
+            Self::Multiply(NumberType::F64) => {}
+            Self::DivideFloat(FloatType::F64) => {}
+            Self::Minimum(FloatType::F64) => {}
+            Self::Maximum(FloatType::F64) => {}
+            Self::CopySign(FloatType::F64) => {}
             // Convert Operations
-            Self::AbsoluteValue(kind) => {}
-            Self::Negate(kind) => {}
-            Self::SquareRoot(kind) => {}
-            Self::Ceiling(kind) => {}
-            Self::Floor(kind) => {}
-            Self::Truncate(kind) => {}
-            Self::Nearest(kind) => {}
-            Self::Add(kind) => {}
-            Self::Subtract(kind) => {}
-            Self::Multiply(kind) => {}
-            Self::DivideInteger(_, _) => {}
-            Self::DivideFloat(kind) => {}
-            Self::Remainder(_, _) => {}
-            Self::And(kind) => {}
-            Self::Or(kind) => {}
-            Self::Xor(kind) => {}
-            Self::ShiftLeft(kind) => {}
-            Self::ShiftRight(_, _) => {}
-            Self::RotateLeft(kind) => {}
-            Self::RotateRight(kind) => {}
-            Self::Minimum(kind) => {}
-            Self::Maximum(kind) => {}
-            Self::CopySign(kind) => {}
-            Self::LessThanFloat(kind) => {}
-            Self::GreaterThanFloat(kind) => {}
-            Self::LessThanOrEqualToFloat(kind) => {}
-            Self::GreaterThanOrEqualToFloat(kind) => {}
-            Self::Extend(kind) => {}
             Self::Wrap => {}
             Self::ExtendWithSignExtension(kind) => {}
             Self::ConvertAndTruncate(_, _, _) => {}
@@ -249,6 +248,7 @@ impl Emit for NumericInstruction {
             Self::Convert(_, _, _) => {}
             Self::ReinterpretFloat(_, _) => {}
             Self::ReinterpretInteger(_, _) => {}
+            Self::Extend(kind) => {}
         }
 
         Ok(bytes)
