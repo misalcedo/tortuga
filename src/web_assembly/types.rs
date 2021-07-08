@@ -1,3 +1,7 @@
+/// Number types classify numeric values.
+/// Number types are transparent, meaning that their bit patterns can be observed.
+/// Values of number type can be stored in memories.
+/// See https://webassembly.github.io/spec/core/syntax/types.html#number-types
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum NumberType {
     I32,
@@ -6,36 +10,47 @@ pub enum NumberType {
     F64,
 }
 
+/// The types 𝗂𝟥𝟤 and 𝗂𝟨𝟦 classify 32 and 64 bit integers, respectively.
+/// Integers are not inherently signed or unsigned, their interpretation is determined by individual operations.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum IntegerType {
     I32,
     I64,
 }
 
+/// The types 𝖿𝟥𝟤 and 𝖿𝟨𝟦 classify 32 and 64 bit floating-point data, respectively.
+/// They correspond to the respective binary floating-point representations,
+/// also known as single and double precision, as defined by the IEEE 754-2019 standard (Section 3.3).
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum FloatType {
     F32,
     F64,
 }
 
+/// Reference types classify first-class references to objects in the runtime store.
+/// The type 𝖿𝗎𝗇𝖼𝗋𝖾𝖿 denotes the infinite union of all references to functions,
+/// regardless of their function types.
+/// The type 𝖾𝗑𝗍𝖾𝗋𝗇𝗋𝖾𝖿 denotes the infinite union of all references to objects owned by the
+/// embedder and that can be passed into WebAssembly under this type.
+/// Reference types are opaque, meaning that neither their size nor their bit pattern can be observed.
+/// Values of reference type can be stored in tables.
+/// See https://webassembly.github.io/spec/core/syntax/types.html#reference-types
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ReferenceType {
     Function, // funcref
     External, // externref
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum HeapType {
-    Function, // func
-    External, // extern
-}
-
+/// Value types are encoded with their respective encoding as a number type or reference type.
+/// See https://webassembly.github.io/spec/core/binary/types.html#value-types
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ValueType {
     Number(NumberType),
     Reference(ReferenceType),
 }
 
+/// Result types are encoded by the respective vectors of value types.
+/// See https://webassembly.github.io/spec/core/binary/types.html#result-types
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ResultType {
     types: Vec<ValueType>,
@@ -59,6 +74,8 @@ impl ResultType {
     }
 }
 
+/// Function types are encoded by the byte 𝟶𝚡𝟼𝟶 followed by the respective vectors of parameter and result types.
+/// See https://webassembly.github.io/spec/core/binary/types.html#function-types
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FunctionType {
     parameters: ResultType,
@@ -82,6 +99,8 @@ impl FunctionType {
     }
 }
 
+/// Limits are encoded with a preceding flag indicating whether a maximum is present.
+/// See https://webassembly.github.io/spec/core/binary/types.html#limits
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Limit {
     min: usize,
@@ -102,6 +121,8 @@ impl Limit {
     }
 }
 
+/// Memory types are encoded with their limits.
+/// See https://webassembly.github.io/spec/core/binary/types.html#memory-types
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct MemoryType {
     limits: Limit,
@@ -117,6 +138,8 @@ impl MemoryType {
     }
 }
 
+/// Table types are encoded with their limits and the encoding of their element reference type.
+/// See https://webassembly.github.io/spec/core/binary/types.html#table-types
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct TableType {
     limits: Limit,
@@ -140,6 +163,8 @@ impl TableType {
     }
 }
 
+/// Global types are encoded by their value type and a flag for their mutability.
+/// See https://webassembly.github.io/spec/core/binary/types.html#global-types
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct GlobalType {
     is_mutable: bool,
