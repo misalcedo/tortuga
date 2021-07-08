@@ -30,17 +30,10 @@ mod tests {
 
     #[test]
     fn empty_type() {
-        let function_type = FunctionType::new();
+        let result_type = ResultType::new(Vec::new());
+        let function_type = FunctionType::new(result_type.clone(), result_type.clone());
 
-        assert!(module.types().is_empty());
-        assert!(module.functions().is_empty());
-        assert!(module.tables().is_empty());
-        assert!(module.memories().is_empty());
-        assert!(module.globals().is_empty());
-        assert!(module.imports().is_empty());
-        assert!(module.exports().is_empty());
-        assert!(module.data().is_empty());
-        assert!(module.elements().is_empty());
-        assert!(module.start().is_none());
+        assert!(function_type.parameters().is_empty());
+        assert!(function_type.results().is_empty());
     }
 }

@@ -49,6 +49,14 @@ impl ResultType {
     pub fn value_types(&self) -> &[ValueType] {
         &self.types
     }
+
+    pub fn len(&self) -> usize {
+        self.types.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.types.is_empty()
+    }
 }
 
 #[derive(Clone)]

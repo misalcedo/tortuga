@@ -65,7 +65,7 @@ impl Emit for Name {
     }
 }
 
-impl Emit for Bytes {
+impl<'a> Emit for Bytes<'a> {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
