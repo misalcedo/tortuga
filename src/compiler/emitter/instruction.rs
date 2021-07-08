@@ -46,6 +46,26 @@ impl Emit for Instruction {
                     bytes += types.emit(&mut output)?;
                 }
             }
+            Instruction::LocalGet(index) => {
+                output.write_u8(0x20)?;
+                bytes += index.emit(&mut output)?;
+            }
+            Instruction::LocalSet(index) => {
+                output.write_u8(0x21)?;
+                bytes += index.emit(&mut output)?;
+            }
+            Instruction::LocalTee(index) => {
+                output.write_u8(0x22)?;
+                bytes += index.emit(&mut output)?;
+            }
+            Instruction::GlobalGet(index) => {
+                output.write_u8(0x23)?;
+                bytes += index.emit(&mut output)?;
+            }
+            Instruction::GlobalSet(index) => {
+                output.write_u8(0x24)?;
+                bytes += index.emit(&mut output)?;
+            }
         };
 
         Ok(bytes)
