@@ -366,16 +366,160 @@ impl Emit for NumericInstruction {
                 bytes += 0xA6u8.emit(output)?;
             }
             // Convert Operations
-            Self::Wrap => {}
-            Self::ExtendWithSignExtension(kind) => {}
-            Self::ConvertAndTruncate(_, _, _) => {}
-            Self::ConvertAndTruncateWithSaturation(_, _, _) => {}
-            Self::Demote => {}
-            Self::Promote => {}
-            Self::Convert(_, _, _) => {}
-            Self::ReinterpretFloat(_, _) => {}
-            Self::ReinterpretInteger(_, _) => {}
-            Self::Extend(kind) => {}
+            Self::Wrap => {
+                bytes += 0xA7u8.emit(output)?;
+            }
+            Self::ConvertAndTruncate(IntegerType::I32, FloatType::F32, SignExtension::Signed) => {
+                bytes += 0xA8u8.emit(output)?;
+            }
+            Self::ConvertAndTruncate(IntegerType::I32, FloatType::F32, SignExtension::Unsigned) => {
+                bytes += 0xA9u8.emit(output)?;
+            }
+            Self::ConvertAndTruncate(IntegerType::I32, FloatType::F64, SignExtension::Signed) => {
+                bytes += 0xAAu8.emit(output)?;
+            }
+            Self::ConvertAndTruncate(IntegerType::I32, FloatType::F64, SignExtension::Unsigned) => {
+                bytes += 0xABu8.emit(output)?;
+            }
+            Self::ExtendWithSignExtension(SignExtension::Signed) => {
+                bytes += 0xACu8.emit(output)?;
+            }
+            Self::ExtendWithSignExtension(SignExtension::Unsigned) => {
+                bytes += 0xADu8.emit(output)?;
+            }
+            Self::ConvertAndTruncate(IntegerType::I64, FloatType::F32, SignExtension::Signed) => {
+                bytes += 0xAEu8.emit(output)?;
+            }
+            Self::ConvertAndTruncate(IntegerType::I64, FloatType::F32, SignExtension::Unsigned) => {
+                bytes += 0xAFu8.emit(output)?;
+            }
+            Self::ConvertAndTruncate(IntegerType::I64, FloatType::F64, SignExtension::Signed) => {
+                bytes += 0xB0u8.emit(output)?;
+            }
+            Self::ConvertAndTruncate(IntegerType::I64, FloatType::F64, SignExtension::Unsigned) => {
+                bytes += 0xB1u8.emit(output)?;
+            }
+            Self::Convert(FloatType::F32, IntegerType::I32, SignExtension::Signed) => {
+                bytes += 0xB2u8.emit(output)?;
+            }
+            Self::Convert(FloatType::F32, IntegerType::I32, SignExtension::Unsigned) => {
+                bytes += 0xB3u8.emit(output)?;
+            }
+            Self::Convert(FloatType::F32, IntegerType::I64, SignExtension::Signed) => {
+                bytes += 0xB4u8.emit(output)?;
+            }
+            Self::Convert(FloatType::F32, IntegerType::I64, SignExtension::Unsigned) => {
+                bytes += 0xB5u8.emit(output)?;
+            }
+            Self::Demote => {
+                bytes += 0xB6u8.emit(output)?;
+            }
+            Self::Convert(FloatType::F64, IntegerType::I32, SignExtension::Signed) => {
+                bytes += 0xB7u8.emit(output)?;
+            }
+            Self::Convert(FloatType::F64, IntegerType::I32, SignExtension::Unsigned) => {
+                bytes += 0xB8u8.emit(output)?;
+            }
+            Self::Convert(FloatType::F64, IntegerType::I64, SignExtension::Signed) => {
+                bytes += 0xB9u8.emit(output)?;
+            }
+            Self::Convert(FloatType::F64, IntegerType::I64, SignExtension::Unsigned) => {
+                bytes += 0xBAu8.emit(output)?;
+            }
+            Self::Promote => {
+                bytes += 0xBBu8.emit(output)?;
+            }
+            Self::ReinterpretFloat(IntegerType::I32, FloatType::F32) => {
+                bytes += 0xBCu8.emit(output)?;
+            }
+            Self::ReinterpretFloat(IntegerType::I64, FloatType::F64) => {
+                bytes += 0xBDu8.emit(output)?;
+            }
+            Self::ReinterpretInteger(FloatType::F32, IntegerType::I32) => {
+                bytes += 0xBEu8.emit(output)?;
+            }
+            Self::ReinterpretInteger(FloatType::F64, IntegerType::I64) => {
+                bytes += 0xBFu8.emit(output)?;
+            }
+            Self::ExtendSigned(StorageSize::I32_8) => {
+                bytes += 0xC0u8.emit(output)?;
+            }
+            Self::ExtendSigned(StorageSize::I32_16) => {
+                bytes += 0xC1u8.emit(output)?;
+            }
+            Self::ExtendSigned(StorageSize::I64_8) => {
+                bytes += 0xC2u8.emit(output)?;
+            }
+            Self::ExtendSigned(StorageSize::I64_16) => {
+                bytes += 0xC3u8.emit(output)?;
+            }
+            Self::ExtendSigned(StorageSize::I64_32) => {
+                bytes += 0xC4u8.emit(output)?;
+            }
+            Self::ConvertAndTruncateWithSaturation(
+                IntegerType::I32,
+                FloatType::F32,
+                SignExtension::Signed,
+            ) => {
+                bytes += 0xFCu8.emit(output)?;
+                bytes += 0u32.emit(output)?;
+            }
+            Self::ConvertAndTruncateWithSaturation(
+                IntegerType::I32,
+                FloatType::F32,
+                SignExtension::Unsigned,
+            ) => {
+                bytes += 0xFCu8.emit(output)?;
+                bytes += 1u32.emit(output)?;
+            }
+            Self::ConvertAndTruncateWithSaturation(
+                IntegerType::I32,
+                FloatType::F64,
+                SignExtension::Signed,
+            ) => {
+                bytes += 0xFCu8.emit(output)?;
+                bytes += 2u32.emit(output)?;
+            }
+            Self::ConvertAndTruncateWithSaturation(
+                IntegerType::I32,
+                FloatType::F64,
+                SignExtension::Unsigned,
+            ) => {
+                bytes += 0xFCu8.emit(output)?;
+                bytes += 3u32.emit(output)?;
+            }
+            Self::ConvertAndTruncateWithSaturation(
+                IntegerType::I64,
+                FloatType::F32,
+                SignExtension::Signed,
+            ) => {
+                bytes += 0xFCu8.emit(output)?;
+                bytes += 4u32.emit(output)?;
+            }
+            Self::ConvertAndTruncateWithSaturation(
+                IntegerType::I64,
+                FloatType::F32,
+                SignExtension::Unsigned,
+            ) => {
+                bytes += 0xFCu8.emit(output)?;
+                bytes += 5u32.emit(output)?;
+            }
+            Self::ConvertAndTruncateWithSaturation(
+                IntegerType::I64,
+                FloatType::F64,
+                SignExtension::Signed,
+            ) => {
+                bytes += 0xFCu8.emit(output)?;
+                bytes += 6u32.emit(output)?;
+            }
+            Self::ConvertAndTruncateWithSaturation(
+                IntegerType::I64,
+                FloatType::F64,
+                SignExtension::Unsigned,
+            ) => {
+                bytes += 0xFCu8.emit(output)?;
+                bytes += 7u32.emit(output)?;
+            }
         }
 
         Ok(bytes)

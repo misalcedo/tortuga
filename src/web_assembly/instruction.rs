@@ -77,7 +77,7 @@ pub enum NumericInstruction {
     LessThanOrEqualToFloat(FloatType),
     GreaterThanOrEqualToInteger(IntegerType, SignExtension),
     GreaterThanOrEqualToFloat(FloatType),
-    Extend(StorageSize),
+    ExtendSigned(StorageSize),
     Wrap,
     ExtendWithSignExtension(SignExtension),
     ConvertAndTruncate(IntegerType, FloatType, SignExtension), // trunc
