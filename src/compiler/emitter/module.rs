@@ -297,7 +297,6 @@ impl Emit for Data {
             }
         };
 
-        bytes += self.len().emit(output)?;
         bytes += self.initializer().emit(output)?;
 
         Ok(bytes)
