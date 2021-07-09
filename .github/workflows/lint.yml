@@ -1,16 +1,12 @@
-name: Linters - CLI
+name: Linters
 
 on:
-  pull_request:
-    paths:
-      - 'tortuga-cli/**'
+  pull_request: {}
   push:
     branches: [ main ]
-    paths:
-      - '.github/workflows/lint-cli.yml'
 
 env:
-  CRATE_NAME: tortuga-cli
+  CARGO_TERM_COLOR: always
 
 jobs:
   rustfmt:
@@ -25,8 +21,6 @@ jobs:
           rustup component add rustfmt
           rustup component add clippy
       - name: Check Formatting
-        working-directory: ${{ env.CRATE_NAME }}
         run: cargo fmt --all -- --check
       - name: Check for idiomatic code
-        working-directory: ${{ env.CRATE_NAME }}
         run: cargo clippy --all --all-features -- -D warnings
