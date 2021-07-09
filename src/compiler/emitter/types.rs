@@ -4,9 +4,7 @@ use crate::web_assembly::{
     FunctionType, GlobalType, Limit, MemoryType, NumberType, ReferenceType, ResultType, TableType,
     ValueType,
 };
-use byteorder::WriteBytesExt;
 use std::io::Write;
-use std::mem::size_of;
 
 impl Emit for NumberType {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
@@ -17,9 +15,7 @@ impl Emit for NumberType {
             NumberType::F64 => 0x7C,
         };
 
-        output.write_u8(value)?;
-
-        Ok(size_of::<u8>())
+        value.emit(output)
     }
 }
 
@@ -30,9 +26,7 @@ impl Emit for ReferenceType {
             ReferenceType::External => 0x6F,
         };
 
-        output.write_u8(value)?;
-
-        Ok(size_of::<u8>())
+        value.emit(output)
     }
 }
 
@@ -53,10 +47,9 @@ impl Emit for ResultType {
 
 impl Emit for FunctionType {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        output.write_u8(0x60)?;
+        let mut bytes = 0;
 
-        let mut bytes = size_of::<u8>();
-
+        bytes += 0x60u8.emit(output)?;
         bytes += self.parameters().emit(output)?;
         bytes += self.results().emit(output)?;
 
@@ -66,18 +59,16 @@ impl Emit for FunctionType {
 
 impl Emit for Limit {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        let mut bytes = size_of::<u8>();
+        let mut bytes = 0;
 
         match self.max() {
             Some(max) => {
-                output.write_u8(0x00)?;
-
+                bytes += 0x01u8.emit(output)?;
                 bytes += self.min().emit(output)?;
                 bytes += max.emit(output)?;
             }
             None => {
-                output.write_u8(0x01)?;
-
+                bytes += 0x00u8.emit(output)?;
                 bytes += self.min().emit(output)?;
             }
         };
@@ -114,9 +105,7 @@ impl Emit for GlobalType {
             true => 0x01,
         };
 
-        output.write_u8(mutability)?;
-
-        bytes += size_of::<u8>();
+        bytes += mutability.emit(output)?;
 
         Ok(bytes)
     }
