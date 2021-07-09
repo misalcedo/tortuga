@@ -5,7 +5,7 @@ use crate::web_assembly::{
     Global, Import, ImportDescription, Memory, Module, Name, ReferenceType, Start, Table,
     TypeIndex,
 };
-use std::io::{Cursor, Seek, SeekFrom, Write};
+use std::io::Write;
 
 const PREAMBLE: [u8; 4] = [0x00u8, 0x61u8, 0x73u8, 0x6Du8];
 const VERSION: [u8; 4] = [0x01u8, 0x00u8, 0x00u8, 0x00u8];
@@ -14,7 +14,7 @@ const VERSION: [u8; 4] = [0x01u8, 0x00u8, 0x00u8, 0x00u8];
 impl Emit for Module {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
         let mut bytes = 0;
-        let mut buffer: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        let mut buffer: Vec<u8> = Vec::new();
 
         bytes += output.write(&PREAMBLE)?;
         bytes += output.write(&VERSION)?;
@@ -88,7 +88,7 @@ impl Emit for Module {
 
 impl Emit for Function {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        let mut buffer: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        let mut buffer: Vec<u8> = Vec::new();
         let mut bytes = 0;
 
         self.locals().len().emit(&mut buffer)?;
@@ -99,11 +99,8 @@ impl Emit for Function {
 
         self.body().emit(&mut buffer)?;
 
-        bytes += buffer.position().emit(output)?;
-
-        buffer.seek(SeekFrom::Start(0));
-
-        bytes += std::io::copy(&mut buffer, output)? as usize;
+        bytes += buffer.len().emit(output)?;
+        bytes += output.write(&buffer)?;
 
         Ok(bytes)
     }
@@ -327,19 +324,16 @@ fn emit_custom_section<O: Write>(
 /// The buffer is reset after it is copied.
 fn emit_section<O: Write>(
     section: ModuleSection,
-    buffer: &mut Cursor<Vec<u8>>,
+    buffer: &mut Vec<u8>,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
     let mut bytes = 0;
 
     bytes += section.emit(output)?;
-    bytes += buffer.position().emit(output)?;
+    bytes += buffer.len().emit(output)?;
+    bytes += output.write(&buffer)?;
 
-    buffer.seek(SeekFrom::Start(0));
-
-    bytes += std::io::copy(buffer, output)? as usize;
-
-    buffer.set_position(0);
+    buffer.clear();
 
     Ok(bytes)
 }
