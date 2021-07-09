@@ -19,8 +19,6 @@ impl Validate<CompilerError> for SyntaxCheck {
 
         target.emit(&mut bytes)?;
 
-        println!("{:?}", &bytes);
-
         let engine = Engine::default();
         let module = Module::new(&engine, &bytes)?;
         let mut store = Store::new(&engine, 0);
@@ -56,38 +54,51 @@ mod tests {
             ResultType::new(vec![ValueType::Number(NumberType::I64)]),
             ResultType::new(vec![ValueType::Number(NumberType::F64)]),
         );
-        module.add_type(function_type.clone());
+        module.add_type(function_type);
 
         let function = Function::new(
             0,
             ResultType::new(vec![ValueType::Number(NumberType::I32)]),
+            Expression::new(vec![Instruction::Numeric(NumericInstruction::F64Constant(
+                0.0,
+            ))]),
+        );
+        module.add_function(function);
+
+        let start_function_type =
+            FunctionType::new(ResultType::new(vec![]), ResultType::new(vec![]));
+        module.add_type(start_function_type);
+
+        let start_function = Function::new(
+            1,
+            ResultType::new(vec![]),
             Expression::new(vec![Instruction::Control(ControlInstruction::Nop)]),
         );
-        module.add_function(function.clone());
+        module.add_function(start_function);
 
         let element = Element::new(
             ReferenceType::Function,
             ElementMode::Passive,
             ElementInitializer::FunctionIndex(vec![0]),
         );
-        module.add_element(element.clone());
+        module.add_element(element);
 
         let data = Data::new(DataMode::Passive, vec![42]);
-        module.add_data(data.clone());
+        module.add_data(data);
 
-        let table = Table::new(TableType::new(Limit::new(0, None), ReferenceType::Function));
+        let table = Table::new(TableType::new(Limit::new(1, None), ReferenceType::Function));
         module.add_table(table);
 
-        let memory = Memory::new(MemoryType::new(Limit::new(0, None)));
+        let memory = Memory::new(MemoryType::new(Limit::new(1, None)));
         module.add_memory(memory);
 
         let export = Export::new(
             Name::new("foobar".to_string()),
             ExportDescription::Function(0),
         );
-        module.add_export(export.clone());
+        module.add_export(export);
 
-        let start = Start::new(0);
+        let start = Start::new(1);
         module.set_start(Some(start));
 
         let global = Global::new(
@@ -96,7 +107,7 @@ mod tests {
                 0,
             ))]),
         );
-        module.add_global(global.clone());
+        module.add_global(global);
 
         let result = SyntaxCheck::validate(module);
 
@@ -110,7 +121,7 @@ mod tests {
             ResultType::new(vec![ValueType::Number(NumberType::I64)]),
             ResultType::new(vec![ValueType::Number(NumberType::F64)]),
         );
-        module.add_type(function_type.clone());
+        module.add_type(function_type);
 
         let result = SyntaxCheck::validate(module);
 
@@ -124,14 +135,16 @@ mod tests {
             ResultType::new(vec![ValueType::Number(NumberType::I64)]),
             ResultType::new(vec![ValueType::Number(NumberType::F64)]),
         );
-        module.add_type(function_type.clone());
+        module.add_type(function_type);
 
         let function = Function::new(
             0,
             ResultType::new(vec![ValueType::Number(NumberType::I32)]),
-            Expression::new(vec![Instruction::Control(ControlInstruction::Nop)]),
+            Expression::new(vec![Instruction::Numeric(NumericInstruction::F64Constant(
+                0.0,
+            ))]),
         );
-        module.add_function(function.clone());
+        module.add_function(function);
 
         SyntaxCheck::validate(module).unwrap();
     }
@@ -139,18 +152,15 @@ mod tests {
     #[test]
     fn valid_module_start() {
         let mut module = web_assembly::Module::new();
-        let function_type = FunctionType::new(
-            ResultType::new(vec![ValueType::Number(NumberType::I64)]),
-            ResultType::new(vec![ValueType::Number(NumberType::F64)]),
-        );
-        module.add_type(function_type.clone());
+        let function_type = FunctionType::new(ResultType::new(vec![]), ResultType::new(vec![]));
+        module.add_type(function_type);
 
         let function = Function::new(
             0,
-            ResultType::new(vec![ValueType::Number(NumberType::I32)]),
+            ResultType::new(vec![]),
             Expression::new(vec![Instruction::Control(ControlInstruction::Nop)]),
         );
-        module.add_function(function.clone());
+        module.add_function(function);
 
         let start = Start::new(0);
         module.set_start(Some(start));
@@ -162,12 +172,27 @@ mod tests {
     fn valid_module_element() {
         let mut module = web_assembly::Module::new();
 
+        let function_type = FunctionType::new(
+            ResultType::new(vec![ValueType::Number(NumberType::I64)]),
+            ResultType::new(vec![ValueType::Number(NumberType::F64)]),
+        );
+        module.add_type(function_type);
+
+        let function = Function::new(
+            0,
+            ResultType::new(vec![ValueType::Number(NumberType::I32)]),
+            Expression::new(vec![Instruction::Numeric(NumericInstruction::F64Constant(
+                0.0,
+            ))]),
+        );
+        module.add_function(function);
+
         let element = Element::new(
             ReferenceType::Function,
             ElementMode::Passive,
             ElementInitializer::FunctionIndex(vec![0]),
         );
-        module.add_element(element.clone());
+        module.add_element(element);
 
         let table = Table::new(TableType::new(Limit::new(0, None), ReferenceType::Function));
         module.add_table(table);
@@ -189,10 +214,10 @@ mod tests {
     fn valid_module_data() {
         let mut module = web_assembly::Module::new();
 
-        let data = Data::new(DataMode::Passive, vec![42]);
-        module.add_data(data.clone());
+        let data = Data::new(DataMode::Passive, vec![1]);
+        module.add_data(data);
 
-        let memory = Memory::new(MemoryType::new(Limit::new(1, None)));
+        let memory = Memory::new(MemoryType::new(Limit::new(0, None)));
         module.add_memory(memory);
 
         SyntaxCheck::validate(module).unwrap();
@@ -218,7 +243,7 @@ mod tests {
                 0,
             ))]),
         );
-        module.add_global(global.clone());
+        module.add_global(global);
 
         SyntaxCheck::validate(module).unwrap();
     }
@@ -231,7 +256,7 @@ mod tests {
             Name::new("foobar".to_string()),
             ExportDescription::Global(0),
         );
-        module.add_export(export.clone());
+        module.add_export(export);
 
         let global = Global::new(
             GlobalType::new(false, ValueType::Number(NumberType::I64)),
@@ -239,7 +264,7 @@ mod tests {
                 0,
             ))]),
         );
-        module.add_global(global.clone());
+        module.add_global(global);
 
         SyntaxCheck::validate(module).unwrap();
     }
@@ -253,7 +278,7 @@ mod tests {
             ResultType::new(vec![ValueType::Number(NumberType::I32)]),
             Expression::new(vec![Instruction::Control(ControlInstruction::Nop)]),
         );
-        module.add_function(function.clone());
+        module.add_function(function);
 
         let result = SyntaxCheck::validate(module);
 
