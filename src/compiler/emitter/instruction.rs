@@ -165,79 +165,206 @@ impl Emit for NumericInstruction {
             Self::GreaterThanOrEqualToFloat(FloatType::F64) => {
                 bytes += 0x66u8.emit(output)?;
             }
-
             // i32 Unary Operations
-            Self::CountLeadingZeros(IntegerType::I32) => {}
-            Self::CountTrailingZeros(IntegerType::I32) => {}
-            Self::CountOnes(IntegerType::I32) => {}
+            Self::CountLeadingZeros(IntegerType::I32) => {
+                bytes += 0x67u8.emit(output)?;
+            }
+            Self::CountTrailingZeros(IntegerType::I32) => {
+                bytes += 0x68u8.emit(output)?;
+            }
+            Self::CountOnes(IntegerType::I32) => {
+                bytes += 0x69u8.emit(output)?;
+            }
             // i32 Binary Operations
-            Self::Add(NumberType::I32) => {}
-            Self::Subtract(NumberType::I32) => {}
-            Self::Multiply(NumberType::I32) => {}
-            Self::DivideInteger(IntegerType::I32, SignExtension::Signed) => {}
-            Self::DivideInteger(IntegerType::I32, SignExtension::Unsigned) => {}
-            Self::Remainder(IntegerType::I32, SignExtension::Signed) => {}
-            Self::Remainder(IntegerType::I32, SignExtension::Unsigned) => {}
-            Self::And(IntegerType::I32) => {}
-            Self::Or(IntegerType::I32) => {}
-            Self::Xor(IntegerType::I32) => {}
-            Self::ShiftLeft(IntegerType::I32) => {}
-            Self::ShiftRight(IntegerType::I32, SignExtension::Signed) => {}
-            Self::ShiftRight(IntegerType::I32, SignExtension::Unsigned) => {}
-            Self::RotateLeft(IntegerType::I32) => {}
-            Self::RotateRight(IntegerType::I32) => {}
+            Self::Add(NumberType::I32) => {
+                bytes += 0x6Au8.emit(output)?;
+            }
+            Self::Subtract(NumberType::I32) => {
+                bytes += 0x6Bu8.emit(output)?;
+            }
+            Self::Multiply(NumberType::I32) => {
+                bytes += 0x6Cu8.emit(output)?;
+            }
+            Self::DivideInteger(IntegerType::I32, SignExtension::Signed) => {
+                bytes += 0x6Du8.emit(output)?;
+            }
+            Self::DivideInteger(IntegerType::I32, SignExtension::Unsigned) => {
+                bytes += 0x6Eu8.emit(output)?;
+            }
+            Self::Remainder(IntegerType::I32, SignExtension::Signed) => {
+                bytes += 0x6Fu8.emit(output)?;
+            }
+            Self::Remainder(IntegerType::I32, SignExtension::Unsigned) => {
+                bytes += 0x70u8.emit(output)?;
+            }
+            Self::And(IntegerType::I32) => {
+                bytes += 0x71u8.emit(output)?;
+            }
+            Self::Or(IntegerType::I32) => {
+                bytes += 0x72u8.emit(output)?;
+            }
+            Self::Xor(IntegerType::I32) => {
+                bytes += 0x73u8.emit(output)?;
+            }
+            Self::ShiftLeft(IntegerType::I32) => {
+                bytes += 0x74u8.emit(output)?;
+            }
+            Self::ShiftRight(IntegerType::I32, SignExtension::Signed) => {
+                bytes += 0x75u8.emit(output)?;
+            }
+            Self::ShiftRight(IntegerType::I32, SignExtension::Unsigned) => {
+                bytes += 0x76u8.emit(output)?;
+            }
+            Self::RotateLeft(IntegerType::I32) => {
+                bytes += 0x77u8.emit(output)?;
+            }
+            Self::RotateRight(IntegerType::I32) => {
+                bytes += 0x78u8.emit(output)?;
+            }
             // i64 Unary Operations
-            Self::CountLeadingZeros(IntegerType::I64) => {}
-            Self::CountTrailingZeros(IntegerType::I64) => {}
-            Self::CountOnes(IntegerType::I64) => {}
+            Self::CountLeadingZeros(IntegerType::I64) => {
+                bytes += 0x79u8.emit(output)?;
+            }
+            Self::CountTrailingZeros(IntegerType::I64) => {
+                bytes += 0x7Au8.emit(output)?;
+            }
+            Self::CountOnes(IntegerType::I64) => {
+                bytes += 0x7Bu8.emit(output)?;
+            }
             // i64 Binary Operations
-            Self::Add(NumberType::I64) => {}
-            Self::Subtract(NumberType::I64) => {}
-            Self::Multiply(NumberType::I64) => {}
-            Self::DivideInteger(IntegerType::I64, SignExtension::Signed) => {}
-            Self::DivideInteger(IntegerType::I64, SignExtension::Unsigned) => {}
-            Self::Remainder(IntegerType::I64, SignExtension::Signed) => {}
-            Self::Remainder(IntegerType::I64, SignExtension::Unsigned) => {}
-            Self::And(IntegerType::I64) => {}
-            Self::Or(IntegerType::I64) => {}
-            Self::Xor(IntegerType::I64) => {}
-            Self::ShiftLeft(IntegerType::I64) => {}
-            Self::ShiftRight(IntegerType::I64, SignExtension::Signed) => {}
-            Self::ShiftRight(IntegerType::I64, SignExtension::Unsigned) => {}
-            Self::RotateLeft(IntegerType::I64) => {}
-            Self::RotateRight(IntegerType::I64) => {}
+            Self::Add(NumberType::I64) => {
+                bytes += 0x7Cu8.emit(output)?;
+            }
+            Self::Subtract(NumberType::I64) => {
+                bytes += 0x7Du8.emit(output)?;
+            }
+            Self::Multiply(NumberType::I64) => {
+                bytes += 0x7Eu8.emit(output)?;
+            }
+            Self::DivideInteger(IntegerType::I64, SignExtension::Signed) => {
+                bytes += 0x7Fu8.emit(output)?;
+            }
+            Self::DivideInteger(IntegerType::I64, SignExtension::Unsigned) => {
+                bytes += 0x80u8.emit(output)?;
+            }
+            Self::Remainder(IntegerType::I64, SignExtension::Signed) => {
+                bytes += 0x81u8.emit(output)?;
+            }
+            Self::Remainder(IntegerType::I64, SignExtension::Unsigned) => {
+                bytes += 0x82u8.emit(output)?;
+            }
+            Self::And(IntegerType::I64) => {
+                bytes += 0x83u8.emit(output)?;
+            }
+            Self::Or(IntegerType::I64) => {
+                bytes += 0x84u8.emit(output)?;
+            }
+            Self::Xor(IntegerType::I64) => {
+                bytes += 0x85u8.emit(output)?;
+            }
+            Self::ShiftLeft(IntegerType::I64) => {
+                bytes += 0x86u8.emit(output)?;
+            }
+            Self::ShiftRight(IntegerType::I64, SignExtension::Signed) => {
+                bytes += 0x87u8.emit(output)?;
+            }
+            Self::ShiftRight(IntegerType::I64, SignExtension::Unsigned) => {
+                bytes += 0x88u8.emit(output)?;
+            }
+            Self::RotateLeft(IntegerType::I64) => {
+                bytes += 0x89u8.emit(output)?;
+            }
+            Self::RotateRight(IntegerType::I64) => {
+                bytes += 0x8Au8.emit(output)?;
+            }
             // f32 Unary Operations
-            Self::AbsoluteValue(FloatType::F32) => {}
-            Self::Negate(FloatType::F32) => {}
-            Self::SquareRoot(FloatType::F32) => {}
-            Self::Ceiling(FloatType::F32) => {}
-            Self::Floor(FloatType::F32) => {}
-            Self::Truncate(FloatType::F32) => {}
-            Self::Nearest(FloatType::F32) => {}
+            Self::AbsoluteValue(FloatType::F32) => {
+                bytes += 0x8Bu8.emit(output)?;
+            }
+            Self::Negate(FloatType::F32) => {
+                bytes += 0x8Cu8.emit(output)?;
+            }
+            Self::Ceiling(FloatType::F32) => {
+                bytes += 0x8Du8.emit(output)?;
+            }
+            Self::Floor(FloatType::F32) => {
+                bytes += 0x8Eu8.emit(output)?;
+            }
+            Self::Truncate(FloatType::F32) => {
+                bytes += 0x8Fu8.emit(output)?;
+            }
+            Self::Nearest(FloatType::F32) => {
+                bytes += 0x90u8.emit(output)?;
+            }
+            Self::SquareRoot(FloatType::F32) => {
+                bytes += 0x91u8.emit(output)?;
+            }
             // f32 Binary Operations
-            Self::Add(NumberType::F32) => {}
-            Self::Subtract(NumberType::F32) => {}
-            Self::Multiply(NumberType::F32) => {}
-            Self::DivideFloat(FloatType::F32) => {}
-            Self::Minimum(FloatType::F32) => {}
-            Self::Maximum(FloatType::F32) => {}
-            Self::CopySign(FloatType::F32) => {}
+            Self::Add(NumberType::F32) => {
+                bytes += 0x92u8.emit(output)?;
+            }
+            Self::Subtract(NumberType::F32) => {
+                bytes += 0x93u8.emit(output)?;
+            }
+            Self::Multiply(NumberType::F32) => {
+                bytes += 0x94u8.emit(output)?;
+            }
+            Self::DivideFloat(FloatType::F32) => {
+                bytes += 0x95u8.emit(output)?;
+            }
+            Self::Minimum(FloatType::F32) => {
+                bytes += 0x96u8.emit(output)?;
+            }
+            Self::Maximum(FloatType::F32) => {
+                bytes += 0x97u8.emit(output)?;
+            }
+            Self::CopySign(FloatType::F32) => {
+                bytes += 0x98u8.emit(output)?;
+            }
             // f64 Unary Operations
-            Self::AbsoluteValue(FloatType::F64) => {}
-            Self::Negate(FloatType::F64) => {}
-            Self::SquareRoot(FloatType::F64) => {}
-            Self::Ceiling(FloatType::F64) => {}
-            Self::Floor(FloatType::F64) => {}
-            Self::Truncate(FloatType::F64) => {}
-            Self::Nearest(FloatType::F64) => {}
+            Self::AbsoluteValue(FloatType::F64) => {
+                bytes += 0x99u8.emit(output)?;
+            }
+            Self::Negate(FloatType::F64) => {
+                bytes += 0x9Au8.emit(output)?;
+            }
+            Self::Ceiling(FloatType::F64) => {
+                bytes += 0x9Bu8.emit(output)?;
+            }
+            Self::Floor(FloatType::F64) => {
+                bytes += 0x9Cu8.emit(output)?;
+            }
+            Self::Truncate(FloatType::F64) => {
+                bytes += 0x9Du8.emit(output)?;
+            }
+            Self::Nearest(FloatType::F64) => {
+                bytes += 0x9Eu8.emit(output)?;
+            }
+            Self::SquareRoot(FloatType::F64) => {
+                bytes += 0x9Fu8.emit(output)?;
+            }
             // f64 Binary Operations
-            Self::Add(NumberType::F64) => {}
-            Self::Subtract(NumberType::F64) => {}
-            Self::Multiply(NumberType::F64) => {}
-            Self::DivideFloat(FloatType::F64) => {}
-            Self::Minimum(FloatType::F64) => {}
-            Self::Maximum(FloatType::F64) => {}
-            Self::CopySign(FloatType::F64) => {}
+            Self::Add(NumberType::F64) => {
+                bytes += 0xA0u8.emit(output)?;
+            }
+            Self::Subtract(NumberType::F64) => {
+                bytes += 0xA1u8.emit(output)?;
+            }
+            Self::Multiply(NumberType::F64) => {
+                bytes += 0xA2u8.emit(output)?;
+            }
+            Self::DivideFloat(FloatType::F64) => {
+                bytes += 0xA3u8.emit(output)?;
+            }
+            Self::Minimum(FloatType::F64) => {
+                bytes += 0xA4u8.emit(output)?;
+            }
+            Self::Maximum(FloatType::F64) => {
+                bytes += 0xA5u8.emit(output)?;
+            }
+            Self::CopySign(FloatType::F64) => {
+                bytes += 0xA6u8.emit(output)?;
+            }
             // Convert Operations
             Self::Wrap => {}
             Self::ExtendWithSignExtension(kind) => {}
