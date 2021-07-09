@@ -6,6 +6,7 @@ mod errors;
 mod lexer;
 mod parser;
 mod transformer;
+mod validator;
 
 pub struct Compiler {}
 

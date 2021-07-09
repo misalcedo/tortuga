@@ -1,5 +1,5 @@
 use crate::compiler::emitter::Emit;
-use crate::compiler::errors::CompilerError;
+use crate::compiler::errors::{CompilerError, ErrorKind};
 use crate::web_assembly::{
     BlockType, ControlInstruction, Expression, FloatType, Instruction, IntegerType, MemoryArgument,
     MemoryInstruction, NumberType, NumericInstruction, ParametricInstruction, ReferenceInstruction,
@@ -520,6 +520,7 @@ impl Emit for NumericInstruction {
                 bytes += 0xFCu8.emit(output)?;
                 bytes += 7u32.emit(output)?;
             }
+            _ => return Err(ErrorKind::InvalidSyntax.into()),
         }
 
         Ok(bytes)
