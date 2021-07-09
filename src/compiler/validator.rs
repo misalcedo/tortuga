@@ -20,6 +20,8 @@ impl Validate<CompilerError> for SyntaxCheck {
 
         target.emit(&mut bytes)?;
 
+        println!("{:?}", bytes.get_ref());
+
         let engine = Engine::default();
         let module = Module::new(&engine, bytes.get_ref())?;
         let mut store = Store::new(&engine, 0);

@@ -5,10 +5,10 @@ use crate::web_assembly::{
     Global, Import, ImportDescription, Memory, Module, Name, ReferenceType, Start, Table,
     TypeIndex,
 };
-use std::io::{Cursor, Write};
+use std::io::{Cursor, Seek, SeekFrom, Write};
 
-const PREAMBLE: &[u8; 4] = b"\x00\x61\x73\x6D";
-const VERSION: &[u8; 4] = b"\x01\x00\x00\x00";
+const PREAMBLE: [u8; 4] = [0x00u8, 0x61u8, 0x73u8, 0x6Du8];
+const VERSION: [u8; 4] = [0x01u8, 0x00u8, 0x00u8, 0x00u8];
 
 /// See https://webassembly.github.io/spec/core/binary/modules.html
 impl Emit for Module {
@@ -16,8 +16,8 @@ impl Emit for Module {
         let mut bytes = 0;
         let mut buffer: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 
-        bytes += output.write(PREAMBLE)?;
-        bytes += output.write(VERSION)?;
+        bytes += output.write(&PREAMBLE)?;
+        bytes += output.write(&VERSION)?;
 
         if !self.types().is_empty() {
             self.types().emit(&mut buffer)?;
@@ -100,6 +100,9 @@ impl Emit for Function {
         self.body().emit(&mut buffer)?;
 
         bytes += buffer.position().emit(output)?;
+
+        buffer.seek(SeekFrom::Start(0));
+
         bytes += std::io::copy(&mut buffer, output)? as usize;
 
         Ok(bytes)
@@ -331,6 +334,9 @@ fn emit_section<O: Write>(
 
     bytes += section.emit(output)?;
     bytes += buffer.position().emit(output)?;
+
+    buffer.seek(SeekFrom::Start(0));
+
     bytes += std::io::copy(buffer, output)? as usize;
 
     buffer.set_position(0);
