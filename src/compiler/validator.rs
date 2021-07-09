@@ -2,7 +2,6 @@ use crate::compiler::emitter::Emit;
 use crate::compiler::errors::CompilerError;
 use crate::web_assembly;
 use std::error::Error;
-use std::io::Cursor;
 use wasmtime::{Engine, Instance, Module, Store};
 
 /// A validation of a WebAssembly module.
@@ -16,14 +15,14 @@ pub struct SyntaxCheck {}
 
 impl Validate<CompilerError> for SyntaxCheck {
     fn validate(target: web_assembly::Module) -> Result<(), CompilerError> {
-        let mut bytes = Cursor::new(Vec::new());
+        let mut bytes = Vec::new();
 
         target.emit(&mut bytes)?;
 
-        println!("{:?}", bytes.get_ref());
+        println!("{:?}", &bytes);
 
         let engine = Engine::default();
-        let module = Module::new(&engine, bytes.get_ref())?;
+        let module = Module::new(&engine, &bytes)?;
         let mut store = Store::new(&engine, 0);
 
         Instance::new(&mut store, &module, &[])?;
@@ -134,9 +133,7 @@ mod tests {
         );
         module.add_function(function.clone());
 
-        let result = SyntaxCheck::validate(module);
-
-        assert!(result.is_ok());
+        SyntaxCheck::validate(module).unwrap();
     }
 
     #[test]
@@ -158,9 +155,7 @@ mod tests {
         let start = Start::new(0);
         module.set_start(Some(start));
 
-        let result = SyntaxCheck::validate(module);
-
-        assert!(result.is_ok());
+        SyntaxCheck::validate(module).unwrap();
     }
 
     #[test]
@@ -177,9 +172,7 @@ mod tests {
         let table = Table::new(TableType::new(Limit::new(0, None), ReferenceType::Function));
         module.add_table(table);
 
-        let result = SyntaxCheck::validate(module);
-
-        assert!(result.is_ok());
+        SyntaxCheck::validate(module).unwrap();
     }
 
     #[test]
@@ -189,9 +182,7 @@ mod tests {
         let table = Table::new(TableType::new(Limit::new(0, None), ReferenceType::Function));
         module.add_table(table);
 
-        let result = SyntaxCheck::validate(module);
-
-        assert!(result.is_ok());
+        SyntaxCheck::validate(module).unwrap();
     }
 
     #[test]
@@ -201,12 +192,10 @@ mod tests {
         let data = Data::new(DataMode::Passive, vec![42]);
         module.add_data(data.clone());
 
-        let memory = Memory::new(MemoryType::new(Limit::new(0, None)));
+        let memory = Memory::new(MemoryType::new(Limit::new(1, None)));
         module.add_memory(memory);
 
-        let result = SyntaxCheck::validate(module);
-
-        assert!(result.is_ok());
+        SyntaxCheck::validate(module).unwrap();
     }
 
     #[test]
@@ -216,9 +205,7 @@ mod tests {
         let memory = Memory::new(MemoryType::new(Limit::new(0, None)));
         module.add_memory(memory);
 
-        let result = SyntaxCheck::validate(module);
-
-        assert!(result.is_ok());
+        SyntaxCheck::validate(module).unwrap();
     }
 
     #[test]
@@ -233,9 +220,7 @@ mod tests {
         );
         module.add_global(global.clone());
 
-        let result = SyntaxCheck::validate(module);
-
-        assert!(result.is_ok());
+        SyntaxCheck::validate(module).unwrap();
     }
 
     #[test]
@@ -256,9 +241,7 @@ mod tests {
         );
         module.add_global(global.clone());
 
-        let result = SyntaxCheck::validate(module);
-
-        assert!(result.is_ok());
+        SyntaxCheck::validate(module).unwrap();
     }
 
     fn invalid_module() {
