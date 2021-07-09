@@ -73,6 +73,7 @@ impl Emit for Module {
         }
 
         if !self.functions().is_empty() {
+            self.functions().emit(&mut buffer)?;
             emit_section(ModuleSection::CodeSection, &mut buffer, output)?;
         }
 
@@ -80,6 +81,26 @@ impl Emit for Module {
             self.data().emit(&mut buffer)?;
             emit_section(ModuleSection::DataSection, &mut buffer, output)?;
         }
+
+        Ok(bytes)
+    }
+}
+
+impl Emit for Function {
+    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
+        let mut buffer: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        let mut bytes = 0;
+
+        self.locals().len().emit(&mut buffer)?;
+        for local in self.locals().kinds() {
+            1u32.emit(&mut buffer)?;
+            local.emit(&mut buffer)?;
+        }
+
+        self.body().emit(&mut buffer)?;
+
+        bytes += buffer.position().emit(output)?;
+        bytes += std::io::copy(&mut buffer, output)? as usize;
 
         Ok(bytes)
     }

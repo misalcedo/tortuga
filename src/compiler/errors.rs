@@ -26,6 +26,7 @@ impl Error for CompilerError {}
 #[derive(Debug)]
 pub enum ErrorKind {
     IO(std::io::Error),
+    AnyHow(anyhow::Error),
     InvalidSyntax,
 }
 
@@ -44,5 +45,11 @@ impl From<ErrorKind> for CompilerError {
 impl From<std::io::Error> for CompilerError {
     fn from(error: std::io::Error) -> Self {
         CompilerError::new(ErrorKind::IO(error))
+    }
+}
+
+impl From<anyhow::Error> for CompilerError {
+    fn from(error: anyhow::Error) -> Self {
+        CompilerError::new(ErrorKind::AnyHow(error))
     }
 }

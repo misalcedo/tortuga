@@ -55,24 +55,24 @@ pub enum ValueType {
 /// See https://webassembly.github.io/spec/core/syntax/types.html#result-types
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ResultType {
-    types: Vec<ValueType>,
+    kinds: Vec<ValueType>,
 }
 
 impl ResultType {
-    pub fn new(types: Vec<ValueType>) -> Self {
-        ResultType { types }
+    pub fn new(kinds: Vec<ValueType>) -> Self {
+        ResultType { kinds }
     }
 
-    pub fn value_types(&self) -> &[ValueType] {
-        &self.types
+    pub fn kinds(&self) -> &[ValueType] {
+        &self.kinds
     }
 
     pub fn len(&self) -> usize {
-        self.types.len()
+        self.kinds.len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.types.is_empty()
+        self.kinds.is_empty()
     }
 }
 
@@ -226,7 +226,7 @@ mod tests {
         assert_eq!(result_type.len(), 2);
         assert!(!result_type.is_empty());
         assert_eq!(
-            result_type.value_types(),
+            result_type.kinds(),
             &[
                 ValueType::Number(NumberType::I64),
                 ValueType::Number(NumberType::F64),

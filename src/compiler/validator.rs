@@ -21,10 +21,10 @@ impl Validate<CompilerError> for SyntaxCheck {
         target.emit(&mut bytes)?;
 
         let engine = Engine::default();
-        let module = Module::new(&engine, bytes.get_ref()).unwrap();
+        let module = Module::new(&engine, bytes.get_ref())?;
         let mut store = Store::new(&engine, 0);
 
-        let instance = Instance::new(&mut store, &module, &[]);
+        Instance::new(&mut store, &module, &[])?;
 
         Ok(())
     }
@@ -35,9 +35,9 @@ mod tests {
     use super::*;
     use crate::web_assembly::{
         ControlInstruction, Data, DataMode, Element, ElementInitializer, ElementMode, Export,
-        ExportDescription, Expression, Function, FunctionType, Global, GlobalType,
-        ImportDescription, Instruction, Limit, Memory, MemoryType, Name, NumberType,
-        NumericInstruction, ReferenceType, ResultType, Start, Table, TableType, ValueType,
+        ExportDescription, Expression, Function, FunctionType, Global, GlobalType, Instruction,
+        Limit, Memory, MemoryType, Name, NumberType, NumericInstruction, ReferenceType, ResultType,
+        Start, Table, TableType, ValueType,
     };
 
     #[test]
@@ -50,7 +50,6 @@ mod tests {
 
     #[test]
     fn valid_module() {
-        // TODO implement code section.
         let mut module = web_assembly::Module::new();
         let function_type = FunctionType::new(
             ResultType::new(vec![ValueType::Number(NumberType::I64)]),
@@ -101,5 +100,178 @@ mod tests {
         let result = SyntaxCheck::validate(module);
 
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn valid_module_type_only() {
+        let mut module = web_assembly::Module::new();
+        let function_type = FunctionType::new(
+            ResultType::new(vec![ValueType::Number(NumberType::I64)]),
+            ResultType::new(vec![ValueType::Number(NumberType::F64)]),
+        );
+        module.add_type(function_type.clone());
+
+        let result = SyntaxCheck::validate(module);
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn valid_module_function() {
+        let mut module = web_assembly::Module::new();
+        let function_type = FunctionType::new(
+            ResultType::new(vec![ValueType::Number(NumberType::I64)]),
+            ResultType::new(vec![ValueType::Number(NumberType::F64)]),
+        );
+        module.add_type(function_type.clone());
+
+        let function = Function::new(
+            0,
+            ResultType::new(vec![ValueType::Number(NumberType::I32)]),
+            Expression::new(vec![Instruction::Control(ControlInstruction::Nop)]),
+        );
+        module.add_function(function.clone());
+
+        let result = SyntaxCheck::validate(module);
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn valid_module_start() {
+        let mut module = web_assembly::Module::new();
+        let function_type = FunctionType::new(
+            ResultType::new(vec![ValueType::Number(NumberType::I64)]),
+            ResultType::new(vec![ValueType::Number(NumberType::F64)]),
+        );
+        module.add_type(function_type.clone());
+
+        let function = Function::new(
+            0,
+            ResultType::new(vec![ValueType::Number(NumberType::I32)]),
+            Expression::new(vec![Instruction::Control(ControlInstruction::Nop)]),
+        );
+        module.add_function(function.clone());
+
+        let start = Start::new(0);
+        module.set_start(Some(start));
+
+        let result = SyntaxCheck::validate(module);
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn valid_module_element() {
+        let mut module = web_assembly::Module::new();
+
+        let element = Element::new(
+            ReferenceType::Function,
+            ElementMode::Passive,
+            ElementInitializer::FunctionIndex(vec![0]),
+        );
+        module.add_element(element.clone());
+
+        let table = Table::new(TableType::new(Limit::new(0, None), ReferenceType::Function));
+        module.add_table(table);
+
+        let result = SyntaxCheck::validate(module);
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn valid_module_table_only() {
+        let mut module = web_assembly::Module::new();
+
+        let table = Table::new(TableType::new(Limit::new(0, None), ReferenceType::Function));
+        module.add_table(table);
+
+        let result = SyntaxCheck::validate(module);
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn valid_module_data() {
+        let mut module = web_assembly::Module::new();
+
+        let data = Data::new(DataMode::Passive, vec![42]);
+        module.add_data(data.clone());
+
+        let memory = Memory::new(MemoryType::new(Limit::new(0, None)));
+        module.add_memory(memory);
+
+        let result = SyntaxCheck::validate(module);
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn valid_module_memory_only() {
+        let mut module = web_assembly::Module::new();
+
+        let memory = Memory::new(MemoryType::new(Limit::new(0, None)));
+        module.add_memory(memory);
+
+        let result = SyntaxCheck::validate(module);
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn valid_module_global_only() {
+        let mut module = web_assembly::Module::new();
+
+        let global = Global::new(
+            GlobalType::new(false, ValueType::Number(NumberType::I64)),
+            Expression::new(vec![Instruction::Numeric(NumericInstruction::I64Constant(
+                0,
+            ))]),
+        );
+        module.add_global(global.clone());
+
+        let result = SyntaxCheck::validate(module);
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn valid_module_import_only() {
+        let mut module = web_assembly::Module::new();
+
+        let export = Export::new(
+            Name::new("foobar".to_string()),
+            ExportDescription::Global(0),
+        );
+        module.add_export(export.clone());
+
+        let global = Global::new(
+            GlobalType::new(false, ValueType::Number(NumberType::I64)),
+            Expression::new(vec![Instruction::Numeric(NumericInstruction::I64Constant(
+                0,
+            ))]),
+        );
+        module.add_global(global.clone());
+
+        let result = SyntaxCheck::validate(module);
+
+        assert!(result.is_ok());
+    }
+
+    fn invalid_module() {
+        let mut module = web_assembly::Module::new();
+
+        // function with no corresponding type.
+        let function = Function::new(
+            0,
+            ResultType::new(vec![ValueType::Number(NumberType::I32)]),
+            Expression::new(vec![Instruction::Control(ControlInstruction::Nop)]),
+        );
+        module.add_function(function.clone());
+
+        let result = SyntaxCheck::validate(module);
+
+        assert!(result.is_err());
     }
 }

@@ -47,7 +47,7 @@ impl Emit for ValueType {
 
 impl Emit for ResultType {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        self.value_types().emit(output)
+        self.kinds().emit(output)
     }
 }
 
