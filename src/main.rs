@@ -1,6 +1,6 @@
 use clap::{App, Arg, SubCommand};
 use std::path::Path;
-use tortuga::build;
+use tortuga::{build, clean};
 
 fn main() {
     let matches = App::new("Tortuga")
@@ -12,32 +12,47 @@ fn main() {
                 .about("Compiles the input directory.")
                 .arg(
                     Arg::with_name("input")
+                        .long("input")
                         .short("i")
-                        .index(1)
                         .value_name("PATH")
-                        .default_value("./src/")
+                        .default_value("src")
                         .help("Sets a custom input directory for compilation.")
                         .takes_value(true),
                 )
                 .arg(
                     Arg::with_name("output")
+                        .long("output")
                         .short("o")
-                        .index(2)
                         .value_name("PATH")
-                        .default_value("./out/")
+                        .default_value("out")
                         .help("Sets a custom output directory for compilation.")
+                        .takes_value(true),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("clean")
+                .about("Cleans the output directory.")
+                .arg(
+                    Arg::with_name("output")
+                        .long("output")
+                        .short("o")
+                        .value_name("PATH")
+                        .default_value("out")
+                        .help("Sets a custom output directory for cleaning.")
                         .takes_value(true),
                 ),
         )
         .get_matches();
 
-    // You can handle information about subcommands by requesting their matches by name
-    // (as below), requesting just the name used, or both at the same time
     if let Some(matches) = matches.subcommand_matches("build") {
         let output = matches.value_of("output").map(Path::new).unwrap();
         let input = matches.value_of("input").map(Path::new).unwrap();
 
-        build(input, output);
+        build(input, output).unwrap();
+    } else if let Some(matches) = matches.subcommand_matches("clean") {
+        let output = matches.value_of("output").map(Path::new).unwrap();
+
+        clean(output).unwrap();
     } else {
         println!(
             "Invalid subcommand name: {}",

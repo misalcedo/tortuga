@@ -28,4 +28,5 @@ log = "0.4.14"
 uuid = { version = "0.8", features = ["serde", "v4"] }
 thiserror = "1.0"
 tokio = "1.8.1"
+walkdir = "2.3.2"
 wasmtime = "0.28.0"
