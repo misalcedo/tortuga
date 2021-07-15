@@ -1,6 +1,6 @@
 use clap::{App, Arg, SubCommand};
 use std::path::Path;
-use tortuga::compile;
+use tortuga::build;
 
 fn main() {
     let matches = App::new("Tortuga")
@@ -37,7 +37,7 @@ fn main() {
         let output = matches.value_of("output").map(Path::new).unwrap();
         let input = matches.value_of("input").map(Path::new).unwrap();
 
-        compile(input, output);
+        build(input, output);
     } else {
         println!(
             "Invalid subcommand name: {}",

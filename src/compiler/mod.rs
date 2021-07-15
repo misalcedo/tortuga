@@ -1,10 +1,9 @@
 use crate::compiler::emitter::Emit;
-use crate::compiler::errors::CompilerError;
 use crate::web_assembly::{
-    ControlInstruction, Data, DataMode, Element, ElementInitializer, ElementMode, Export,
-    ExportDescription, Expression, Function, FunctionType, Global, GlobalType, Import,
-    ImportDescription, Instruction, Limit, Memory, MemoryType, Module, Name, NumberType,
-    NumericInstruction, ReferenceType, ResultType, Start, Table, TableType, ValueType,
+    Data, DataMode, Element, ElementInitializer, ElementMode, Export, ExportDescription,
+    Expression, Function, FunctionType, Global, GlobalType, Instruction, Limit, Memory, MemoryType,
+    Module, Name, NumberType, NumericInstruction, ReferenceType, ResultType, Start, Table,
+    TableType, ValueType,
 };
 use std::io::{Read, Write};
 
@@ -13,6 +12,8 @@ mod errors;
 mod lexer;
 mod parser;
 mod transformer;
+
+pub use errors::CompilerError;
 
 pub struct Compiler {}
 
@@ -23,7 +24,7 @@ impl Compiler {
 
     pub fn compile<I: Read, O: Write>(
         &self,
-        input: &I,
+        _input: &I,
         output: &mut O,
     ) -> Result<usize, CompilerError> {
         let mut module = Module::new();

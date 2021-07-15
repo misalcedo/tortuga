@@ -1,5 +1,5 @@
 use crate::compiler::emitter::Emit;
-use crate::compiler::errors::{CompilerError, ErrorKind};
+use crate::compiler::errors::CompilerError;
 use crate::web_assembly::{
     Data, DataMode, Element, ElementInitializer, ElementMode, Export, ExportDescription, Function,
     Global, Import, ImportDescription, Memory, Module, Name, ReferenceType, Start, Table,
@@ -271,7 +271,7 @@ impl Emit for Element {
                 bytes += kind.emit(output)?;
                 bytes += expressions.emit(output)?;
             }
-            _ => return Err(ErrorKind::InvalidSyntax.into()),
+            _ => return Err(CompilerError::InvalidSyntax),
         };
 
         Ok(bytes)

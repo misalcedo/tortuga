@@ -1,14 +1,12 @@
 use thiserror::Error;
 
-/// An error that occurred while interacting with a Bloom Filter.
+/// An error that occurred while interacting with Tortuga.
 #[derive(Error, Debug)]
-pub enum CompilerError {
+pub enum TortugaError {
     #[error("An IO error occurred.")]
     IO(#[from] std::io::Error),
     #[error("An error occurred during compilation.")]
-    AnyHow(#[from] anyhow::Error),
-    #[error("A syntax error occurred.")]
-    InvalidSyntax,
+    CompilerError(#[from] crate::compiler::CompilerError),
     #[error("Unknown error occurred.")]
     Unknown,
 }
