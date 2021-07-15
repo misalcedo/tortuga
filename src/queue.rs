@@ -146,7 +146,7 @@ impl RingBufferQueue {
             self.read_index = (self.read_index + 1) % self.buffer.len();
 
             // TODO figure out a way to reset the envelope to empty without copying the message.
-            
+
             Some((post_mark, Cow::from(message)))
         }
     }
