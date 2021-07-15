@@ -22,7 +22,10 @@ harness = false
 [dependencies]
 anyhow = "1.0"
 byteorder = "1.4.3"
+clap = "2.33.3"
 leb128 = "0.2.4"
+log = "0.4.14"
 uuid = { version = "0.8", features = ["serde", "v4"] }
 thiserror = "1.0"
+tokio = "1.8.1"
 wasmtime = "0.28.0"
