@@ -6,7 +6,7 @@ pub enum TortugaError {
     #[error("An IO error occurred.")]
     IO(#[from] std::io::Error),
     #[error("An error occurred during compilation.")]
-    CompilerError(#[from] crate::compiler::CompilerError),
+    Other(#[from] crate::compiler::CompilerError),
     #[error("Unknown error occurred.")]
     Unknown,
 }
