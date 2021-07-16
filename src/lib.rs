@@ -2,7 +2,7 @@ pub mod about;
 mod compiler;
 mod errors;
 mod fs;
-mod syntax;
+pub mod syntax;
 
 use compiler::Compiler;
 pub use errors::TortugaError;

@@ -195,16 +195,6 @@ impl GlobalType {
     }
 }
 
-/// External types classify imports and external values with their respective types.
-/// See https://webassembly.github.io/spec/core/syntax/types.html#external-types
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum ExternalType {
-    Function(FunctionType),
-    Table(TableType),
-    Memory(MemoryType),
-    Global(GlobalType),
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
