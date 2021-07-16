@@ -1,5 +1,6 @@
 use crate::syntax::web_assembly::types::*;
 use crate::syntax::web_assembly::{Expression, Name};
+use serde::{Deserialize, Serialize};
 
 /// WebAssembly programs are organized into modules, which are the unit of deployment, loading, and compilation.
 /// A module collects definitions for types, functions, tables, memories, and globals.
@@ -9,7 +10,7 @@ use crate::syntax::web_assembly::{Expression, Name};
 /// Each of the vectors – and thus the entire module – may be empty.
 ///
 /// See https://webassembly.github.io/spec/core/syntax/modules.html#modules
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Module {
     function_types: Vec<FunctionType>,
     functions: Vec<Function>,
@@ -166,7 +167,7 @@ pub type LabelIndex = usize;
 /// The 𝖻𝗈𝖽𝗒 is an instruction sequence that upon termination must produce a stack matching the function type’s result type.
 ///
 /// See https://webassembly.github.io/spec/core/syntax/modules.html#functions
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Function {
     kind: TypeIndex,
     locals: ResultType,
@@ -199,7 +200,7 @@ impl Function {
 /// Most constructs implicitly reference table index 0.
 ///
 /// See https://webassembly.github.io/spec/core/syntax/modules.html#tables
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Table {
     kind: TableType,
 }
@@ -223,7 +224,7 @@ impl Table {
 /// Most constructs implicitly reference memory index 0.
 ///
 /// See https://webassembly.github.io/spec/core/syntax/modules.html#memories
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Memory {
     kind: MemoryType,
 }
@@ -245,7 +246,7 @@ impl Memory {
 /// starting with the smallest index not referencing a global import.
 ///
 /// See https://webassembly.github.io/spec/core/syntax/modules.html#globals
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Global {
     kind: GlobalType,
     initializer: Expression,
@@ -278,7 +279,7 @@ impl Global {
 /// Element segments are referenced through element indices.
 ///
 /// See https://webassembly.github.io/spec/core/syntax/modules.html#element-segments
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Element {
     kind: ReferenceType,
     mode: ElementMode,
@@ -310,14 +311,14 @@ impl Element {
 /// The specification only describes elements as allowing expressions for the initializer.
 /// However, the binary specification allows a vector of function indices.
 /// We need to deviate from the specification here in order to support the full binary format.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ElementInitializer {
     Expression(Vec<Expression>),
     FunctionIndex(Vec<FunctionIndex>),
 }
 
 /// Element segments have a mode that identifies them as either passive, active, or declarative.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ElementMode {
     /// A passive element segment’s elements can be copied to a table using the 𝗍𝖺𝖻𝗅𝖾.𝗂𝗇𝗂𝗍 instruction.
     Passive,
@@ -339,7 +340,7 @@ pub enum ElementMode {
 /// Data segments are referenced through data indices.
 ///
 /// See https://webassembly.github.io/spec/core/syntax/modules.html#data-segments
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Data {
     mode: DataMode,
     initializer: Vec<u8>,
@@ -364,7 +365,7 @@ impl Data {
 }
 
 /// Like element segments, data segments have a mode that identifies them as either passive or active.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum DataMode {
     /// A passive data segment’s contents can be copied into a memory using the 𝗆𝖾𝗆𝗈𝗋𝗒.𝗂𝗇𝗂𝗍 instruction.
     Passive,
@@ -379,7 +380,7 @@ pub enum DataMode {
 /// start::={𝖿𝗎𝗇𝖼 funcidx}
 ///
 /// See https://webassembly.github.io/spec/core/syntax/modules.html#start-function
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Start {
     function: FunctionIndex,
 }
@@ -401,7 +402,7 @@ impl Start {
 /// which are referenced through a respective descriptor.
 ///
 /// See https://webassembly.github.io/spec/core/syntax/modules.html#exports
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Export {
     name: Name,
     description: ExportDescription,
@@ -423,7 +424,7 @@ impl Export {
 
 /// Exportable definitions are functions, tables, memories, and globals,
 /// which are referenced through a respective descriptor.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ExportDescription {
     Function(FunctionIndex),
     Table(TableIndex),
@@ -441,7 +442,7 @@ pub enum ExportDescription {
 /// definition contained in the module itself.
 ///
 /// See https://webassembly.github.io/spec/core/syntax/modules.html#imports
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Import {
     module: Name,
     name: Name,
@@ -472,7 +473,7 @@ impl Import {
 
 /// Each import is specified by a descriptor with a respective type that a definition provided
 /// during instantiation is required to match.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ImportDescription {
     Function(TypeIndex),
     Table(TableType),

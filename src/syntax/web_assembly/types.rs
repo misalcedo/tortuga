@@ -1,8 +1,10 @@
+use serde::{Deserialize, Serialize};
+
 /// Number types classify numeric values.
 /// Number types are transparent, meaning that their bit patterns can be observed.
 /// Values of number type can be stored in memories.
 /// See https://webassembly.github.io/spec/core/syntax/types.html#number-types
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum NumberType {
     I32,
     I64,
@@ -12,7 +14,7 @@ pub enum NumberType {
 
 /// The types 𝗂𝟥𝟤 and 𝗂𝟨𝟦 classify 32 and 64 bit integers, respectively.
 /// Integers are not inherently signed or unsigned, their interpretation is determined by individual operations.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum IntegerType {
     I32,
     I64,
@@ -21,7 +23,7 @@ pub enum IntegerType {
 /// The types 𝖿𝟥𝟤 and 𝖿𝟨𝟦 classify 32 and 64 bit floating-point data, respectively.
 /// They correspond to the respective binary floating-point representations,
 /// also known as single and double precision, as defined by the IEEE 754-2019 standard (Section 3.3).
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum FloatType {
     F32,
     F64,
@@ -35,7 +37,7 @@ pub enum FloatType {
 /// Reference types are opaque, meaning that neither their size nor their bit pattern can be observed.
 /// Values of reference type can be stored in tables.
 /// See https://webassembly.github.io/spec/core/syntax/types.html#reference-types
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ReferenceType {
     Function, // funcref
     External, // externref
@@ -44,7 +46,7 @@ pub enum ReferenceType {
 /// Value types classify the individual values that WebAssembly code can compute with and the values that a variable accepts.
 /// They are either number types or reference types.
 /// See https://webassembly.github.io/spec/core/syntax/types.html#value-types
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ValueType {
     Number(NumberType),
     Reference(ReferenceType),
@@ -53,7 +55,7 @@ pub enum ValueType {
 /// Result types classify the result of executing instructions or functions,
 /// which is a sequence of values, written with brackets.
 /// See https://webassembly.github.io/spec/core/syntax/types.html#result-types
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ResultType {
     kinds: Vec<ValueType>,
 }
@@ -80,7 +82,7 @@ impl ResultType {
 /// mapping a vector of parameters to a vector of results.
 /// They are also used to classify the inputs and outputs of instructions.
 /// See https://webassembly.github.io/spec/core/syntax/types.html#function-types
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct FunctionType {
     parameters: ResultType,
     results: ResultType,
@@ -105,7 +107,7 @@ impl FunctionType {
 
 /// Limits classify the size range of resizeable storage associated with memory types and table types.
 /// See https://webassembly.github.io/spec/core/syntax/types.html#limits
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Limit {
     min: usize,
     max: Option<usize>,
@@ -129,7 +131,7 @@ impl Limit {
 /// The limits constrain the minimum and optionally the maximum size of a memory.
 /// The limits are given in units of page size.
 /// See https://webassembly.github.io/spec/core/syntax/types.html#memory-types
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct MemoryType {
     limits: Limit,
 }
@@ -148,7 +150,7 @@ impl MemoryType {
 /// Like memories, tables are constrained by limits for their minimum and optionally maximum size.
 /// The limits are given in numbers of entries.
 /// See https://webassembly.github.io/spec/core/syntax/types.html#table-types
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct TableType {
     limits: Limit,
     kind: ReferenceType,
@@ -173,7 +175,7 @@ impl TableType {
 
 /// Global types classify global variables, which hold a value and can either be mutable or immutable.
 /// See https://webassembly.github.io/spec/core/syntax/types.html#global-types
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct GlobalType {
     is_mutable: bool,
     kind: ValueType,

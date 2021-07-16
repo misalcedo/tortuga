@@ -4,14 +4,19 @@ mod types;
 mod values;
 
 use crate::compiler::errors::CompilerError;
+use crate::syntax::web_assembly::Module;
 use std::io::Write;
-
 pub use types::*;
 pub use values::*;
 
 /// Emits a binary representation of a WebAssembly Abstract Syntax Tree (AST) to a `Write` output.
-pub trait Emit {
+trait Emit {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError>;
+}
+
+/// Emits a binary representation of a WebAssembly Abstract Syntax Tree (AST) to a `Write` output.
+pub fn emit_binary<O: Write>(module: Module, output: &mut O) -> Result<usize, CompilerError> {
+    module.emit(output)
 }
 
 #[cfg(test)]

@@ -1,8 +1,10 @@
+use serde::{Deserialize, Serialize};
+
 /// Names are sequences of characters, which are scalar values as defined by Unicode (Section 2.4).
 /// Due to the limitations of the binary format,
 /// the length of a name is bounded by the length of its UTF-8 encoding.
 /// See https://webassembly.github.io/spec/core/syntax/values.html#names
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Name {
     value: String,
 }
@@ -28,7 +30,7 @@ impl Name {
 /// The simplest form of value are raw uninterpreted bytes.
 /// In the abstract syntax they are represented as hexadecimal literals.
 /// See https://webassembly.github.io/spec/core/syntax/values.html#bytes
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Bytes<'a> {
     value: &'a [u8],
 }

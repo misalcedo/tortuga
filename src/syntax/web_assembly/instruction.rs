@@ -2,6 +2,7 @@ use crate::syntax::web_assembly::{
     DataIndex, ElementIndex, FloatType, FunctionIndex, GlobalIndex, IntegerType, LabelIndex,
     LocalIndex, NumberType, ReferenceType, TableIndex, TypeIndex, ValueType,
 };
+use serde::{Deserialize, Serialize};
 
 /// WebAssembly code consists of sequences of instructions.
 /// Its computational model is based on a stack machine in that instructions manipulate values on
@@ -14,7 +15,7 @@ use crate::syntax::web_assembly::{
 /// The following sections group instructions into a number of different categories.
 ///
 /// See https://webassembly.github.io/spec/core/syntax/instructions.html#instructions
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Instruction {
     Numeric(NumericInstruction),
     Reference(ReferenceInstruction),
@@ -34,7 +35,7 @@ pub enum Instruction {
 /// for the signed interpretation means that they behave the same regardless of signedness.
 ///
 /// See https://webassembly.github.io/spec/core/syntax/instructions.html#numeric-instructions
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum NumericInstruction {
     I32Constant(i32),
     I64Constant(i64),
@@ -93,7 +94,7 @@ pub enum NumericInstruction {
 /// These instruction produce a null value, check for a null value, or produce a reference to a given function, respectively.
 ///
 /// See https://webassembly.github.io/spec/core/syntax/instructions.html#reference-instructions
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ReferenceInstruction {
     /// Produce a null value.
     ReferenceNull(ReferenceType),
@@ -106,7 +107,7 @@ pub enum ReferenceInstruction {
 /// Instructions in this group can operate on operands of any value type.
 ///
 /// https://webassembly.github.io/spec/core/syntax/instructions.html#parametric-instructions
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ParametricInstruction {
     /// The 𝖽𝗋𝗈𝗉 instruction simply throws away a single operand.
     Drop,
@@ -121,7 +122,7 @@ pub enum ParametricInstruction {
 /// The 𝗅𝗈𝖼𝖺𝗅.𝗍𝖾𝖾 instruction is like 𝗅𝗈𝖼𝖺𝗅.𝗌𝖾𝗍 but also returns its argument.
 ///
 /// See https://webassembly.github.io/spec/core/syntax/instructions.html#variable-instructions
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum VariableInstruction {
     /// Get the value of a local variable.
     LocalGet(LocalIndex),
@@ -139,7 +140,7 @@ pub enum VariableInstruction {
 /// An additional instruction that accesses a table is the control instruction 𝖼𝖺𝗅𝗅_𝗂𝗇𝖽𝗂𝗋𝖾𝖼𝗍.
 ///
 /// See https://webassembly.github.io/spec/core/syntax/instructions.html#table-instructions
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum TableInstruction {
     /// The 𝗍𝖺𝖻𝗅𝖾.𝗀𝖾𝗍 instruction loads an element in a table.
     TableGet(TableIndex),
@@ -180,7 +181,7 @@ pub enum TableInstruction {
 /// the memory’s current size.
 ///
 /// See https://webassembly.github.io/spec/core/syntax/instructions.html#memory-instructions
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum MemoryInstruction {
     /// Load a number type from memory.
     Load(NumberType, MemoryArgument),
@@ -243,7 +244,7 @@ pub enum MemoryInstruction {
 /// represent the values consumed by the restarted block.
 ///
 /// See https://webassembly.github.io/spec/core/syntax/instructions.html#control-instructions
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ControlInstruction {
     /// The 𝗇𝗈𝗉 instruction does nothing.
     Nop,
@@ -283,14 +284,14 @@ pub enum ControlInstruction {
 /// or as an optional value type inline, which is a shorthand for the function type []→[valtype?].
 ///
 /// See https://webassembly.github.io/spec/core/syntax/instructions.html#control-instructions
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum BlockType {
     None,
     Index(TypeIndex),
     ValueType(ValueType),
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct MemoryArgument {
     align: usize,
     offset: usize,
@@ -313,7 +314,7 @@ impl MemoryArgument {
 /// Modifier to numeric operations (e.g.,  load, store, extend, etc.) to treat an integer as
 /// smaller than its type suggest.
 // TODO: get rid of this.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum StorageSize {
     I32_8,
     I64_8,
@@ -328,7 +329,7 @@ pub enum StorageSize {
 /// means that they behave the same regardless of signedness.
 ///
 /// See https://webassembly.github.io/spec/core/syntax/instructions.html#numeric-instructions
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum SignExtension {
     Signed,
     Unsigned,
@@ -340,7 +341,7 @@ pub enum SignExtension {
 /// which limits the set of allowable instructions.
 ///
 /// See https://webassembly.github.io/spec/core/syntax/instructions.html#expressions
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Expression {
     instructions: Vec<Instruction>,
 }
