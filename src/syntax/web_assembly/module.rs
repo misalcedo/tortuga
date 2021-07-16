@@ -1,5 +1,5 @@
-use crate::web_assembly::types::*;
-use crate::web_assembly::{Expression, Name};
+use crate::syntax::web_assembly::types::*;
+use crate::syntax::web_assembly::{Expression, Name};
 
 /// WebAssembly programs are organized into modules, which are the unit of deployment, loading, and compilation.
 /// A module collects definitions for types, functions, tables, memories, and globals.
@@ -483,7 +483,7 @@ pub enum ImportDescription {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::web_assembly::{ControlInstruction, Instruction, NumericInstruction};
+    use crate::syntax::web_assembly::{ControlInstruction, Instruction, NumericInstruction};
 
     #[test]
     fn empty_module() {

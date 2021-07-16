@@ -1,14 +1,15 @@
+use std::fs::{create_dir_all, remove_dir_all, File};
+use std::path::Path;
+
+use walkdir::{DirEntry, WalkDir};
+
+use compiler::Compiler;
+pub use errors::TortugaError;
+
 mod compiler;
 mod errors;
 mod queue;
-mod web_assembly;
-
-use compiler::Compiler;
-use std::fs::{create_dir_all, remove_dir_all, File};
-use std::path::Path;
-use walkdir::{DirEntry, WalkDir};
-
-pub use errors::TortugaError;
+mod syntax;
 
 fn is_not_hidden(entry: &DirEntry) -> bool {
     entry

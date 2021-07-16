@@ -1,6 +1,6 @@
 use crate::compiler::emitter::Emit;
 use crate::compiler::errors::CompilerError;
-use crate::web_assembly::{Bytes, Name};
+use crate::syntax::web_assembly::{Bytes, Name};
 use byteorder::{LittleEndian, WriteBytesExt};
 use std::io::Write;
 use std::mem::size_of;

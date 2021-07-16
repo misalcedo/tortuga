@@ -1,6 +1,6 @@
 use crate::compiler::emitter::Emit;
 use crate::compiler::errors::CompilerError;
-use crate::web_assembly::{
+use crate::syntax::web_assembly::{
     FunctionType, GlobalType, Limit, MemoryType, NumberType, ReferenceType, ResultType, TableType,
     ValueType,
 };

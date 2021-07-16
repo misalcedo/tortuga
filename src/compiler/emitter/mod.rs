@@ -17,7 +17,7 @@ pub trait Emit {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::web_assembly::{
+    use crate::syntax::web_assembly::{
         self, ControlInstruction, Data, DataMode, Element, ElementInitializer, ElementMode, Export,
         ExportDescription, Expression, Function, FunctionType, Global, GlobalType, Import,
         ImportDescription, Instruction, Limit, Memory, MemoryType, Name, NumberType,

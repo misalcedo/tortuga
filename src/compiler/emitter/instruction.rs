@@ -1,6 +1,6 @@
 use crate::compiler::emitter::Emit;
 use crate::compiler::CompilerError;
-use crate::web_assembly::{
+use crate::syntax::web_assembly::{
     BlockType, ControlInstruction, Expression, FloatType, Instruction, IntegerType, MemoryArgument,
     MemoryInstruction, NumberType, NumericInstruction, ParametricInstruction, ReferenceInstruction,
     SignExtension, StorageSize, TableInstruction, VariableInstruction,

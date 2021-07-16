@@ -1,19 +1,20 @@
+use std::io::{Read, Write};
+
+pub use errors::CompilerError;
+
 use crate::compiler::emitter::Emit;
-use crate::web_assembly::{
+use crate::syntax::web_assembly::{
     Data, DataMode, Element, ElementInitializer, ElementMode, Export, ExportDescription,
     Expression, Function, FunctionType, Global, GlobalType, Instruction, Limit, Memory, MemoryType,
     Module, Name, NumberType, NumericInstruction, ReferenceType, ResultType, Start, Table,
     TableType, ValueType,
 };
-use std::io::{Read, Write};
 
 mod emitter;
 mod errors;
 mod lexer;
 mod parser;
 mod transformer;
-
-pub use errors::CompilerError;
 
 pub struct Compiler {}
 

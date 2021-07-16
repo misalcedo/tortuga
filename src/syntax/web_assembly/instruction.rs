@@ -1,4 +1,4 @@
-use crate::web_assembly::{
+use crate::syntax::web_assembly::{
     DataIndex, ElementIndex, FloatType, FunctionIndex, GlobalIndex, IntegerType, LabelIndex,
     LocalIndex, NumberType, ReferenceType, TableIndex, TypeIndex, ValueType,
 };
