@@ -1,17 +1,15 @@
-use std::path::Path;
-
-use compiler::Compiler;
-pub use errors::TortugaError;
-
 mod compiler;
 mod errors;
 mod fs;
-mod queue;
 mod syntax;
 
+use compiler::Compiler;
+pub use errors::TortugaError;
 pub use fs::clean;
-use walkdir::WalkDir;
+use std::path::Path;
 
+/// Compiles all of the Tortuga sources in the input directory.
+/// The compilation artifacts are written to the output directory.
 pub fn build<I, O>(input: I, output: O) -> Result<(), TortugaError>
 where
     I: AsRef<Path>,
