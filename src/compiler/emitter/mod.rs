@@ -22,6 +22,7 @@ pub fn emit_binary<O: Write>(module: Module, output: &mut O) -> Result<usize, Co
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::about;
     use crate::syntax::web_assembly::{
         self, ControlInstruction, Data, DataMode, Element, ElementInitializer, ElementMode, Export,
         ExportDescription, Expression, Function, FunctionType, Global, GlobalType, Import,
@@ -57,7 +58,22 @@ mod tests {
 
         module.emit(&mut buffer).unwrap();
 
-        assert_eq!(&buffer, b"\x00\x61\x73\x6D\x01\x00\x00\x00")
+        let mut bytes: Vec<u8> = Vec::new();
+        let prefix = b"\x00\x61\x73\x6D\x01\x00\x00\x00";
+        let section = b"\x00";
+        let name = "version".as_bytes();
+        let version = about::VERSION.as_bytes();
+        let size = name.len() + version.len() + 2;
+
+        bytes.extend(prefix);
+        bytes.extend(section);
+        bytes.push(size as u8);
+        bytes.push(name.len() as u8);
+        bytes.extend(name);
+        bytes.push(version.len() as u8);
+        bytes.extend(version);
+
+        assert_eq!(&buffer, &bytes)
     }
 
     #[test]
@@ -310,6 +326,7 @@ mod tests {
         validate(module).unwrap();
     }
 
+    #[test]
     fn invalid_module() {
         let mut module = web_assembly::Module::new();
 

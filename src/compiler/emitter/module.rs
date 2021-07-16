@@ -1,3 +1,4 @@
+use crate::about;
 use crate::compiler::emitter::Emit;
 use crate::compiler::errors::CompilerError;
 use crate::syntax::web_assembly::{
@@ -19,14 +20,16 @@ impl Emit for Module {
         bytes += output.write(&PREAMBLE)?;
         bytes += output.write(&VERSION)?;
 
+        bytes += emit_version(&mut buffer, output)?;
+
         if !self.types().is_empty() {
             self.types().emit(&mut buffer)?;
-            emit_section(ModuleSection::TypeSection, &mut buffer, output)?;
+            bytes += emit_section(ModuleSection::TypeSection, &mut buffer, output)?;
         }
 
         if !self.imports().is_empty() {
             self.imports().emit(&mut buffer)?;
-            emit_section(ModuleSection::ImportSection, &mut buffer, output)?;
+            bytes += emit_section(ModuleSection::ImportSection, &mut buffer, output)?;
         }
 
         if !self.functions().is_empty() {
@@ -34,52 +37,52 @@ impl Emit for Module {
 
             types.as_slice().emit(&mut buffer)?;
 
-            emit_section(ModuleSection::FunctionSection, &mut buffer, output)?;
+            bytes += emit_section(ModuleSection::FunctionSection, &mut buffer, output)?;
         }
 
         if !self.tables().is_empty() {
             self.tables().emit(&mut buffer)?;
-            emit_section(ModuleSection::TableSection, &mut buffer, output)?;
+            bytes += emit_section(ModuleSection::TableSection, &mut buffer, output)?;
         }
 
         if !self.memories().is_empty() {
             self.memories().emit(&mut buffer)?;
-            emit_section(ModuleSection::MemorySection, &mut buffer, output)?;
+            bytes += emit_section(ModuleSection::MemorySection, &mut buffer, output)?;
         }
 
         if !self.globals().is_empty() {
             self.globals().emit(&mut buffer)?;
-            emit_section(ModuleSection::GlobalSection, &mut buffer, output)?;
+            bytes += emit_section(ModuleSection::GlobalSection, &mut buffer, output)?;
         }
 
         if !self.exports().is_empty() {
             self.exports().emit(&mut buffer)?;
-            emit_section(ModuleSection::ExportSection, &mut buffer, output)?;
+            bytes += emit_section(ModuleSection::ExportSection, &mut buffer, output)?;
         }
 
         if let Some(start) = self.start() {
             start.emit(&mut buffer)?;
-            emit_section(ModuleSection::StartSection, &mut buffer, output)?;
+            bytes += emit_section(ModuleSection::StartSection, &mut buffer, output)?;
         }
 
         if !self.elements().is_empty() {
             self.elements().emit(&mut buffer)?;
-            emit_section(ModuleSection::ElementSection, &mut buffer, output)?;
+            bytes += emit_section(ModuleSection::ElementSection, &mut buffer, output)?;
         }
 
         if !self.data().is_empty() {
             self.data().len().emit(&mut buffer)?;
-            emit_section(ModuleSection::DataCountSection, &mut buffer, output)?;
+            bytes += emit_section(ModuleSection::DataCountSection, &mut buffer, output)?;
         }
 
         if !self.functions().is_empty() {
             self.functions().emit(&mut buffer)?;
-            emit_section(ModuleSection::CodeSection, &mut buffer, output)?;
+            bytes += emit_section(ModuleSection::CodeSection, &mut buffer, output)?;
         }
 
         if !self.data().is_empty() {
             self.data().emit(&mut buffer)?;
-            emit_section(ModuleSection::DataSection, &mut buffer, output)?;
+            bytes += emit_section(ModuleSection::DataSection, &mut buffer, output)?;
         }
 
         Ok(bytes)
@@ -303,7 +306,16 @@ impl Emit for Data {
     }
 }
 
-fn emit_custom_section<O: Write>(
+/// Emit a custom section with the version of the language the module was compiled.
+fn emit_version<O: Write>(buffer: &mut Vec<u8>, output: &mut O) -> Result<usize, CompilerError> {
+    let version_section = Name::new("version".to_string());
+
+    emit_custom_content(&version_section, about::VERSION.as_bytes(), buffer)?;
+    emit_section(ModuleSection::CustomSection, buffer, output)
+}
+
+/// Emit named custom content to the module.
+fn emit_custom_content<O: Write>(
     name: &Name,
     content: &[u8],
     output: &mut O,
