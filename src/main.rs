@@ -2,11 +2,13 @@ use clap::{App, Arg, SubCommand};
 use std::path::Path;
 use tortuga::{build, clean};
 
+const APP_NAME: &str = env!("CARGO_BIN_NAME");
+
 fn main() {
-    let matches = App::new("Tortuga")
-        .version("0.2.0")
-        .author("Miguel D. Salcedo <miguel@salcedo.cc>")
-        .about("Compiler and runtime executable for the Tortuga programming language.")
+    let matches = App::new(APP_NAME)
+        .version(tortuga::about::VERSION)
+        .author(tortuga::about::AUTHORS)
+        .about(tortuga::about::DESCRIPTION)
         .subcommand(
             SubCommand::with_name("build")
                 .about("Compiles the input directory.")

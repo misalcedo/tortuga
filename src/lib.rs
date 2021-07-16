@@ -1,3 +1,4 @@
+pub mod about;
 mod compiler;
 mod errors;
 mod fs;
