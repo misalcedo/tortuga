@@ -16,7 +16,7 @@ impl Compiler {
 
     pub fn compile<I: Read, O: Write>(
         &self,
-        input: &I,
+        input: I,
         output: &mut O,
     ) -> Result<usize, CompilerError> {
         let tokens = lexer::tokenize(input)?;
