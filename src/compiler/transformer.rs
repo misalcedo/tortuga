@@ -7,7 +7,7 @@ use crate::syntax::web_assembly::{
     TableType, ValueType,
 };
 
-pub fn transform(_node: &Node) -> Result<Module, CompilerError> {
+pub async fn transform(_node: &Node) -> Result<Module, CompilerError> {
     let mut module = Module::new();
     let function_type = FunctionType::new(
         ResultType::new(vec![ValueType::Number(NumberType::I64)]),
