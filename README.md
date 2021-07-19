@@ -9,7 +9,7 @@ NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and
 ---
 
 ## Abstract
-Tortuga is an actor-based programming language and runtime. The runtime is written in Rust to provide performance and memory safety, while the language is compiled to WebAssembly. Using WebAssembly allows developers to utilize their favorite programming language to write actors for the runtime. Targeting WebAssembly as the compilation architecture allows us to test the runtime itself without a dependency on the programming language, so the two can be developed independently.
+Tortuga is an actor-based programming language and runtime. The runtime is a Rust program to provide performance and memory safety, while the language compiles to WebAssembly. Using WebAssembly allows developers to utilize their favorite programming language to write actors for the runtime. Targeting WebAssembly as the compilation architecture allows us to test the runtime itself without a dependency on the programming language, so the two can be developed independently.
 
 ## Badges
 ![Build](https://github.com/misalcedo/tortuga/actions/workflows/build.yml/badge.svg)
@@ -37,13 +37,13 @@ Tortuga is an actor-based programming language and runtime. The runtime is writt
 The intent is the set of behaviors that an actor may execute in response to receiving a message. An intent must have at least one behavior that is the default behavior.
 
 ## Behavior
-A behavior is a set of logical instructions (i.e. messages sent to actors) executed in the context of an actor’s continuation for a specific message.
+A behavior is a set of logical instructions (i.e., messages sent to actors) executed in the context of an actor’s continuation for a specific message.
 
 ## Continuation
-An instantiation of an actor’s intent in the actor system to process a message. Continuations may be re-used between multiple messages as long as the re-use is not perceivable (i.e. does not affect the outcome of the intent).
+An instantiation of an actor’s intent in the actor system to process a message. Continuations may be re-used between multiple messages as long as the re-use is not perceivable (i.e., does not affect the outcome of the intent).
 
 ## Supervision
-Actors in an actor system may form a supervision tree. The tree is always rooted in a system-provided root actor. The root actor has children for system actors and user actors. When an actor creates a new actor, the creator becomes the supervisor of the created. On failure to process a message, the supervisor is queried to determine the appropriate action (e.g., create a new continuation and re-process the message, discard the message, etc.).
+Actors in an actor system may form a supervision tree. The system provides a root actor for all supervision trees. The root actor has children for system actors and user actors. When an actor creates a new actor, the creator becomes the supervisor of the created. On failure to process a message, the system queries the supervisor to determine the appropriate action (e.g., create a new continuation and re-process the message, discard the message, etc.).
 
 ## Host
 The WebAssembly runtime that instantiates guests for each actor continuation and routes messages.
@@ -102,7 +102,7 @@ The initial versions of the actor system will have the following limitations:
 
 # Endianness
 
-While the system sends all numbers in network byte order (i.e. big endian), WebAssembly uses little-endian for its numbers. Therefore, the system will handle mapping the integers between the types of endianness. See <https://tools.ietf.org/html/draft-newman-network-byte-order-01>
+While the system sends all numbers in network byte order (i.e., big endian), WebAssembly uses little-endian for its numbers. Therefore, the system will handle mapping the integers between the types of endianness. See <https://tools.ietf.org/html/draft-newman-network-byte-order-01>
 
 # Examples
 
