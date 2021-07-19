@@ -5,16 +5,16 @@ mod parser;
 mod transformer;
 
 pub use errors::CompilerError;
-use std::io::{Read, Write};
+use futures::{AsyncRead, AsyncWrite};
 
-pub struct Compiler {}
+struct Compiler {}
 
 impl Compiler {
     pub fn new() -> Self {
         Compiler {}
     }
 
-    pub async fn compile<I: Read, O: Write>(
+    pub async fn compile<I: AsyncRead, O: AsyncWrite>(
         &self,
         input: I,
         output: &mut O,
@@ -25,4 +25,17 @@ impl Compiler {
 
         emitter::emit_binary(&target, output).await
     }
+}
+
+// TODO: learn about pin and unpin, support async read in lexer, fix emit_vector implementation.
+pub async fn compile<I: AsyncRead, O: AsyncWrite>(
+    input: I,
+    output: &mut O,
+) -> Result<usize, CompilerError> {
+    let compiler = Compiler::new();
+    let tokens = lexer::tokenize(input).await?;
+    let ast = parser::parse(&tokens).await?;
+    let target = transformer::transform(&ast).await?;
+
+    emitter::emit_binary(&target, output).await
 }

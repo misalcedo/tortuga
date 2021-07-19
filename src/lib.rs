@@ -5,7 +5,6 @@ mod fs;
 pub mod syntax;
 
 use crate::fs::CompilationSource;
-use compiler::Compiler;
 pub use errors::TortugaError;
 use futures::future::join_all;
 use std::path::Path;
@@ -33,11 +32,10 @@ where
 
 /// Compiles a single source.
 async fn compile<O: AsRef<Path>>(source: CompilationSource, output: O) -> Result<(), TortugaError> {
-    let source_file = source.source_file()?;
-    let mut target_file = source.target_file(output)?;
-    let compiler = Compiler::new();
+    let source_file = source.source_file().await?;
+    let mut target_file = source.target_file(output).await?;
 
-    compiler.compile(source_file, &mut target_file).await?;
+    compiler::compile(source_file, &mut target_file).await?;
 
     Ok(())
 }

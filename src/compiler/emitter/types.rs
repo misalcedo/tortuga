@@ -1,111 +1,101 @@
-use crate::compiler::emitter::Emit;
+use crate::compiler::emitter::BinaryEmitter;
 use crate::compiler::errors::CompilerError;
 use crate::syntax::web_assembly::{
     FunctionType, GlobalType, Limit, MemoryType, NumberType, ReferenceType, ResultType, TableType,
     ValueType,
 };
-use std::io::Write;
+use futures::AsyncWrite;
 
-impl Emit for NumberType {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        let value: u8 = match self {
+impl<'output, O: AsyncWrite> BinaryEmitter<'output, O> {
+    pub async fn emit_number_type(&mut self, value: &NumberType) -> Result<usize, CompilerError> {
+        let output: u8 = match value {
             NumberType::I32 => 0x7F,
             NumberType::I64 => 0x7E,
             NumberType::F32 => 0x7D,
             NumberType::F64 => 0x7C,
         };
 
-        value.emit(output)
+        self.emit_u8(output).await
     }
-}
 
-impl Emit for ReferenceType {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        let value: u8 = match self {
+    pub async fn emit_reference_type(
+        &mut self,
+        value: &ReferenceType,
+    ) -> Result<usize, CompilerError> {
+        let output: u8 = match value {
             ReferenceType::Function => 0x70,
             ReferenceType::External => 0x6F,
         };
 
-        value.emit(output)
+        self.emit_u8(output).await
     }
-}
 
-impl Emit for ValueType {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        match self {
-            ValueType::Number(number_type) => number_type.emit(output),
-            ValueType::Reference(reference_type) => reference_type.emit(output),
+    pub async fn emit_value_type(&mut self, value: &ValueType) -> Result<usize, CompilerError> {
+        match value {
+            ValueType::Number(number_type) => self.emit_number_type(number_type).await,
+            ValueType::Reference(reference_type) => self.emit_reference_type(reference_type).await,
         }
     }
-}
 
-impl Emit for ResultType {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        self.kinds().emit(output)
+    pub async fn emit_result_type(&mut self, value: &ResultType) -> Result<usize, CompilerError> {
+        self.emit_vector(value.kinds(), self.emit_value_type).await
     }
-}
 
-impl Emit for FunctionType {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
+    pub async fn emit_function_type(
+        &mut self,
+        value: &FunctionType,
+    ) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        bytes += 0x60u8.emit(output)?;
-        bytes += self.parameters().emit(output)?;
-        bytes += self.results().emit(output)?;
+        bytes += self.emit_u8(0x60).await?;
+        bytes += self.emit_result_type(value.parameters()).await?;
+        bytes += self.emit_result_type(value.results()).await?;
 
         Ok(bytes)
     }
-}
 
-impl Emit for Limit {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
+    pub async fn emit_limit(&mut self, value: &Limit) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        match self.max() {
-            Some(max) => {
-                bytes += 0x01u8.emit(output)?;
-                bytes += self.min().emit(output)?;
-                bytes += max.emit(output)?;
-            }
+        match value.max() {
             None => {
-                bytes += 0x00u8.emit(output)?;
-                bytes += self.min().emit(output)?;
+                bytes += self.emit_u8(0x00).await?;
+                bytes += self.emit_usize(value.min()).await?;
+            }
+            Some(max) => {
+                bytes += self.emit_u8(0x01).await?;
+                bytes += self.emit_usize(value.min()).await?;
+                bytes += self.emit_usize(max).await?;
             }
         };
 
         Ok(bytes)
     }
-}
 
-impl Emit for MemoryType {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        self.limits().emit(output)
-    }
-}
-
-impl Emit for TableType {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
+    pub async fn emit_table_type(&mut self, value: &TableType) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        bytes += self.kind().emit(output)?;
-        bytes += self.limits().emit(output)?;
+        bytes += self.emit_reference_type(value.kind()).await?;
+        bytes += self.emit_limit(value.limits()).await?;
 
         Ok(bytes)
     }
-}
 
-impl Emit for GlobalType {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
+    pub async fn emit_memory_type(&mut self, value: &MemoryType) -> Result<usize, CompilerError> {
+        self.emit_limit(value.limits()).await
+    }
+
+    pub async fn emit_global_type(&mut self, value: &GlobalType) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        bytes += self.kind().emit(output)?;
+        bytes += self.emit_value_type(value.kind()).await?;
 
-        let mutability: u8 = match self.is_mutable() {
+        let mutability: u8 = match value.is_mutable() {
             false => 0x00,
             true => 0x01,
         };
 
-        bytes += mutability.emit(output)?;
+        bytes += self.emit_u8(mutability).await?;
 
         Ok(bytes)
     }

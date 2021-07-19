@@ -1,6 +1,8 @@
 use crate::TortugaError;
-use std::fs::{create_dir_all, remove_dir_all, File};
+use futures::{AsyncRead, AsyncWrite};
 use std::path::{Path, PathBuf};
+use tokio::fs::{create_dir_all, remove_dir_all, File};
+use tokio_util::compat::*;
 use walkdir::{DirEntry, WalkDir};
 
 const TORTUGA_FILE_EXTENSION: &str = ".ta";
@@ -24,20 +26,23 @@ impl CompilationSource {
     }
 
     /// Open the source file to read for compilation.
-    pub fn source_file(&self) -> Result<File, TortugaError> {
-        Ok(File::open(&self.source)?)
+    pub async fn source_file(&self) -> Result<impl AsyncRead, TortugaError> {
+        Ok(File::open(&self.source).await?.compat())
     }
 
     /// Create a file for writing the target of compiling this source.
     /// Creates all directories (including the parent) in the path that do not yet exist.
-    pub fn target_file<T: AsRef<Path>>(&self, parent_directory: T) -> Result<File, TortugaError> {
+    pub async fn target_file<T: AsRef<Path>>(
+        &self,
+        parent_directory: T,
+    ) -> Result<impl AsyncWrite, TortugaError> {
         let filename = parent_directory.as_ref().join(&self.target);
 
         if let Some(parent) = filename.parent() {
-            create_dir_all(parent)?;
+            create_dir_all(parent).await?;
         }
 
-        Ok(File::create(filename)?)
+        Ok(File::create(filename).await?.compat_write())
     }
 }
 
@@ -64,7 +69,7 @@ pub fn new_walker<T: AsRef<Path>>(sources: T) -> impl Iterator<Item = Compilatio
 
 /// Cleans the given output directory.
 pub async fn clean<T: AsRef<Path>>(output: T) -> Result<(), TortugaError> {
-    match remove_dir_all(output) {
+    match remove_dir_all(output).await {
         Ok(_) => Ok(()),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
         Err(e) => Err(e.into()),

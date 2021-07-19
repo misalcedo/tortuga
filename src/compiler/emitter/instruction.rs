@@ -1,873 +1,1021 @@
-use crate::compiler::emitter::Emit;
+use crate::compiler::emitter::BinaryEmitter;
 use crate::compiler::CompilerError;
 use crate::syntax::web_assembly::{
     BlockType, ControlInstruction, Expression, FloatType, Instruction, IntegerType, MemoryArgument,
     MemoryInstruction, NumberType, NumericInstruction, ParametricInstruction, ReferenceInstruction,
     SignExtension, StorageSize, TableInstruction, VariableInstruction,
 };
-use std::io::Write;
+use futures::AsyncWrite;
 
-impl Emit for Expression {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
+impl<'output, O: AsyncWrite> BinaryEmitter<'output, O> {
+    pub async fn emit_expression(
+        &mut self,
+        expression: &Expression,
+    ) -> Result<usize, CompilerError> {
+        self.emit_expression_with_custom_terminator(expression, 0x0B)
+    }
+
+    async fn emit_expression_with_custom_terminator(
+        &mut self,
+        expression: &Expression,
+        terminator: u8,
+    ) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        for instruction in self.instructions() {
-            bytes += instruction.emit(output)?;
+        for instruction in expression.instructions() {
+            bytes += self.emit_instruction(instruction).await?;
         }
 
-        bytes += 0x0Bu8.emit(output)?;
+        bytes += self.emit_u8(terminator).await?;
 
         Ok(bytes)
     }
-}
 
-impl Emit for Instruction {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        match self {
-            Self::Numeric(instruction) => instruction.emit(output),
-            Self::Reference(instruction) => instruction.emit(output),
-            Self::Parametric(instruction) => instruction.emit(output),
-            Self::Variable(instruction) => instruction.emit(output),
-            Self::Table(instruction) => instruction.emit(output),
-            Self::Memory(instruction) => instruction.emit(output),
-            Self::Control(instruction) => instruction.emit(output),
+    pub async fn emit_instruction(
+        &mut self,
+        instruction: &Instruction,
+    ) -> Result<usize, CompilerError> {
+        match instruction {
+            Instruction::Numeric(instruction) => self.emit_numeric_instruction(instruction).await,
+            Instruction::Reference(instruction) => {
+                self.emit_reference_instruction(instruction).await
+            }
+            Instruction::Parametric(instruction) => {
+                self.emit_parametric_instruction(instruction).await
+            }
+            Instruction::Variable(instruction) => self.emit_variable_instruction(instruction).await,
+            Instruction::Table(instruction) => self.emit_table_instruction(instruction).await,
+            Instruction::Memory(instruction) => self.emit_memory_instruction(instruction).await,
+            Instruction::Control(instruction) => self.emit_control_instruction(instruction).await,
         }
     }
-}
 
-impl Emit for NumericInstruction {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
+    pub async fn emit_numeric_instruction(
+        &mut self,
+        instruction: &NumericInstruction,
+    ) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        match self {
+        match instruction {
             // Constant Operations
-            Self::I32Constant(value) => {
-                bytes += 0x41u8.emit(output)?;
-                bytes += value.emit(output)?;
+            NumericInstruction::I32Constant(value) => {
+                bytes += self.emit_u8(0x41).await?;
+                bytes += self.emit_i32(*value).await?;
             }
-            Self::I64Constant(value) => {
-                bytes += 0x42u8.emit(output)?;
-                bytes += value.emit(output)?;
+            NumericInstruction::I64Constant(value) => {
+                bytes += self.emit_u8(0x42).await?;
+                bytes += self.emit_i64(*value).await?;
             }
-            Self::F32Constant(value) => {
-                bytes += 0x43u8.emit(output)?;
-                bytes += value.emit(output)?;
+            NumericInstruction::F32Constant(value) => {
+                bytes += self.emit_u8(0x43).await?;
+                bytes += self.emit_f32(*value).await?;
             }
-            Self::F64Constant(value) => {
-                bytes += 0x44u8.emit(output)?;
-                bytes += value.emit(output)?;
+            NumericInstruction::F64Constant(value) => {
+                bytes += self.emit_u8(0x44).await?;
+                bytes += self.emit_f64(*value).await?;
             }
             // i32 Test Operations
-            Self::EqualToZero(IntegerType::I32) => {
-                bytes += 0x45u8.emit(output)?;
+            NumericInstruction::EqualToZero(IntegerType::I32) => {
+                bytes += self.emit_u8(0x45).await?;
             }
             // i32 Relation Operations
-            Self::Equal(NumberType::I32) => {
-                bytes += 0x46u8.emit(output)?;
+            NumericInstruction::Equal(NumberType::I32) => {
+                bytes += self.emit_u8(0x46).await?;
             }
-            Self::NotEqual(NumberType::I32) => {
-                bytes += 0x47u8.emit(output)?;
+            NumericInstruction::NotEqual(NumberType::I32) => {
+                bytes += self.emit_u8(0x47).await?;
             }
-            Self::LessThanInteger(IntegerType::I32, SignExtension::Signed) => {
-                bytes += 0x48u8.emit(output)?;
+            NumericInstruction::LessThanInteger(IntegerType::I32, SignExtension::Signed) => {
+                bytes += self.emit_u8(0x48).await?;
             }
-            Self::LessThanInteger(IntegerType::I32, SignExtension::Unsigned) => {
-                bytes += 0x49u8.emit(output)?;
+            NumericInstruction::LessThanInteger(IntegerType::I32, SignExtension::Unsigned) => {
+                bytes += self.emit_u8(0x49).await?;
             }
-            Self::GreaterThanInteger(IntegerType::I32, SignExtension::Signed) => {
-                bytes += 0x4Au8.emit(output)?;
+            NumericInstruction::GreaterThanInteger(IntegerType::I32, SignExtension::Signed) => {
+                bytes += self.emit_u8(0x4A).await?;
             }
-            Self::GreaterThanInteger(IntegerType::I32, SignExtension::Unsigned) => {
-                bytes += 0x4Bu8.emit(output)?;
+            NumericInstruction::GreaterThanInteger(IntegerType::I32, SignExtension::Unsigned) => {
+                bytes += self.emit_u8(0x4B).await?;
             }
-            Self::LessThanOrEqualToInteger(IntegerType::I32, SignExtension::Signed) => {
-                bytes += 0x4Cu8.emit(output)?;
+            NumericInstruction::LessThanOrEqualToInteger(
+                IntegerType::I32,
+                SignExtension::Signed,
+            ) => {
+                bytes += self.emit_u8(0x4C).await?;
             }
-            Self::LessThanOrEqualToInteger(IntegerType::I32, SignExtension::Unsigned) => {
-                bytes += 0x4Du8.emit(output)?;
+            NumericInstruction::LessThanOrEqualToInteger(
+                IntegerType::I32,
+                SignExtension::Unsigned,
+            ) => {
+                bytes += self.emit_u8(0x4D).await?;
             }
-            Self::GreaterThanOrEqualToInteger(IntegerType::I32, SignExtension::Signed) => {
-                bytes += 0x4Eu8.emit(output)?;
+            NumericInstruction::GreaterThanOrEqualToInteger(
+                IntegerType::I32,
+                SignExtension::Signed,
+            ) => {
+                bytes += self.emit_u8(0x4E).await?;
             }
-            Self::GreaterThanOrEqualToInteger(IntegerType::I32, SignExtension::Unsigned) => {
-                bytes += 0x4Fu8.emit(output)?;
+            NumericInstruction::GreaterThanOrEqualToInteger(
+                IntegerType::I32,
+                SignExtension::Unsigned,
+            ) => {
+                bytes += self.emit_u8(0x4F).await?;
             }
             // i64 Test Operations
-            Self::EqualToZero(IntegerType::I64) => {
-                bytes += 0x50u8.emit(output)?;
+            NumericInstruction::EqualToZero(IntegerType::I64) => {
+                bytes += self.emit_u8(0x50).await?;
             }
             // i64 Relation Operations
-            Self::Equal(NumberType::I64) => {
-                bytes += 0x51u8.emit(output)?;
+            NumericInstruction::Equal(NumberType::I64) => {
+                bytes += self.emit_u8(0x51).await?;
             }
-            Self::NotEqual(NumberType::I64) => {
-                bytes += 0x52u8.emit(output)?;
+            NumericInstruction::NotEqual(NumberType::I64) => {
+                bytes += self.emit_u8(0x52).await?;
             }
-            Self::LessThanInteger(IntegerType::I64, SignExtension::Signed) => {
-                bytes += 0x53u8.emit(output)?;
+            NumericInstruction::LessThanInteger(IntegerType::I64, SignExtension::Signed) => {
+                bytes += self.emit_u8(0x53).await?;
             }
-            Self::LessThanInteger(IntegerType::I64, SignExtension::Unsigned) => {
-                bytes += 0x54u8.emit(output)?;
+            NumericInstruction::LessThanInteger(IntegerType::I64, SignExtension::Unsigned) => {
+                bytes += self.emit_u8(0x54).await?;
             }
-            Self::GreaterThanInteger(IntegerType::I64, SignExtension::Signed) => {
-                bytes += 0x55u8.emit(output)?;
+            NumericInstruction::GreaterThanInteger(IntegerType::I64, SignExtension::Signed) => {
+                bytes += self.emit_u8(0x55).await?;
             }
-            Self::GreaterThanInteger(IntegerType::I64, SignExtension::Unsigned) => {
-                bytes += 0x56u8.emit(output)?;
+            NumericInstruction::GreaterThanInteger(IntegerType::I64, SignExtension::Unsigned) => {
+                bytes += self.emit_u8(0x56).await?;
             }
-            Self::LessThanOrEqualToInteger(IntegerType::I64, SignExtension::Signed) => {
-                bytes += 0x57u8.emit(output)?;
+            NumericInstruction::LessThanOrEqualToInteger(
+                IntegerType::I64,
+                SignExtension::Signed,
+            ) => {
+                bytes += self.emit_u8(0x57).await?;
             }
-            Self::LessThanOrEqualToInteger(IntegerType::I64, SignExtension::Unsigned) => {
-                bytes += 0x58u8.emit(output)?;
+            NumericInstruction::LessThanOrEqualToInteger(
+                IntegerType::I64,
+                SignExtension::Unsigned,
+            ) => {
+                bytes += self.emit_u8(0x58).await?;
             }
-            Self::GreaterThanOrEqualToInteger(IntegerType::I64, SignExtension::Signed) => {
-                bytes += 0x59u8.emit(output)?;
+            NumericInstruction::GreaterThanOrEqualToInteger(
+                IntegerType::I64,
+                SignExtension::Signed,
+            ) => {
+                bytes += self.emit_u8(0x59).await?;
             }
-            Self::GreaterThanOrEqualToInteger(IntegerType::I64, SignExtension::Unsigned) => {
-                bytes += 0x5Au8.emit(output)?;
+            NumericInstruction::GreaterThanOrEqualToInteger(
+                IntegerType::I64,
+                SignExtension::Unsigned,
+            ) => {
+                bytes += self.emit_u8(0x5A).await?;
             }
             // f32 Relation Operations
-            Self::Equal(NumberType::F32) => {
-                bytes += 0x5Bu8.emit(output)?;
+            NumericInstruction::Equal(NumberType::F32) => {
+                bytes += self.emit_u8(0x5B).await?;
             }
-            Self::NotEqual(NumberType::F32) => {
-                bytes += 0x5Cu8.emit(output)?;
+            NumericInstruction::NotEqual(NumberType::F32) => {
+                bytes += self.emit_u8(0x5C).await?;
             }
-            Self::LessThanFloat(FloatType::F32) => {
-                bytes += 0x5Du8.emit(output)?;
+            NumericInstruction::LessThanFloat(FloatType::F32) => {
+                bytes += self.emit_u8(0x5D).await?;
             }
-            Self::GreaterThanFloat(FloatType::F32) => {
-                bytes += 0x5Eu8.emit(output)?;
+            NumericInstruction::GreaterThanFloat(FloatType::F32) => {
+                bytes += self.emit_u8(0x5E).await?;
             }
-            Self::LessThanOrEqualToFloat(FloatType::F32) => {
-                bytes += 0x5Fu8.emit(output)?;
+            NumericInstruction::LessThanOrEqualToFloat(FloatType::F32) => {
+                bytes += self.emit_u8(0x5F).await?;
             }
-            Self::GreaterThanOrEqualToFloat(FloatType::F32) => {
-                bytes += 0x60u8.emit(output)?;
+            NumericInstruction::GreaterThanOrEqualToFloat(FloatType::F32) => {
+                bytes += self.emit_u8(0x60).await?;
             }
             // f64 Relation Operations
-            Self::Equal(NumberType::F64) => {
-                bytes += 0x61u8.emit(output)?;
+            NumericInstruction::Equal(NumberType::F64) => {
+                bytes += self.emit_u8(0x61).await?;
             }
-            Self::NotEqual(NumberType::F64) => {
-                bytes += 0x62u8.emit(output)?;
+            NumericInstruction::NotEqual(NumberType::F64) => {
+                bytes += self.emit_u8(0x62).await?;
             }
-            Self::LessThanFloat(FloatType::F64) => {
-                bytes += 0x63u8.emit(output)?;
+            NumericInstruction::LessThanFloat(FloatType::F64) => {
+                bytes += self.emit_u8(0x63).await?;
             }
-            Self::GreaterThanFloat(FloatType::F64) => {
-                bytes += 0x64u8.emit(output)?;
+            NumericInstruction::GreaterThanFloat(FloatType::F64) => {
+                bytes += self.emit_u8(0x64).await?;
             }
-            Self::LessThanOrEqualToFloat(FloatType::F64) => {
-                bytes += 0x65u8.emit(output)?;
+            NumericInstruction::LessThanOrEqualToFloat(FloatType::F64) => {
+                bytes += self.emit_u8(0x65).await?;
             }
-            Self::GreaterThanOrEqualToFloat(FloatType::F64) => {
-                bytes += 0x66u8.emit(output)?;
+            NumericInstruction::GreaterThanOrEqualToFloat(FloatType::F64) => {
+                bytes += self.emit_u8(0x66).await?;
             }
             // i32 Unary Operations
-            Self::CountLeadingZeros(IntegerType::I32) => {
-                bytes += 0x67u8.emit(output)?;
+            NumericInstruction::CountLeadingZeros(IntegerType::I32) => {
+                bytes += self.emit_u8(0x67).await?;
             }
-            Self::CountTrailingZeros(IntegerType::I32) => {
-                bytes += 0x68u8.emit(output)?;
+            NumericInstruction::CountTrailingZeros(IntegerType::I32) => {
+                bytes += self.emit_u8(0x68).await?;
             }
-            Self::CountOnes(IntegerType::I32) => {
-                bytes += 0x69u8.emit(output)?;
+            NumericInstruction::CountOnes(IntegerType::I32) => {
+                bytes += self.emit_u8(0x69).await?;
             }
             // i32 Binary Operations
-            Self::Add(NumberType::I32) => {
-                bytes += 0x6Au8.emit(output)?;
+            NumericInstruction::Add(NumberType::I32) => {
+                bytes += self.emit_u8(0x6A).await?;
             }
-            Self::Subtract(NumberType::I32) => {
-                bytes += 0x6Bu8.emit(output)?;
+            NumericInstruction::Subtract(NumberType::I32) => {
+                bytes += self.emit_u8(0x6B).await?;
             }
-            Self::Multiply(NumberType::I32) => {
-                bytes += 0x6Cu8.emit(output)?;
+            NumericInstruction::Multiply(NumberType::I32) => {
+                bytes += self.emit_u8(0x6C).await?;
             }
-            Self::DivideInteger(IntegerType::I32, SignExtension::Signed) => {
-                bytes += 0x6Du8.emit(output)?;
+            NumericInstruction::DivideInteger(IntegerType::I32, SignExtension::Signed) => {
+                bytes += self.emit_u8(0x6D).await?;
             }
-            Self::DivideInteger(IntegerType::I32, SignExtension::Unsigned) => {
-                bytes += 0x6Eu8.emit(output)?;
+            NumericInstruction::DivideInteger(IntegerType::I32, SignExtension::Unsigned) => {
+                bytes += self.emit_u8(0x6E).await?;
             }
-            Self::Remainder(IntegerType::I32, SignExtension::Signed) => {
-                bytes += 0x6Fu8.emit(output)?;
+            NumericInstruction::Remainder(IntegerType::I32, SignExtension::Signed) => {
+                bytes += self.emit_u8(0x6F).await?;
             }
-            Self::Remainder(IntegerType::I32, SignExtension::Unsigned) => {
-                bytes += 0x70u8.emit(output)?;
+            NumericInstruction::Remainder(IntegerType::I32, SignExtension::Unsigned) => {
+                bytes += self.emit_u8(0x70).await?;
             }
-            Self::And(IntegerType::I32) => {
-                bytes += 0x71u8.emit(output)?;
+            NumericInstruction::And(IntegerType::I32) => {
+                bytes += self.emit_u8(0x71).await?;
             }
-            Self::Or(IntegerType::I32) => {
-                bytes += 0x72u8.emit(output)?;
+            NumericInstruction::Or(IntegerType::I32) => {
+                bytes += self.emit_u8(0x72).await?;
             }
-            Self::Xor(IntegerType::I32) => {
-                bytes += 0x73u8.emit(output)?;
+            NumericInstruction::Xor(IntegerType::I32) => {
+                bytes += self.emit_u8(0x73).await?;
             }
-            Self::ShiftLeft(IntegerType::I32) => {
-                bytes += 0x74u8.emit(output)?;
+            NumericInstruction::ShiftLeft(IntegerType::I32) => {
+                bytes += self.emit_u8(0x74).await?;
             }
-            Self::ShiftRight(IntegerType::I32, SignExtension::Signed) => {
-                bytes += 0x75u8.emit(output)?;
+            NumericInstruction::ShiftRight(IntegerType::I32, SignExtension::Signed) => {
+                bytes += self.emit_u8(0x75).await?;
             }
-            Self::ShiftRight(IntegerType::I32, SignExtension::Unsigned) => {
-                bytes += 0x76u8.emit(output)?;
+            NumericInstruction::ShiftRight(IntegerType::I32, SignExtension::Unsigned) => {
+                bytes += self.emit_u8(0x76).await?;
             }
-            Self::RotateLeft(IntegerType::I32) => {
-                bytes += 0x77u8.emit(output)?;
+            NumericInstruction::RotateLeft(IntegerType::I32) => {
+                bytes += self.emit_u8(0x77).await?;
             }
-            Self::RotateRight(IntegerType::I32) => {
-                bytes += 0x78u8.emit(output)?;
+            NumericInstruction::RotateRight(IntegerType::I32) => {
+                bytes += self.emit_u8(0x78).await?;
             }
             // i64 Unary Operations
-            Self::CountLeadingZeros(IntegerType::I64) => {
-                bytes += 0x79u8.emit(output)?;
+            NumericInstruction::CountLeadingZeros(IntegerType::I64) => {
+                bytes += self.emit_u8(0x79).await?;
             }
-            Self::CountTrailingZeros(IntegerType::I64) => {
-                bytes += 0x7Au8.emit(output)?;
+            NumericInstruction::CountTrailingZeros(IntegerType::I64) => {
+                bytes += self.emit_u8(0x7A).await?;
             }
-            Self::CountOnes(IntegerType::I64) => {
-                bytes += 0x7Bu8.emit(output)?;
+            NumericInstruction::CountOnes(IntegerType::I64) => {
+                bytes += self.emit_u8(0x7B).await?;
             }
             // i64 Binary Operations
-            Self::Add(NumberType::I64) => {
-                bytes += 0x7Cu8.emit(output)?;
+            NumericInstruction::Add(NumberType::I64) => {
+                bytes += self.emit_u8(0x7C).await?;
             }
-            Self::Subtract(NumberType::I64) => {
-                bytes += 0x7Du8.emit(output)?;
+            NumericInstruction::Subtract(NumberType::I64) => {
+                bytes += self.emit_u8(0x7D).await?;
             }
-            Self::Multiply(NumberType::I64) => {
-                bytes += 0x7Eu8.emit(output)?;
+            NumericInstruction::Multiply(NumberType::I64) => {
+                bytes += self.emit_u8(0x7E).await?;
             }
-            Self::DivideInteger(IntegerType::I64, SignExtension::Signed) => {
-                bytes += 0x7Fu8.emit(output)?;
+            NumericInstruction::DivideInteger(IntegerType::I64, SignExtension::Signed) => {
+                bytes += self.emit_u8(0x7F).await?;
             }
-            Self::DivideInteger(IntegerType::I64, SignExtension::Unsigned) => {
-                bytes += 0x80u8.emit(output)?;
+            NumericInstruction::DivideInteger(IntegerType::I64, SignExtension::Unsigned) => {
+                bytes += self.emit_u8(0x80).await?;
             }
-            Self::Remainder(IntegerType::I64, SignExtension::Signed) => {
-                bytes += 0x81u8.emit(output)?;
+            NumericInstruction::Remainder(IntegerType::I64, SignExtension::Signed) => {
+                bytes += self.emit_u8(0x81).await?;
             }
-            Self::Remainder(IntegerType::I64, SignExtension::Unsigned) => {
-                bytes += 0x82u8.emit(output)?;
+            NumericInstruction::Remainder(IntegerType::I64, SignExtension::Unsigned) => {
+                bytes += self.emit_u8(0x82).await?;
             }
-            Self::And(IntegerType::I64) => {
-                bytes += 0x83u8.emit(output)?;
+            NumericInstruction::And(IntegerType::I64) => {
+                bytes += self.emit_u8(0x83).await?;
             }
-            Self::Or(IntegerType::I64) => {
-                bytes += 0x84u8.emit(output)?;
+            NumericInstruction::Or(IntegerType::I64) => {
+                bytes += self.emit_u8(0x84).await?;
             }
-            Self::Xor(IntegerType::I64) => {
-                bytes += 0x85u8.emit(output)?;
+            NumericInstruction::Xor(IntegerType::I64) => {
+                bytes += self.emit_u8(0x85).await?;
             }
-            Self::ShiftLeft(IntegerType::I64) => {
-                bytes += 0x86u8.emit(output)?;
+            NumericInstruction::ShiftLeft(IntegerType::I64) => {
+                bytes += self.emit_u8(0x86).await?;
             }
-            Self::ShiftRight(IntegerType::I64, SignExtension::Signed) => {
-                bytes += 0x87u8.emit(output)?;
+            NumericInstruction::ShiftRight(IntegerType::I64, SignExtension::Signed) => {
+                bytes += self.emit_u8(0x87).await?;
             }
-            Self::ShiftRight(IntegerType::I64, SignExtension::Unsigned) => {
-                bytes += 0x88u8.emit(output)?;
+            NumericInstruction::ShiftRight(IntegerType::I64, SignExtension::Unsigned) => {
+                bytes += self.emit_u8(0x88).await?;
             }
-            Self::RotateLeft(IntegerType::I64) => {
-                bytes += 0x89u8.emit(output)?;
+            NumericInstruction::RotateLeft(IntegerType::I64) => {
+                bytes += self.emit_u8(0x89).await?;
             }
-            Self::RotateRight(IntegerType::I64) => {
-                bytes += 0x8Au8.emit(output)?;
+            NumericInstruction::RotateRight(IntegerType::I64) => {
+                bytes += self.emit_u8(0x8A).await?;
             }
             // f32 Unary Operations
-            Self::AbsoluteValue(FloatType::F32) => {
-                bytes += 0x8Bu8.emit(output)?;
+            NumericInstruction::AbsoluteValue(FloatType::F32) => {
+                bytes += self.emit_u8(0x8B).await?;
             }
-            Self::Negate(FloatType::F32) => {
-                bytes += 0x8Cu8.emit(output)?;
+            NumericInstruction::Negate(FloatType::F32) => {
+                bytes += self.emit_u8(0x8C).await?;
             }
-            Self::Ceiling(FloatType::F32) => {
-                bytes += 0x8Du8.emit(output)?;
+            NumericInstruction::Ceiling(FloatType::F32) => {
+                bytes += self.emit_u8(0x8D).await?;
             }
-            Self::Floor(FloatType::F32) => {
-                bytes += 0x8Eu8.emit(output)?;
+            NumericInstruction::Floor(FloatType::F32) => {
+                bytes += self.emit_u8(0x8E).await?;
             }
-            Self::Truncate(FloatType::F32) => {
-                bytes += 0x8Fu8.emit(output)?;
+            NumericInstruction::Truncate(FloatType::F32) => {
+                bytes += self.emit_u8(0x8F).await?;
             }
-            Self::Nearest(FloatType::F32) => {
-                bytes += 0x90u8.emit(output)?;
+            NumericInstruction::Nearest(FloatType::F32) => {
+                bytes += self.emit_u8(0x90).await?;
             }
-            Self::SquareRoot(FloatType::F32) => {
-                bytes += 0x91u8.emit(output)?;
+            NumericInstruction::SquareRoot(FloatType::F32) => {
+                bytes += self.emit_u8(0x91).await?;
             }
             // f32 Binary Operations
-            Self::Add(NumberType::F32) => {
-                bytes += 0x92u8.emit(output)?;
+            NumericInstruction::Add(NumberType::F32) => {
+                bytes += self.emit_u8(0x92).await?;
             }
-            Self::Subtract(NumberType::F32) => {
-                bytes += 0x93u8.emit(output)?;
+            NumericInstruction::Subtract(NumberType::F32) => {
+                bytes += self.emit_u8(0x93).await?;
             }
-            Self::Multiply(NumberType::F32) => {
-                bytes += 0x94u8.emit(output)?;
+            NumericInstruction::Multiply(NumberType::F32) => {
+                bytes += self.emit_u8(0x94).await?;
             }
-            Self::DivideFloat(FloatType::F32) => {
-                bytes += 0x95u8.emit(output)?;
+            NumericInstruction::DivideFloat(FloatType::F32) => {
+                bytes += self.emit_u8(0x95).await?;
             }
-            Self::Minimum(FloatType::F32) => {
-                bytes += 0x96u8.emit(output)?;
+            NumericInstruction::Minimum(FloatType::F32) => {
+                bytes += self.emit_u8(0x96).await?;
             }
-            Self::Maximum(FloatType::F32) => {
-                bytes += 0x97u8.emit(output)?;
+            NumericInstruction::Maximum(FloatType::F32) => {
+                bytes += self.emit_u8(0x97).await?;
             }
-            Self::CopySign(FloatType::F32) => {
-                bytes += 0x98u8.emit(output)?;
+            NumericInstruction::CopySign(FloatType::F32) => {
+                bytes += self.emit_u8(0x98).await?;
             }
             // f64 Unary Operations
-            Self::AbsoluteValue(FloatType::F64) => {
-                bytes += 0x99u8.emit(output)?;
+            NumericInstruction::AbsoluteValue(FloatType::F64) => {
+                bytes += self.emit_u8(0x99).await?;
             }
-            Self::Negate(FloatType::F64) => {
-                bytes += 0x9Au8.emit(output)?;
+            NumericInstruction::Negate(FloatType::F64) => {
+                bytes += self.emit_u8(0x9A).await?;
             }
-            Self::Ceiling(FloatType::F64) => {
-                bytes += 0x9Bu8.emit(output)?;
+            NumericInstruction::Ceiling(FloatType::F64) => {
+                bytes += self.emit_u8(0x9B).await?;
             }
-            Self::Floor(FloatType::F64) => {
-                bytes += 0x9Cu8.emit(output)?;
+            NumericInstruction::Floor(FloatType::F64) => {
+                bytes += self.emit_u8(0x9C).await?;
             }
-            Self::Truncate(FloatType::F64) => {
-                bytes += 0x9Du8.emit(output)?;
+            NumericInstruction::Truncate(FloatType::F64) => {
+                bytes += self.emit_u8(0x9D).await?;
             }
-            Self::Nearest(FloatType::F64) => {
-                bytes += 0x9Eu8.emit(output)?;
+            NumericInstruction::Nearest(FloatType::F64) => {
+                bytes += self.emit_u8(0x9E).await?;
             }
-            Self::SquareRoot(FloatType::F64) => {
-                bytes += 0x9Fu8.emit(output)?;
+            NumericInstruction::SquareRoot(FloatType::F64) => {
+                bytes += self.emit_u8(0x9F).await?;
             }
             // f64 Binary Operations
-            Self::Add(NumberType::F64) => {
-                bytes += 0xA0u8.emit(output)?;
+            NumericInstruction::Add(NumberType::F64) => {
+                bytes += self.emit_u8(0xA0).await?;
             }
-            Self::Subtract(NumberType::F64) => {
-                bytes += 0xA1u8.emit(output)?;
+            NumericInstruction::Subtract(NumberType::F64) => {
+                bytes += self.emit_u8(0xA1).await?;
             }
-            Self::Multiply(NumberType::F64) => {
-                bytes += 0xA2u8.emit(output)?;
+            NumericInstruction::Multiply(NumberType::F64) => {
+                bytes += self.emit_u8(0xA2).await?;
             }
-            Self::DivideFloat(FloatType::F64) => {
-                bytes += 0xA3u8.emit(output)?;
+            NumericInstruction::DivideFloat(FloatType::F64) => {
+                bytes += self.emit_u8(0xA3).await?;
             }
-            Self::Minimum(FloatType::F64) => {
-                bytes += 0xA4u8.emit(output)?;
+            NumericInstruction::Minimum(FloatType::F64) => {
+                bytes += self.emit_u8(0xA4).await?;
             }
-            Self::Maximum(FloatType::F64) => {
-                bytes += 0xA5u8.emit(output)?;
+            NumericInstruction::Maximum(FloatType::F64) => {
+                bytes += self.emit_u8(0xA5).await?;
             }
-            Self::CopySign(FloatType::F64) => {
-                bytes += 0xA6u8.emit(output)?;
+            NumericInstruction::CopySign(FloatType::F64) => {
+                bytes += self.emit_u8(0xA6).await?;
             }
             // Convert Operations
-            Self::Wrap => {
-                bytes += 0xA7u8.emit(output)?;
+            NumericInstruction::Wrap => {
+                bytes += self.emit_u8(0xA7).await?;
             }
-            Self::ConvertAndTruncate(IntegerType::I32, FloatType::F32, SignExtension::Signed) => {
-                bytes += 0xA8u8.emit(output)?;
-            }
-            Self::ConvertAndTruncate(IntegerType::I32, FloatType::F32, SignExtension::Unsigned) => {
-                bytes += 0xA9u8.emit(output)?;
-            }
-            Self::ConvertAndTruncate(IntegerType::I32, FloatType::F64, SignExtension::Signed) => {
-                bytes += 0xAAu8.emit(output)?;
-            }
-            Self::ConvertAndTruncate(IntegerType::I32, FloatType::F64, SignExtension::Unsigned) => {
-                bytes += 0xABu8.emit(output)?;
-            }
-            Self::ExtendWithSignExtension(SignExtension::Signed) => {
-                bytes += 0xACu8.emit(output)?;
-            }
-            Self::ExtendWithSignExtension(SignExtension::Unsigned) => {
-                bytes += 0xADu8.emit(output)?;
-            }
-            Self::ConvertAndTruncate(IntegerType::I64, FloatType::F32, SignExtension::Signed) => {
-                bytes += 0xAEu8.emit(output)?;
-            }
-            Self::ConvertAndTruncate(IntegerType::I64, FloatType::F32, SignExtension::Unsigned) => {
-                bytes += 0xAFu8.emit(output)?;
-            }
-            Self::ConvertAndTruncate(IntegerType::I64, FloatType::F64, SignExtension::Signed) => {
-                bytes += 0xB0u8.emit(output)?;
-            }
-            Self::ConvertAndTruncate(IntegerType::I64, FloatType::F64, SignExtension::Unsigned) => {
-                bytes += 0xB1u8.emit(output)?;
-            }
-            Self::Convert(FloatType::F32, IntegerType::I32, SignExtension::Signed) => {
-                bytes += 0xB2u8.emit(output)?;
-            }
-            Self::Convert(FloatType::F32, IntegerType::I32, SignExtension::Unsigned) => {
-                bytes += 0xB3u8.emit(output)?;
-            }
-            Self::Convert(FloatType::F32, IntegerType::I64, SignExtension::Signed) => {
-                bytes += 0xB4u8.emit(output)?;
-            }
-            Self::Convert(FloatType::F32, IntegerType::I64, SignExtension::Unsigned) => {
-                bytes += 0xB5u8.emit(output)?;
-            }
-            Self::Demote => {
-                bytes += 0xB6u8.emit(output)?;
-            }
-            Self::Convert(FloatType::F64, IntegerType::I32, SignExtension::Signed) => {
-                bytes += 0xB7u8.emit(output)?;
-            }
-            Self::Convert(FloatType::F64, IntegerType::I32, SignExtension::Unsigned) => {
-                bytes += 0xB8u8.emit(output)?;
-            }
-            Self::Convert(FloatType::F64, IntegerType::I64, SignExtension::Signed) => {
-                bytes += 0xB9u8.emit(output)?;
-            }
-            Self::Convert(FloatType::F64, IntegerType::I64, SignExtension::Unsigned) => {
-                bytes += 0xBAu8.emit(output)?;
-            }
-            Self::Promote => {
-                bytes += 0xBBu8.emit(output)?;
-            }
-            Self::ReinterpretFloat(IntegerType::I32, FloatType::F32) => {
-                bytes += 0xBCu8.emit(output)?;
-            }
-            Self::ReinterpretFloat(IntegerType::I64, FloatType::F64) => {
-                bytes += 0xBDu8.emit(output)?;
-            }
-            Self::ReinterpretInteger(FloatType::F32, IntegerType::I32) => {
-                bytes += 0xBEu8.emit(output)?;
-            }
-            Self::ReinterpretInteger(FloatType::F64, IntegerType::I64) => {
-                bytes += 0xBFu8.emit(output)?;
-            }
-            Self::ExtendSigned(StorageSize::I32_8) => {
-                bytes += 0xC0u8.emit(output)?;
-            }
-            Self::ExtendSigned(StorageSize::I32_16) => {
-                bytes += 0xC1u8.emit(output)?;
-            }
-            Self::ExtendSigned(StorageSize::I64_8) => {
-                bytes += 0xC2u8.emit(output)?;
-            }
-            Self::ExtendSigned(StorageSize::I64_16) => {
-                bytes += 0xC3u8.emit(output)?;
-            }
-            Self::ExtendSigned(StorageSize::I64_32) => {
-                bytes += 0xC4u8.emit(output)?;
-            }
-            Self::ConvertAndTruncateWithSaturation(
+            NumericInstruction::ConvertAndTruncate(
                 IntegerType::I32,
                 FloatType::F32,
                 SignExtension::Signed,
             ) => {
-                bytes += 0xFCu8.emit(output)?;
-                bytes += 0u32.emit(output)?;
+                bytes += self.emit_u8(0xA8).await?;
             }
-            Self::ConvertAndTruncateWithSaturation(
+            NumericInstruction::ConvertAndTruncate(
                 IntegerType::I32,
                 FloatType::F32,
                 SignExtension::Unsigned,
             ) => {
-                bytes += 0xFCu8.emit(output)?;
-                bytes += 1u32.emit(output)?;
+                bytes += self.emit_u8(0xA9).await?;
             }
-            Self::ConvertAndTruncateWithSaturation(
+            NumericInstruction::ConvertAndTruncate(
                 IntegerType::I32,
                 FloatType::F64,
                 SignExtension::Signed,
             ) => {
-                bytes += 0xFCu8.emit(output)?;
-                bytes += 2u32.emit(output)?;
+                bytes += self.emit_u8(0xAA).await?;
             }
-            Self::ConvertAndTruncateWithSaturation(
+            NumericInstruction::ConvertAndTruncate(
                 IntegerType::I32,
                 FloatType::F64,
                 SignExtension::Unsigned,
             ) => {
-                bytes += 0xFCu8.emit(output)?;
-                bytes += 3u32.emit(output)?;
+                bytes += self.emit_u8(0xAB).await?;
             }
-            Self::ConvertAndTruncateWithSaturation(
+            NumericInstruction::ExtendWithSignExtension(SignExtension::Signed) => {
+                bytes += self.emit_u8(0xAC).await?;
+            }
+            NumericInstruction::ExtendWithSignExtension(SignExtension::Unsigned) => {
+                bytes += self.emit_u8(0xAD).await?;
+            }
+            NumericInstruction::ConvertAndTruncate(
                 IntegerType::I64,
                 FloatType::F32,
                 SignExtension::Signed,
             ) => {
-                bytes += 0xFCu8.emit(output)?;
-                bytes += 4u32.emit(output)?;
+                bytes += self.emit_u8(0xAE).await?;
             }
-            Self::ConvertAndTruncateWithSaturation(
+            NumericInstruction::ConvertAndTruncate(
                 IntegerType::I64,
                 FloatType::F32,
                 SignExtension::Unsigned,
             ) => {
-                bytes += 0xFCu8.emit(output)?;
-                bytes += 5u32.emit(output)?;
+                bytes += self.emit_u8(0xAF).await?;
             }
-            Self::ConvertAndTruncateWithSaturation(
+            NumericInstruction::ConvertAndTruncate(
                 IntegerType::I64,
                 FloatType::F64,
                 SignExtension::Signed,
             ) => {
-                bytes += 0xFCu8.emit(output)?;
-                bytes += 6u32.emit(output)?;
+                bytes += self.emit_u8(0xB0).await?;
             }
-            Self::ConvertAndTruncateWithSaturation(
+            NumericInstruction::ConvertAndTruncate(
                 IntegerType::I64,
                 FloatType::F64,
                 SignExtension::Unsigned,
             ) => {
-                bytes += 0xFCu8.emit(output)?;
-                bytes += 7u32.emit(output)?;
+                bytes += self.emit_u8(0xB1).await?;
+            }
+            NumericInstruction::Convert(
+                FloatType::F32,
+                IntegerType::I32,
+                SignExtension::Signed,
+            ) => {
+                bytes += self.emit_u8(0xB2).await?;
+            }
+            NumericInstruction::Convert(
+                FloatType::F32,
+                IntegerType::I32,
+                SignExtension::Unsigned,
+            ) => {
+                bytes += self.emit_u8(0xB3).await?;
+            }
+            NumericInstruction::Convert(
+                FloatType::F32,
+                IntegerType::I64,
+                SignExtension::Signed,
+            ) => {
+                bytes += self.emit_u8(0xB4).await?;
+            }
+            NumericInstruction::Convert(
+                FloatType::F32,
+                IntegerType::I64,
+                SignExtension::Unsigned,
+            ) => {
+                bytes += self.emit_u8(0xB5).await?;
+            }
+            NumericInstruction::Demote => {
+                bytes += self.emit_u8(0xB6).await?;
+            }
+            NumericInstruction::Convert(
+                FloatType::F64,
+                IntegerType::I32,
+                SignExtension::Signed,
+            ) => {
+                bytes += self.emit_u8(0xB7).await?;
+            }
+            NumericInstruction::Convert(
+                FloatType::F64,
+                IntegerType::I32,
+                SignExtension::Unsigned,
+            ) => {
+                bytes += self.emit_u8(0xB8).await?;
+            }
+            NumericInstruction::Convert(
+                FloatType::F64,
+                IntegerType::I64,
+                SignExtension::Signed,
+            ) => {
+                bytes += self.emit_u8(0xB9).await?;
+            }
+            NumericInstruction::Convert(
+                FloatType::F64,
+                IntegerType::I64,
+                SignExtension::Unsigned,
+            ) => {
+                bytes += self.emit_u8(0xBA).await?;
+            }
+            NumericInstruction::Promote => {
+                bytes += self.emit_u8(0xBB).await?;
+            }
+            NumericInstruction::ReinterpretFloat(IntegerType::I32, FloatType::F32) => {
+                bytes += self.emit_u8(0xBC).await?;
+            }
+            NumericInstruction::ReinterpretFloat(IntegerType::I64, FloatType::F64) => {
+                bytes += self.emit_u8(0xBD).await?;
+            }
+            NumericInstruction::ReinterpretInteger(FloatType::F32, IntegerType::I32) => {
+                bytes += self.emit_u8(0xBE).await?;
+            }
+            NumericInstruction::ReinterpretInteger(FloatType::F64, IntegerType::I64) => {
+                bytes += self.emit_u8(0xBF).await?;
+            }
+            NumericInstruction::ExtendSigned(StorageSize::I32_8) => {
+                bytes += self.emit_u8(0xC0).await?;
+            }
+            NumericInstruction::ExtendSigned(StorageSize::I32_16) => {
+                bytes += self.emit_u8(0xC1).await?;
+            }
+            NumericInstruction::ExtendSigned(StorageSize::I64_8) => {
+                bytes += self.emit_u8(0xC2).await?;
+            }
+            NumericInstruction::ExtendSigned(StorageSize::I64_16) => {
+                bytes += self.emit_u8(0xC3).await?;
+            }
+            NumericInstruction::ExtendSigned(StorageSize::I64_32) => {
+                bytes += self.emit_u8(0xC4).await?;
+            }
+            NumericInstruction::ConvertAndTruncateWithSaturation(
+                IntegerType::I32,
+                FloatType::F32,
+                SignExtension::Signed,
+            ) => {
+                bytes += self.emit_u8(0xFC).await?;
+                bytes += self.emit_u32(0).await?;
+            }
+            NumericInstruction::ConvertAndTruncateWithSaturation(
+                IntegerType::I32,
+                FloatType::F32,
+                SignExtension::Unsigned,
+            ) => {
+                bytes += self.emit_u8(0xFC).await?;
+                bytes += self.emit_u32(1).await?;
+            }
+            NumericInstruction::ConvertAndTruncateWithSaturation(
+                IntegerType::I32,
+                FloatType::F64,
+                SignExtension::Signed,
+            ) => {
+                bytes += self.emit_u8(0xFC).await?;
+                bytes += self.emit_u32(2).await?;
+            }
+            NumericInstruction::ConvertAndTruncateWithSaturation(
+                IntegerType::I32,
+                FloatType::F64,
+                SignExtension::Unsigned,
+            ) => {
+                bytes += self.emit_u8(0xFC).await?;
+                bytes += self.emit_u32(3).await?;
+            }
+            NumericInstruction::ConvertAndTruncateWithSaturation(
+                IntegerType::I64,
+                FloatType::F32,
+                SignExtension::Signed,
+            ) => {
+                bytes += self.emit_u8(0xFC).await?;
+                bytes += self.emit_u32(4).await?;
+            }
+            NumericInstruction::ConvertAndTruncateWithSaturation(
+                IntegerType::I64,
+                FloatType::F32,
+                SignExtension::Unsigned,
+            ) => {
+                bytes += self.emit_u8(0xFC).await?;
+                bytes += self.emit_u32(5).await?;
+            }
+            NumericInstruction::ConvertAndTruncateWithSaturation(
+                IntegerType::I64,
+                FloatType::F64,
+                SignExtension::Signed,
+            ) => {
+                bytes += self.emit_u8(0xFC).await?;
+                bytes += self.emit_u32(6).await?;
+            }
+            NumericInstruction::ConvertAndTruncateWithSaturation(
+                IntegerType::I64,
+                FloatType::F64,
+                SignExtension::Unsigned,
+            ) => {
+                bytes += self.emit_u8(0xFC).await?;
+                bytes += self.emit_u32(7).await?;
             }
             _ => return Err(CompilerError::InvalidSyntax),
         }
 
         Ok(bytes)
     }
-}
 
-impl Emit for ReferenceInstruction {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
+    pub async fn emit_reference_instruction(
+        &mut self,
+        instruction: &ReferenceInstruction,
+    ) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        match self {
-            Self::ReferenceNull(kind) => {
-                bytes += 0xD0u8.emit(output)?;
-                bytes += kind.emit(output)?;
+        match instruction {
+            ReferenceInstruction::ReferenceNull(kind) => {
+                bytes += self.emit_u8(0xD0).await?;
+                bytes += self.emit_reference_type(kind).await?;
             }
-            Self::ReferenceIsNull => {
-                bytes += 0xD1u8.emit(output)?;
+            ReferenceInstruction::ReferenceIsNull => {
+                bytes += self.emit_u8(0xD1).await?;
             }
-            Self::ReferenceFunction(index) => {
-                bytes += 0xD2u8.emit(output)?;
-                bytes += index.emit(output)?;
+            ReferenceInstruction::ReferenceFunction(index) => {
+                bytes += self.emit_u8(0xD2).await?;
+                bytes += self.emit_usize(*index).await?;
             }
         }
 
         Ok(bytes)
     }
-}
 
-impl Emit for ParametricInstruction {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
+    pub async fn emit_parametric_instruction(
+        &mut self,
+        instruction: &ParametricInstruction,
+    ) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        match self {
-            Self::Drop => {
-                bytes += 0x1Au8.emit(output)?;
+        match instruction {
+            ParametricInstruction::Drop => {
+                bytes += self.emit_u8(0x1A).await?;
             }
-            Self::Select(Some(types)) => {
-                bytes += 0x1Cu8.emit(output)?;
-                bytes += types.emit(output)?;
+            ParametricInstruction::Select(Some(types)) => {
+                bytes += self.emit_u8(0x1C).await?;
+                bytes += self.emit_vector(types, self.emit_value_type).await?;
             }
-            Self::Select(None) => {
-                bytes += 0x1Bu8.emit(output)?;
+            ParametricInstruction::Select(None) => {
+                bytes += self.emit_u8(0x1B).await?;
             }
         }
 
         Ok(bytes)
     }
-}
 
-impl Emit for VariableInstruction {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
+    pub async fn emit_variable_instruction(
+        &mut self,
+        instruction: &VariableInstruction,
+    ) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        match self {
-            Self::LocalGet(index) => {
-                bytes += 0x20u8.emit(output)?;
-                bytes += index.emit(output)?;
+        match instruction {
+            VariableInstruction::LocalGet(index) => {
+                bytes += self.emit_u8(0x20).await?;
+                bytes += self.emit_usize(*index).await?;
             }
-            Self::LocalSet(index) => {
-                bytes += 0x21u8.emit(output)?;
-                bytes += index.emit(output)?;
+            VariableInstruction::LocalSet(index) => {
+                bytes += self.emit_u8(0x21).await?;
+                bytes += self.emit_usize(*index).await?;
             }
-            Self::LocalTee(index) => {
-                bytes += 0x22u8.emit(output)?;
-                bytes += index.emit(output)?;
+            VariableInstruction::LocalTee(index) => {
+                bytes += self.emit_u8(0x22).await?;
+                bytes += self.emit_usize(*index).await?;
             }
-            Self::GlobalGet(index) => {
-                bytes += 0x23u8.emit(output)?;
-                bytes += index.emit(output)?;
+            VariableInstruction::GlobalGet(index) => {
+                bytes += self.emit_u8(0x23).await?;
+                bytes += self.emit_usize(*index).await?;
             }
-            Self::GlobalSet(index) => {
-                bytes += 0x24u8.emit(output)?;
-                bytes += index.emit(output)?;
+            VariableInstruction::GlobalSet(index) => {
+                bytes += self.emit_u8(0x24).await?;
+                bytes += self.emit_usize(*index).await?;
             }
         }
 
         Ok(bytes)
     }
-}
 
-impl Emit for TableInstruction {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
+    pub async fn emit_table_instruction(
+        &mut self,
+        instruction: &TableInstruction,
+    ) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        match self {
-            Self::TableGet(index) => {
-                bytes += 0x25u8.emit(output)?;
-                bytes += index.emit(output)?;
+        match instruction {
+            TableInstruction::TableGet(index) => {
+                bytes += self.emit_u8(0x25).await?;
+                bytes += self.emit_usize(*index).await?;
             }
-            Self::TableSet(index) => {
-                bytes += 0x26u8.emit(output)?;
-                bytes += index.emit(output)?;
+            TableInstruction::TableSet(index) => {
+                bytes += self.emit_u8(0x26).await?;
+                bytes += self.emit_usize(*index).await?;
             }
-            Self::TableInit(element, table) => {
-                bytes += 0xFCu8.emit(output)?;
-                bytes += 12u32.emit(output)?;
-                bytes += element.emit(output)?;
-                bytes += table.emit(output)?;
+            TableInstruction::TableInit(element, table) => {
+                bytes += self.emit_u8(0xFC).await?;
+                bytes += self.emit_u32(12).await?;
+                bytes += self.emit_usize(*element).await?;
+                bytes += self.emit_usize(*table).await?;
             }
-            Self::ElementDrop(index) => {
-                bytes += 0xFCu8.emit(output)?;
-                bytes += 13u32.emit(output)?;
-                bytes += index.emit(output)?;
+            TableInstruction::ElementDrop(index) => {
+                bytes += self.emit_u8(0xFC).await?;
+                bytes += self.emit_u32(13).await?;
+                bytes += self.emit_usize(*index).await?;
             }
-            Self::TableCopy(table_a, table_b) => {
-                bytes += 0xFCu8.emit(output)?;
-                bytes += 14u32.emit(output)?;
-                bytes += table_a.emit(output)?;
-                bytes += table_b.emit(output)?;
+            TableInstruction::TableCopy(table_a, table_b) => {
+                bytes += self.emit_u8(0xFC).await?;
+                bytes += self.emit_u32(14).await?;
+                bytes += self.emit_usize(*table_a).await?;
+                bytes += self.emit_usize(*table_b).await?;
             }
-            Self::TableGrow(index) => {
-                bytes += 0xFCu8.emit(output)?;
-                bytes += 15u32.emit(output)?;
-                bytes += index.emit(output)?;
+            TableInstruction::TableGrow(index) => {
+                bytes += self.emit_u8(0xFC).await?;
+                bytes += self.emit_u32(15).await?;
+                bytes += self.emit_usize(*index).await?;
             }
-            Self::TableSize(index) => {
-                bytes += 0xFCu8.emit(output)?;
-                bytes += 16u32.emit(output)?;
-                bytes += index.emit(output)?;
+            TableInstruction::TableSize(index) => {
+                bytes += self.emit_u8(0xFC).await?;
+                bytes += self.emit_u32(16).await?;
+                bytes += self.emit_usize(*index).await?;
             }
-            Self::TableFill(index) => {
-                bytes += 0xFCu8.emit(output)?;
-                bytes += 17u32.emit(output)?;
-                bytes += index.emit(output)?;
+            TableInstruction::TableFill(index) => {
+                bytes += self.emit_u8(0xFC).await?;
+                bytes += self.emit_u32(17).await?;
+                bytes += self.emit_usize(*index).await?;
             }
         }
 
         Ok(bytes)
     }
-}
 
-impl Emit for MemoryInstruction {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
+    pub async fn emit_memory_instruction(
+        &mut self,
+        instruction: &MemoryInstruction,
+    ) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        match self {
-            Self::Load(NumberType::I32, memory_argument) => {
-                bytes += 0x28u8.emit(output)?;
-                bytes += memory_argument.emit(output)?;
+        match instruction {
+            MemoryInstruction::Load(NumberType::I32, memory_argument) => {
+                bytes += self.emit_u8(0x28).await?;
+                bytes += self.emit_memory_argument(memory_argument).await?;
             }
-            Self::Load(NumberType::I64, memory_argument) => {
-                bytes += 0x29u8.emit(output)?;
-                bytes += memory_argument.emit(output)?;
+            MemoryInstruction::Load(NumberType::I64, memory_argument) => {
+                bytes += self.emit_u8(0x29).await?;
+                bytes += self.emit_memory_argument(memory_argument).await?;
             }
-            Self::Load(NumberType::F32, memory_argument) => {
-                bytes += 0x2Au8.emit(output)?;
-                bytes += memory_argument.emit(output)?;
+            MemoryInstruction::Load(NumberType::F32, memory_argument) => {
+                bytes += self.emit_u8(0x2A).await?;
+                bytes += self.emit_memory_argument(memory_argument).await?;
             }
-            Self::Load(NumberType::F64, memory_argument) => {
-                bytes += 0x2Bu8.emit(output)?;
-                bytes += memory_argument.emit(output)?;
+            MemoryInstruction::Load(NumberType::F64, memory_argument) => {
+                bytes += self.emit_u8(0x2B).await?;
+                bytes += self.emit_memory_argument(memory_argument).await?;
             }
-            Self::LoadPartial(StorageSize::I32_8, SignExtension::Signed, memory_argument) => {
-                bytes += 0x2Cu8.emit(output)?;
-                bytes += memory_argument.emit(output)?;
+            MemoryInstruction::LoadPartial(
+                StorageSize::I32_8,
+                SignExtension::Signed,
+                memory_argument,
+            ) => {
+                bytes += self.emit_u8(0x2C).await?;
+                bytes += self.emit_memory_argument(memory_argument).await?;
             }
-            Self::LoadPartial(StorageSize::I32_8, SignExtension::Unsigned, memory_argument) => {
-                bytes += 0x2Du8.emit(output)?;
-                bytes += memory_argument.emit(output)?;
+            MemoryInstruction::LoadPartial(
+                StorageSize::I32_8,
+                SignExtension::Unsigned,
+                memory_argument,
+            ) => {
+                bytes += self.emit_u8(0x2D).await?;
+                bytes += self.emit_memory_argument(memory_argument).await?;
             }
-            Self::LoadPartial(StorageSize::I32_16, SignExtension::Signed, memory_argument) => {
-                bytes += 0x2Eu8.emit(output)?;
-                bytes += memory_argument.emit(output)?;
+            MemoryInstruction::LoadPartial(
+                StorageSize::I32_16,
+                SignExtension::Signed,
+                memory_argument,
+            ) => {
+                bytes += self.emit_u8(0x2E).await?;
+                bytes += self.emit_memory_argument(memory_argument).await?;
             }
-            Self::LoadPartial(StorageSize::I32_16, SignExtension::Unsigned, memory_argument) => {
-                bytes += 0x2Fu8.emit(output)?;
-                bytes += memory_argument.emit(output)?;
+            MemoryInstruction::LoadPartial(
+                StorageSize::I32_16,
+                SignExtension::Unsigned,
+                memory_argument,
+            ) => {
+                bytes += self.emit_u8(0x2F).await?;
+                bytes += self.emit_memory_argument(memory_argument).await?;
             }
-            Self::LoadPartial(StorageSize::I64_8, SignExtension::Signed, memory_argument) => {
-                bytes += 0x30u8.emit(output)?;
-                bytes += memory_argument.emit(output)?;
+            MemoryInstruction::LoadPartial(
+                StorageSize::I64_8,
+                SignExtension::Signed,
+                memory_argument,
+            ) => {
+                bytes += self.emit_u8(0x30).await?;
+                bytes += self.emit_memory_argument(memory_argument).await?;
             }
-            Self::LoadPartial(StorageSize::I64_8, SignExtension::Unsigned, memory_argument) => {
-                bytes += 0x31u8.emit(output)?;
-                bytes += memory_argument.emit(output)?;
+            MemoryInstruction::LoadPartial(
+                StorageSize::I64_8,
+                SignExtension::Unsigned,
+                memory_argument,
+            ) => {
+                bytes += self.emit_u8(0x31).await?;
+                bytes += self.emit_memory_argument(memory_argument).await?;
             }
-            Self::LoadPartial(StorageSize::I64_16, SignExtension::Signed, memory_argument) => {
-                bytes += 0x32u8.emit(output)?;
-                bytes += memory_argument.emit(output)?;
+            MemoryInstruction::LoadPartial(
+                StorageSize::I64_16,
+                SignExtension::Signed,
+                memory_argument,
+            ) => {
+                bytes += self.emit_u8(0x32).await?;
+                bytes += self.emit_memory_argument(memory_argument).await?;
             }
-            Self::LoadPartial(StorageSize::I64_16, SignExtension::Unsigned, memory_argument) => {
-                bytes += 0x33u8.emit(output)?;
-                bytes += memory_argument.emit(output)?;
+            MemoryInstruction::LoadPartial(
+                StorageSize::I64_16,
+                SignExtension::Unsigned,
+                memory_argument,
+            ) => {
+                bytes += self.emit_u8(0x33).await?;
+                bytes += self.emit_memory_argument(memory_argument).await?;
             }
-            Self::LoadPartial(StorageSize::I64_32, SignExtension::Signed, memory_argument) => {
-                bytes += 0x34u8.emit(output)?;
-                bytes += memory_argument.emit(output)?;
+            MemoryInstruction::LoadPartial(
+                StorageSize::I64_32,
+                SignExtension::Signed,
+                memory_argument,
+            ) => {
+                bytes += self.emit_u8(0x34).await?;
+                bytes += self.emit_memory_argument(memory_argument).await?;
             }
-            Self::LoadPartial(StorageSize::I64_32, SignExtension::Unsigned, memory_argument) => {
-                bytes += 0x35u8.emit(output)?;
-                bytes += memory_argument.emit(output)?;
+            MemoryInstruction::LoadPartial(
+                StorageSize::I64_32,
+                SignExtension::Unsigned,
+                memory_argument,
+            ) => {
+                bytes += self.emit_u8(0x35).await?;
+                bytes += self.emit_memory_argument(memory_argument).await?;
             }
-            Self::Store(NumberType::I32, memory_argument) => {
-                bytes += 0x36u8.emit(output)?;
-                bytes += memory_argument.emit(output)?;
+            MemoryInstruction::Store(NumberType::I32, memory_argument) => {
+                bytes += self.emit_u8(0x36).await?;
+                bytes += self.emit_memory_argument(memory_argument).await?;
             }
-            Self::Store(NumberType::I64, memory_argument) => {
-                bytes += 0x37u8.emit(output)?;
-                bytes += memory_argument.emit(output)?;
+            MemoryInstruction::Store(NumberType::I64, memory_argument) => {
+                bytes += self.emit_u8(0x37).await?;
+                bytes += self.emit_memory_argument(memory_argument).await?;
             }
-            Self::Store(NumberType::F32, memory_argument) => {
-                bytes += 0x38u8.emit(output)?;
-                bytes += memory_argument.emit(output)?;
+            MemoryInstruction::Store(NumberType::F32, memory_argument) => {
+                bytes += self.emit_u8(0x38).await?;
+                bytes += self.emit_memory_argument(memory_argument).await?;
             }
-            Self::Store(NumberType::F64, memory_argument) => {
-                bytes += 0x39u8.emit(output)?;
-                bytes += memory_argument.emit(output)?;
+            MemoryInstruction::Store(NumberType::F64, memory_argument) => {
+                bytes += self.emit_u8(0x39).await?;
+                bytes += self.emit_memory_argument(memory_argument).await?;
             }
-            Self::StorePartial(StorageSize::I32_8, memory_argument) => {
-                bytes += 0x3Au8.emit(output)?;
-                bytes += memory_argument.emit(output)?;
+            MemoryInstruction::StorePartial(StorageSize::I32_8, memory_argument) => {
+                bytes += self.emit_u8(0x3A).await?;
+                bytes += self.emit_memory_argument(memory_argument).await?;
             }
-            Self::StorePartial(StorageSize::I32_16, memory_argument) => {
-                bytes += 0x3Bu8.emit(output)?;
-                bytes += memory_argument.emit(output)?;
+            MemoryInstruction::StorePartial(StorageSize::I32_16, memory_argument) => {
+                bytes += self.emit_u8(0x3B).await?;
+                bytes += self.emit_memory_argument(memory_argument).await?;
             }
-            Self::StorePartial(StorageSize::I64_8, memory_argument) => {
-                bytes += 0x3Cu8.emit(output)?;
-                bytes += memory_argument.emit(output)?;
+            MemoryInstruction::StorePartial(StorageSize::I64_8, memory_argument) => {
+                bytes += self.emit_u8(0x3C).await?;
+                bytes += self.emit_memory_argument(memory_argument).await?;
             }
-            Self::StorePartial(StorageSize::I64_16, memory_argument) => {
-                bytes += 0x3Du8.emit(output)?;
-                bytes += memory_argument.emit(output)?;
+            MemoryInstruction::StorePartial(StorageSize::I64_16, memory_argument) => {
+                bytes += self.emit_u8(0x3D).await?;
+                bytes += self.emit_memory_argument(memory_argument).await?;
             }
-            Self::StorePartial(StorageSize::I64_32, memory_argument) => {
-                bytes += 0x3Eu8.emit(output)?;
-                bytes += memory_argument.emit(output)?;
+            MemoryInstruction::StorePartial(StorageSize::I64_32, memory_argument) => {
+                bytes += self.emit_u8(0x3E).await?;
+                bytes += self.emit_memory_argument(memory_argument).await?;
             }
-            Self::MemorySize => {
-                bytes += 0x3Fu8.emit(output)?;
-                bytes += 0x00u8.emit(output)?;
+            MemoryInstruction::MemorySize => {
+                bytes += self.emit_u8(0x3F).await?;
+                bytes += self.emit_u8(0x00).await?;
             }
-            Self::MemoryGrow => {
-                bytes += 0x40u8.emit(output)?;
-                bytes += 0x00u8.emit(output)?;
+            MemoryInstruction::MemoryGrow => {
+                bytes += self.emit_u8(0x40).await?;
+                bytes += self.emit_u8(0x00).await?;
             }
-            Self::MemoryInit(index) => {
-                bytes += 0xFCu8.emit(output)?;
-                bytes += 8u32.emit(output)?;
-                bytes += index.emit(output)?;
-                bytes += 0x00u8.emit(output)?;
+            MemoryInstruction::MemoryInit(index) => {
+                bytes += self.emit_u8(0xFC).await?;
+                bytes += self.emit_u32(8).await?;
+                bytes += self.emit_usize(*index).await?;
+                bytes += self.emit_u8(0x00).await?;
             }
-            Self::DataDrop(index) => {
-                bytes += 0xFCu8.emit(output)?;
-                bytes += 9u32.emit(output)?;
-                bytes += index.emit(output)?;
+            MemoryInstruction::DataDrop(index) => {
+                bytes += self.emit_u8(0xFC).await?;
+                bytes += self.emit_u32(9).await?;
+                bytes += self.emit_usize(*index).await?;
             }
-            Self::MemoryCopy => {
-                bytes += 0xFCu8.emit(output)?;
-                bytes += 10u32.emit(output)?;
-                bytes += 0x00u8.emit(output)?;
-                bytes += 0x00u8.emit(output)?;
+            MemoryInstruction::MemoryCopy => {
+                bytes += self.emit_u8(0xFC).await?;
+                bytes += self.emit_u32(10).await?;
+                bytes += self.emit_u8(0x00).await?;
+                bytes += self.emit_u8(0x00).await?;
             }
-            Self::MemoryFill => {
-                bytes += 0xFCu8.emit(output)?;
-                bytes += 11u32.emit(output)?;
-                bytes += 0x00u8.emit(output)?;
+            MemoryInstruction::MemoryFill => {
+                bytes += self.emit_u8(0xFC).await?;
+                bytes += self.emit_u32(11).await?;
+                bytes += self.emit_u8(0x00).await?;
             }
         }
 
         Ok(bytes)
     }
-}
 
-impl Emit for ControlInstruction {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
+    pub async fn emit_control_instruction(
+        &mut self,
+        instruction: &ControlInstruction,
+    ) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        match self {
-            Self::Unreachable => {
-                bytes += 0x00u8.emit(output)?;
+        match instruction {
+            ControlInstruction::Unreachable => {
+                bytes += self.emit_u8(0x00).await?;
             }
-            Self::Nop => {
-                bytes += 0x01u8.emit(output)?;
+            ControlInstruction::Nop => {
+                bytes += self.emit_u8(0x01).await?;
             }
-            Self::Block(kind, expression) => {
-                bytes += 0x02u8.emit(output)?;
-                bytes += kind.emit(output)?;
-                bytes += expression.emit(output)?;
+            ControlInstruction::Block(kind, expression) => {
+                bytes += self.emit_u8(0x02).await?;
+                bytes += self.emit_block_type(kind).await?;
+                bytes += self.emit_expression(expression).await?;
             }
-            Self::Loop(kind, expression) => {
-                bytes += 0x03u8.emit(output)?;
-                bytes += kind.emit(output)?;
-                bytes += expression.emit(output)?;
+            ControlInstruction::Loop(kind, expression) => {
+                bytes += self.emit_u8(0x03).await?;
+                bytes += self.emit_block_type(kind).await?;
+                bytes += self.emit_expression(expression).await?;
             }
-            Self::If(kind, positive, negative) => {
-                bytes += 0x04u8.emit(output)?;
-                bytes += kind.emit(output)?;
+            ControlInstruction::If(kind, positive, negative) => {
+                bytes += self.emit_u8(0x04).await?;
+                bytes += self.emit_block_type(kind).await?;
 
                 if let Some(negative) = negative {
-                    for instruction in positive.instructions() {
-                        bytes += instruction.emit(output)?;
-                    }
-
-                    bytes += 0x05u8.emit(output)?;
-                    bytes += negative.emit(output)?;
+                    bytes += self
+                        .emit_expression_with_custom_terminator(negative, 0x05)
+                        .await?;
+                    bytes += self.emit_expression(negative).await?;
                 } else {
-                    bytes += positive.emit(output)?;
+                    bytes += self.emit_expression(positive).await?;
                 }
             }
-            Self::Branch(index) => {
-                bytes += 0x0Cu8.emit(output)?;
-                bytes += index.emit(output)?;
+            ControlInstruction::Branch(index) => {
+                bytes += self.emit_u8(0x0C).await?;
+                bytes += self.emit_usize(*index).await?;
             }
-            Self::BranchIf(index) => {
-                bytes += 0x0Du8.emit(output)?;
-                bytes += index.emit(output)?;
+            ControlInstruction::BranchIf(index) => {
+                bytes += self.emit_u8(0x0D).await?;
+                bytes += self.emit_usize(*index).await?;
             }
-            Self::BranchTable(indices, index) => {
-                bytes += 0x0Eu8.emit(output)?;
-                bytes += indices.emit(output)?;
-                bytes += index.emit(output)?;
+            ControlInstruction::BranchTable(indices, index) => {
+                bytes += self.emit_u8(0x0E).await?;
+                bytes += self.emit_vector(indices, self.emit_usize).await?;
+                bytes += self.emit_usize(*index).await?;
             }
-            Self::Return => {
-                bytes += 0x0Fu8.emit(output)?;
+            ControlInstruction::Return => {
+                bytes += self.emit_u8(0x0F).await?;
             }
-            Self::Call(index) => {
-                bytes += 0x10u8.emit(output)?;
-                bytes += index.emit(output)?;
+            ControlInstruction::Call(index) => {
+                bytes += self.emit_u8(0x10).await?;
+                bytes += self.emit_usize(*index).await?;
             }
-            Self::CallIndirect(table, kind) => {
-                bytes += 0x11u8.emit(output)?;
-                bytes += kind.emit(output)?;
-                bytes += table.emit(output)?;
+            ControlInstruction::CallIndirect(table, kind) => {
+                bytes += self.emit_u8(0x11).await?;
+                bytes += self.emit_usize(*kind).await?;
+                bytes += self.emit_usize(*table).await?;
             }
         }
 
         Ok(bytes)
     }
-}
 
-impl Emit for BlockType {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        match self {
-            BlockType::Index(index) => (*index as i64).emit(output),
-            BlockType::ValueType(kind) => kind.emit(output),
-            BlockType::None => 0x40u8.emit(output),
+    pub async fn emit_block_type(&mut self, value: &BlockType) -> Result<usize, CompilerError> {
+        match value {
+            BlockType::Index(index) => self.emit_i64(*index as i64).await,
+            BlockType::ValueType(kind) => self.emit_value_type(kind).await,
+            BlockType::None => self.emit_u8(0x40).await,
         }
     }
-}
 
-impl Emit for MemoryArgument {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
+    pub async fn emit_memory_argument(
+        &mut self,
+        value: &MemoryArgument,
+    ) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        bytes += self.align().emit(output)?;
-        bytes += self.offset().emit(output)?;
+        bytes += self.emit_usize(value.align()).await?;
+        bytes += self.emit_usize(value.offset()).await?;
 
         Ok(bytes)
     }

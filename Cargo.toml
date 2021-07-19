@@ -29,6 +29,7 @@ log = "0.4.14"
 uuid = { version = "0.8", features = ["serde", "v4"] }
 thiserror = "1.0"
 tokio = { version = "1.8.0", features = ["full"] }
+tokio-util = { version = "0.6.7", features = ["full"] }
 serde = "1.0.126"
 serde_yaml = "0.8.17"
 walkdir = "2.3.2"

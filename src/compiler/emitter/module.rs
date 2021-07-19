@@ -1,21 +1,21 @@
 use crate::about;
-use crate::compiler::emitter::{BinaryEmitter, Emit};
+use crate::compiler::emitter::BinaryEmitter;
 use crate::compiler::errors::CompilerError;
 use crate::syntax::web_assembly::{
     Data, DataMode, Element, ElementInitializer, ElementMode, Export, ExportDescription, Function,
     Global, Import, ImportDescription, Memory, Module, Name, ReferenceType, Start, Table,
     TypeIndex,
 };
-use std::io::Write;
+use futures::{AsyncWrite, AsyncWriteExt};
 
 const PREAMBLE: [u8; 4] = [0x00u8, 0x61u8, 0x73u8, 0x6Du8];
 const VERSION: [u8; 4] = [0x01u8, 0x00u8, 0x00u8, 0x00u8];
 
-impl<'output, O: Write> BinaryEmitter<'output, O> {
+impl<'output, O: AsyncWrite> BinaryEmitter<'output, O> {
     /// Emit named custom content to the module.
     fn emit_custom_content(&mut self, name: &Name, content: &[u8]) -> Result<usize, CompilerError> {
-        name.emit(&mut self.buffer)?;
-        content.emit(&mut self.buffer)?;
+        name.emit(&mut self.section_buffer)?;
+        content.emit(&mut self.section_buffer)?;
 
         self.emit_section(ModuleSection::CustomSection)
     }
@@ -32,190 +32,184 @@ impl<'output, O: Write> BinaryEmitter<'output, O> {
     /// Since we do not know the length of the emitted contents ahead of time,
     /// we use a buffer to hold the emitted values and copy the buffer contents to the output.
     /// The buffer is reset after it is copied.
-    fn emit_section(&mut self, section: ModuleSection) -> Result<usize, CompilerError> {
+    async fn emit_section(&mut self, section: ModuleSection) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        bytes += section.emit(self.output)?;
-        bytes += self.buffer.len().emit(self.output)?;
-        bytes += self.output.write(&self.buffer)?;
+        bytes += self.emit_u8(section as u8).await?;
+        bytes += self.emit_usize(self.section_buffer.len()).await?;
 
-        self.buffer.clear();
+        self.output.write_all(&self.section_buffer).await?;
+
+        bytes += self.section_buffer.len();
+
+        self.section_buffer.clear();
 
         Ok(bytes)
     }
 
     /// See https://webassembly.github.io/spec/core/binary/modules.html
-    pub async fn emit(&mut self, module: &Module) -> Result<usize, CompilerError> {
+    pub async fn emit_module(&mut self, module: &Module) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        bytes += self.output.write(&PREAMBLE)?;
-        bytes += self.output.write(&VERSION)?;
-
+        bytes += self.emit_bytes(&PREAMBLE);
+        bytes += self.emit_bytes(&VERSION);
         bytes += self.emit_version()?;
 
         if !module.types().is_empty() {
-            module.types().emit(&mut self.buffer)?;
-            bytes += self.emit_section(ModuleSection::TypeSection)?;
+            module.types().emit(&mut self.section_buffer)?;
+            bytes += self.emit_section(ModuleSection::TypeSection).await?;
         }
 
         if !module.imports().is_empty() {
-            module.imports().emit(&mut self.buffer)?;
-            bytes += self.emit_section(ModuleSection::ImportSection)?;
+            module.imports().emit(&mut self.section_buffer)?;
+            bytes += self.emit_section(ModuleSection::ImportSection).await?;
         }
 
         if !module.functions().is_empty() {
             let types: Vec<TypeIndex> = module.functions().iter().map(Function::kind).collect();
 
-            types.as_slice().emit(&mut self.buffer)?;
+            types.as_slice().emit(&mut self.section_buffer)?;
 
-            bytes += self.emit_section(ModuleSection::FunctionSection)?;
+            bytes += self.emit_section(ModuleSection::FunctionSection).await?;
         }
 
         if !module.tables().is_empty() {
-            module.tables().emit(&mut self.buffer)?;
-            bytes += self.emit_section(ModuleSection::TableSection)?;
+            module.tables().emit(&mut self.section_buffer)?;
+            bytes += self.emit_section(ModuleSection::TableSection).await?;
         }
 
         if !module.memories().is_empty() {
-            module.memories().emit(&mut self.buffer)?;
-            bytes += self.emit_section(ModuleSection::MemorySection)?;
+            module.memories().emit(&mut self.section_buffer)?;
+            bytes += self.emit_section(ModuleSection::MemorySection).await?;
         }
 
         if !module.globals().is_empty() {
-            module.globals().emit(&mut self.buffer)?;
-            bytes += self.emit_section(ModuleSection::GlobalSection)?;
+            module.globals().emit(&mut self.section_buffer)?;
+            bytes += self.emit_section(ModuleSection::GlobalSection).await?;
         }
 
         if !module.exports().is_empty() {
-            module.exports().emit(&mut self.buffer)?;
-            bytes += self.emit_section(ModuleSection::ExportSection)?;
+            module.exports().emit(&mut self.section_buffer)?;
+            bytes += self.emit_section(ModuleSection::ExportSection).await?;
         }
 
         if let Some(start) = module.start() {
-            start.emit(&mut self.buffer)?;
-            bytes += self.emit_section(ModuleSection::StartSection)?;
+            start.emit(&mut self.section_buffer)?;
+            bytes += self.emit_section(ModuleSection::StartSection).await?;
         }
 
         if !module.elements().is_empty() {
-            module.elements().emit(&mut self.buffer)?;
-            bytes += self.emit_section(ModuleSection::ElementSection)?;
+            module.elements().emit(&mut self.section_buffer)?;
+            bytes += self.emit_section(ModuleSection::ElementSection).await?;
         }
 
         if !module.data().is_empty() {
-            module.data().len().emit(&mut self.buffer)?;
-            bytes += self.emit_section(ModuleSection::DataCountSection)?;
+            module.data().len().emit(&mut self.section_buffer)?;
+            bytes += self.emit_section(ModuleSection::DataCountSection).await?;
         }
 
         if !module.functions().is_empty() {
-            module.functions().emit(&mut self.buffer)?;
-            bytes += self.emit_section(ModuleSection::CodeSection)?;
+            module.functions().emit(&mut self.section_buffer)?;
+            bytes += self.emit_section(ModuleSection::CodeSection).await?;
         }
 
         if !module.data().is_empty() {
-            module.data().emit(&mut self.buffer)?;
-            bytes += self.emit_section(ModuleSection::DataSection)?;
+            module.data().emit(&mut self.section_buffer)?;
+            bytes += self.emit_section(ModuleSection::DataSection).await?;
         }
 
         Ok(bytes)
     }
-}
 
-impl Emit for Function {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
+    pub async fn emit_function(&mut self, value: &Function) -> Result<usize, CompilerError> {
         let mut buffer: Vec<u8> = Vec::new();
+        let mut temp = Self::new(&mut buffer);
         let mut bytes = 0;
 
-        self.locals().len().emit(&mut buffer)?;
-        for local in self.locals().kinds() {
-            1u32.emit(&mut buffer)?;
-            local.emit(&mut buffer)?;
+        temp.emit_usize(value.locals().len()).await?;
+        for local in value.locals().kinds() {
+            temp.emit_u32(1).await?;
+            temp.emit_value_type(local).await?;
         }
 
-        self.body().emit(&mut buffer)?;
+        temp.emit_expression(value.body()).await?;
 
-        bytes += buffer.len().emit(output)?;
-        bytes += output.write(&buffer)?;
-
-        Ok(bytes)
-    }
-}
-
-impl Emit for Import {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        let mut bytes = 0;
-
-        bytes += self.module().emit(output)?;
-        bytes += self.name().emit(output)?;
-        bytes += self.description().emit(output)?;
+        bytes += self.emit_usize(buffer.len()).await?;
+        self.output.write_all(&buffer).await?;
+        bytes += buffer.len();
 
         Ok(bytes)
     }
-}
 
-impl Emit for ImportDescription {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
+    pub async fn emit_table(&mut self, value: &Table) -> Result<usize, CompilerError> {
+        self.emit_table_type(value.kind()).await
+    }
+
+    pub async fn emit_memory(&mut self, value: &Memory) -> Result<usize, CompilerError> {
+        self.emit_memory_type(value.kind()).await
+    }
+
+    pub async fn emit_global(&mut self, value: &Global) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        match self {
+        bytes += self.emit_global_type(value.kind()).await?;
+        bytes += self.emit_expression(value.initializer()).await?;
+
+        Ok(bytes)
+    }
+
+    pub async fn emit_import(&mut self, value: &Import) -> Result<usize, CompilerError> {
+        let mut bytes = 0;
+
+        bytes += self.emit_name(value.module()).await?;
+        bytes += self.emit_name(value.name()).await?;
+        bytes += self.emit_import_description(value.description()).await?;
+
+        Ok(bytes)
+    }
+
+    pub async fn emit_import_description(
+        &mut self,
+        value: &ImportDescription,
+    ) -> Result<usize, CompilerError> {
+        let mut bytes = 0;
+
+        match value {
             ImportDescription::Function(index) => {
-                bytes += 0x00u8.emit(output)?;
-                bytes += index.emit(output)?;
+                bytes += self.emit_u8(0x00).await?;
+                bytes += self.emit_usize(*index).await?;
             }
             ImportDescription::Table(table_type) => {
-                bytes += 0x01u8.emit(output)?;
-                bytes += table_type.emit(output)?;
+                bytes += self.emit_u8(0x01).await?;
+                bytes += self.emit_table_type(table_type).await?;
             }
             ImportDescription::Memory(memory_type) => {
-                bytes += 0x02u8.emit(output)?;
-                bytes += memory_type.emit(output)?;
+                bytes += self.emit_u8(0x02).await?;
+                bytes += self.emit_memory_type(memory_type).await?;
             }
             ImportDescription::Global(global_type) => {
-                bytes += 0x03u8.emit(output)?;
-                bytes += global_type.emit(output)?;
+                bytes += self.emit_u8(0x03).await?;
+                bytes += self.emit_global_type(global_type).await?;
             }
         };
 
         Ok(bytes)
     }
-}
 
-impl Emit for Table {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        self.kind().emit(output)
-    }
-}
-
-impl Emit for Memory {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        self.kind().emit(output)
-    }
-}
-
-impl Emit for Global {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
+    pub async fn emit_export(&mut self, value: &Export) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        bytes += self.kind().emit(output)?;
-        bytes += self.initializer().emit(output)?;
+        bytes += self.emit_name(value.name()).await?;
+        bytes += self.emit_export_description(value.description()).await?;
 
         Ok(bytes)
     }
-}
 
-impl Emit for Export {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        let mut bytes = 0;
-
-        bytes += self.name().emit(output)?;
-        bytes += self.description().emit(output)?;
-
-        Ok(bytes)
-    }
-}
-
-impl Emit for ExportDescription {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        let (value, index) = match self {
+    pub async fn emit_export_description(
+        &mut self,
+        value: &ExportDescription,
+    ) -> Result<usize, CompilerError> {
+        let (value, index) = match value {
             ExportDescription::Function(index) => (0x00, index),
             ExportDescription::Table(index) => (0x01, index),
             ExportDescription::Memory(index) => (0x02, index),
@@ -223,115 +217,109 @@ impl Emit for ExportDescription {
         };
         let mut bytes = 0;
 
-        bytes += value.emit(output)?;
-        bytes += index.emit(output)?;
+        bytes += self.emit_usize(value).await?;
+        bytes += self.emit_usize(*index).await?;
 
         Ok(bytes)
     }
-}
 
-impl Emit for Start {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        self.function().emit(output)
+    pub async fn emit_start(&mut self, value: &Start) -> Result<usize, CompilerError> {
+        self.emit_usize(value.function()).await
     }
-}
 
-impl Emit for Element {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
+    pub async fn emit_element(&mut self, value: &Element) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        match (self.initializers(), self.mode(), self.kind()) {
+        match (value.initializers(), value.mode(), value.kind()) {
             (
                 ElementInitializer::FunctionIndex(indices),
                 ElementMode::Active(0, offset),
                 ReferenceType::Function,
             ) => {
-                bytes += 0x00u8.emit(output)?;
-                bytes += offset.emit(output)?;
-                bytes += indices.emit(output)?;
+                bytes += self.emit_u8(0x00).await?;
+                bytes += self.emit_expression(offset).await?;
+                bytes += self.emit_vector(indices, self.emit_usize).await?;
             }
             (
                 ElementInitializer::FunctionIndex(indices),
                 ElementMode::Passive,
                 ReferenceType::Function,
             ) => {
-                bytes += 0x01u8.emit(output)?;
-                bytes += 0x00u8.emit(output)?;
-                bytes += indices.emit(output)?;
+                bytes += self.emit_u8(0x01).await?;
+                bytes += self.emit_u8(0x00).await?;
+                bytes += self.emit_vector(indices, self.emit_usize).await?;
             }
             (
                 ElementInitializer::FunctionIndex(indices),
                 ElementMode::Active(table, offset),
                 kind,
             ) => {
-                bytes += 0x02u8.emit(output)?;
-                bytes += table.emit(output)?;
-                bytes += offset.emit(output)?;
-                bytes += kind.emit(output)?;
-                bytes += indices.emit(output)?;
+                bytes += self.emit_u8(0x02).await?;
+                bytes += self.emit_usize(*table).await?;
+                bytes += self.emit_expression(offset).await?;
+                bytes += self.emit_reference_type(kind).await?;
+                bytes += self.emit_vector(indices, self.emit_usize).await?;
             }
             (ElementInitializer::FunctionIndex(indices), ElementMode::Declarative, kind) => {
-                bytes += 0x03u8.emit(output)?;
-                bytes += kind.emit(output)?;
-                bytes += indices.emit(output)?;
+                bytes += self.emit_u8(0x03).await?;
+                bytes += self.emit_reference_type(kind).await?;
+                bytes += self.emit_vector(indices, self.emit_usize).await?;
             }
             (
                 ElementInitializer::Expression(expressions),
                 ElementMode::Active(0, offset),
                 ReferenceType::Function,
             ) => {
-                bytes += 0x04u8.emit(output)?;
-                bytes += offset.emit(output)?;
-                bytes += expressions.emit(output)?;
+                bytes += self.emit_u8(0x04).await?;
+                bytes += self.emit_expression(offset).await?;
+                bytes += self.emit_vector(expressions, self.emit_expression).await?;
             }
             (ElementInitializer::Expression(expressions), ElementMode::Passive, kind) => {
-                bytes += 0x05u8.emit(output)?;
-                bytes += kind.emit(output)?;
-                bytes += expressions.emit(output)?;
+                bytes += self.emit_u8(0x05).await?;
+                bytes += self.emit_reference_type(kind).await?;
+                bytes += self.emit_vector(expressions, self.emit_expression).await?;
             }
             (
                 ElementInitializer::Expression(expressions),
                 ElementMode::Active(table, offset),
                 kind,
             ) => {
-                bytes += 0x06u8.emit(output)?;
-                bytes += table.emit(output)?;
-                bytes += offset.emit(output)?;
-                bytes += kind.emit(output)?;
-                bytes += expressions.emit(output)?;
+                bytes += self.emit_u8(0x06).await?;
+                bytes += self.emit_usize(*table).await?;
+                bytes += self.emit_expression(offset).await?;
+                bytes += self.emit_reference_type(kind).await?;
+                bytes += self.emit_vector(expressions, self.emit_expression).await?;
             }
             (ElementInitializer::Expression(expressions), ElementMode::Declarative, kind) => {
-                bytes += 0x07u8.emit(output)?;
-                bytes += kind.emit(output)?;
-                bytes += expressions.emit(output)?;
+                bytes += self.emit_u8(0x07).await?;
+                bytes += self.emit_reference_type(kind).await?;
+                bytes += self.emit_vector(expressions, self.emit_expression).await?;
             }
             _ => return Err(CompilerError::InvalidSyntax),
         };
 
         Ok(bytes)
     }
-}
 
-impl Emit for Data {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
+    pub async fn emit_data(&mut self, value: &Data) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        match self.mode() {
+        match value.mode() {
             DataMode::Active(0, offset) => {
-                bytes += 0x00u8.emit(output)?;
-                bytes += offset.emit(output)?;
+                bytes += self.emit_u8(0x00).await?;
+                bytes += self.emit_expression(offset).await?;
             }
             DataMode::Passive => {
-                bytes += 0x01u8.emit(output)?;
+                bytes += self.emit_u8(0x01).await?;
             }
             DataMode::Active(memory, offset) => {
-                bytes += 0x02u8.emit(output)?;
-                bytes += memory.emit(output)?;
-                bytes += offset.emit(output)?;
+                bytes += self.emit_u8(0x02).await?;
+                bytes += self.emit_usize(*memory).await?;
+                bytes += self.emit_expression(offset).await?;
             }
         };
 
-        bytes += self.initializer().emit(output)?;
+        bytes += self.emit_vector(value.initializer(), self.emit_u8)?;
 
         Ok(bytes)
     }
@@ -386,10 +374,4 @@ pub enum ModuleSection {
     /// It decodes into an optional u32 that represents the number of data segments in the data section.
     /// If this count does not match the length of the data segment vector, the module is malformed.
     DataCountSection,
-}
-
-impl Emit for ModuleSection {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        (*self as u8).emit(output)
-    }
 }

@@ -5,37 +5,38 @@ mod values;
 
 use crate::compiler::errors::CompilerError;
 use crate::syntax::web_assembly::Module;
-use std::io::Write;
+use futures::io::AsyncWrite;
 pub use types::*;
 pub use values::*;
 
 /// Emits a binary representation of a WebAssembly Abstract Syntax Tree (AST).
-struct BinaryEmitter<'output, O: Write> {
-    buffer: Vec<u8>,
+struct BinaryEmitter<'output, O: AsyncWrite> {
+    section_buffer: Vec<u8>,
+    value_buffer: Vec<u8>,
     output: &'output mut O,
 }
 
-impl<'output, O: Write> BinaryEmitter<'output, O> {
+impl<'output, O: AsyncWrite> BinaryEmitter<'output, O> {
     fn new(output: &'output mut O) -> Self {
-        let buffer: Vec<u8> = Vec::new();
+        let section_buffer: Vec<u8> = Vec::new();
+        let value_buffer: Vec<u8> = Vec::new();
 
-        BinaryEmitter { buffer, output }
+        BinaryEmitter {
+            section_buffer,
+            value_buffer,
+            output,
+        }
     }
 }
 
 /// Emits a binary representation of a WebAssembly Abstract Syntax Tree (AST) to a `Write` output.
-trait Emit {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError>;
-}
-
-/// Emits a binary representation of a WebAssembly Abstract Syntax Tree (AST) to a `Write` output.
-pub async fn emit_binary<O: Write>(
+pub async fn emit_binary<O: AsyncWrite>(
     module: &Module,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
     let mut writer = BinaryEmitter::new(output);
 
-    writer.emit(module).await
+    writer.emit_module(module).await
 }
 
 #[cfg(test)]
@@ -52,9 +53,8 @@ mod tests {
 
     async fn validate(target: web_assembly::Module) -> Result<(), CompilerError> {
         let mut bytes = Vec::new();
-        let mut writer = BinaryEmitter::new(&mut bytes);
 
-        writer.emit(&target).await?;
+        emit_binary(&target, &mut bytes).await?;
 
         let engine = Engine::default();
         let module = Module::new(&engine, &bytes)?;
@@ -77,7 +77,7 @@ mod tests {
         let module = web_assembly::Module::new();
         let mut writer = BinaryEmitter::new(&mut buffer);
 
-        writer.emit(&module).await.unwrap();
+        writer.emit_module(&module).await.unwrap();
 
         let mut bytes: Vec<u8> = Vec::new();
         let prefix = b"\x00\x61\x73\x6D\x01\x00\x00\x00";
