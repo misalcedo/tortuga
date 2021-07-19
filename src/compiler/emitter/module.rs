@@ -1,5 +1,5 @@
 use crate::about;
-use crate::compiler::emitter::Emit;
+use crate::compiler::emitter::{BinaryEmitter, Emit};
 use crate::compiler::errors::CompilerError;
 use crate::syntax::web_assembly::{
     Data, DataMode, Element, ElementInitializer, ElementMode, Export, ExportDescription, Function,
@@ -11,78 +11,109 @@ use std::io::Write;
 const PREAMBLE: [u8; 4] = [0x00u8, 0x61u8, 0x73u8, 0x6Du8];
 const VERSION: [u8; 4] = [0x01u8, 0x00u8, 0x00u8, 0x00u8];
 
-/// See https://webassembly.github.io/spec/core/binary/modules.html
-impl Emit for Module {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
+impl<'output, O: Write> BinaryEmitter<'output, O> {
+    /// Emit named custom content to the module.
+    fn emit_custom_content(&mut self, name: &Name, content: &[u8]) -> Result<usize, CompilerError> {
+        name.emit(&mut self.buffer)?;
+        content.emit(&mut self.buffer)?;
+
+        self.emit_section(ModuleSection::CustomSection)
+    }
+
+    /// Emit a custom section with the version of the language the module was compiled.
+    fn emit_version(&mut self) -> Result<usize, CompilerError> {
+        let version_section = Name::new("version".to_string());
+
+        self.emit_custom_content(&version_section, about::VERSION.as_bytes())
+    }
+
+    /// Emits a module section to the given output.
+    /// Sections need to be prefixed by their length.
+    /// Since we do not know the length of the emitted contents ahead of time,
+    /// we use a buffer to hold the emitted values and copy the buffer contents to the output.
+    /// The buffer is reset after it is copied.
+    fn emit_section(&mut self, section: ModuleSection) -> Result<usize, CompilerError> {
         let mut bytes = 0;
-        let mut buffer: Vec<u8> = Vec::new();
 
-        bytes += output.write(&PREAMBLE)?;
-        bytes += output.write(&VERSION)?;
+        bytes += section.emit(self.output)?;
+        bytes += self.buffer.len().emit(self.output)?;
+        bytes += self.output.write(&self.buffer)?;
 
-        bytes += emit_version(&mut buffer, output)?;
+        self.buffer.clear();
 
-        if !self.types().is_empty() {
-            self.types().emit(&mut buffer)?;
-            bytes += emit_section(ModuleSection::TypeSection, &mut buffer, output)?;
+        Ok(bytes)
+    }
+
+    /// See https://webassembly.github.io/spec/core/binary/modules.html
+    pub async fn emit(&mut self, module: &Module) -> Result<usize, CompilerError> {
+        let mut bytes = 0;
+
+        bytes += self.output.write(&PREAMBLE)?;
+        bytes += self.output.write(&VERSION)?;
+
+        bytes += self.emit_version()?;
+
+        if !module.types().is_empty() {
+            module.types().emit(&mut self.buffer)?;
+            bytes += self.emit_section(ModuleSection::TypeSection)?;
         }
 
-        if !self.imports().is_empty() {
-            self.imports().emit(&mut buffer)?;
-            bytes += emit_section(ModuleSection::ImportSection, &mut buffer, output)?;
+        if !module.imports().is_empty() {
+            module.imports().emit(&mut self.buffer)?;
+            bytes += self.emit_section(ModuleSection::ImportSection)?;
         }
 
-        if !self.functions().is_empty() {
-            let types: Vec<TypeIndex> = self.functions().iter().map(Function::kind).collect();
+        if !module.functions().is_empty() {
+            let types: Vec<TypeIndex> = module.functions().iter().map(Function::kind).collect();
 
-            types.as_slice().emit(&mut buffer)?;
+            types.as_slice().emit(&mut self.buffer)?;
 
-            bytes += emit_section(ModuleSection::FunctionSection, &mut buffer, output)?;
+            bytes += self.emit_section(ModuleSection::FunctionSection)?;
         }
 
-        if !self.tables().is_empty() {
-            self.tables().emit(&mut buffer)?;
-            bytes += emit_section(ModuleSection::TableSection, &mut buffer, output)?;
+        if !module.tables().is_empty() {
+            module.tables().emit(&mut self.buffer)?;
+            bytes += self.emit_section(ModuleSection::TableSection)?;
         }
 
-        if !self.memories().is_empty() {
-            self.memories().emit(&mut buffer)?;
-            bytes += emit_section(ModuleSection::MemorySection, &mut buffer, output)?;
+        if !module.memories().is_empty() {
+            module.memories().emit(&mut self.buffer)?;
+            bytes += self.emit_section(ModuleSection::MemorySection)?;
         }
 
-        if !self.globals().is_empty() {
-            self.globals().emit(&mut buffer)?;
-            bytes += emit_section(ModuleSection::GlobalSection, &mut buffer, output)?;
+        if !module.globals().is_empty() {
+            module.globals().emit(&mut self.buffer)?;
+            bytes += self.emit_section(ModuleSection::GlobalSection)?;
         }
 
-        if !self.exports().is_empty() {
-            self.exports().emit(&mut buffer)?;
-            bytes += emit_section(ModuleSection::ExportSection, &mut buffer, output)?;
+        if !module.exports().is_empty() {
+            module.exports().emit(&mut self.buffer)?;
+            bytes += self.emit_section(ModuleSection::ExportSection)?;
         }
 
-        if let Some(start) = self.start() {
-            start.emit(&mut buffer)?;
-            bytes += emit_section(ModuleSection::StartSection, &mut buffer, output)?;
+        if let Some(start) = module.start() {
+            start.emit(&mut self.buffer)?;
+            bytes += self.emit_section(ModuleSection::StartSection)?;
         }
 
-        if !self.elements().is_empty() {
-            self.elements().emit(&mut buffer)?;
-            bytes += emit_section(ModuleSection::ElementSection, &mut buffer, output)?;
+        if !module.elements().is_empty() {
+            module.elements().emit(&mut self.buffer)?;
+            bytes += self.emit_section(ModuleSection::ElementSection)?;
         }
 
-        if !self.data().is_empty() {
-            self.data().len().emit(&mut buffer)?;
-            bytes += emit_section(ModuleSection::DataCountSection, &mut buffer, output)?;
+        if !module.data().is_empty() {
+            module.data().len().emit(&mut self.buffer)?;
+            bytes += self.emit_section(ModuleSection::DataCountSection)?;
         }
 
-        if !self.functions().is_empty() {
-            self.functions().emit(&mut buffer)?;
-            bytes += emit_section(ModuleSection::CodeSection, &mut buffer, output)?;
+        if !module.functions().is_empty() {
+            module.functions().emit(&mut self.buffer)?;
+            bytes += self.emit_section(ModuleSection::CodeSection)?;
         }
 
-        if !self.data().is_empty() {
-            self.data().emit(&mut buffer)?;
-            bytes += emit_section(ModuleSection::DataSection, &mut buffer, output)?;
+        if !module.data().is_empty() {
+            module.data().emit(&mut self.buffer)?;
+            bytes += self.emit_section(ModuleSection::DataSection)?;
         }
 
         Ok(bytes)
@@ -304,49 +335,6 @@ impl Emit for Data {
 
         Ok(bytes)
     }
-}
-
-/// Emit a custom section with the version of the language the module was compiled.
-fn emit_version<O: Write>(buffer: &mut Vec<u8>, output: &mut O) -> Result<usize, CompilerError> {
-    let version_section = Name::new("version".to_string());
-
-    emit_custom_content(&version_section, about::VERSION.as_bytes(), buffer)?;
-    emit_section(ModuleSection::CustomSection, buffer, output)
-}
-
-/// Emit named custom content to the module.
-fn emit_custom_content<O: Write>(
-    name: &Name,
-    content: &[u8],
-    output: &mut O,
-) -> Result<usize, CompilerError> {
-    let mut bytes = 0;
-
-    bytes += name.emit(output)?;
-    bytes += content.emit(output)?;
-
-    Ok(bytes)
-}
-
-/// Emits a module section to the given output.
-/// Sections need to be prefixed by their length.
-/// Since we do not know the length of the emitted contents ahead of time,
-/// we use a buffer to hold the emitted values and copy the buffer contents to the output.
-/// The buffer is reset after it is copied.
-fn emit_section<O: Write>(
-    section: ModuleSection,
-    buffer: &mut Vec<u8>,
-    output: &mut O,
-) -> Result<usize, CompilerError> {
-    let mut bytes = 0;
-
-    bytes += section.emit(output)?;
-    bytes += buffer.len().emit(output)?;
-    bytes += output.write(&buffer)?;
-
-    buffer.clear();
-
-    Ok(bytes)
 }
 
 #[derive(Copy, Clone)]

@@ -23,6 +23,6 @@ impl Compiler {
         let ast = parser::parse(&tokens).await?;
         let target = transformer::transform(&ast).await?;
 
-        emitter::emit_binary(target, output).await
+        emitter::emit_binary(&target, output).await
     }
 }

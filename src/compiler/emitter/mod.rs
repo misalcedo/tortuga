@@ -9,14 +9,33 @@ use std::io::Write;
 pub use types::*;
 pub use values::*;
 
+/// Emits a binary representation of a WebAssembly Abstract Syntax Tree (AST).
+struct BinaryEmitter<'output, O: Write> {
+    buffer: Vec<u8>,
+    output: &'output mut O,
+}
+
+impl<'output, O: Write> BinaryEmitter<'output, O> {
+    fn new(output: &'output mut O) -> Self {
+        let buffer: Vec<u8> = Vec::new();
+
+        BinaryEmitter { buffer, output }
+    }
+}
+
 /// Emits a binary representation of a WebAssembly Abstract Syntax Tree (AST) to a `Write` output.
 trait Emit {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError>;
 }
 
 /// Emits a binary representation of a WebAssembly Abstract Syntax Tree (AST) to a `Write` output.
-pub async fn emit_binary<O: Write>(module: Module, output: &mut O) -> Result<usize, CompilerError> {
-    module.emit(output)
+pub async fn emit_binary<O: Write>(
+    module: &Module,
+    output: &mut O,
+) -> Result<usize, CompilerError> {
+    let mut writer = BinaryEmitter::new(output);
+
+    writer.emit(module).await
 }
 
 #[cfg(test)]
@@ -31,10 +50,11 @@ mod tests {
     };
     use wasmtime::{Engine, Extern, Func, Instance, Module, Store};
 
-    fn validate(target: web_assembly::Module) -> Result<(), CompilerError> {
+    async fn validate(target: web_assembly::Module) -> Result<(), CompilerError> {
         let mut bytes = Vec::new();
+        let mut writer = BinaryEmitter::new(&mut bytes);
 
-        target.emit(&mut bytes)?;
+        writer.emit(&target).await?;
 
         let engine = Engine::default();
         let module = Module::new(&engine, &bytes)?;
@@ -51,12 +71,13 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn empty_module() {
+    #[tokio::test]
+    async fn empty_module() {
         let mut buffer = Vec::new();
         let module = web_assembly::Module::new();
+        let mut writer = BinaryEmitter::new(&mut buffer);
 
-        module.emit(&mut buffer).unwrap();
+        writer.emit(&module).await.unwrap();
 
         let mut bytes: Vec<u8> = Vec::new();
         let prefix = b"\x00\x61\x73\x6D\x01\x00\x00\x00";
@@ -76,16 +97,16 @@ mod tests {
         assert_eq!(&buffer, &bytes)
     }
 
-    #[test]
-    fn valid_empty_module() {
+    #[tokio::test]
+    async fn valid_empty_module() {
         let module = web_assembly::Module::new();
-        let result = validate(module);
+        let result = validate(module).await;
 
         assert!(result.is_ok());
     }
 
-    #[test]
-    fn valid_module() {
+    #[tokio::test]
+    async fn valid_module() {
         let mut module = web_assembly::Module::new();
         let function_type = FunctionType::new(
             ResultType::new(vec![ValueType::Number(NumberType::I64)]),
@@ -146,13 +167,13 @@ mod tests {
         );
         module.add_global(global);
 
-        let result = validate(module);
+        let result = validate(module).await;
 
         assert!(result.is_ok());
     }
 
-    #[test]
-    fn valid_module_import() {
+    #[tokio::test]
+    async fn valid_module_import() {
         let mut module = web_assembly::Module::new();
 
         let start_function_type =
@@ -166,13 +187,13 @@ mod tests {
         );
         module.add_import(import);
 
-        let result = validate(module);
+        let result = validate(module).await;
 
         assert!(result.is_ok());
     }
 
-    #[test]
-    fn valid_module_type_only() {
+    #[tokio::test]
+    async fn valid_module_type_only() {
         let mut module = web_assembly::Module::new();
         let function_type = FunctionType::new(
             ResultType::new(vec![ValueType::Number(NumberType::I64)]),
@@ -180,13 +201,13 @@ mod tests {
         );
         module.add_type(function_type);
 
-        let result = validate(module);
+        let result = validate(module).await;
 
         assert!(result.is_ok());
     }
 
-    #[test]
-    fn valid_module_function() {
+    #[tokio::test]
+    async fn valid_module_function() {
         let mut module = web_assembly::Module::new();
         let function_type = FunctionType::new(
             ResultType::new(vec![ValueType::Number(NumberType::I64)]),
@@ -203,11 +224,11 @@ mod tests {
         );
         module.add_function(function);
 
-        validate(module).unwrap();
+        validate(module).await.unwrap();
     }
 
-    #[test]
-    fn valid_module_start() {
+    #[tokio::test]
+    async fn valid_module_start() {
         let mut module = web_assembly::Module::new();
         let function_type = FunctionType::new(ResultType::new(vec![]), ResultType::new(vec![]));
         module.add_type(function_type);
@@ -222,11 +243,11 @@ mod tests {
         let start = Start::new(0);
         module.set_start(Some(start));
 
-        validate(module).unwrap();
+        validate(module).await.unwrap();
     }
 
-    #[test]
-    fn valid_module_element() {
+    #[tokio::test]
+    async fn valid_module_element() {
         let mut module = web_assembly::Module::new();
 
         let function_type = FunctionType::new(
@@ -254,21 +275,21 @@ mod tests {
         let table = Table::new(TableType::new(Limit::new(0, None), ReferenceType::Function));
         module.add_table(table);
 
-        validate(module).unwrap();
+        validate(module).await.unwrap();
     }
 
-    #[test]
-    fn valid_module_table_only() {
+    #[tokio::test]
+    async fn valid_module_table_only() {
         let mut module = web_assembly::Module::new();
 
         let table = Table::new(TableType::new(Limit::new(0, None), ReferenceType::Function));
         module.add_table(table);
 
-        validate(module).unwrap();
+        validate(module).await.unwrap();
     }
 
-    #[test]
-    fn valid_module_data() {
+    #[tokio::test]
+    async fn valid_module_data() {
         let mut module = web_assembly::Module::new();
 
         let data = Data::new(DataMode::Passive, vec![1]);
@@ -277,21 +298,21 @@ mod tests {
         let memory = Memory::new(MemoryType::new(Limit::new(0, None)));
         module.add_memory(memory);
 
-        validate(module).unwrap();
+        validate(module).await.unwrap();
     }
 
-    #[test]
-    fn valid_module_memory_only() {
+    #[tokio::test]
+    async fn valid_module_memory_only() {
         let mut module = web_assembly::Module::new();
 
         let memory = Memory::new(MemoryType::new(Limit::new(0, None)));
         module.add_memory(memory);
 
-        validate(module).unwrap();
+        validate(module).await.unwrap();
     }
 
-    #[test]
-    fn valid_module_global_only() {
+    #[tokio::test]
+    async fn valid_module_global_only() {
         let mut module = web_assembly::Module::new();
 
         let global = Global::new(
@@ -302,11 +323,11 @@ mod tests {
         );
         module.add_global(global);
 
-        validate(module).unwrap();
+        validate(module).await.unwrap();
     }
 
-    #[test]
-    fn valid_module_import_only() {
+    #[tokio::test]
+    async fn valid_module_import_only() {
         let mut module = web_assembly::Module::new();
 
         let export = Export::new(
@@ -323,11 +344,11 @@ mod tests {
         );
         module.add_global(global);
 
-        validate(module).unwrap();
+        validate(module).await.unwrap();
     }
 
-    #[test]
-    fn invalid_module() {
+    #[tokio::test]
+    async fn invalid_module() {
         let mut module = web_assembly::Module::new();
 
         // function with no corresponding type.
@@ -338,7 +359,7 @@ mod tests {
         );
         module.add_function(function);
 
-        let result = validate(module);
+        let result = validate(module).await;
 
         assert!(result.is_err());
     }
