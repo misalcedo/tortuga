@@ -69,7 +69,7 @@ impl<'a> Emit for Bytes<'a> {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        for item in self.as_ref() {
+        for item in self.as_slice() {
             bytes += item.emit(output)?;
         }
 

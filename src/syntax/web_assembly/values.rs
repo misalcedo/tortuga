@@ -40,7 +40,7 @@ impl<'a> Bytes<'a> {
         Bytes::<'a> { value: bytes }
     }
 
-    pub fn as_ref(&self) -> &[u8] {
+    pub fn as_slice(&self) -> &[u8] {
         self.value
     }
 
@@ -64,7 +64,7 @@ mod tests {
 
         assert_eq!(bytes.len(), content.len());
         assert_eq!(bytes.is_empty(), content.is_empty());
-        assert_eq!(bytes.as_ref(), content);
+        assert_eq!(bytes.as_slice(), content);
     }
 
     #[test]

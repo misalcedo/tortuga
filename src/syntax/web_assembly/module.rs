@@ -25,7 +25,7 @@ pub struct Module {
 }
 
 impl Module {
-    pub fn new() -> Module {
+    pub fn new() -> Self {
         Module {
             function_types: Vec::new(),
             functions: Vec::new(),
@@ -131,6 +131,12 @@ impl Module {
 
     pub fn add_export(&mut self, export: Export) {
         self.exports.push(export);
+    }
+}
+
+impl Default for Module {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -361,6 +367,10 @@ impl Data {
 
     pub fn len(&self) -> usize {
         self.initializer.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.initializer.is_empty()
     }
 }
 

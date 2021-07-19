@@ -7,7 +7,7 @@ pub fn parse(tokens: &[Token]) -> Result<Node, CompilerError> {
         Some(Token {
             kind: TokenKind::YAML(node),
             ..
-        }) => Ok(node.clone()),
+        }) => Ok(*node),
         None => Ok(Node::new()),
     }
 }
