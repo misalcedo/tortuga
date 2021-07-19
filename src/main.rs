@@ -1,10 +1,11 @@
 use clap::{App, Arg, SubCommand};
 use std::path::Path;
-use tortuga::{build, clean};
+use tortuga::{build, clean, TortugaError};
 
 const APP_NAME: &str = env!("CARGO_BIN_NAME");
 
-fn main() {
+#[tokio::main]
+async fn main() -> Result<(), TortugaError> {
     let matches = App::new(APP_NAME)
         .version(tortuga::about::VERSION)
         .author(tortuga::about::AUTHORS)
@@ -50,15 +51,28 @@ fn main() {
         let output = matches.value_of("output").map(Path::new).unwrap();
         let input = matches.value_of("input").map(Path::new).unwrap();
 
-        build(input, output).unwrap();
+        let results = build(input, output).await;
+        let errors: Vec<TortugaError> = results
+            .into_iter()
+            .filter(Result::is_err)
+            .map(Result::unwrap_err)
+            .collect();
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(TortugaError::Build(errors))
+        }
     } else if let Some(matches) = matches.subcommand_matches("clean") {
         let output = matches.value_of("output").map(Path::new).unwrap();
 
-        clean(output).unwrap();
+        clean(output).await
     } else {
-        println!(
-            "Invalid subcommand name: {}",
-            matches.subcommand_name().unwrap_or("")
-        );
+        Err(tortuga::TortugaError::InvalidSubcommand(
+            matches
+                .subcommand_name()
+                .map(String::from)
+                .unwrap_or_else(Default::default),
+        ))
     }
 }

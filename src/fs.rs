@@ -51,24 +51,22 @@ fn is_tortuga_source(entry: &DirEntry) -> bool {
 }
 
 /// An iterator of the compilation sources in the given directory.
-pub fn new_walker<T: AsRef<Path>>(sources: T) -> Box<dyn Iterator<Item = CompilationSource>> {
+pub fn new_walker<T: AsRef<Path>>(sources: T) -> impl Iterator<Item = CompilationSource> {
     let sources = sources.as_ref().to_path_buf();
 
-    Box::new(
-        WalkDir::new(&sources)
-            .follow_links(false)
-            .into_iter()
-            .filter_map(|e| e.ok())
-            .filter(is_tortuga_source)
-            .filter_map(move |entry| CompilationSource::new(&entry, &sources).ok()),
-    )
+    WalkDir::new(&sources)
+        .follow_links(false)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(is_tortuga_source)
+        .filter_map(move |entry| CompilationSource::new(&entry, &sources).ok())
 }
 
 /// Cleans the given output directory.
-pub fn clean<T: AsRef<Path>>(output: T) -> Result<(), TortugaError> {
+pub async fn clean<T: AsRef<Path>>(output: T) -> Result<(), TortugaError> {
     match remove_dir_all(output) {
         Ok(_) => Ok(()),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(e) => Err(TortugaError::from(e)),
+        Err(e) => Err(e.into()),
     }
 }
