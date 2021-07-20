@@ -10,7 +10,7 @@ pub async fn tokenize<I: AsyncRead + Unpin>(input: &mut I) -> Result<Vec<Token>,
     let contents: Node = serde_yaml::from_reader(&buffer[..])?;
 
     Ok(vec![Token {
-        kind: TokenKind::YAML(contents),
+        kind: TokenKind::Yaml(contents),
     }])
 }
 
@@ -21,5 +21,5 @@ pub struct Token {
 
 /// Type of tokens for Tortuga.
 pub enum TokenKind {
-    YAML(Node),
+    Yaml(Node),
 }

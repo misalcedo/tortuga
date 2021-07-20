@@ -5,7 +5,7 @@ use crate::syntax::tortuga::Node;
 pub async fn parse(tokens: &[Token]) -> Result<Node, CompilerError> {
     match tokens.first() {
         Some(Token {
-            kind: TokenKind::YAML(node),
+            kind: TokenKind::Yaml(node),
             ..
         }) => Ok(*node),
         None => Ok(Node::new()),

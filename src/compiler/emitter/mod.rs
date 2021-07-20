@@ -7,6 +7,7 @@ use crate::compiler::errors::CompilerError;
 use crate::syntax::web_assembly::Module;
 use futures::{AsyncWrite, AsyncWriteExt};
 pub use module::emit_module;
+use std::io::Write;
 pub use types::*;
 pub use values::*;
 
@@ -25,6 +26,48 @@ pub async fn emit_binary<O: AsyncWrite + Unpin>(
     output.write_all(&buffer[..]).await?;
 
     Ok(bytes)
+}
+
+/// Counts the number of bytes written, but does else nothing with the bytes.
+#[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq)]
+pub struct CountingWrite {
+    bytes: usize,
+}
+
+impl CountingWrite {
+    /// Create a default instance of a counting write.
+    pub fn new() -> Self {
+        CountingWrite { bytes: 0 }
+    }
+
+    /// The number of bytes written so far.
+    pub fn bytes(&self) -> usize {
+        self.bytes
+    }
+}
+
+impl Default for CountingWrite {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Write for CountingWrite {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.bytes += buf.len();
+
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+
+    fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()> {
+        self.bytes += buf.len();
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]

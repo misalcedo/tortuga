@@ -1,43 +1,12 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use std::io::Write;
-use tortuga::compiler::emitter::emit_module;
+use tortuga::compiler::emitter::{emit_module, CountingWrite};
 use tortuga::syntax::web_assembly::{
     Data, DataMode, Element, ElementInitializer, ElementMode, Export, ExportDescription,
     Expression, Function, FunctionType, Global, GlobalType, Import, ImportDescription, Instruction,
     Limit, Memory, MemoryType, Module, Name, NumberType, NumericInstruction, ReferenceType,
     ResultType, Start, Table, TableType, ValueType,
 };
-
-/// Counts the number of bytes written, but does else nothing with the bytes.
-#[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq)]
-struct CountingWrite {
-    bytes: usize,
-}
-
-impl CountingWrite {
-    /// Create a default instance of a counting write.
-    fn new() -> Self {
-        CountingWrite { bytes: 0 }
-    }
-}
-
-impl Write for CountingWrite {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.bytes += buf.len();
-
-        Ok(buf.len())
-    }
-
-    fn flush(&mut self) -> std::io::Result<()> {
-        Ok(())
-    }
-
-    fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()> {
-        self.bytes += buf.len();
-
-        Ok(())
-    }
-}
 
 pub fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("empty", |b| {
