@@ -92,7 +92,7 @@ impl<'output, O: AsyncWrite + Unpin> BinaryEmitter<'output, O> {
     ) -> Result<usize, CompilerError>
     where
         F: Future<Output = Result<usize, CompilerError>>,
-        E: Fn(T) -> F,
+        E: Fn(&T) -> F,
     {
         let mut bytes = 0;
 

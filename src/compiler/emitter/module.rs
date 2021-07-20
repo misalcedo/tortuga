@@ -13,18 +13,23 @@ const VERSION: [u8; 4] = [0x01u8, 0x00u8, 0x00u8, 0x00u8];
 
 impl<'output, O: AsyncWrite + Unpin> BinaryEmitter<'output, O> {
     /// Emit named custom content to the module.
-    fn emit_custom_content(&mut self, name: &Name, content: &[u8]) -> Result<usize, CompilerError> {
-        name.emit(&mut self.section_buffer)?;
-        content.emit(&mut self.section_buffer)?;
+    async fn emit_custom_content(
+        &mut self,
+        name: &Name,
+        content: &[u8],
+    ) -> Result<usize, CompilerError> {
+        self.emit_name(name).await?;
+        self.emit_bytes(content).await?;
 
-        self.emit_section(ModuleSection::CustomSection)
+        self.emit_section(ModuleSection::CustomSection).await
     }
 
     /// Emit a custom section with the version of the language the module was compiled.
-    fn emit_version(&mut self) -> Result<usize, CompilerError> {
+    async fn emit_version(&mut self) -> Result<usize, CompilerError> {
         let version_section = Name::new("version".to_string());
 
         self.emit_custom_content(&version_section, about::VERSION.as_bytes())
+            .await
     }
 
     /// Emits a module section to the given output.
@@ -51,9 +56,9 @@ impl<'output, O: AsyncWrite + Unpin> BinaryEmitter<'output, O> {
     pub async fn emit_module(&mut self, module: &Module) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        bytes += self.emit_bytes(&PREAMBLE);
-        bytes += self.emit_bytes(&VERSION);
-        bytes += self.emit_version()?;
+        bytes += self.emit_bytes(&PREAMBLE).await?;
+        bytes += self.emit_bytes(&VERSION).await?;
+        bytes += self.emit_version().await?;
 
         if !module.types().is_empty() {
             module.types().emit(&mut self.section_buffer)?;
@@ -123,7 +128,7 @@ impl<'output, O: AsyncWrite + Unpin> BinaryEmitter<'output, O> {
 
     pub async fn emit_function(&mut self, value: &Function) -> Result<usize, CompilerError> {
         let mut buffer: Vec<u8> = Vec::new();
-        let mut temp = Self::new(&mut buffer);
+        let mut temp = BinaryEmitter::new(&mut buffer);
         let mut bytes = 0;
 
         temp.emit_usize(value.locals().len()).await?;
@@ -237,7 +242,7 @@ impl<'output, O: AsyncWrite + Unpin> BinaryEmitter<'output, O> {
                 ReferenceType::Function,
             ) => {
                 bytes += self.emit_u8(0x00).await?;
-                bytes += self.emit_expression(offset).await?;
+                bytes += self.emit_expression(&offset).await?;
                 bytes += self.emit_vector(indices, self.emit_usize).await?;
             }
             (
@@ -319,7 +324,7 @@ impl<'output, O: AsyncWrite + Unpin> BinaryEmitter<'output, O> {
             }
         };
 
-        bytes += self.emit_vector(value.initializer(), self.emit_u8)?;
+        bytes += self.emit_vector(value.initializer(), self.emit_u8).await?;
 
         Ok(bytes)
     }

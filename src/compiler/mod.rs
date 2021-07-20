@@ -14,9 +14,9 @@ impl Compiler {
         Compiler {}
     }
 
-    pub async fn compile<I: AsyncRead, O: AsyncWrite>(
+    pub async fn compile<I: AsyncRead + Unpin, O: AsyncWrite + Unpin>(
         &self,
-        input: I,
+        input: &mut I,
         output: &mut O,
     ) -> Result<usize, CompilerError> {
         let tokens = lexer::tokenize(input).await?;
@@ -28,8 +28,8 @@ impl Compiler {
 }
 
 // TODO: learn about pin and unpin, support async read in lexer, fix emit_vector implementation.
-pub async fn compile<I: AsyncRead, O: AsyncWrite>(
-    input: I,
+pub async fn compile<I: AsyncRead + Unpin, O: AsyncWrite + Unpin>(
+    input: &mut I,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
     let compiler = Compiler::new();

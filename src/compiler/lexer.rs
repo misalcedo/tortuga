@@ -1,9 +1,13 @@
 use crate::compiler::CompilerError;
 use crate::syntax::tortuga::Node;
-use futures::AsyncRead;
+use futures::{AsyncRead, AsyncReadExt};
 
-pub async fn tokenize<I: AsyncRead>(input: I) -> Result<Vec<Token>, CompilerError> {
-    let contents: Node = serde_yaml::from_reader(input)?;
+pub async fn tokenize<I: AsyncRead + Unpin>(input: &mut I) -> Result<Vec<Token>, CompilerError> {
+    let mut buffer = Vec::new();
+
+    input.read_to_end(&mut buffer);
+
+    let contents: Node = serde_yaml::from_reader(&buffer[..])?;
 
     Ok(vec![Token {
         kind: TokenKind::YAML(contents),

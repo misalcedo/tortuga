@@ -30,7 +30,7 @@ impl<'output, O: AsyncWrite + Unpin> BinaryEmitter<'output, O> {
 }
 
 /// Emits a binary representation of a WebAssembly Abstract Syntax Tree (AST) to a `Write` output.
-pub async fn emit_binary<O: AsyncWrite>(
+pub async fn emit_binary<O: AsyncWrite + Unpin>(
     module: &Module,
     output: &mut O,
 ) -> Result<usize, CompilerError> {

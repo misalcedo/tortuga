@@ -13,6 +13,7 @@ impl<'output, O: AsyncWrite + Unpin> BinaryEmitter<'output, O> {
         expression: &Expression,
     ) -> Result<usize, CompilerError> {
         self.emit_expression_with_custom_terminator(expression, 0x0B)
+            .await
     }
 
     async fn emit_expression_with_custom_terminator(
