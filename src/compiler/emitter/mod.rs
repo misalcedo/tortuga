@@ -54,6 +54,9 @@ mod tests {
     fn empty_module() {
         let mut buffer = Vec::new();
         let module = web_assembly::Module::new();
+        let result = validate(&module);
+
+        assert!(result.is_ok());
 
         emit_module(&module, &mut buffer).unwrap();
 
@@ -72,9 +75,6 @@ mod tests {
         bytes.extend(version);
 
         assert_eq!(&buffer, &bytes);
-
-        let result = validate(&module);
-        assert!(result.is_ok());
     }
 
     #[test]
