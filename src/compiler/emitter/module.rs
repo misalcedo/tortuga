@@ -20,6 +20,9 @@ const PREAMBLE: [u8; 4] = [0x00u8, 0x61u8, 0x73u8, 0x6Du8];
 /// The version of the binary WebAssembly format emitted.
 const VERSION: [u8; 4] = [0x01u8, 0x00u8, 0x00u8, 0x00u8];
 
+/// The initial capacity of the buffer used to emit a module to an async write.
+const INITIAL_BUFFER_CAPACITY: usize = 4096;
+
 /// Emit a module to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/modules.html
@@ -28,7 +31,7 @@ pub async fn emit_module<O: AsyncWrite + Unpin>(
     output: &mut O,
 ) -> Result<usize, CompilerError> {
     let mut bytes = 0;
-    let mut section_buffer: Vec<u8> = Vec::new();
+    let mut section_buffer: Vec<u8> = Vec::with_capacity(INITIAL_BUFFER_CAPACITY);
     let mut buffer: Vec<u8> = Vec::new();
 
     bytes += emit_bytes(&PREAMBLE, &mut buffer, false)?;
