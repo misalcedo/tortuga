@@ -3,10 +3,10 @@ mod module;
 mod types;
 mod values;
 
-use crate::compiler::emitter::module::emit_module;
 use crate::compiler::errors::CompilerError;
 use crate::syntax::web_assembly::Module;
 use futures::{AsyncWrite, AsyncWriteExt};
+pub use module::emit_module;
 pub use types::*;
 pub use values::*;
 

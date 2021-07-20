@@ -16,7 +16,7 @@ lto = true
 criterion = "0.3"
 
 [[bench]]
-name = "single_message"
+name = "emit_module"
 harness = false
 
 [dependencies]

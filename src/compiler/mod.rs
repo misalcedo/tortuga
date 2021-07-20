@@ -1,4 +1,4 @@
-mod emitter;
+pub mod emitter;
 mod errors;
 mod lexer;
 mod parser;

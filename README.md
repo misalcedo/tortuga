@@ -109,3 +109,19 @@ While the system sends all numbers in network byte order (i.e., big endian), Web
 # Rust
 
 Some examples are Rust-based Tortuga actors that compile to WASM. To build the examples, change to the `examples` workspace directory. Then, run `cargo build --release`. Built examples can be found in: `examples/target/wasm32-unknown-unknown/release/*.wasm`.
+
+# Benchmarks
+## Emitting Binary
+```
+empty                   time:   [141.04 ns 141.11 ns 141.17 ns]
+                        change: [-0.8999% -0.1365% +0.4470%] (p = 0.73 > 0.05)
+                        No change in performance detected.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+
+singular                time:   [618.92 ns 619.36 ns 619.83 ns]
+                        change: [-3.3056% -2.4775% -1.7843%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 4 outliers among 100 measurements (4.00%)
+  4 (4.00%) high mild
+```

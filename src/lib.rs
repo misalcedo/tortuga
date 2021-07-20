@@ -1,5 +1,5 @@
 pub mod about;
-mod compiler;
+pub mod compiler;
 mod errors;
 mod fs;
 pub mod syntax;
