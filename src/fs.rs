@@ -9,8 +9,8 @@ const WASM_FILE_EXTENSION: &str = "wasm";
 
 /// A source file to be compiled.
 pub struct CompilationSource {
-    pub source: PathBuf,
-    pub target: PathBuf,
+    source: PathBuf,
+    target: PathBuf,
 }
 
 impl CompilationSource {
