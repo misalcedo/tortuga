@@ -1,5 +1,6 @@
 use crate::TortugaError;
 use std::fs::{create_dir_all, remove_dir_all, File};
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
 
@@ -24,13 +25,16 @@ impl CompilationSource {
     }
 
     /// Open the source file to read for compilation.
-    pub fn source_file(&self) -> Result<File, TortugaError> {
+    pub fn source_file(&self) -> Result<impl Read, TortugaError> {
         Ok(File::open(&self.source)?)
     }
 
     /// Create a file for writing the target of compiling this source.
     /// Creates all directories (including the parent) in the path that do not yet exist.
-    pub fn target_file<T: AsRef<Path>>(&self, parent_directory: T) -> Result<File, TortugaError> {
+    pub fn target_file<T: AsRef<Path>>(
+        &self,
+        parent_directory: T,
+    ) -> Result<impl Write, TortugaError> {
         let filename = parent_directory.as_ref().join(&self.target);
 
         if let Some(parent) = filename.parent() {
