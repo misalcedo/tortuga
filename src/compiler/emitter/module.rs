@@ -11,7 +11,6 @@ use crate::syntax::web_assembly::{
     Global, Import, ImportDescription, Memory, Module, Name, ReferenceType, Start, Table,
     TypeIndex,
 };
-use futures::{AsyncWrite, AsyncWriteExt};
 use std::io::Write;
 
 /// A magic constant used to quickly identify WebAssembly binary file contents.
@@ -20,37 +19,31 @@ const PREAMBLE: [u8; 4] = [0x00u8, 0x61u8, 0x73u8, 0x6Du8];
 /// The version of the binary WebAssembly format emitted.
 const VERSION: [u8; 4] = [0x01u8, 0x00u8, 0x00u8, 0x00u8];
 
-/// The initial capacity of the buffer used to emit a module to an async write.
-const INITIAL_BUFFER_CAPACITY: usize = 4096;
+/// The initial capacity of the buffer used to emit sections in a module write.
+const INITIAL_BUFFER_CAPACITY: usize = 1024;
 
 /// Emit a module to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/modules.html
-pub async fn emit_module<O: AsyncWrite + Unpin>(
-    module: &Module,
-    output: &mut O,
-) -> Result<usize, CompilerError> {
+pub fn emit_module<O: Write>(module: &Module, output: &mut O) -> Result<usize, CompilerError> {
     let mut bytes = 0;
-    let mut section_buffer: Vec<u8> = Vec::with_capacity(INITIAL_BUFFER_CAPACITY);
-    let mut buffer: Vec<u8> = Vec::new();
+    let mut buffer: Vec<u8> = Vec::with_capacity(INITIAL_BUFFER_CAPACITY);
 
-    bytes += emit_bytes(&PREAMBLE, &mut buffer, false)?;
-    bytes += emit_bytes(&VERSION, &mut buffer, false)?;
-    bytes += emit_version_custom_section(&mut section_buffer, &mut buffer)?;
-    bytes += emit_type_section(module, &mut section_buffer, &mut buffer)?;
-    bytes += emit_import_section(module, &mut section_buffer, &mut buffer)?;
-    bytes += emit_function_section(module, &mut section_buffer, &mut buffer)?;
-    bytes += emit_table_section(module, &mut section_buffer, &mut buffer)?;
-    bytes += emit_memory_section(module, &mut section_buffer, &mut buffer)?;
-    bytes += emit_global_section(module, &mut section_buffer, &mut buffer)?;
-    bytes += emit_export_section(module, &mut section_buffer, &mut buffer)?;
-    bytes += emit_start_section(module, &mut section_buffer, &mut buffer)?;
-    bytes += emit_element_section(module, &mut section_buffer, &mut buffer)?;
-    bytes += emit_data_count_section(module, &mut section_buffer, &mut buffer)?;
-    bytes += emit_code_section(module, &mut section_buffer, &mut buffer)?;
-    bytes += emit_data_section(module, &mut section_buffer, &mut buffer)?;
-
-    output.write_all(&buffer[..]).await?;
+    bytes += emit_bytes(&PREAMBLE, output, false)?;
+    bytes += emit_bytes(&VERSION, output, false)?;
+    bytes += emit_version_custom_section(&mut buffer, output)?;
+    bytes += emit_type_section(module, &mut buffer, output)?;
+    bytes += emit_import_section(module, &mut buffer, output)?;
+    bytes += emit_function_section(module, &mut buffer, output)?;
+    bytes += emit_table_section(module, &mut buffer, output)?;
+    bytes += emit_memory_section(module, &mut buffer, output)?;
+    bytes += emit_global_section(module, &mut buffer, output)?;
+    bytes += emit_export_section(module, &mut buffer, output)?;
+    bytes += emit_start_section(module, &mut buffer, output)?;
+    bytes += emit_element_section(module, &mut buffer, output)?;
+    bytes += emit_data_count_section(module, &mut buffer, output)?;
+    bytes += emit_code_section(module, &mut buffer, output)?;
+    bytes += emit_data_section(module, &mut buffer, output)?;
 
     Ok(bytes)
 }

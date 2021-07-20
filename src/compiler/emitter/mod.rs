@@ -6,16 +6,25 @@ mod values;
 use crate::compiler::emitter::module::emit_module;
 use crate::compiler::errors::CompilerError;
 use crate::syntax::web_assembly::Module;
-use futures::AsyncWrite;
+use futures::{AsyncWrite, AsyncWriteExt};
 pub use types::*;
 pub use values::*;
+
+/// The initial capacity of the buffer used to emit a module to an async write.
+const INITIAL_BUFFER_CAPACITY: usize = 4096;
 
 /// Emits a binary representation of a WebAssembly Abstract Syntax Tree (AST) to a `Write` output.
 pub async fn emit_binary<O: AsyncWrite + Unpin>(
     module: &Module,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
-    emit_module(&module, output).await
+    let mut buffer = Vec::with_capacity(INITIAL_BUFFER_CAPACITY);
+
+    let bytes = emit_module(&module, &mut buffer)?;
+
+    output.write_all(&buffer[..]).await?;
+
+    Ok(bytes)
 }
 
 #[cfg(test)]
