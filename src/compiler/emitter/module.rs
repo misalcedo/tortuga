@@ -1,5 +1,7 @@
 use crate::about;
-use crate::compiler::emitter::{emit_byte, emit_bytes, emit_u32, emit_usize, emit_vector, Emit};
+use crate::compiler::emitter::{
+    emit_byte, emit_bytes, emit_i32, emit_u32, emit_usize, emit_vector, Emit,
+};
 use crate::compiler::errors::CompilerError;
 use crate::syntax::web_assembly::{
     Data, DataMode, Element, ElementInitializer, ElementMode, Export, ExportDescription, Function,
@@ -192,7 +194,7 @@ impl Emit for ExportDescription {
         };
         let mut bytes = 0;
 
-        bytes += value.emit(output)?;
+        bytes += emit_i32(value, output)?;
         bytes += emit_usize(index, output)?;
 
         Ok(bytes)

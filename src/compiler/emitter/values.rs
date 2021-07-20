@@ -6,19 +6,6 @@ use std::borrow::Borrow;
 use std::io::Write;
 use std::mem::size_of;
 
-/// See https://webassembly.github.io/spec/core/binary/values.html
-impl Emit for i32 {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        (*self as i64).emit(output)
-    }
-}
-
-impl Emit for i64 {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        Ok(leb128::write::signed(output, *self)?)
-    }
-}
-
 impl Emit for f32 {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
         output.write_f32::<LittleEndian>(*self)?;

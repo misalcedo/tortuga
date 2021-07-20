@@ -44,11 +44,11 @@ impl Emit for NumericInstruction {
             // Constant Operations
             Self::I32Constant(value) => {
                 bytes += emit_byte(0x41u8, output)?;
-                bytes += value.emit(output)?;
+                bytes += emit_i32(value, output)?;
             }
             Self::I64Constant(value) => {
                 bytes += emit_byte(0x42u8, output)?;
-                bytes += value.emit(output)?;
+                bytes += emit_i64(value, output)?;
             }
             Self::F32Constant(value) => {
                 bytes += emit_byte(0x43u8, output)?;
@@ -856,7 +856,7 @@ impl Emit for ControlInstruction {
 impl Emit for BlockType {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
         match self {
-            BlockType::Index(index) => (*index as i64).emit(output),
+            BlockType::Index(index) => emit_i64(*index as i64, output),
             BlockType::ValueType(kind) => kind.emit(output),
             BlockType::None => emit_byte(0x40u8, output),
         }
