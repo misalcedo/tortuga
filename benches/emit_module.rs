@@ -1,5 +1,4 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use std::io::Write;
 use tortuga::compiler::emitter::{emit_module, CountingWrite};
 use tortuga::syntax::web_assembly::{
     Data, DataMode, Element, ElementInitializer, ElementMode, Export, ExportDescription,
@@ -15,7 +14,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         b.iter(move || {
             let mut write = CountingWrite::new();
             emit_module(&empty_module, &mut write).expect("An error occurred emitting the module.");
-            black_box(write.bytes)
+            black_box(write.bytes())
         })
     });
     c.bench_function("singular", |b| {
@@ -25,7 +24,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             let mut write = CountingWrite::new();
             emit_module(&singular_module, &mut write)
                 .expect("An error occurred emitting the module.");
-            black_box(write.bytes)
+            black_box(write.bytes())
         })
     });
 }
