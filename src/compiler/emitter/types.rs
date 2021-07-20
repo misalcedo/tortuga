@@ -1,4 +1,4 @@
-use crate::compiler::emitter::Emit;
+use crate::compiler::emitter::{emit_byte, emit_usize, Emit};
 use crate::compiler::errors::CompilerError;
 use crate::syntax::web_assembly::{
     FunctionType, GlobalType, Limit, MemoryType, NumberType, ReferenceType, ResultType, TableType,
@@ -15,7 +15,7 @@ impl Emit for NumberType {
             NumberType::F64 => 0x7C,
         };
 
-        value.emit(output)
+        emit_byte(value, output)
     }
 }
 
@@ -26,7 +26,7 @@ impl Emit for ReferenceType {
             ReferenceType::External => 0x6F,
         };
 
-        value.emit(output)
+        emit_byte(value, output)
     }
 }
 
@@ -49,7 +49,7 @@ impl Emit for FunctionType {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        bytes += 0x60u8.emit(output)?;
+        bytes += emit_byte(0x60u8, output)?;
         bytes += self.parameters().emit(output)?;
         bytes += self.results().emit(output)?;
 
@@ -63,13 +63,13 @@ impl Emit for Limit {
 
         match self.max() {
             Some(max) => {
-                bytes += 0x01u8.emit(output)?;
-                bytes += self.min().emit(output)?;
-                bytes += max.emit(output)?;
+                bytes += emit_byte(0x01u8, output)?;
+                bytes += emit_usize(self.min(), output)?;
+                bytes += emit_usize(max, output)?;
             }
             None => {
-                bytes += 0x00u8.emit(output)?;
-                bytes += self.min().emit(output)?;
+                bytes += emit_byte(0x00u8, output)?;
+                bytes += emit_usize(self.min(), output)?;
             }
         };
 
@@ -105,7 +105,7 @@ impl Emit for GlobalType {
             true => 0x01,
         };
 
-        bytes += mutability.emit(output)?;
+        bytes += emit_byte(mutability, output)?;
 
         Ok(bytes)
     }

@@ -19,31 +19,6 @@ impl Emit for i64 {
     }
 }
 
-impl Emit for u8 {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        output.write_u8(*self)?;
-        Ok(size_of::<u8>())
-    }
-}
-
-impl Emit for u32 {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        (*self as u64).emit(output)
-    }
-}
-
-impl Emit for u64 {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        Ok(leb128::write::unsigned(output, *self)?)
-    }
-}
-
-impl Emit for usize {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        (*self as u64).emit(output)
-    }
-}
-
 impl Emit for f32 {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
         output.write_f32::<LittleEndian>(*self)?;
@@ -62,7 +37,7 @@ impl Emit for f64 {
 
 impl Emit for Name {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        self.as_bytes().emit(output)
+        emit_bytes(self.as_bytes(), output, true)
     }
 }
 
@@ -71,7 +46,7 @@ impl<'a> Emit for Bytes<'a> {
         let mut bytes = 0;
 
         for item in self.as_slice() {
-            bytes += item.emit(output)?;
+            bytes += emit_byte(item, output)?;
         }
 
         Ok(bytes)
@@ -85,7 +60,7 @@ where
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        bytes += self.len().emit(output)?;
+        bytes += emit_usize(self.len(), output)?;
 
         for item in self {
             bytes += item.emit(output)?;
@@ -95,20 +70,85 @@ where
     }
 }
 
-fn emit_byte<T: Borrow<u8>, O: Write>(byte: T, output: &mut O) -> Result<usize, CompilerError> {
+/// Emits a single byte to the output.
+/// See https://webassembly.github.io/spec/core/binary/values.html#bytes
+pub fn emit_byte<T: Borrow<u8>, O: Write>(byte: T, output: &mut O) -> Result<usize, CompilerError> {
     output.write_u8(*byte.borrow())?;
     Ok(size_of::<u8>())
 }
 
-fn emit_usize<T: Borrow<usize>, O: Write>(size: T, output: &mut O) -> Result<usize, CompilerError> {
+/// Emits a slice of bytes to the output.
+/// The bytes may optionally be treated as a vector.
+/// Provides an optimization over using `emit_vector(value, output, emit_byte)` and `emit_repeated(value, output, emit_byte)`.
+///
+/// See https://webassembly.github.io/spec/core/binary/values.html#bytes
+///
+/// See https://webassembly.github.io/spec/core/binary/conventions.html#vectors
+pub fn emit_bytes<O: Write>(
+    value: &[u8],
+    output: &mut O,
+    include_length: bool,
+) -> Result<usize, CompilerError> {
+    let prefix = if include_length {
+        emit_usize(value.len(), output)?
+    } else {
+        0
+    };
+
+    output.write_all(value)?;
+
+    Ok(prefix + value.len())
+}
+
+/// Emits an unsigned 32-bit integer to the output.
+/// See https://webassembly.github.io/spec/core/binary/values.html#integers
+pub fn emit_u32<T: Borrow<u32>, O: Write>(
+    value: T,
+    output: &mut O,
+) -> Result<usize, CompilerError> {
+    emit_u64(*value.borrow() as u64, output)
+}
+
+/// Emits an unsigned platform-specific (i.e., 32-bit or 64-bit) integer to the output.
+/// See https://webassembly.github.io/spec/core/binary/values.html#integers
+pub fn emit_usize<T: Borrow<usize>, O: Write>(
+    size: T,
+    output: &mut O,
+) -> Result<usize, CompilerError> {
     emit_u64(*size.borrow() as u64, output)
 }
 
-fn emit_u64<T: Borrow<u64>, O: Write>(size: T, output: &mut O) -> Result<usize, CompilerError> {
-    Ok(leb128::write::unsigned(output, *size.borrow())?)
+/// Emits an unsigned 64-bit integer to the output.
+/// See https://webassembly.github.io/spec/core/binary/values.html#integers
+pub fn emit_u64<T: Borrow<u64>, O: Write>(
+    value: T,
+    output: &mut O,
+) -> Result<usize, CompilerError> {
+    Ok(leb128::write::unsigned(output, *value.borrow())?)
 }
 
-fn emit_vector<'items, I, E, O>(
+/// Emits a signed 32-bit integer to the output.
+/// See https://webassembly.github.io/spec/core/binary/values.html#integers
+pub fn emit_i32<T: Borrow<i32>, O: Write>(
+    value: T,
+    output: &mut O,
+) -> Result<usize, CompilerError> {
+    emit_i64(*value.borrow() as i64, output)
+}
+
+/// Emits a signed 64-bit integer to the output.
+/// See https://webassembly.github.io/spec/core/binary/values.html#integers
+pub fn emit_i64<T: Borrow<i64>, O: Write>(
+    value: T,
+    output: &mut O,
+) -> Result<usize, CompilerError> {
+    Ok(leb128::write::signed(output, *value.borrow())?)
+}
+
+/// Emit each item to the output using the given emit function.
+/// Prefixes the items with the length of the slice.
+/// See https://webassembly.github.io/spec/core/binary/conventions.html#vectors
+pub fn emit_vector<'items, I, E, O>(
     items: &'items [I],
     output: &mut O,
     emit: E,
@@ -125,7 +165,8 @@ where
     Ok(bytes)
 }
 
-fn emit_repeated<'items, I, E, O>(
+/// Emit each item to the output using the given emit function.
+pub fn emit_repeated<'items, I, E, O>(
     items: &'items [I],
     output: &mut O,
     emit: E,
