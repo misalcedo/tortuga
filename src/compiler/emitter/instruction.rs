@@ -52,11 +52,11 @@ impl Emit for NumericInstruction {
             }
             Self::F32Constant(value) => {
                 bytes += emit_byte(0x43u8, output)?;
-                bytes += value.emit(output)?;
+                bytes += emit_f32(value, output)?;
             }
             Self::F64Constant(value) => {
                 bytes += emit_byte(0x44u8, output)?;
-                bytes += value.emit(output)?;
+                bytes += emit_f64(value, output)?;
             }
             // i32 Test Operations
             Self::EqualToZero(IntegerType::I32) => {

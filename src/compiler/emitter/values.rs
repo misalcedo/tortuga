@@ -1,43 +1,37 @@
 use crate::compiler::emitter::Emit;
 use crate::compiler::errors::CompilerError;
-use crate::syntax::web_assembly::{Bytes, Name};
+use crate::syntax::web_assembly::Name;
 use byteorder::{LittleEndian, WriteBytesExt};
 use std::borrow::Borrow;
 use std::io::Write;
 use std::mem::size_of;
 
-impl Emit for f32 {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        output.write_f32::<LittleEndian>(*self)?;
+/// Emit a name to the output.
+/// See https://webassembly.github.io/spec/core/binary/values.html#floating-point
+pub fn emit_f32<T: Borrow<f32>, O: Write>(
+    value: T,
+    output: &mut O,
+) -> Result<usize, CompilerError> {
+    output.write_f32::<LittleEndian>(*value.borrow())?;
 
-        Ok(size_of::<f32>())
-    }
+    Ok(size_of::<f32>())
 }
 
-impl Emit for f64 {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        output.write_f64::<LittleEndian>(*self)?;
+/// Emit a name to the output.
+/// See https://webassembly.github.io/spec/core/binary/values.html#floating-point
+pub fn emit_f64<T: Borrow<f64>, O: Write>(
+    value: T,
+    output: &mut O,
+) -> Result<usize, CompilerError> {
+    output.write_f64::<LittleEndian>(*value.borrow())?;
 
-        Ok(size_of::<f64>())
-    }
+    Ok(size_of::<f64>())
 }
 
-impl Emit for Name {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        emit_bytes(self.as_bytes(), output, true)
-    }
-}
-
-impl<'a> Emit for Bytes<'a> {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        let mut bytes = 0;
-
-        for item in self.as_slice() {
-            bytes += emit_byte(item, output)?;
-        }
-
-        Ok(bytes)
-    }
+/// Emit a name to the output.
+/// See https://webassembly.github.io/spec/core/binary/values.html#names
+pub fn emit_name<O: Write>(value: &Name, output: &mut O) -> Result<usize, CompilerError> {
+    emit_bytes(value.as_bytes(), output, true)
 }
 
 impl<T> Emit for [T]

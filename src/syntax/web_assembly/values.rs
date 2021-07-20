@@ -27,45 +27,9 @@ impl Name {
     }
 }
 
-/// The simplest form of value are raw uninterpreted bytes.
-/// In the abstract syntax they are represented as hexadecimal literals.
-/// See https://webassembly.github.io/spec/core/syntax/values.html#bytes
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct Bytes<'a> {
-    value: &'a [u8],
-}
-
-impl<'a> Bytes<'a> {
-    pub fn new(bytes: &'a [u8]) -> Self {
-        Bytes::<'a> { value: bytes }
-    }
-
-    pub fn as_slice(&self) -> &[u8] {
-        self.value
-    }
-
-    pub fn len(&self) -> usize {
-        self.value.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.value.is_empty()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn new_bytes() {
-        let content = [0, 1, 2];
-        let bytes = Bytes::new(&content);
-
-        assert_eq!(bytes.len(), content.len());
-        assert_eq!(bytes.is_empty(), content.is_empty());
-        assert_eq!(bytes.as_slice(), content);
-    }
 
     #[test]
     fn new_name() {

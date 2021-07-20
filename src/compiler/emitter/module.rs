@@ -1,6 +1,6 @@
 use crate::about;
 use crate::compiler::emitter::{
-    emit_byte, emit_bytes, emit_i32, emit_u32, emit_usize, emit_vector, Emit,
+    emit_byte, emit_bytes, emit_i32, emit_name, emit_u32, emit_usize, emit_vector, Emit,
 };
 use crate::compiler::errors::CompilerError;
 use crate::syntax::web_assembly::{
@@ -115,8 +115,8 @@ impl Emit for Import {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        bytes += self.module().emit(output)?;
-        bytes += self.name().emit(output)?;
+        bytes += emit_name(self.module(), output)?;
+        bytes += emit_name(self.name(), output)?;
         bytes += self.description().emit(output)?;
 
         Ok(bytes)
@@ -177,7 +177,7 @@ impl Emit for Export {
     fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
         let mut bytes = 0;
 
-        bytes += self.name().emit(output)?;
+        bytes += emit_name(self.name(), output)?;
         bytes += self.description().emit(output)?;
 
         Ok(bytes)
@@ -324,7 +324,7 @@ fn emit_custom_content<O: Write>(
 ) -> Result<usize, CompilerError> {
     let mut bytes = 0;
 
-    bytes += name.emit(output)?;
+    bytes += emit_name(name, output)?;
     bytes += emit_bytes(content, output, false)?;
 
     Ok(bytes)
