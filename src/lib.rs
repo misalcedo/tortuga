@@ -32,10 +32,10 @@ where
 
 /// Compiles a single source.
 async fn compile<O: AsRef<Path>>(source: CompilationSource, output: O) -> Result<(), TortugaError> {
-    let source_file = source.source_file()?;
-    let mut target_file = source.target_file(output)?;
+    let mut source_file = source.source_file().await?;
+    let mut target_file = source.target_file(output).await?;
 
-    compiler::compile(source_file, &mut target_file).await?;
+    compiler::compile(&mut source_file, &mut target_file).await?;
 
     Ok(())
 }

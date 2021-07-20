@@ -5,9 +5,13 @@ mod parser;
 mod transformer;
 
 pub use errors::CompilerError;
-use std::io::{Read, Write};
+use futures::AsyncRead;
+use std::io::Write;
 
-pub async fn compile<I: Read, O: Write>(input: I, output: &mut O) -> Result<usize, CompilerError> {
+pub async fn compile<I: AsyncRead + Unpin, O: Write>(
+    input: &mut I,
+    output: &mut O,
+) -> Result<usize, CompilerError> {
     let tokens = lexer::tokenize(input).await?;
     let ast = parser::parse(&tokens).await?;
     let target = transformer::transform(&ast).await?;
