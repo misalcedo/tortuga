@@ -14,15 +14,15 @@ impl Compiler {
         Compiler {}
     }
 
-    pub fn compile<I: Read, O: Write>(
+    pub async fn compile<I: Read, O: Write>(
         &self,
         input: I,
         output: &mut O,
     ) -> Result<usize, CompilerError> {
-        let tokens = lexer::tokenize(input)?;
-        let ast = parser::parse(&tokens)?;
-        let target = transformer::transform(&ast)?;
+        let tokens = lexer::tokenize(input).await?;
+        let ast = parser::parse(&tokens).await?;
+        let target = transformer::transform(&ast).await?;
 
-        emitter::emit_binary(target, output)
+        emitter::emit_binary(target, output).await
     }
 }

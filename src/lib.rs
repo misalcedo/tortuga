@@ -4,26 +4,40 @@ mod errors;
 mod fs;
 pub mod syntax;
 
+use crate::fs::CompilationSource;
 use compiler::Compiler;
 pub use errors::TortugaError;
-pub use fs::clean;
+use futures::future::join_all;
 use std::path::Path;
+
+/// Cleans the given output directory.
+pub async fn clean<T: AsRef<Path>>(output: T) -> Result<(), TortugaError> {
+    fs::clean(output).await
+}
 
 /// Compiles all of the Tortuga sources in the input directory.
 /// The compilation artifacts are written to the output directory.
-pub fn build<I, O>(input: I, output: O) -> Result<(), TortugaError>
+pub async fn build<I, O>(input: I, output: O) -> Vec<Result<(), TortugaError>>
 where
     I: AsRef<Path>,
     O: AsRef<Path>,
 {
-    let compiler = Compiler::new();
+    let mut tasks = Vec::new();
 
     for source in fs::new_walker(input) {
-        let source_file = source.source_file()?;
-        let mut target_file = source.target_file(&output)?;
-
-        compiler.compile(source_file, &mut target_file)?;
+        tasks.push(Box::pin(compile(source, &output)));
     }
+
+    join_all(tasks).await
+}
+
+/// Compiles a single source.
+async fn compile<O: AsRef<Path>>(source: CompilationSource, output: O) -> Result<(), TortugaError> {
+    let source_file = source.source_file()?;
+    let mut target_file = source.target_file(output)?;
+    let compiler = Compiler::new();
+
+    compiler.compile(source_file, &mut target_file).await?;
 
     Ok(())
 }

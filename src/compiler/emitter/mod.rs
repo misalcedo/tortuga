@@ -15,7 +15,7 @@ trait Emit {
 }
 
 /// Emits a binary representation of a WebAssembly Abstract Syntax Tree (AST) to a `Write` output.
-pub fn emit_binary<O: Write>(module: Module, output: &mut O) -> Result<usize, CompilerError> {
+pub async fn emit_binary<O: Write>(module: Module, output: &mut O) -> Result<usize, CompilerError> {
     module.emit(output)
 }
 
