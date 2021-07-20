@@ -667,7 +667,7 @@ impl<'output, O: AsyncWrite + Unpin> BinaryEmitter<'output, O> {
             }
             ParametricInstruction::Select(Some(types)) => {
                 bytes += self.emit_u8(0x1C).await?;
-                bytes += self.emit_vector(types, self.emit_value_type).await?;
+                bytes += self.emit_vector(types, Self::emit_value_type).await?;
             }
             ParametricInstruction::Select(None) => {
                 bytes += self.emit_u8(0x1B).await?;
@@ -981,8 +981,8 @@ impl<'output, O: AsyncWrite + Unpin> BinaryEmitter<'output, O> {
             }
             ControlInstruction::BranchTable(indices, index) => {
                 bytes += self.emit_u8(0x0E).await?;
-                bytes += self.emit_vector(indices, self.emit_usize).await?;
-                bytes += self.emit_usize(*index).await?;
+                bytes += self.emit_vector(indices, Self::emit_usize).await?;
+                bytes += self.emit_usize(index).await?;
             }
             ControlInstruction::Return => {
                 bytes += self.emit_u8(0x0F).await?;

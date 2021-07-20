@@ -38,7 +38,7 @@ impl<'output, O: AsyncWrite + Unpin> BinaryEmitter<'output, O> {
     }
 
     pub async fn emit_result_type(&mut self, value: &ResultType) -> Result<usize, CompilerError> {
-        self.emit_vector(value.kinds(), self.emit_value_type).await
+        self.emit_vector(value.kinds(), Self::emit_value_type).await
     }
 
     pub async fn emit_function_type(

@@ -243,7 +243,7 @@ impl<'output, O: AsyncWrite + Unpin> BinaryEmitter<'output, O> {
             ) => {
                 bytes += self.emit_u8(0x00).await?;
                 bytes += self.emit_expression(&offset).await?;
-                bytes += self.emit_vector(indices, self.emit_usize).await?;
+                bytes += self.emit_vector(indices, Self::emit_usize).await?;
             }
             (
                 ElementInitializer::FunctionIndex(indices),
@@ -252,7 +252,7 @@ impl<'output, O: AsyncWrite + Unpin> BinaryEmitter<'output, O> {
             ) => {
                 bytes += self.emit_u8(0x01).await?;
                 bytes += self.emit_u8(0x00).await?;
-                bytes += self.emit_vector(indices, self.emit_usize).await?;
+                bytes += self.emit_vector(indices, Self::emit_usize).await?;
             }
             (
                 ElementInitializer::FunctionIndex(indices),
@@ -263,12 +263,12 @@ impl<'output, O: AsyncWrite + Unpin> BinaryEmitter<'output, O> {
                 bytes += self.emit_usize(*table).await?;
                 bytes += self.emit_expression(offset).await?;
                 bytes += self.emit_reference_type(kind).await?;
-                bytes += self.emit_vector(indices, self.emit_usize).await?;
+                bytes += self.emit_vector(indices, Self::emit_usize).await?;
             }
             (ElementInitializer::FunctionIndex(indices), ElementMode::Declarative, kind) => {
                 bytes += self.emit_u8(0x03).await?;
                 bytes += self.emit_reference_type(kind).await?;
-                bytes += self.emit_vector(indices, self.emit_usize).await?;
+                bytes += self.emit_vector(indices, Self::emit_usize).await?;
             }
             (
                 ElementInitializer::Expression(expressions),
@@ -277,12 +277,12 @@ impl<'output, O: AsyncWrite + Unpin> BinaryEmitter<'output, O> {
             ) => {
                 bytes += self.emit_u8(0x04).await?;
                 bytes += self.emit_expression(offset).await?;
-                bytes += self.emit_vector(expressions, self.emit_expression).await?;
+                bytes += self.emit_vector(expressions, Self::emit_expression).await?;
             }
             (ElementInitializer::Expression(expressions), ElementMode::Passive, kind) => {
                 bytes += self.emit_u8(0x05).await?;
                 bytes += self.emit_reference_type(kind).await?;
-                bytes += self.emit_vector(expressions, self.emit_expression).await?;
+                bytes += self.emit_vector(expressions, Self::emit_expression).await?;
             }
             (
                 ElementInitializer::Expression(expressions),
@@ -293,12 +293,12 @@ impl<'output, O: AsyncWrite + Unpin> BinaryEmitter<'output, O> {
                 bytes += self.emit_usize(*table).await?;
                 bytes += self.emit_expression(offset).await?;
                 bytes += self.emit_reference_type(kind).await?;
-                bytes += self.emit_vector(expressions, self.emit_expression).await?;
+                bytes += self.emit_vector(expressions, Self::emit_expression).await?;
             }
             (ElementInitializer::Expression(expressions), ElementMode::Declarative, kind) => {
                 bytes += self.emit_u8(0x07).await?;
                 bytes += self.emit_reference_type(kind).await?;
-                bytes += self.emit_vector(expressions, self.emit_expression).await?;
+                bytes += self.emit_vector(expressions, Self::emit_expression).await?;
             }
             _ => return Err(CompilerError::InvalidSyntax),
         };
@@ -324,7 +324,7 @@ impl<'output, O: AsyncWrite + Unpin> BinaryEmitter<'output, O> {
             }
         };
 
-        bytes += self.emit_vector(value.initializer(), self.emit_u8).await?;
+        bytes += self.emit_vector(value.initializer(), Self::emit_u8).await?;
 
         Ok(bytes)
     }

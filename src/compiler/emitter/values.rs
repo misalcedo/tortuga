@@ -3,6 +3,7 @@ use crate::compiler::errors::CompilerError;
 use crate::syntax::web_assembly::Name;
 use byteorder::{LittleEndian, WriteBytesExt};
 use futures::{AsyncWrite, AsyncWriteExt};
+use std::borrow::Borrow;
 use std::future::Future;
 
 /// See https://webassembly.github.io/spec/core/binary/values.html
@@ -23,9 +24,9 @@ impl<'output, O: AsyncWrite + Unpin> BinaryEmitter<'output, O> {
         Ok(self.value_buffer.len())
     }
 
-    pub async fn emit_u8(&mut self, value: u8) -> Result<usize, CompilerError> {
+    pub async fn emit_u8<T: Borrow<u8>>(&mut self, value: T) -> Result<usize, CompilerError> {
         self.value_buffer.clear();
-        self.value_buffer.write_u8(value)?;
+        self.value_buffer.write_u8(*value.borrow())?;
 
         self.output.write_all(&self.value_buffer).await?;
         Ok(self.value_buffer.len())
@@ -47,9 +48,9 @@ impl<'output, O: AsyncWrite + Unpin> BinaryEmitter<'output, O> {
         Ok(self.value_buffer.len())
     }
 
-    pub async fn emit_usize(&mut self, value: usize) -> Result<usize, CompilerError> {
+    pub async fn emit_usize<T: Borrow<usize>>(&mut self, value: T) -> Result<usize, CompilerError> {
         self.value_buffer.clear();
-        leb128::write::unsigned(&mut self.value_buffer, value as u64)?;
+        leb128::write::unsigned(&mut self.value_buffer, *value.borrow() as u64)?;
 
         self.output.write_all(&self.value_buffer).await?;
         Ok(self.value_buffer.len())
@@ -82,7 +83,7 @@ impl<'output, O: AsyncWrite + Unpin> BinaryEmitter<'output, O> {
     }
 
     pub async fn emit_byte_vector(&mut self, value: &[u8]) -> Result<usize, CompilerError> {
-        self.emit_vector(value, self.emit_u8).await
+        self.emit_vector(value, Self::emit_u8).await
     }
 
     pub async fn emit_vector<T, F, E>(
@@ -92,14 +93,14 @@ impl<'output, O: AsyncWrite + Unpin> BinaryEmitter<'output, O> {
     ) -> Result<usize, CompilerError>
     where
         F: Future<Output = Result<usize, CompilerError>>,
-        E: Fn(&T) -> F,
+        E: Fn(&mut Self, &T) -> F,
     {
         let mut bytes = 0;
 
         bytes += self.emit_usize(values.len()).await?;
 
         for value in values {
-            bytes += emitter(value).await?;
+            bytes += emitter(self, value).await?;
         }
 
         Ok(bytes)
