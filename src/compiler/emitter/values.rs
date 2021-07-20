@@ -6,7 +6,7 @@ use futures::{AsyncWrite, AsyncWriteExt};
 use std::future::Future;
 
 /// See https://webassembly.github.io/spec/core/binary/values.html
-impl<'output, O: AsyncWrite> BinaryEmitter<'output, O> {
+impl<'output, O: AsyncWrite + Unpin> BinaryEmitter<'output, O> {
     pub async fn emit_i32(&mut self, value: i32) -> Result<usize, CompilerError> {
         self.value_buffer.clear();
         leb128::write::signed(&mut self.value_buffer, value as i64)?;

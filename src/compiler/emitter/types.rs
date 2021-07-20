@@ -6,7 +6,7 @@ use crate::syntax::web_assembly::{
 };
 use futures::AsyncWrite;
 
-impl<'output, O: AsyncWrite> BinaryEmitter<'output, O> {
+impl<'output, O: AsyncWrite + Unpin> BinaryEmitter<'output, O> {
     pub async fn emit_number_type(&mut self, value: &NumberType) -> Result<usize, CompilerError> {
         let output: u8 = match value {
             NumberType::I32 => 0x7F,

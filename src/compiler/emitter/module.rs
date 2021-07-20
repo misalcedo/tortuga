@@ -11,7 +11,7 @@ use futures::{AsyncWrite, AsyncWriteExt};
 const PREAMBLE: [u8; 4] = [0x00u8, 0x61u8, 0x73u8, 0x6Du8];
 const VERSION: [u8; 4] = [0x01u8, 0x00u8, 0x00u8, 0x00u8];
 
-impl<'output, O: AsyncWrite> BinaryEmitter<'output, O> {
+impl<'output, O: AsyncWrite + Unpin> BinaryEmitter<'output, O> {
     /// Emit named custom content to the module.
     fn emit_custom_content(&mut self, name: &Name, content: &[u8]) -> Result<usize, CompilerError> {
         name.emit(&mut self.section_buffer)?;

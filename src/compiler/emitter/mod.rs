@@ -10,13 +10,13 @@ pub use types::*;
 pub use values::*;
 
 /// Emits a binary representation of a WebAssembly Abstract Syntax Tree (AST).
-struct BinaryEmitter<'output, O: AsyncWrite> {
+struct BinaryEmitter<'output, O: AsyncWrite + Unpin> {
     section_buffer: Vec<u8>,
     value_buffer: Vec<u8>,
     output: &'output mut O,
 }
 
-impl<'output, O: AsyncWrite> BinaryEmitter<'output, O> {
+impl<'output, O: AsyncWrite + Unpin> BinaryEmitter<'output, O> {
     fn new(output: &'output mut O) -> Self {
         let section_buffer: Vec<u8> = Vec::new();
         let value_buffer: Vec<u8> = Vec::new();

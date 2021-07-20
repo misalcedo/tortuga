@@ -7,7 +7,7 @@ use crate::syntax::web_assembly::{
 };
 use futures::AsyncWrite;
 
-impl<'output, O: AsyncWrite> BinaryEmitter<'output, O> {
+impl<'output, O: AsyncWrite + Unpin> BinaryEmitter<'output, O> {
     pub async fn emit_expression(
         &mut self,
         expression: &Expression,
