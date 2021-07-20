@@ -5,10 +5,9 @@ mod parser;
 mod transformer;
 
 pub use errors::CompilerError;
-use futures::AsyncRead;
-use std::io::Write;
+use futures::{AsyncRead, AsyncWrite};
 
-pub async fn compile<I: AsyncRead + Unpin, O: Write>(
+pub async fn compile<I: AsyncRead + Unpin, O: AsyncWrite + Unpin>(
     input: &mut I,
     output: &mut O,
 ) -> Result<usize, CompilerError> {

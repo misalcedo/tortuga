@@ -6,16 +6,21 @@ mod values;
 use crate::compiler::emitter::module::emit_module;
 use crate::compiler::errors::CompilerError;
 use crate::syntax::web_assembly::Module;
-use std::io::Write;
+use futures::{AsyncWrite, AsyncWriteExt};
 pub use types::*;
 pub use values::*;
 
 /// Emits a binary representation of a WebAssembly Abstract Syntax Tree (AST) to a `Write` output.
-pub async fn emit_binary<O: Write>(
+pub async fn emit_binary<O: AsyncWrite + Unpin>(
     module: &Module,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
-    emit_module(&module, output)
+    let mut buffer = Vec::new();
+    let bytes = emit_module(&module, &mut buffer)?;
+
+    output.write_all(&buffer).await?;
+
+    Ok(bytes)
 }
 
 #[cfg(test)]

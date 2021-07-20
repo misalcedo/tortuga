@@ -1,9 +1,8 @@
 use crate::TortugaError;
-use futures::AsyncRead;
-use std::io::Write;
+use futures::{AsyncRead, AsyncWrite};
 use std::path::{Path, PathBuf};
 use tokio::fs::{create_dir_all, remove_dir_all, File};
-use tokio_util::compat::TokioAsyncReadCompatExt;
+use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 use walkdir::{DirEntry, WalkDir};
 
 const TORTUGA_FILE_EXTENSION: &str = ".ta";
@@ -36,14 +35,14 @@ impl CompilationSource {
     pub async fn target_file<T: AsRef<Path>>(
         &self,
         parent_directory: T,
-    ) -> Result<impl Write, TortugaError> {
+    ) -> Result<impl AsyncWrite + Unpin, TortugaError> {
         let filename = parent_directory.as_ref().join(&self.target);
 
         if let Some(parent) = filename.parent() {
             create_dir_all(parent).await?;
         }
 
-        Ok(File::create(filename).await?.into_std().await)
+        Ok(File::create(filename).await?.compat_write())
     }
 }
 
