@@ -62,14 +62,13 @@ mod tests {
         let section = b"\x00";
         let name = "version".as_bytes();
         let version = about::VERSION.as_bytes();
-        let size = name.len() + version.len() + 2;
+        let size = name.len() + version.len() + 1;
 
         bytes.extend(prefix);
         bytes.extend(section);
         bytes.push(size as u8);
         bytes.push(name.len() as u8);
         bytes.extend(name);
-        bytes.push(version.len() as u8);
         bytes.extend(version);
 
         assert_eq!(&buffer, &bytes);
