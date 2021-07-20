@@ -1,4 +1,3 @@
-use crate::compiler::emitter::Emit;
 use crate::compiler::errors::CompilerError;
 use crate::syntax::web_assembly::Name;
 use byteorder::{LittleEndian, WriteBytesExt};
@@ -7,6 +6,7 @@ use std::io::Write;
 use std::mem::size_of;
 
 /// Emit a name to the output.
+///
 /// See https://webassembly.github.io/spec/core/binary/values.html#floating-point
 pub fn emit_f32<T: Borrow<f32>, O: Write>(
     value: T,
@@ -18,6 +18,7 @@ pub fn emit_f32<T: Borrow<f32>, O: Write>(
 }
 
 /// Emit a name to the output.
+///
 /// See https://webassembly.github.io/spec/core/binary/values.html#floating-point
 pub fn emit_f64<T: Borrow<f64>, O: Write>(
     value: T,
@@ -29,29 +30,14 @@ pub fn emit_f64<T: Borrow<f64>, O: Write>(
 }
 
 /// Emit a name to the output.
+///
 /// See https://webassembly.github.io/spec/core/binary/values.html#names
 pub fn emit_name<O: Write>(value: &Name, output: &mut O) -> Result<usize, CompilerError> {
     emit_bytes(value.as_bytes(), output, true)
 }
 
-impl<T> Emit for [T]
-where
-    T: Emit,
-{
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        let mut bytes = 0;
-
-        bytes += emit_usize(self.len(), output)?;
-
-        for item in self {
-            bytes += item.emit(output)?;
-        }
-
-        Ok(bytes)
-    }
-}
-
 /// Emits a single byte to the output.
+///
 /// See https://webassembly.github.io/spec/core/binary/values.html#bytes
 pub fn emit_byte<T: Borrow<u8>, O: Write>(byte: T, output: &mut O) -> Result<usize, CompilerError> {
     output.write_u8(*byte.borrow())?;
@@ -82,6 +68,7 @@ pub fn emit_bytes<O: Write>(
 }
 
 /// Emits an unsigned 32-bit integer to the output.
+///
 /// See https://webassembly.github.io/spec/core/binary/values.html#integers
 pub fn emit_u32<T: Borrow<u32>, O: Write>(
     value: T,
@@ -91,6 +78,7 @@ pub fn emit_u32<T: Borrow<u32>, O: Write>(
 }
 
 /// Emits an unsigned platform-specific (i.e., 32-bit or 64-bit) integer to the output.
+///
 /// See https://webassembly.github.io/spec/core/binary/values.html#integers
 pub fn emit_usize<T: Borrow<usize>, O: Write>(
     size: T,
@@ -100,6 +88,7 @@ pub fn emit_usize<T: Borrow<usize>, O: Write>(
 }
 
 /// Emits an unsigned 64-bit integer to the output.
+///
 /// See https://webassembly.github.io/spec/core/binary/values.html#integers
 pub fn emit_u64<T: Borrow<u64>, O: Write>(
     value: T,
@@ -109,6 +98,7 @@ pub fn emit_u64<T: Borrow<u64>, O: Write>(
 }
 
 /// Emits a signed 32-bit integer to the output.
+///
 /// See https://webassembly.github.io/spec/core/binary/values.html#integers
 pub fn emit_i32<T: Borrow<i32>, O: Write>(
     value: T,
@@ -118,6 +108,7 @@ pub fn emit_i32<T: Borrow<i32>, O: Write>(
 }
 
 /// Emits a signed 64-bit integer to the output.
+///
 /// See https://webassembly.github.io/spec/core/binary/values.html#integers
 pub fn emit_i64<T: Borrow<i64>, O: Write>(
     value: T,
@@ -128,6 +119,7 @@ pub fn emit_i64<T: Borrow<i64>, O: Write>(
 
 /// Emit each item to the output using the given emit function.
 /// Prefixes the items with the length of the slice.
+///
 /// See https://webassembly.github.io/spec/core/binary/conventions.html#vectors
 pub fn emit_vector<'items, I, E, O>(
     items: &'items [I],

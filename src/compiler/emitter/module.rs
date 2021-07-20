@@ -1,6 +1,9 @@
 use crate::about;
+use crate::compiler::emitter::instruction::emit_expression;
 use crate::compiler::emitter::{
-    emit_byte, emit_bytes, emit_i32, emit_name, emit_u32, emit_usize, emit_vector, Emit,
+    emit_byte, emit_bytes, emit_function_type, emit_global_type, emit_i32, emit_memory_type,
+    emit_name, emit_reference_type, emit_table_type, emit_u32, emit_usize, emit_value_type,
+    emit_vector,
 };
 use crate::compiler::errors::CompilerError;
 use crate::syntax::web_assembly::{
@@ -8,304 +11,350 @@ use crate::syntax::web_assembly::{
     Global, Import, ImportDescription, Memory, Module, Name, ReferenceType, Start, Table,
     TypeIndex,
 };
+use std::borrow::Borrow;
 use std::io::Write;
 
 const PREAMBLE: [u8; 4] = [0x00u8, 0x61u8, 0x73u8, 0x6Du8];
 const VERSION: [u8; 4] = [0x01u8, 0x00u8, 0x00u8, 0x00u8];
 
+/// Emit a module to the output.
+///
 /// See https://webassembly.github.io/spec/core/binary/modules.html
-impl Emit for Module {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        let mut bytes = 0;
-        let mut buffer: Vec<u8> = Vec::new();
+pub fn emit_module<T: Borrow<Module>, O: Write>(
+    module: T,
+    output: &mut O,
+) -> Result<usize, CompilerError> {
+    let mut bytes = 0;
+    let mut buffer: Vec<u8> = Vec::new();
+    let module = module.borrow();
 
-        bytes += output.write(&PREAMBLE)?;
-        bytes += output.write(&VERSION)?;
+    bytes += emit_bytes(&PREAMBLE, output, false)?;
+    bytes += emit_bytes(&VERSION, output, false)?;
+    bytes += emit_version(&mut buffer, output)?;
 
-        bytes += emit_version(&mut buffer, output)?;
-
-        if !self.types().is_empty() {
-            self.types().emit(&mut buffer)?;
-            bytes += emit_section(ModuleSection::TypeSection, &mut buffer, output)?;
-        }
-
-        if !self.imports().is_empty() {
-            self.imports().emit(&mut buffer)?;
-            bytes += emit_section(ModuleSection::ImportSection, &mut buffer, output)?;
-        }
-
-        if !self.functions().is_empty() {
-            let types: Vec<TypeIndex> = self.functions().iter().map(Function::kind).collect();
-
-            emit_vector(types.as_slice(), &mut buffer, emit_usize)?;
-
-            bytes += emit_section(ModuleSection::FunctionSection, &mut buffer, output)?;
-        }
-
-        if !self.tables().is_empty() {
-            self.tables().emit(&mut buffer)?;
-            bytes += emit_section(ModuleSection::TableSection, &mut buffer, output)?;
-        }
-
-        if !self.memories().is_empty() {
-            self.memories().emit(&mut buffer)?;
-            bytes += emit_section(ModuleSection::MemorySection, &mut buffer, output)?;
-        }
-
-        if !self.globals().is_empty() {
-            self.globals().emit(&mut buffer)?;
-            bytes += emit_section(ModuleSection::GlobalSection, &mut buffer, output)?;
-        }
-
-        if !self.exports().is_empty() {
-            self.exports().emit(&mut buffer)?;
-            bytes += emit_section(ModuleSection::ExportSection, &mut buffer, output)?;
-        }
-
-        if let Some(start) = self.start() {
-            start.emit(&mut buffer)?;
-            bytes += emit_section(ModuleSection::StartSection, &mut buffer, output)?;
-        }
-
-        if !self.elements().is_empty() {
-            self.elements().emit(&mut buffer)?;
-            bytes += emit_section(ModuleSection::ElementSection, &mut buffer, output)?;
-        }
-
-        if !self.data().is_empty() {
-            emit_usize(self.data().len(), &mut buffer)?;
-            bytes += emit_section(ModuleSection::DataCountSection, &mut buffer, output)?;
-        }
-
-        if !self.functions().is_empty() {
-            self.functions().emit(&mut buffer)?;
-            bytes += emit_section(ModuleSection::CodeSection, &mut buffer, output)?;
-        }
-
-        if !self.data().is_empty() {
-            self.data().emit(&mut buffer)?;
-            bytes += emit_section(ModuleSection::DataSection, &mut buffer, output)?;
-        }
-
-        Ok(bytes)
+    if !module.types().is_empty() {
+        emit_vector(module.types(), &mut buffer, emit_function_type)?;
+        bytes += emit_section(ModuleSection::TypeSection, &mut buffer, output)?;
     }
+
+    if !module.imports().is_empty() {
+        emit_vector(module.imports(), &mut buffer, emit_import)?;
+        bytes += emit_section(ModuleSection::ImportSection, &mut buffer, output)?;
+    }
+
+    if !module.functions().is_empty() {
+        let types: Vec<TypeIndex> = module.functions().iter().map(Function::kind).collect();
+
+        emit_vector(types.as_slice(), &mut buffer, emit_usize)?;
+
+        bytes += emit_section(ModuleSection::FunctionSection, &mut buffer, output)?;
+    }
+
+    if !module.tables().is_empty() {
+        emit_vector(module.tables(), &mut buffer, emit_table)?;
+        bytes += emit_section(ModuleSection::TableSection, &mut buffer, output)?;
+    }
+
+    if !module.memories().is_empty() {
+        emit_vector(module.memories(), &mut buffer, emit_memory)?;
+        bytes += emit_section(ModuleSection::MemorySection, &mut buffer, output)?;
+    }
+
+    if !module.globals().is_empty() {
+        emit_vector(module.globals(), &mut buffer, emit_global)?;
+        bytes += emit_section(ModuleSection::GlobalSection, &mut buffer, output)?;
+    }
+
+    if !module.exports().is_empty() {
+        emit_vector(module.exports(), &mut buffer, emit_export)?;
+        bytes += emit_section(ModuleSection::ExportSection, &mut buffer, output)?;
+    }
+
+    if let Some(start) = module.start() {
+        emit_start(start, &mut buffer)?;
+        bytes += emit_section(ModuleSection::StartSection, &mut buffer, output)?;
+    }
+
+    if !module.elements().is_empty() {
+        emit_vector(module.elements(), &mut buffer, emit_element)?;
+        bytes += emit_section(ModuleSection::ElementSection, &mut buffer, output)?;
+    }
+
+    if !module.data().is_empty() {
+        emit_usize(module.data().len(), &mut buffer)?;
+        bytes += emit_section(ModuleSection::DataCountSection, &mut buffer, output)?;
+    }
+
+    if !module.functions().is_empty() {
+        emit_vector(module.functions(), &mut buffer, emit_function)?;
+        bytes += emit_section(ModuleSection::CodeSection, &mut buffer, output)?;
+    }
+
+    if !module.data().is_empty() {
+        emit_vector(module.data(), &mut buffer, emit_data)?;
+        bytes += emit_section(ModuleSection::DataSection, &mut buffer, output)?;
+    }
+
+    Ok(bytes)
 }
 
-impl Emit for Function {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        let mut buffer: Vec<u8> = Vec::new();
-        let mut bytes = 0;
+/// Emit a function to the output.
+///
+/// See https://webassembly.github.io/spec/core/binary/modules.html#function-section
+fn emit_function<T: Borrow<Function>, O: Write>(
+    function: T,
+    output: &mut O,
+) -> Result<usize, CompilerError> {
+    let mut buffer: Vec<u8> = Vec::new();
+    let mut bytes = 0;
+    let function = function.borrow();
 
-        emit_usize(self.locals().len(), &mut buffer)?;
-        for local in self.locals().kinds() {
-            emit_u32(1u32, &mut buffer)?;
-            local.emit(&mut buffer)?;
+    emit_usize(function.locals().len(), &mut buffer)?;
+    for local in function.locals().kinds() {
+        emit_u32(1u32, &mut buffer)?;
+        emit_value_type(local, &mut buffer)?;
+    }
+
+    emit_expression(function.body(), &mut buffer)?;
+
+    bytes += emit_usize(buffer.len(), output)?;
+    bytes += output.write(&buffer)?;
+
+    Ok(bytes)
+}
+
+/// Emit an import to the output.
+///
+/// See https://webassembly.github.io/spec/core/binary/modules.html#import-section
+pub fn emit_import<T: Borrow<Import>, O: Write>(
+    import: Import,
+    output: &mut O,
+) -> Result<usize, CompilerError> {
+    let mut bytes = 0;
+    let import = import.borrow();
+
+    bytes += emit_name(import.module(), output)?;
+    bytes += emit_name(import.name(), output)?;
+    bytes += emit_import_description(import.description(), output)?;
+
+    Ok(bytes)
+}
+
+/// Emit an import description to the output.
+///
+/// See https://webassembly.github.io/spec/core/binary/modules.html#import-section
+pub fn emit_import_description<T: Borrow<ImportDescription>, O: Write>(
+    description: T,
+    output: &mut O,
+) -> Result<usize, CompilerError> {
+    let mut bytes = 0;
+
+    match description.borrow() {
+        ImportDescription::Function(index) => {
+            bytes += emit_byte(0x00u8, output)?;
+            bytes += emit_usize(index, output)?;
         }
+        ImportDescription::Table(table_type) => {
+            bytes += emit_byte(0x01u8, output)?;
+            bytes += emit_table_type(table_type, output)?;
+        }
+        ImportDescription::Memory(memory_type) => {
+            bytes += emit_byte(0x02u8, output)?;
+            bytes += emit_memory_type(memory_type, output)?;
+        }
+        ImportDescription::Global(global_type) => {
+            bytes += emit_byte(0x03u8, output)?;
+            bytes += emit_global_type(global_type, output)?;
+        }
+    };
 
-        self.body().emit(&mut buffer)?;
-
-        bytes += emit_usize(buffer.len(), output)?;
-        bytes += output.write(&buffer)?;
-
-        Ok(bytes)
-    }
+    Ok(bytes)
 }
 
-impl Emit for Import {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        let mut bytes = 0;
-
-        bytes += emit_name(self.module(), output)?;
-        bytes += emit_name(self.name(), output)?;
-        bytes += self.description().emit(output)?;
-
-        Ok(bytes)
-    }
+/// Emit a table to the output.
+///
+/// See https://webassembly.github.io/spec/core/binary/modules.html#table-section
+pub fn emit_table<T: Borrow<Table>, O: Write>(
+    table: T,
+    output: &mut O,
+) -> Result<usize, CompilerError> {
+    emit_table_type(table.borrow().kind(), output)
 }
 
-impl Emit for ImportDescription {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        let mut bytes = 0;
-
-        match self {
-            ImportDescription::Function(index) => {
-                bytes += emit_byte(0x00u8, output)?;
-                bytes += emit_usize(index, output)?;
-            }
-            ImportDescription::Table(table_type) => {
-                bytes += emit_byte(0x01u8, output)?;
-                bytes += table_type.emit(output)?;
-            }
-            ImportDescription::Memory(memory_type) => {
-                bytes += emit_byte(0x02u8, output)?;
-                bytes += memory_type.emit(output)?;
-            }
-            ImportDescription::Global(global_type) => {
-                bytes += emit_byte(0x03u8, output)?;
-                bytes += global_type.emit(output)?;
-            }
-        };
-
-        Ok(bytes)
-    }
+/// Emit a memory to the output.
+///
+/// See https://webassembly.github.io/spec/core/binary/modules.html#memory-section
+pub fn emit_memory<T: Borrow<Memory>, O: Write>(
+    memory: T,
+    output: &mut O,
+) -> Result<usize, CompilerError> {
+    emit_memory_type(memory.borrow().kind(), output)
 }
 
-impl Emit for Table {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        self.kind().emit(output)
-    }
+/// Emit a global to the output.
+///
+/// See https://webassembly.github.io/spec/core/binary/modules.html#global-section
+pub fn emit_global<T: Borrow<Global>, O: Write>(
+    global: T,
+    output: &mut O,
+) -> Result<usize, CompilerError> {
+    let mut bytes = 0;
+    let value = global.borrow();
+
+    bytes += emit_global_type(value.kind(), output)?;
+    bytes += emit_expression(value.initializer(), output)?;
+
+    Ok(bytes)
 }
 
-impl Emit for Memory {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        self.kind().emit(output)
-    }
+/// Emit an export to the output.
+///
+/// See https://webassembly.github.io/spec/core/binary/modules.html#export-section
+pub fn emit_export<T: Borrow<Export>, O: Write>(
+    export: T,
+    output: &mut O,
+) -> Result<usize, CompilerError> {
+    let mut bytes = 0;
+    let value = export.borrow();
+
+    bytes += emit_name(value.name(), output)?;
+    bytes += emit_export_description(value.description(), output)?;
+
+    Ok(bytes)
 }
 
-impl Emit for Global {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        let mut bytes = 0;
+/// Emit an export description to the output.
+///
+/// See https://webassembly.github.io/spec/core/binary/modules.html#export-section
+pub fn emit_export_description<T: Borrow<ExportDescription>, O: Write>(
+    description: T,
+    output: &mut O,
+) -> Result<usize, CompilerError> {
+    let (value, index) = match description.borrow() {
+        ExportDescription::Function(index) => (0x00, index),
+        ExportDescription::Table(index) => (0x01, index),
+        ExportDescription::Memory(index) => (0x02, index),
+        ExportDescription::Global(index) => (0x03, index),
+    };
+    let mut bytes = 0;
 
-        bytes += self.kind().emit(output)?;
-        bytes += self.initializer().emit(output)?;
+    bytes += emit_i32(value, output)?;
+    bytes += emit_usize(index, output)?;
 
-        Ok(bytes)
-    }
+    Ok(bytes)
 }
 
-impl Emit for Export {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        let mut bytes = 0;
-
-        bytes += emit_name(self.name(), output)?;
-        bytes += self.description().emit(output)?;
-
-        Ok(bytes)
-    }
+/// Emit a start to the output.
+///
+/// See https://webassembly.github.io/spec/core/binary/modules.html#start-section
+pub fn emit_start<T: Borrow<Start>, O: Write>(
+    start: T,
+    output: &mut O,
+) -> Result<usize, CompilerError> {
+    emit_usize(start.borrow().function(), output)
 }
 
-impl Emit for ExportDescription {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        let (value, index) = match self {
-            ExportDescription::Function(index) => (0x00, index),
-            ExportDescription::Table(index) => (0x01, index),
-            ExportDescription::Memory(index) => (0x02, index),
-            ExportDescription::Global(index) => (0x03, index),
-        };
-        let mut bytes = 0;
+/// Emit an element to the output.
+///
+/// See https://webassembly.github.io/spec/core/binary/modules.html#element-section
+pub fn emit_element<T: Borrow<Element>, O: Write>(
+    element: T,
+    output: &mut O,
+) -> Result<usize, CompilerError> {
+    let mut bytes = 0;
+    let element = element.borrow();
 
-        bytes += emit_i32(value, output)?;
-        bytes += emit_usize(index, output)?;
+    match (element.initializers(), element.mode(), element.kind()) {
+        (
+            ElementInitializer::FunctionIndex(indices),
+            ElementMode::Active(0, offset),
+            ReferenceType::Function,
+        ) => {
+            bytes += emit_byte(0x00u8, output)?;
+            bytes += emit_expression(offset, output)?;
+            bytes += emit_vector(indices, output, emit_usize)?;
+        }
+        (
+            ElementInitializer::FunctionIndex(indices),
+            ElementMode::Passive,
+            ReferenceType::Function,
+        ) => {
+            bytes += emit_byte(0x01u8, output)?;
+            bytes += emit_byte(0x00u8, output)?;
+            bytes += emit_vector(indices, output, emit_usize)?;
+        }
+        (ElementInitializer::FunctionIndex(indices), ElementMode::Active(table, offset), kind) => {
+            bytes += emit_byte(0x02u8, output)?;
+            bytes += emit_usize(table, output)?;
+            bytes += emit_expression(offset, output)?;
+            bytes += emit_reference_type(kind, output)?;
+            bytes += emit_vector(indices, output, emit_usize)?;
+        }
+        (ElementInitializer::FunctionIndex(indices), ElementMode::Declarative, kind) => {
+            bytes += emit_byte(0x03u8, output)?;
+            bytes += emit_reference_type(kind, output)?;
+            bytes += emit_vector(indices, output, emit_usize)?;
+        }
+        (
+            ElementInitializer::Expression(expressions),
+            ElementMode::Active(0, offset),
+            ReferenceType::Function,
+        ) => {
+            bytes += emit_byte(0x04u8, output)?;
+            bytes += emit_expression(offset, output)?;
+            bytes += emit_vector(expressions, output, emit_expression)?;
+        }
+        (ElementInitializer::Expression(expressions), ElementMode::Passive, kind) => {
+            bytes += emit_byte(0x05u8, output)?;
+            bytes += emit_reference_type(kind, output)?;
+            bytes += emit_vector(expressions, output, emit_expression)?;
+        }
+        (ElementInitializer::Expression(expressions), ElementMode::Active(table, offset), kind) => {
+            bytes += emit_byte(0x06u8, output)?;
+            bytes += emit_usize(table, output)?;
+            bytes += emit_expression(offset, output)?;
+            bytes += emit_reference_type(kind, output)?;
+            bytes += emit_vector(expressions, output, emit_expression)?;
+        }
+        (ElementInitializer::Expression(expressions), ElementMode::Declarative, kind) => {
+            bytes += emit_byte(0x07u8, output)?;
+            bytes += emit_reference_type(kind, output)?;
+            bytes += emit_vector(expressions, output, emit_expression)?;
+        }
+        _ => return Err(CompilerError::InvalidSyntax),
+    };
 
-        Ok(bytes)
-    }
+    Ok(bytes)
 }
 
-impl Emit for Start {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        emit_usize(self.function(), output)
-    }
-}
+/// Emit a data to the output.
+///
+/// See https://webassembly.github.io/spec/core/binary/modules.html#data-section
+pub fn emit_data<T: Borrow<Data>, O: Write>(
+    data: T,
+    output: &mut O,
+) -> Result<usize, CompilerError> {
+    let mut bytes = 0;
+    let data = data.borrow();
 
-impl Emit for Element {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        let mut bytes = 0;
+    match data.mode() {
+        DataMode::Active(0, offset) => {
+            bytes += emit_byte(0x00u8, output)?;
+            bytes += emit_expression(offset, output)?;
+        }
+        DataMode::Passive => {
+            bytes += emit_byte(0x01u8, output)?;
+        }
+        DataMode::Active(memory, offset) => {
+            bytes += emit_byte(0x02u8, output)?;
+            bytes += emit_usize(memory, output)?;
+            bytes += emit_expression(offset, output)?;
+        }
+    };
 
-        match (self.initializers(), self.mode(), self.kind()) {
-            (
-                ElementInitializer::FunctionIndex(indices),
-                ElementMode::Active(0, offset),
-                ReferenceType::Function,
-            ) => {
-                bytes += emit_byte(0x00u8, output)?;
-                bytes += offset.emit(output)?;
-                bytes += emit_vector(indices, output, emit_usize)?;
-            }
-            (
-                ElementInitializer::FunctionIndex(indices),
-                ElementMode::Passive,
-                ReferenceType::Function,
-            ) => {
-                bytes += emit_byte(0x01u8, output)?;
-                bytes += emit_byte(0x00u8, output)?;
-                bytes += emit_vector(indices, output, emit_usize)?;
-            }
-            (
-                ElementInitializer::FunctionIndex(indices),
-                ElementMode::Active(table, offset),
-                kind,
-            ) => {
-                bytes += emit_byte(0x02u8, output)?;
-                bytes += emit_usize(table, output)?;
-                bytes += offset.emit(output)?;
-                bytes += kind.emit(output)?;
-                bytes += emit_vector(indices, output, emit_usize)?;
-            }
-            (ElementInitializer::FunctionIndex(indices), ElementMode::Declarative, kind) => {
-                bytes += emit_byte(0x03u8, output)?;
-                bytes += kind.emit(output)?;
-                bytes += emit_vector(indices, output, emit_usize)?;
-            }
-            (
-                ElementInitializer::Expression(expressions),
-                ElementMode::Active(0, offset),
-                ReferenceType::Function,
-            ) => {
-                bytes += emit_byte(0x04u8, output)?;
-                bytes += offset.emit(output)?;
-                bytes += expressions.emit(output)?;
-            }
-            (ElementInitializer::Expression(expressions), ElementMode::Passive, kind) => {
-                bytes += emit_byte(0x05u8, output)?;
-                bytes += kind.emit(output)?;
-                bytes += expressions.emit(output)?;
-            }
-            (
-                ElementInitializer::Expression(expressions),
-                ElementMode::Active(table, offset),
-                kind,
-            ) => {
-                bytes += emit_byte(0x06u8, output)?;
-                bytes += emit_usize(table, output)?;
-                bytes += offset.emit(output)?;
-                bytes += kind.emit(output)?;
-                bytes += expressions.emit(output)?;
-            }
-            (ElementInitializer::Expression(expressions), ElementMode::Declarative, kind) => {
-                bytes += emit_byte(0x07u8, output)?;
-                bytes += kind.emit(output)?;
-                bytes += expressions.emit(output)?;
-            }
-            _ => return Err(CompilerError::InvalidSyntax),
-        };
+    bytes += emit_bytes(data.initializer(), output, true)?;
 
-        Ok(bytes)
-    }
-}
-
-impl Emit for Data {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        let mut bytes = 0;
-
-        match self.mode() {
-            DataMode::Active(0, offset) => {
-                bytes += emit_byte(0x00u8, output)?;
-                bytes += offset.emit(output)?;
-            }
-            DataMode::Passive => {
-                bytes += emit_byte(0x01u8, output)?;
-            }
-            DataMode::Active(memory, offset) => {
-                bytes += emit_byte(0x02u8, output)?;
-                bytes += emit_usize(memory, output)?;
-                bytes += offset.emit(output)?;
-            }
-        };
-
-        bytes += emit_bytes(self.initializer(), output, true)?;
-
-        Ok(bytes)
-    }
+    Ok(bytes)
 }
 
 /// Emit a custom section with the version of the language the module was compiled.
@@ -317,6 +366,8 @@ fn emit_version<O: Write>(buffer: &mut Vec<u8>, output: &mut O) -> Result<usize,
 }
 
 /// Emit named custom content to the module.
+///
+/// See https://webassembly.github.io/spec/core/binary/modules.html#custom-section
 fn emit_custom_content<O: Write>(
     name: &Name,
     content: &[u8],
@@ -342,7 +393,7 @@ fn emit_section<O: Write>(
 ) -> Result<usize, CompilerError> {
     let mut bytes = 0;
 
-    bytes += section.emit(output)?;
+    bytes += emit_module_section(section, output)?;
     bytes += emit_usize(buffer.len(), output)?;
     bytes += output.write(&buffer)?;
 
@@ -402,8 +453,12 @@ pub enum ModuleSection {
     DataCountSection,
 }
 
-impl Emit for ModuleSection {
-    fn emit<O: Write>(&self, output: &mut O) -> Result<usize, CompilerError> {
-        emit_byte(*self as u8, output)
-    }
+/// Emit a module section to the output.
+///
+/// See https://webassembly.github.io/spec/core/binary/modules.html#ModuleSection-section
+pub fn emit_module_section<T: Borrow<ModuleSection>, O: Write>(
+    section: T,
+    output: &mut O,
+) -> Result<usize, CompilerError> {
+    emit_byte(*section.borrow() as u8, output)
 }
