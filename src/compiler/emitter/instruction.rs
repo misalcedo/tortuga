@@ -6,18 +6,17 @@ use crate::syntax::web_assembly::{
     MemoryInstruction, NumberType, NumericInstruction, ParametricInstruction, ReferenceInstruction,
     SignExtension, StorageSize, TableInstruction, VariableInstruction,
 };
-use std::borrow::Borrow;
 use std::io::Write;
 
 /// Emit an expression to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/instructions.html#expressions
-pub fn emit_expression<T: Borrow<Expression>, O: Write>(
-    expression: T,
+pub fn emit_expression<O: Write>(
+    expression: &Expression,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
     let mut bytes = 0;
-    let expression = expression.borrow();
+    let expression = expression;
 
     for instruction in expression.instructions() {
         bytes += emit_instruction(instruction, output)?;
@@ -31,11 +30,11 @@ pub fn emit_expression<T: Borrow<Expression>, O: Write>(
 /// Emit an instruction to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/instructions.html#
-pub fn emit_instruction<T: Borrow<Instruction>, O: Write>(
-    instruction: T,
+pub fn emit_instruction<O: Write>(
+    instruction: &Instruction,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
-    match instruction.borrow() {
+    match instruction {
         Instruction::Numeric(instruction) => emit_numeric_instruction(instruction, output),
         Instruction::Reference(instruction) => emit_reference_instruction(instruction, output),
         Instruction::Parametric(instruction) => emit_parametric_instruction(instruction, output),
@@ -49,13 +48,13 @@ pub fn emit_instruction<T: Borrow<Instruction>, O: Write>(
 /// Emit a numeric instruction to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/instructions.html#numeric-instructions
-fn emit_numeric_instruction<T: Borrow<NumericInstruction>, O: Write>(
-    instruction: T,
+fn emit_numeric_instruction<O: Write>(
+    instruction: &NumericInstruction,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
     let mut bytes = 0;
 
-    match instruction.borrow() {
+    match instruction {
         // Constant Operations
         NumericInstruction::I32Constant(value) => {
             bytes += emit_byte(0x41u8, output)?;
@@ -589,13 +588,13 @@ fn emit_numeric_instruction<T: Borrow<NumericInstruction>, O: Write>(
 /// Emit a reference instruction to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/instructions.html#reference-instructions
-pub fn emit_reference_instruction<T: Borrow<ReferenceInstruction>, O: Write>(
-    instruction: T,
+pub fn emit_reference_instruction<O: Write>(
+    instruction: &ReferenceInstruction,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
     let mut bytes = 0;
 
-    match instruction.borrow() {
+    match instruction {
         ReferenceInstruction::ReferenceNull(kind) => {
             bytes += emit_byte(0xD0u8, output)?;
             bytes += emit_reference_type(kind, output)?;
@@ -615,13 +614,13 @@ pub fn emit_reference_instruction<T: Borrow<ReferenceInstruction>, O: Write>(
 /// Emit a parametric instruction to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/instructions.html#parametric-instructions
-pub fn emit_parametric_instruction<T: Borrow<ParametricInstruction>, O: Write>(
-    instruction: T,
+pub fn emit_parametric_instruction<O: Write>(
+    instruction: &ParametricInstruction,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
     let mut bytes = 0;
 
-    match instruction.borrow() {
+    match instruction {
         ParametricInstruction::Drop => {
             bytes += emit_byte(0x1Au8, output)?;
         }
@@ -640,13 +639,13 @@ pub fn emit_parametric_instruction<T: Borrow<ParametricInstruction>, O: Write>(
 /// Emit a variable instruction to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/instructions.html#variable-instructions
-fn emit_variable_instruction<T: Borrow<VariableInstruction>, O: Write>(
-    instruction: T,
+fn emit_variable_instruction<O: Write>(
+    instruction: &VariableInstruction,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
     let mut bytes = 0;
 
-    match instruction.borrow() {
+    match instruction {
         VariableInstruction::LocalGet(index) => {
             bytes += emit_byte(0x20u8, output)?;
             bytes += emit_usize(index, output)?;
@@ -675,13 +674,13 @@ fn emit_variable_instruction<T: Borrow<VariableInstruction>, O: Write>(
 /// Emit a table instruction to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/instructions.html#table-instructions
-fn emit_table_instruction<T: Borrow<TableInstruction>, O: Write>(
-    instruction: T,
+fn emit_table_instruction<O: Write>(
+    instruction: &TableInstruction,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
     let mut bytes = 0;
 
-    match instruction.borrow() {
+    match instruction {
         TableInstruction::TableGet(index) => {
             bytes += emit_byte(0x25u8, output)?;
             bytes += emit_usize(index, output)?;
@@ -730,13 +729,13 @@ fn emit_table_instruction<T: Borrow<TableInstruction>, O: Write>(
 /// Emit a memory instruction to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/instructions.html#memory-instructions
-pub fn emit_memory_instruction<T: Borrow<MemoryInstruction>, O: Write>(
-    instruction: T,
+pub fn emit_memory_instruction<O: Write>(
+    instruction: &MemoryInstruction,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
     let mut bytes = 0;
 
-    match instruction.borrow() {
+    match instruction {
         MemoryInstruction::Load(NumberType::I32, memory_argument) => {
             bytes += emit_byte(0x28u8, output)?;
             bytes += emit_memory_argument(memory_argument, output)?;
@@ -907,13 +906,13 @@ pub fn emit_memory_instruction<T: Borrow<MemoryInstruction>, O: Write>(
 /// Emit a control instruction to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/instructions.html#control-instructions
-fn emit_control_instruction<T: Borrow<ControlInstruction>, O: Write>(
-    instruction: T,
+fn emit_control_instruction<O: Write>(
+    instruction: &ControlInstruction,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
     let mut bytes = 0;
 
-    match instruction.borrow() {
+    match instruction {
         ControlInstruction::Unreachable => {
             bytes += emit_byte(0x00u8, output)?;
         }
@@ -975,11 +974,8 @@ fn emit_control_instruction<T: Borrow<ControlInstruction>, O: Write>(
 /// Emit a block type to the output.
 ///
 /// See  https://webassembly.github.io/spec/core/binary/instructions.html#control-instructions
-pub fn emit_block_type<T: Borrow<BlockType>, O: Write>(
-    kind: T,
-    output: &mut O,
-) -> Result<usize, CompilerError> {
-    match kind.borrow() {
+pub fn emit_block_type<O: Write>(kind: &BlockType, output: &mut O) -> Result<usize, CompilerError> {
+    match kind {
         BlockType::Index(index) => emit_i64(*index as i64, output),
         BlockType::ValueType(kind) => emit_value_type(kind, output),
         BlockType::None => emit_byte(0x40u8, output),
@@ -989,12 +985,11 @@ pub fn emit_block_type<T: Borrow<BlockType>, O: Write>(
 /// Emit a memory argument to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/instructions.html#memory-instructions
-pub fn emit_memory_argument<T: Borrow<MemoryArgument>, O: Write>(
-    argument: T,
+pub fn emit_memory_argument<O: Write>(
+    argument: &MemoryArgument,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
     let mut bytes = 0;
-    let argument = argument.borrow();
 
     bytes += emit_usize(argument.align(), output)?;
     bytes += emit_usize(argument.offset(), output)?;

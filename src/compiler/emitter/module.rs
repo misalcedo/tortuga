@@ -11,7 +11,6 @@ use crate::syntax::web_assembly::{
     Global, Import, ImportDescription, Memory, Module, Name, ReferenceType, Start, Table,
     TypeIndex,
 };
-use std::borrow::Borrow;
 use std::io::Write;
 
 const PREAMBLE: [u8; 4] = [0x00u8, 0x61u8, 0x73u8, 0x6Du8];
@@ -20,13 +19,9 @@ const VERSION: [u8; 4] = [0x01u8, 0x00u8, 0x00u8, 0x00u8];
 /// Emit a module to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/modules.html
-pub fn emit_module<T: Borrow<Module>, O: Write>(
-    module: T,
-    output: &mut O,
-) -> Result<usize, CompilerError> {
+pub fn emit_module<O: Write>(module: &Module, output: &mut O) -> Result<usize, CompilerError> {
     let mut bytes = 0;
     let mut buffer: Vec<u8> = Vec::new();
-    let module = module.borrow();
 
     bytes += emit_bytes(&PREAMBLE, output, false)?;
     bytes += emit_bytes(&VERSION, output, false)?;
@@ -101,13 +96,9 @@ pub fn emit_module<T: Borrow<Module>, O: Write>(
 /// Emit a function to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/modules.html#function-section
-fn emit_function<T: Borrow<Function>, O: Write>(
-    function: T,
-    output: &mut O,
-) -> Result<usize, CompilerError> {
+fn emit_function<O: Write>(function: &Function, output: &mut O) -> Result<usize, CompilerError> {
     let mut buffer: Vec<u8> = Vec::new();
     let mut bytes = 0;
-    let function = function.borrow();
 
     emit_usize(function.locals().len(), &mut buffer)?;
     for local in function.locals().kinds() {
@@ -126,12 +117,8 @@ fn emit_function<T: Borrow<Function>, O: Write>(
 /// Emit an import to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/modules.html#import-section
-pub fn emit_import<T: Borrow<Import>, O: Write>(
-    import: Import,
-    output: &mut O,
-) -> Result<usize, CompilerError> {
+pub fn emit_import<O: Write>(import: &Import, output: &mut O) -> Result<usize, CompilerError> {
     let mut bytes = 0;
-    let import = import.borrow();
 
     bytes += emit_name(import.module(), output)?;
     bytes += emit_name(import.name(), output)?;
@@ -143,13 +130,13 @@ pub fn emit_import<T: Borrow<Import>, O: Write>(
 /// Emit an import description to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/modules.html#import-section
-pub fn emit_import_description<T: Borrow<ImportDescription>, O: Write>(
-    description: T,
+pub fn emit_import_description<O: Write>(
+    description: &ImportDescription,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
     let mut bytes = 0;
 
-    match description.borrow() {
+    match description {
         ImportDescription::Function(index) => {
             bytes += emit_byte(0x00u8, output)?;
             bytes += emit_usize(index, output)?;
@@ -174,35 +161,25 @@ pub fn emit_import_description<T: Borrow<ImportDescription>, O: Write>(
 /// Emit a table to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/modules.html#table-section
-pub fn emit_table<T: Borrow<Table>, O: Write>(
-    table: T,
-    output: &mut O,
-) -> Result<usize, CompilerError> {
-    emit_table_type(table.borrow().kind(), output)
+pub fn emit_table<O: Write>(table: &Table, output: &mut O) -> Result<usize, CompilerError> {
+    emit_table_type(table.kind(), output)
 }
 
 /// Emit a memory to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/modules.html#memory-section
-pub fn emit_memory<T: Borrow<Memory>, O: Write>(
-    memory: T,
-    output: &mut O,
-) -> Result<usize, CompilerError> {
-    emit_memory_type(memory.borrow().kind(), output)
+pub fn emit_memory<O: Write>(memory: &Memory, output: &mut O) -> Result<usize, CompilerError> {
+    emit_memory_type(memory.kind(), output)
 }
 
 /// Emit a global to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/modules.html#global-section
-pub fn emit_global<T: Borrow<Global>, O: Write>(
-    global: T,
-    output: &mut O,
-) -> Result<usize, CompilerError> {
+pub fn emit_global<O: Write>(global: &Global, output: &mut O) -> Result<usize, CompilerError> {
     let mut bytes = 0;
-    let value = global.borrow();
 
-    bytes += emit_global_type(value.kind(), output)?;
-    bytes += emit_expression(value.initializer(), output)?;
+    bytes += emit_global_type(global.kind(), output)?;
+    bytes += emit_expression(global.initializer(), output)?;
 
     Ok(bytes)
 }
@@ -210,15 +187,11 @@ pub fn emit_global<T: Borrow<Global>, O: Write>(
 /// Emit an export to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/modules.html#export-section
-pub fn emit_export<T: Borrow<Export>, O: Write>(
-    export: T,
-    output: &mut O,
-) -> Result<usize, CompilerError> {
+pub fn emit_export<O: Write>(export: &Export, output: &mut O) -> Result<usize, CompilerError> {
     let mut bytes = 0;
-    let value = export.borrow();
 
-    bytes += emit_name(value.name(), output)?;
-    bytes += emit_export_description(value.description(), output)?;
+    bytes += emit_name(export.name(), output)?;
+    bytes += emit_export_description(export.description(), output)?;
 
     Ok(bytes)
 }
@@ -226,11 +199,11 @@ pub fn emit_export<T: Borrow<Export>, O: Write>(
 /// Emit an export description to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/modules.html#export-section
-pub fn emit_export_description<T: Borrow<ExportDescription>, O: Write>(
-    description: T,
+pub fn emit_export_description<O: Write>(
+    description: &ExportDescription,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
-    let (value, index) = match description.borrow() {
+    let (value, index) = match description {
         ExportDescription::Function(index) => (0x00, index),
         ExportDescription::Table(index) => (0x01, index),
         ExportDescription::Memory(index) => (0x02, index),
@@ -247,22 +220,15 @@ pub fn emit_export_description<T: Borrow<ExportDescription>, O: Write>(
 /// Emit a start to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/modules.html#start-section
-pub fn emit_start<T: Borrow<Start>, O: Write>(
-    start: T,
-    output: &mut O,
-) -> Result<usize, CompilerError> {
-    emit_usize(start.borrow().function(), output)
+pub fn emit_start<O: Write>(start: &Start, output: &mut O) -> Result<usize, CompilerError> {
+    emit_usize(start.function(), output)
 }
 
 /// Emit an element to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/modules.html#element-section
-pub fn emit_element<T: Borrow<Element>, O: Write>(
-    element: T,
-    output: &mut O,
-) -> Result<usize, CompilerError> {
+pub fn emit_element<O: Write>(element: &Element, output: &mut O) -> Result<usize, CompilerError> {
     let mut bytes = 0;
-    let element = element.borrow();
 
     match (element.initializers(), element.mode(), element.kind()) {
         (
@@ -330,12 +296,8 @@ pub fn emit_element<T: Borrow<Element>, O: Write>(
 /// Emit a data to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/modules.html#data-section
-pub fn emit_data<T: Borrow<Data>, O: Write>(
-    data: T,
-    output: &mut O,
-) -> Result<usize, CompilerError> {
+pub fn emit_data<O: Write>(data: &Data, output: &mut O) -> Result<usize, CompilerError> {
     let mut bytes = 0;
-    let data = data.borrow();
 
     match data.mode() {
         DataMode::Active(0, offset) => {
@@ -456,9 +418,9 @@ pub enum ModuleSection {
 /// Emit a module section to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/modules.html#ModuleSection-section
-pub fn emit_module_section<T: Borrow<ModuleSection>, O: Write>(
-    section: T,
+pub fn emit_module_section<O: Write>(
+    section: ModuleSection,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
-    emit_byte(*section.borrow() as u8, output)
+    emit_byte(section as u8, output)
 }

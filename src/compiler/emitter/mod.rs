@@ -11,8 +11,11 @@ pub use types::*;
 pub use values::*;
 
 /// Emits a binary representation of a WebAssembly Abstract Syntax Tree (AST) to a `Write` output.
-pub async fn emit_binary<O: Write>(module: Module, output: &mut O) -> Result<usize, CompilerError> {
-    emit_module(module, output)
+pub async fn emit_binary<O: Write>(
+    module: &Module,
+    output: &mut O,
+) -> Result<usize, CompilerError> {
+    emit_module(&module, output)
 }
 
 #[cfg(test)]
@@ -27,10 +30,10 @@ mod tests {
     };
     use wasmtime::{Engine, Extern, Func, Instance, Module, Store};
 
-    fn validate(target: web_assembly::Module) -> Result<(), CompilerError> {
+    fn validate(target: &web_assembly::Module) -> Result<(), CompilerError> {
         let mut bytes = Vec::new();
 
-        emit_module(target, &mut bytes)?;
+        emit_module(&target, &mut bytes)?;
 
         let engine = Engine::default();
         let module = Module::new(&engine, &bytes)?;
@@ -52,7 +55,7 @@ mod tests {
         let mut buffer = Vec::new();
         let module = web_assembly::Module::new();
 
-        emit_module(module.clone(), &mut buffer).unwrap();
+        emit_module(&module, &mut buffer).unwrap();
 
         let mut bytes: Vec<u8> = Vec::new();
         let prefix = b"\x00\x61\x73\x6D\x01\x00\x00\x00";
@@ -71,14 +74,14 @@ mod tests {
 
         assert_eq!(&buffer, &bytes);
 
-        let result = validate(module.clone());
+        let result = validate(&module);
         assert!(result.is_ok());
     }
 
     #[test]
     fn valid_empty_module() {
         let module = web_assembly::Module::new();
-        let result = validate(module);
+        let result = validate(&module);
 
         assert!(result.is_ok());
     }
@@ -145,7 +148,7 @@ mod tests {
         );
         module.add_global(global);
 
-        let result = validate(module);
+        let result = validate(&module);
 
         assert!(result.is_ok());
     }
@@ -165,7 +168,7 @@ mod tests {
         );
         module.add_import(import);
 
-        let result = validate(module);
+        let result = validate(&module);
 
         assert!(result.is_ok());
     }
@@ -179,7 +182,7 @@ mod tests {
         );
         module.add_type(function_type);
 
-        let result = validate(module);
+        let result = validate(&module);
 
         assert!(result.is_ok());
     }
@@ -202,7 +205,7 @@ mod tests {
         );
         module.add_function(function);
 
-        validate(module).unwrap();
+        validate(&module).unwrap();
     }
 
     #[test]
@@ -221,7 +224,7 @@ mod tests {
         let start = Start::new(0);
         module.set_start(Some(start));
 
-        validate(module).unwrap();
+        validate(&module).unwrap();
     }
 
     #[test]
@@ -253,7 +256,7 @@ mod tests {
         let table = Table::new(TableType::new(Limit::new(0, None), ReferenceType::Function));
         module.add_table(table);
 
-        validate(module).unwrap();
+        validate(&module).unwrap();
     }
 
     #[test]
@@ -263,7 +266,7 @@ mod tests {
         let table = Table::new(TableType::new(Limit::new(0, None), ReferenceType::Function));
         module.add_table(table);
 
-        validate(module).unwrap();
+        validate(&module).unwrap();
     }
 
     #[test]
@@ -276,7 +279,7 @@ mod tests {
         let memory = Memory::new(MemoryType::new(Limit::new(0, None)));
         module.add_memory(memory);
 
-        validate(module).unwrap();
+        validate(&module).unwrap();
     }
 
     #[test]
@@ -286,7 +289,7 @@ mod tests {
         let memory = Memory::new(MemoryType::new(Limit::new(0, None)));
         module.add_memory(memory);
 
-        validate(module).unwrap();
+        validate(&module).unwrap();
     }
 
     #[test]
@@ -301,7 +304,7 @@ mod tests {
         );
         module.add_global(global);
 
-        validate(module).unwrap();
+        validate(&module).unwrap();
     }
 
     #[test]
@@ -322,7 +325,7 @@ mod tests {
         );
         module.add_global(global);
 
-        validate(module).unwrap();
+        validate(&module).unwrap();
     }
 
     #[test]
@@ -337,7 +340,7 @@ mod tests {
         );
         module.add_function(function);
 
-        let result = validate(module);
+        let result = validate(&module);
 
         assert!(result.is_err());
     }
