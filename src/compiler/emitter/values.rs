@@ -8,7 +8,7 @@ use std::mem::size_of;
 /// Emit a name to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/values.html#floating-point
-pub fn emit_f32<T: Borrow<f32>, O: Write>(
+pub fn emit_f32<T: Borrow<f32>, O: Write + ?Sized>(
     value: T,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
@@ -20,7 +20,7 @@ pub fn emit_f32<T: Borrow<f32>, O: Write>(
 /// Emit a name to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/values.html#floating-point
-pub fn emit_f64<T: Borrow<f64>, O: Write>(
+pub fn emit_f64<T: Borrow<f64>, O: Write + ?Sized>(
     value: T,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
@@ -32,14 +32,17 @@ pub fn emit_f64<T: Borrow<f64>, O: Write>(
 /// Emit a name to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/values.html#names
-pub fn emit_name<O: Write>(value: &Name, output: &mut O) -> Result<usize, CompilerError> {
+pub fn emit_name<O: Write + ?Sized>(value: &Name, output: &mut O) -> Result<usize, CompilerError> {
     emit_bytes(value.as_bytes(), output, true)
 }
 
 /// Emits a single byte to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/values.html#bytes
-pub fn emit_byte<T: Borrow<u8>, O: Write>(byte: T, output: &mut O) -> Result<usize, CompilerError> {
+pub fn emit_byte<T: Borrow<u8>, O: Write + ?Sized>(
+    byte: T,
+    output: &mut O,
+) -> Result<usize, CompilerError> {
     output.write_u8(*byte.borrow())?;
     Ok(size_of::<u8>())
 }
@@ -51,7 +54,7 @@ pub fn emit_byte<T: Borrow<u8>, O: Write>(byte: T, output: &mut O) -> Result<usi
 /// See https://webassembly.github.io/spec/core/binary/values.html#bytes
 ///
 /// See https://webassembly.github.io/spec/core/binary/conventions.html#vectors
-pub fn emit_bytes<O: Write>(
+pub fn emit_bytes<O: Write + ?Sized>(
     value: &[u8],
     output: &mut O,
     include_length: bool,
@@ -70,7 +73,7 @@ pub fn emit_bytes<O: Write>(
 /// Emits an unsigned 32-bit integer to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/values.html#integers
-pub fn emit_u32<T: Borrow<u32>, O: Write>(
+pub fn emit_u32<T: Borrow<u32>, O: Write + ?Sized>(
     value: T,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
@@ -80,7 +83,7 @@ pub fn emit_u32<T: Borrow<u32>, O: Write>(
 /// Emits an unsigned platform-specific (i.e., 32-bit or 64-bit) integer to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/values.html#integers
-pub fn emit_usize<T: Borrow<usize>, O: Write>(
+pub fn emit_usize<T: Borrow<usize>, O: Write + ?Sized>(
     size: T,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
@@ -90,7 +93,7 @@ pub fn emit_usize<T: Borrow<usize>, O: Write>(
 /// Emits an unsigned 64-bit integer to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/values.html#integers
-pub fn emit_u64<T: Borrow<u64>, O: Write>(
+pub fn emit_u64<T: Borrow<u64>, O: Write + ?Sized>(
     value: T,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
@@ -100,7 +103,7 @@ pub fn emit_u64<T: Borrow<u64>, O: Write>(
 /// Emits a signed 32-bit integer to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/values.html#integers
-pub fn emit_i32<T: Borrow<i32>, O: Write>(
+pub fn emit_i32<T: Borrow<i32>, O: Write + ?Sized>(
     value: T,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
@@ -110,7 +113,7 @@ pub fn emit_i32<T: Borrow<i32>, O: Write>(
 /// Emits a signed 64-bit integer to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/values.html#integers
-pub fn emit_i64<T: Borrow<i64>, O: Write>(
+pub fn emit_i64<T: Borrow<i64>, O: Write + ?Sized>(
     value: T,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
@@ -127,7 +130,7 @@ pub fn emit_vector<'items, I, E, O>(
     emit: E,
 ) -> Result<usize, CompilerError>
 where
-    O: Write,
+    O: Write + ?Sized,
     E: Fn(&'items I, &mut O) -> Result<usize, CompilerError>,
 {
     let mut bytes = 0;
@@ -145,7 +148,7 @@ pub fn emit_repeated<'items, I, E, O>(
     emit: E,
 ) -> Result<usize, CompilerError>
 where
-    O: Write,
+    O: Write + ?Sized,
     E: Fn(&'items I, &mut O) -> Result<usize, CompilerError>,
 {
     let mut bytes = 0;

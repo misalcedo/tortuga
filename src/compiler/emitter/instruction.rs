@@ -11,7 +11,7 @@ use std::io::Write;
 /// Emit an expression to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/instructions.html#expressions
-pub fn emit_expression<O: Write>(
+pub fn emit_expression<O: Write + ?Sized>(
     expression: &Expression,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
@@ -30,7 +30,7 @@ pub fn emit_expression<O: Write>(
 /// Emit an instruction to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/instructions.html#
-pub fn emit_instruction<O: Write>(
+pub fn emit_instruction<O: Write + ?Sized>(
     instruction: &Instruction,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
@@ -48,7 +48,7 @@ pub fn emit_instruction<O: Write>(
 /// Emit a numeric instruction to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/instructions.html#numeric-instructions
-fn emit_numeric_instruction<O: Write>(
+fn emit_numeric_instruction<O: Write + ?Sized>(
     instruction: &NumericInstruction,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
@@ -588,7 +588,7 @@ fn emit_numeric_instruction<O: Write>(
 /// Emit a reference instruction to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/instructions.html#reference-instructions
-pub fn emit_reference_instruction<O: Write>(
+pub fn emit_reference_instruction<O: Write + ?Sized>(
     instruction: &ReferenceInstruction,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
@@ -614,7 +614,7 @@ pub fn emit_reference_instruction<O: Write>(
 /// Emit a parametric instruction to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/instructions.html#parametric-instructions
-pub fn emit_parametric_instruction<O: Write>(
+pub fn emit_parametric_instruction<O: Write + ?Sized>(
     instruction: &ParametricInstruction,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
@@ -639,7 +639,7 @@ pub fn emit_parametric_instruction<O: Write>(
 /// Emit a variable instruction to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/instructions.html#variable-instructions
-fn emit_variable_instruction<O: Write>(
+fn emit_variable_instruction<O: Write + ?Sized>(
     instruction: &VariableInstruction,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
@@ -674,7 +674,7 @@ fn emit_variable_instruction<O: Write>(
 /// Emit a table instruction to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/instructions.html#table-instructions
-fn emit_table_instruction<O: Write>(
+fn emit_table_instruction<O: Write + ?Sized>(
     instruction: &TableInstruction,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
@@ -729,7 +729,7 @@ fn emit_table_instruction<O: Write>(
 /// Emit a memory instruction to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/instructions.html#memory-instructions
-pub fn emit_memory_instruction<O: Write>(
+pub fn emit_memory_instruction<O: Write + ?Sized>(
     instruction: &MemoryInstruction,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
@@ -906,7 +906,7 @@ pub fn emit_memory_instruction<O: Write>(
 /// Emit a control instruction to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/instructions.html#control-instructions
-fn emit_control_instruction<O: Write>(
+fn emit_control_instruction<O: Write + ?Sized>(
     instruction: &ControlInstruction,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
@@ -974,7 +974,10 @@ fn emit_control_instruction<O: Write>(
 /// Emit a block type to the output.
 ///
 /// See  https://webassembly.github.io/spec/core/binary/instructions.html#control-instructions
-pub fn emit_block_type<O: Write>(kind: &BlockType, output: &mut O) -> Result<usize, CompilerError> {
+pub fn emit_block_type<O: Write + ?Sized>(
+    kind: &BlockType,
+    output: &mut O,
+) -> Result<usize, CompilerError> {
     match kind {
         BlockType::Index(index) => emit_i64(*index as i64, output),
         BlockType::ValueType(kind) => emit_value_type(kind, output),
@@ -985,7 +988,7 @@ pub fn emit_block_type<O: Write>(kind: &BlockType, output: &mut O) -> Result<usi
 /// Emit a memory argument to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/instructions.html#memory-instructions
-pub fn emit_memory_argument<O: Write>(
+pub fn emit_memory_argument<O: Write + ?Sized>(
     argument: &MemoryArgument,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
