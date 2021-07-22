@@ -2,6 +2,7 @@ use clap::{App, Arg, ArgMatches, SubCommand};
 use std::path::Path;
 use tortuga::{build, clean, TortugaError};
 use tracing::{subscriber::set_global_default, Level};
+use tracing_log::LogTracer;
 use tracing_subscriber;
 
 const APP_NAME: &str = env!("CARGO_BIN_NAME");
@@ -25,7 +26,12 @@ fn set_verbosity(matches: &ArgMatches) -> Result<(), TortugaError> {
         3 | _ => Level::TRACE,
     };
 
-    let collector = tracing_subscriber::fmt().with_max_level(level).finish();
+    LogTracer::init()?;
+
+    let collector = tracing_subscriber::fmt()
+        .with_max_level(level)
+        .pretty()
+        .finish();
 
     Ok(set_global_default(collector)?)
 }
