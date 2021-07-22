@@ -15,7 +15,7 @@ pub use values::*;
 /// The initial capacity of the buffer used to emit a module to an async write.
 const INITIAL_BUFFER_CAPACITY: usize = 4096;
 
-/// Emits a binary representation of a WebAssembly Abstract Syntax Tree (AST) to a `Write` output.
+/// Emits a binary representation of a WebAssembly Abstract Syntax Tree (AST) to an `AsyncWrite` output.
 pub async fn emit_binary<O: AsyncWrite + Unpin>(
     module: &Module,
     output: &mut O,
