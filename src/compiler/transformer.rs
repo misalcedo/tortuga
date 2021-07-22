@@ -7,6 +7,7 @@ use crate::syntax::web_assembly::{
     TableType, ValueType,
 };
 
+#[tracing::instrument]
 pub async fn transform(_node: &Node) -> Result<Module, CompilerError> {
     let mut module = Module::new();
     let function_type = FunctionType::new(
@@ -61,6 +62,8 @@ pub async fn transform(_node: &Node) -> Result<Module, CompilerError> {
         ))]),
     );
     module.add_global(global);
+
+    tracing::trace!("Transformed a node into a module.");
 
     Ok(module)
 }

@@ -1,25 +1,31 @@
 use crate::compiler::CompilerError;
-use crate::syntax::tortuga::Node;
 use futures::{AsyncRead, AsyncReadExt};
+use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
 
-pub async fn tokenize<I: AsyncRead + Unpin>(input: &mut I) -> Result<Vec<Token>, CompilerError> {
+#[tracing::instrument]
+pub async fn tokenize<I: AsyncRead + Debug + Unpin>(
+    input: &mut I,
+) -> Result<Vec<Token>, CompilerError> {
     let mut buffer = Vec::new();
 
     input.read_to_end(&mut buffer).await?;
 
-    let contents: Node = serde_yaml::from_reader(&buffer[..])?;
+    tracing::debug!("Read {} bytes.", buffer.len());
 
     Ok(vec![Token {
-        kind: TokenKind::Yaml(contents),
+        kind: TokenKind::Yaml(buffer),
     }])
 }
 
 /// Lexicographical tokens for Tortuga.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Token {
     pub kind: TokenKind,
 }
 
 /// Type of tokens for Tortuga.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum TokenKind {
-    Yaml(Node),
+    Yaml(Vec<u8>),
 }

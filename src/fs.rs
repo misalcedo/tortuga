@@ -1,5 +1,7 @@
 use crate::TortugaError;
 use futures::{AsyncRead, AsyncWrite};
+use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
 use std::path::{Path, PathBuf};
 use tokio::fs::{create_dir_all, remove_dir_all, File};
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
@@ -9,13 +11,18 @@ const TORTUGA_FILE_EXTENSION: &str = ".ta";
 const WASM_FILE_EXTENSION: &str = "wasm";
 
 /// A source file to be compiled.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct CompilationSource {
     source: PathBuf,
     target: PathBuf,
 }
 
 impl CompilationSource {
-    fn new<T: AsRef<Path>>(entry: &DirEntry, input: T) -> Result<CompilationSource, TortugaError> {
+    #[tracing::instrument]
+    fn new<T: AsRef<Path> + Debug>(
+        entry: &DirEntry,
+        input: T,
+    ) -> Result<CompilationSource, TortugaError> {
         let source = entry.path().to_path_buf();
         let target = source
             .strip_prefix(input)?
@@ -25,17 +32,29 @@ impl CompilationSource {
         Ok(CompilationSource { source, target })
     }
 
+    /// Path to the source file.
+    pub fn source(&self) -> &Path {
+        self.source.as_path()
+    }
+
+    /// Path to the target file.
+    pub fn target(&self) -> &Path {
+        self.target.as_path()
+    }
+
     /// Open the source file to read for compilation.
-    pub async fn source_file(&self) -> Result<impl AsyncRead + Unpin, TortugaError> {
+    #[tracing::instrument]
+    pub async fn source_file(&self) -> Result<impl AsyncRead + Debug + Unpin, TortugaError> {
         Ok(File::open(&self.source).await?.compat())
     }
 
     /// Create a file for writing the target of compiling this source.
     /// Creates all directories (including the parent) in the path that do not yet exist.
-    pub async fn target_file<T: AsRef<Path>>(
+    #[tracing::instrument]
+    pub async fn target_file<T: AsRef<Path> + Debug>(
         &self,
         parent_directory: T,
-    ) -> Result<impl AsyncWrite + Unpin, TortugaError> {
+    ) -> Result<impl AsyncWrite + Debug + Unpin, TortugaError> {
         let filename = parent_directory.as_ref().join(&self.target);
 
         if let Some(parent) = filename.parent() {
@@ -47,6 +66,7 @@ impl CompilationSource {
 }
 
 /// Tests the entry has the Tortuga source file extension and is visible (i.e. not a dot-file).
+#[tracing::instrument]
 fn is_tortuga_source(entry: &DirEntry) -> bool {
     entry
         .file_name()
@@ -56,7 +76,8 @@ fn is_tortuga_source(entry: &DirEntry) -> bool {
 }
 
 /// An iterator of the compilation sources in the given directory.
-pub fn new_walker<T: AsRef<Path>>(sources: T) -> impl Iterator<Item = CompilationSource> {
+#[tracing::instrument]
+pub fn new_walker<T: AsRef<Path> + Debug>(sources: T) -> impl Iterator<Item = CompilationSource> {
     let sources = sources.as_ref().to_path_buf();
 
     WalkDir::new(&sources)
@@ -68,7 +89,8 @@ pub fn new_walker<T: AsRef<Path>>(sources: T) -> impl Iterator<Item = Compilatio
 }
 
 /// Cleans the given output directory.
-pub async fn clean<T: AsRef<Path>>(output: T) -> Result<(), TortugaError> {
+#[tracing::instrument]
+pub async fn clean<T: AsRef<Path> + Debug>(output: T) -> Result<(), TortugaError> {
     match remove_dir_all(output).await {
         Ok(_) => Ok(()),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),

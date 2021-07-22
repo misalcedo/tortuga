@@ -5,6 +5,8 @@ use thiserror::Error;
 pub enum TortugaError {
     #[error("An IO error occurred.")]
     IO(#[from] std::io::Error),
+    #[error("Unable to set global default tracing collector.")]
+    Tracing(#[from] tracing::dispatcher::SetGlobalDefaultError),
     #[error("An error occurred during compilation.")]
     Compiler(#[from] crate::compiler::CompilerError),
     #[error("Unable to walk the input directory.")]

@@ -8,6 +8,7 @@ use crate::compiler::errors::CompilerError;
 use crate::syntax::web_assembly::Module;
 use futures::{AsyncWrite, AsyncWriteExt};
 pub use sections::emit_module;
+use std::fmt::Debug;
 use std::io::Write;
 pub use types::*;
 pub use values::*;
@@ -16,7 +17,8 @@ pub use values::*;
 const INITIAL_BUFFER_CAPACITY: usize = 4096;
 
 /// Emits a binary representation of a WebAssembly Abstract Syntax Tree (AST) to an `AsyncWrite` output.
-pub async fn emit_binary<O: AsyncWrite + Unpin>(
+#[tracing::instrument]
+pub async fn emit_binary<O: AsyncWrite + Debug + Unpin>(
     module: &Module,
     output: &mut O,
 ) -> Result<usize, CompilerError> {

@@ -6,8 +6,10 @@ mod transformer;
 
 pub use errors::CompilerError;
 use futures::{AsyncRead, AsyncWrite};
+use std::fmt::Debug;
 
-pub async fn compile<I: AsyncRead + Unpin, O: AsyncWrite + Unpin>(
+#[tracing::instrument]
+pub async fn compile<I: AsyncRead + Debug + Unpin, O: AsyncWrite + Debug + Unpin>(
     input: &mut I,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
