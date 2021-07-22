@@ -18,31 +18,33 @@ jobs:
         include:
           - build: linux
             os: ubuntu-latest
-            rust: stable
           - build: macos
             os: macos-latest
-            rust: stable
           - build: windows
             os: windows-latest
-            rust: stable
     steps:
       - uses: actions/checkout@v2
-      - name: Install Rust
-        run: |
-          rustup update ${{ matrix.rust }} --no-self-update 
-          rustup default ${{ matrix.rust }}
-      - name: Build
-        run: cargo build --verbose --release
-      - name: Run tests
-        run: cargo test --verbose --release
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v1.3.0
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --all-features
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --release --all-features
         env:
           RUST_BACKTRACE: 1
       - name: Upload a Build Artifact
-        uses: actions/upload-artifact@v2.2.4
+        uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.os }}-executable
           path: |
-            target/release/tortuga
-            target/release/tortuga.exe
+            ./target/release/tortuga
+            ./target/release/tortuga.exe
           if-no-files-found: error
           retention-days: 0
