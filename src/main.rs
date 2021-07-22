@@ -45,7 +45,6 @@ async fn main() -> Result<(), TortugaError> {
                         .takes_value(true),
                 ),
         )
-        .subcommand(SubCommand::with_name("version").about("Outputs the current version."))
         .get_matches();
 
     if let Some(matches) = matches.subcommand_matches("build") {
@@ -68,9 +67,6 @@ async fn main() -> Result<(), TortugaError> {
         let output = matches.value_of("output").map(Path::new).unwrap();
 
         clean(output).await
-    } else if let Some(_) = matches.subcommand_matches("version") {
-        println!("{}", tortuga::about::VERSION);
-        Ok(())
     } else {
         Err(tortuga::TortugaError::InvalidSubcommand(
             matches
