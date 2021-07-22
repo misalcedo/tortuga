@@ -32,8 +32,17 @@ jobs:
           rustup update ${{ matrix.rust }} --no-self-update 
           rustup default ${{ matrix.rust }}
       - name: Build
-        run: cargo build --verbose
+        run: cargo build --verbose --release
       - name: Run tests
-        run: cargo test --verbose
+        run: cargo test --verbose --release
         env:
           RUST_BACKTRACE: 1
+      - name: Upload a Build Artifact
+        uses: actions/upload-artifact@v2.2.4
+        with:
+          name: executable
+          path: |
+            target/release/tortuga
+            target/release/tortuga.exe
+          if-no-files-found: error
+          retention-days: 0
