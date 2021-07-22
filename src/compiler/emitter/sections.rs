@@ -16,31 +16,27 @@ const PREAMBLE: [u8; 4] = [0x00u8, 0x61u8, 0x73u8, 0x6Du8];
 /// The version of the binary WebAssembly format emitted.
 const VERSION: [u8; 4] = [0x01u8, 0x00u8, 0x00u8, 0x00u8];
 
-/// The initial capacity of the buffer used to emit sections in a module write.
-const INITIAL_BUFFER_CAPACITY: usize = 1024;
-
 /// Emit a module to the output.
 ///
 /// See https://webassembly.github.io/spec/core/binary/modules.html
 pub fn emit_module<O: Write>(module: &Module, output: &mut O) -> Result<usize, CompilerError> {
     let mut bytes = 0;
-    let mut buffer: Vec<u8> = Vec::with_capacity(INITIAL_BUFFER_CAPACITY);
 
     bytes += emit_bytes(&PREAMBLE, output, false)?;
     bytes += emit_bytes(&VERSION, output, false)?;
-    bytes += emit_version_custom_section(&mut buffer, output)?;
-    bytes += emit_type_section(module, &mut buffer, output)?;
-    bytes += emit_import_section(module, &mut buffer, output)?;
-    bytes += emit_function_section(module, &mut buffer, output)?;
-    bytes += emit_table_section(module, &mut buffer, output)?;
-    bytes += emit_memory_section(module, &mut buffer, output)?;
-    bytes += emit_global_section(module, &mut buffer, output)?;
-    bytes += emit_export_section(module, &mut buffer, output)?;
-    bytes += emit_start_section(module, &mut buffer, output)?;
-    bytes += emit_element_section(module, &mut buffer, output)?;
-    bytes += emit_data_count_section(module, &mut buffer, output)?;
-    bytes += emit_code_section(module, &mut buffer, output)?;
-    bytes += emit_data_section(module, &mut buffer, output)?;
+    bytes += emit_version_custom_section(output)?;
+    bytes += emit_type_section(module, output)?;
+    bytes += emit_import_section(module, output)?;
+    bytes += emit_function_section(module, output)?;
+    bytes += emit_table_section(module, output)?;
+    bytes += emit_memory_section(module, output)?;
+    bytes += emit_global_section(module, output)?;
+    bytes += emit_export_section(module, output)?;
+    bytes += emit_start_section(module, output)?;
+    bytes += emit_element_section(module, output)?;
+    bytes += emit_data_count_section(module, output)?;
+    bytes += emit_code_section(module, output)?;
+    bytes += emit_data_section(module, output)?;
 
     Ok(bytes)
 }
@@ -50,13 +46,12 @@ pub fn emit_module<O: Write>(module: &Module, output: &mut O) -> Result<usize, C
 /// See https://webassembly.github.io/spec/core/binary/modules.html#type-section
 pub fn emit_type_section<O: Write>(
     module: &Module,
-    buffer: &mut Vec<u8>,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
     if module.types().is_empty() {
         Ok(0)
     } else {
-        emit_section(ModuleSection::TypeSection, buffer, output, |o| {
+        emit_section(ModuleSection::TypeSection, output, |o| {
             emit_vector(module.types(), o, emit_function_type)
         })
     }
@@ -67,13 +62,12 @@ pub fn emit_type_section<O: Write>(
 /// See https://webassembly.github.io/spec/core/binary/modules.html#import-section
 pub fn emit_import_section<O: Write>(
     module: &Module,
-    buffer: &mut Vec<u8>,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
     if module.imports().is_empty() {
         Ok(0)
     } else {
-        emit_section(ModuleSection::ImportSection, buffer, output, |o| {
+        emit_section(ModuleSection::ImportSection, output, |o| {
             emit_vector(module.imports(), o, emit_import)
         })
     }
@@ -84,7 +78,6 @@ pub fn emit_import_section<O: Write>(
 /// See https://webassembly.github.io/spec/core/binary/modules.html#function-section
 pub fn emit_function_section<O: Write>(
     module: &Module,
-    buffer: &mut Vec<u8>,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
     if module.functions().is_empty() {
@@ -92,7 +85,7 @@ pub fn emit_function_section<O: Write>(
     } else {
         let types: Vec<TypeIndex> = module.functions().iter().map(Function::kind).collect();
 
-        emit_section(ModuleSection::FunctionSection, buffer, output, move |o| {
+        emit_section(ModuleSection::FunctionSection, output, move |o| {
             emit_vector(types.as_slice(), o, emit_usize)
         })
     }
@@ -103,13 +96,12 @@ pub fn emit_function_section<O: Write>(
 /// See https://webassembly.github.io/spec/core/binary/modules.html#table-section
 pub fn emit_table_section<O: Write>(
     module: &Module,
-    buffer: &mut Vec<u8>,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
     if module.tables().is_empty() {
         Ok(0)
     } else {
-        emit_section(ModuleSection::TableSection, buffer, output, |o| {
+        emit_section(ModuleSection::TableSection, output, |o| {
             emit_vector(module.tables(), o, emit_table)
         })
     }
@@ -120,13 +112,12 @@ pub fn emit_table_section<O: Write>(
 /// See https://webassembly.github.io/spec/core/binary/modules.html#memory-section
 pub fn emit_memory_section<O: Write>(
     module: &Module,
-    buffer: &mut Vec<u8>,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
     if module.memories().is_empty() {
         Ok(0)
     } else {
-        emit_section(ModuleSection::MemorySection, buffer, output, |o| {
+        emit_section(ModuleSection::MemorySection, output, |o| {
             emit_vector(module.memories(), o, emit_memory)
         })
     }
@@ -137,13 +128,12 @@ pub fn emit_memory_section<O: Write>(
 /// See https://webassembly.github.io/spec/core/binary/modules.html#global-section
 pub fn emit_global_section<O: Write>(
     module: &Module,
-    buffer: &mut Vec<u8>,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
     if module.globals().is_empty() {
         Ok(0)
     } else {
-        emit_section(ModuleSection::GlobalSection, buffer, output, |o| {
+        emit_section(ModuleSection::GlobalSection, output, |o| {
             emit_vector(module.globals(), o, emit_global)
         })
     }
@@ -154,13 +144,12 @@ pub fn emit_global_section<O: Write>(
 /// See https://webassembly.github.io/spec/core/binary/modules.html#export-section
 pub fn emit_export_section<O: Write>(
     module: &Module,
-    buffer: &mut Vec<u8>,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
     if module.exports().is_empty() {
         Ok(0)
     } else {
-        emit_section(ModuleSection::ExportSection, buffer, output, |o| {
+        emit_section(ModuleSection::ExportSection, output, |o| {
             emit_vector(module.exports(), o, emit_export)
         })
     }
@@ -170,11 +159,10 @@ pub fn emit_export_section<O: Write>(
 /// See https://webassembly.github.io/spec/core/binary/modules.html#start-section
 pub fn emit_start_section<O: Write>(
     module: &Module,
-    buffer: &mut Vec<u8>,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
     match module.start() {
-        Some(start) => emit_section(ModuleSection::StartSection, buffer, output, |o| {
+        Some(start) => emit_section(ModuleSection::StartSection, output, |o| {
             emit_start(start, o)
         }),
         None => Ok(0),
@@ -185,13 +173,12 @@ pub fn emit_start_section<O: Write>(
 /// See https://webassembly.github.io/spec/core/binary/modules.html#elements-section
 pub fn emit_element_section<O: Write>(
     module: &Module,
-    buffer: &mut Vec<u8>,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
     if module.elements().is_empty() {
         Ok(0)
     } else {
-        emit_section(ModuleSection::ElementSection, buffer, output, |o| {
+        emit_section(ModuleSection::ElementSection, output, |o| {
             emit_vector(module.elements(), o, emit_element)
         })
     }
@@ -202,13 +189,12 @@ pub fn emit_element_section<O: Write>(
 /// See https://webassembly.github.io/spec/core/binary/modules.html#data-count-section
 pub fn emit_data_count_section<O: Write>(
     module: &Module,
-    buffer: &mut Vec<u8>,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
     if module.data().is_empty() {
         Ok(0)
     } else {
-        emit_section(ModuleSection::DataCountSection, buffer, output, |o| {
+        emit_section(ModuleSection::DataCountSection, output, |o| {
             emit_usize(module.data().len(), o)
         })
     }
@@ -219,13 +205,12 @@ pub fn emit_data_count_section<O: Write>(
 /// See https://webassembly.github.io/spec/core/binary/modules.html#code-section
 pub fn emit_code_section<O: Write>(
     module: &Module,
-    buffer: &mut Vec<u8>,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
     if module.functions().is_empty() {
         Ok(0)
     } else {
-        emit_section(ModuleSection::CodeSection, buffer, output, |o| {
+        emit_section(ModuleSection::CodeSection, output, |o| {
             emit_vector(module.functions(), o, emit_function)
         })
     }
@@ -236,24 +221,20 @@ pub fn emit_code_section<O: Write>(
 /// See https://webassembly.github.io/spec/core/binary/modules.html#data-section
 pub fn emit_data_section<O: Write>(
     module: &Module,
-    buffer: &mut Vec<u8>,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
     if module.data().is_empty() {
         Ok(0)
     } else {
-        emit_section(ModuleSection::DataSection, buffer, output, |o| {
+        emit_section(ModuleSection::DataSection, output, |o| {
             emit_vector(module.data(), o, emit_data)
         })
     }
 }
 
 /// Emit a custom section with the version of the language the module was compiled.
-pub fn emit_version_custom_section<O: Write>(
-    buffer: &mut Vec<u8>,
-    output: &mut O,
-) -> Result<usize, CompilerError> {
-    emit_section(ModuleSection::CustomSection, buffer, output, |o| {
+pub fn emit_version_custom_section<O: Write>(output: &mut O) -> Result<usize, CompilerError> {
+    emit_section(ModuleSection::CustomSection, output, |o| {
         let version_section = Name::new("version".to_string());
         emit_custom_content(&version_section, about::VERSION.as_bytes(), o)
     })
@@ -266,7 +247,6 @@ pub fn emit_version_custom_section<O: Write>(
 /// The buffer is reset before emitting content and after it is copied.
 pub fn emit_section<E, O>(
     section: ModuleSection,
-    _buffer: &mut Vec<u8>,
     output: &mut O,
     emit: E,
 ) -> Result<usize, CompilerError>

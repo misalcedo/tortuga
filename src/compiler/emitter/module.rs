@@ -2,6 +2,7 @@ use crate::compiler::emitter::instruction::emit_expression;
 use crate::compiler::emitter::{
     emit_byte, emit_bytes, emit_global_type, emit_i32, emit_memory_type, emit_name,
     emit_reference_type, emit_table_type, emit_u32, emit_usize, emit_value_type, emit_vector,
+    CountingWrite,
 };
 use crate::compiler::errors::CompilerError;
 use crate::syntax::web_assembly::{
@@ -17,21 +18,30 @@ pub fn emit_function<O: Write + ?Sized>(
     function: &Function,
     output: &mut O,
 ) -> Result<usize, CompilerError> {
-    let mut buffer: Vec<u8> = Vec::new();
+    let mut counter = CountingWrite::new();
     let mut bytes = 0;
 
-    emit_usize(function.locals().len(), &mut buffer)?;
-    for local in function.locals().kinds() {
-        emit_u32(1u32, &mut buffer)?;
-        emit_value_type(local, &mut buffer)?;
-    }
+    emit_function_code(function, &mut counter)?;
 
-    emit_expression(function.body(), &mut buffer)?;
-
-    bytes += emit_usize(buffer.len(), output)?;
-    bytes += output.write(&buffer)?;
+    bytes += emit_usize(counter.bytes(), output)?;
+    bytes += emit_function_code(function, output)?;
 
     Ok(bytes)
+}
+
+/// Emits the code (local types and body) portion of a function.
+fn emit_function_code<O: Write + ?Sized>(
+    function: &Function,
+    output: &mut O,
+) -> Result<usize, CompilerError> {
+    emit_usize(function.locals().len(), output)?;
+
+    for local in function.locals().kinds() {
+        emit_u32(1u32, output)?;
+        emit_value_type(local, output)?;
+    }
+
+    emit_expression(function.body(), output)
 }
 
 /// Emit an import to the output.
