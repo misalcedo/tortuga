@@ -12,24 +12,24 @@ const WASM_FILE_EXTENSION: &str = "wasm";
 
 /// A source file to be compiled.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct CompilationSource {
+pub struct CompilationUnit {
     source: PathBuf,
     target: PathBuf,
 }
 
-impl CompilationSource {
+impl CompilationUnit {
     #[tracing::instrument]
     fn new<T: AsRef<Path> + Debug>(
         entry: &DirEntry,
         input: T,
-    ) -> Result<CompilationSource, TortugaError> {
+    ) -> Result<CompilationUnit, TortugaError> {
         let source = entry.path().to_path_buf();
         let target = source
             .strip_prefix(input)?
             .to_path_buf()
             .with_extension(WASM_FILE_EXTENSION);
 
-        Ok(CompilationSource { source, target })
+        Ok(CompilationUnit { source, target })
     }
 
     /// Path to the source file.
@@ -77,7 +77,7 @@ fn is_tortuga_source(entry: &DirEntry) -> bool {
 
 /// An iterator of the compilation sources in the given directory.
 #[tracing::instrument]
-pub fn new_walker<T: AsRef<Path> + Debug>(sources: T) -> impl Iterator<Item = CompilationSource> {
+pub fn new_walker<T: AsRef<Path> + Debug>(sources: T) -> impl Iterator<Item = CompilationUnit> {
     let sources = sources.as_ref().to_path_buf();
 
     WalkDir::new(&sources)
@@ -85,7 +85,7 @@ pub fn new_walker<T: AsRef<Path> + Debug>(sources: T) -> impl Iterator<Item = Co
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(is_tortuga_source)
-        .filter_map(move |entry| CompilationSource::new(&entry, &sources).ok())
+        .filter_map(move |entry| CompilationUnit::new(&entry, &sources).ok())
 }
 
 /// Cleans the given output directory.

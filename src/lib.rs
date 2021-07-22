@@ -4,7 +4,7 @@ mod errors;
 mod fs;
 pub mod syntax;
 
-use crate::fs::CompilationSource;
+use crate::fs::CompilationUnit;
 pub use errors::TortugaError;
 use futures::future::join_all;
 use std::fmt::Debug;
@@ -36,7 +36,7 @@ where
 /// Compiles a single source.
 #[tracing::instrument]
 async fn compile<O: AsRef<Path> + Debug>(
-    source: CompilationSource,
+    source: CompilationUnit,
     output: O,
 ) -> Result<(), TortugaError> {
     tracing::info!(
