@@ -19,7 +19,18 @@ jobs:
         run: |
           rustup update stable --no-self-update
           rustup default stable
-      - name: Publish
+      - name: Publish to Crates.io
         run: |
           cargo login ${{ secrets.CRATES_IO_TOKEN }}
           cargo publish
+      - name: Build
+        run: cargo build --release
+      - name: Upload a Build Artifact
+        uses: actions/upload-artifact@latest
+        with:
+          name: executable
+          path: |
+            target/release/tortuga
+            target/release/tortuga.exe
+          if-no-files-found: error
+          retention-days: 0
