@@ -86,20 +86,6 @@ To run the system locally, perform the following steps:
 
 7.  In the terminal that is running the [System](#System), you should see the "Ping!" and "Pong!" messages flowing back and forth.
 
-# Limitations
-
-# System
-
-The initial versions of the actor system will have the following limitations:
-
-1.  Only a single thread will process incoming messages, create continuations, and send outgoing messages.
-
-2.  No supervision tree, any failed messages will be discarded.
-
-3.  Actors can only send messages, they cannot create new actors or change the behavior.
-
-4.  New continuation for every message.
-
 # Endianness
 While the system sends all numbers in network byte order (i.e., big endian), WebAssembly uses little-endian for its numbers. Therefore, the system will handle mapping the integers between the types of endianness. See <https://tools.ietf.org/html/draft-newman-network-byte-order-01>
 
