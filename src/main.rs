@@ -3,7 +3,6 @@ use std::path::Path;
 use tortuga::{build, clean, TortugaError};
 use tracing::{subscriber::set_global_default, Level};
 use tracing_log::LogTracer;
-use tracing_subscriber;
 
 const APP_NAME: &str = env!("CARGO_BIN_NAME");
 
