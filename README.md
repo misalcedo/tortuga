@@ -122,3 +122,6 @@ Found 11 outliers among 100 measurements (11.00%)
   2 (2.00%) high mild
   9 (9.00%) high severe
 ```
+
+# Install
+To install, run `cargo install tortuga`.
