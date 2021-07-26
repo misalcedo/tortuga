@@ -4,10 +4,10 @@
 $message = urn::uuid:ping
 $unknown_sender = urn::uuid:unknown_sender
 
-accept (sender: @pong, data: 5 bytes) {
+accept (sender: @pong, data: [5]) {
   sender ! (@self, x, $message)
 }
 
-accept (sender: reference, ...) {
+accept (sender: @*, ...) {
   sender ! (@self, $unknown_sender)
 }

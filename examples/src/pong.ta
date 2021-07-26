@@ -1,7 +1,12 @@
 @self = /pong
 
 $message = urn::uuid:pong
+$unknown_sender = urn::uuid:unknown_sender
 
-accept (sender: reference, ...) {
+accept (sender: @*, , data: [5]) {
   sender ! (@self, $message)
+}
+
+accept (sender: @*, ...) {
+  sender ! (@self, $unknown_sender)
 }
