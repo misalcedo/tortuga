@@ -1,6 +1,7 @@
 use crate::compiler::CompilerError;
 use futures::{AsyncRead, AsyncReadExt};
 use serde::{Deserialize, Serialize};
+use serde_yaml::Value;
 use std::fmt::Debug;
 
 #[tracing::instrument]
@@ -13,11 +14,9 @@ pub async fn tokenize<I: AsyncRead + Debug + Unpin>(
 
     tracing::debug!("Read {} bytes.", buffer.len());
 
-    let value = serde_yaml::from_reader::<&[u8], serde_yaml::Value>(&buffer[..]);
-
-    match value {
-        Ok(_) => Ok(vec![Token {
-            kind: TokenKind::Yaml(buffer),
+    match serde_yaml::from_reader::<&[u8], Value>(&buffer[..]) {
+        Ok(value) => Ok(vec![Token {
+            kind: TokenKind::Yaml(value),
         }]),
         Err(_) => Ok(vec![]),
     }
@@ -32,5 +31,5 @@ pub struct Token {
 /// Type of tokens for Tortuga.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum TokenKind {
-    Yaml(Vec<u8>),
+    Yaml(Value),
 }

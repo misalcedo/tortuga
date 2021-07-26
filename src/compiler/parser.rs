@@ -6,10 +6,10 @@ use crate::syntax::tortuga::Process;
 pub async fn parse(tokens: &[Token]) -> Result<Process, CompilerError> {
     match tokens.first() {
         Some(Token {
-            kind: TokenKind::Yaml(buffer),
+            kind: TokenKind::Yaml(value),
             ..
         }) => {
-            let node: Process = serde_yaml::from_reader(&buffer[..])?;
+            let node: Process = serde_yaml::from_value(value.clone())?;
 
             tracing::trace!("Parsed a syntax tree from YAML.");
 
