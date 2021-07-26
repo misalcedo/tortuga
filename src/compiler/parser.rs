@@ -15,6 +15,6 @@ pub async fn parse(tokens: &[Token]) -> Result<Node, CompilerError> {
 
             Ok(node)
         }
-        None => Ok(Node::new()),
+        None => Ok(Node::default()),
     }
 }
