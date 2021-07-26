@@ -1,13 +1,13 @@
 @self = /ping
 @pong = /pong
 
-$message = urn::uuid:ping
-$unknown_sender = urn::uuid:unknown_sender
+$message = i18n::ping
+$unknown_sender = i18n::unknown_sender
 
-accept (sender: @pong, data: [5]) {
-  sender ! (@self, x, $message)
+accept (@pong, data: [5]) {
+  @pong ! (@self, $message)
 }
 
-accept (sender: @*, ...) {
+accept (sender: @_, ...) {
   sender ! (@self, $unknown_sender)
 }

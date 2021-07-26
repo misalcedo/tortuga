@@ -1,0 +1,62 @@
+---
+identifier:
+  scheme: ""
+  host: ""
+  port: 0
+  path: /ping
+children:
+  - handle:
+      name: pong
+    identifier:
+      scheme: ""
+      host: ""
+      port: 0
+      path: /pong
+texts:
+  - handle:
+      name: message
+    reference:
+      identifier: ping
+  - handle:
+      name: unknown_sender
+    reference:
+      identifier: unknown_sender
+intentions:
+  - signature:
+      fields:
+        - name: ~
+          kind:
+            ProcessHandle:
+              name: pong
+        - name:
+            name: data
+          kind:
+            ByteVector:
+              length: 5
+    expression:
+      instructions:
+        - SendToChild:
+            recipient:
+              name: pong
+            message:
+              data:
+                - SelfHandle
+                - TextHandle:
+                    name: message
+  - signature:
+      fields:
+        - name:
+            name: sender
+          kind: AnyProcessHandle
+        - name: ~
+          kind: Tail
+    expression:
+      instructions:
+        - SendToField:
+            recipient:
+              name: sender
+            message:
+              data:
+                - SelfHandle
+                - TextHandle:
+                    name: unknown_sender

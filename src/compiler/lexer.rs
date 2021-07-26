@@ -13,9 +13,14 @@ pub async fn tokenize<I: AsyncRead + Debug + Unpin>(
 
     tracing::debug!("Read {} bytes.", buffer.len());
 
-    Ok(vec![Token {
-        kind: TokenKind::Yaml(buffer),
-    }])
+    let value = serde_yaml::from_reader::<&[u8], serde_yaml::Value>(&buffer[..]);
+
+    match value {
+        Ok(_) => Ok(vec![Token {
+            kind: TokenKind::Yaml(buffer),
+        }]),
+        Err(_) => Ok(vec![]),
+    }
 }
 
 /// Lexicographical tokens for Tortuga.

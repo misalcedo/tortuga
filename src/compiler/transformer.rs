@@ -1,5 +1,5 @@
 use crate::compiler::CompilerError;
-use crate::syntax::tortuga::Node;
+use crate::syntax::tortuga::Process;
 use crate::syntax::web_assembly::{
     Data, DataMode, Element, ElementInitializer, ElementMode, Export, ExportDescription,
     Expression, Function, FunctionType, Global, GlobalType, Instruction, Limit, Memory, MemoryType,
@@ -8,7 +8,7 @@ use crate::syntax::web_assembly::{
 };
 
 #[tracing::instrument]
-pub async fn transform(_node: &Node) -> Result<Module, CompilerError> {
+pub async fn transform(_node: &Process) -> Result<Module, CompilerError> {
     let mut module = Module::new();
     let function_type = FunctionType::new(
         ResultType::new(vec![ValueType::Number(NumberType::I64)]),
