@@ -1,0 +1,7 @@
+@self = /pong
+
+$message = urn::uuid:pong
+
+accept (sender: reference, ...) {
+  sender ! (@self, $message)
+}
