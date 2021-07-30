@@ -51,7 +51,7 @@ pub fn emit_type_section<O: Write>(
     if module.types().is_empty() {
         Ok(0)
     } else {
-        emit_section(ModuleSection::TypeSection, output, |o| {
+        emit_section(ModuleSection::Type, output, |o| {
             emit_vector(module.types(), o, emit_function_type)
         })
     }
@@ -67,7 +67,7 @@ pub fn emit_import_section<O: Write>(
     if module.imports().is_empty() {
         Ok(0)
     } else {
-        emit_section(ModuleSection::ImportSection, output, |o| {
+        emit_section(ModuleSection::Import, output, |o| {
             emit_vector(module.imports(), o, emit_import)
         })
     }
@@ -85,7 +85,7 @@ pub fn emit_function_section<O: Write>(
     } else {
         let types: Vec<TypeIndex> = module.functions().iter().map(Function::kind).collect();
 
-        emit_section(ModuleSection::FunctionSection, output, move |o| {
+        emit_section(ModuleSection::Function, output, move |o| {
             emit_vector(types.as_slice(), o, emit_usize)
         })
     }
@@ -101,7 +101,7 @@ pub fn emit_table_section<O: Write>(
     if module.tables().is_empty() {
         Ok(0)
     } else {
-        emit_section(ModuleSection::TableSection, output, |o| {
+        emit_section(ModuleSection::Table, output, |o| {
             emit_vector(module.tables(), o, emit_table)
         })
     }
@@ -117,7 +117,7 @@ pub fn emit_memory_section<O: Write>(
     if module.memories().is_empty() {
         Ok(0)
     } else {
-        emit_section(ModuleSection::MemorySection, output, |o| {
+        emit_section(ModuleSection::Memory, output, |o| {
             emit_vector(module.memories(), o, emit_memory)
         })
     }
@@ -133,7 +133,7 @@ pub fn emit_global_section<O: Write>(
     if module.globals().is_empty() {
         Ok(0)
     } else {
-        emit_section(ModuleSection::GlobalSection, output, |o| {
+        emit_section(ModuleSection::Global, output, |o| {
             emit_vector(module.globals(), o, emit_global)
         })
     }
@@ -149,7 +149,7 @@ pub fn emit_export_section<O: Write>(
     if module.exports().is_empty() {
         Ok(0)
     } else {
-        emit_section(ModuleSection::ExportSection, output, |o| {
+        emit_section(ModuleSection::Export, output, |o| {
             emit_vector(module.exports(), o, emit_export)
         })
     }
@@ -162,9 +162,7 @@ pub fn emit_start_section<O: Write>(
     output: &mut O,
 ) -> Result<usize, CompilerError> {
     match module.start() {
-        Some(start) => emit_section(ModuleSection::StartSection, output, |o| {
-            emit_start(start, o)
-        }),
+        Some(start) => emit_section(ModuleSection::Start, output, |o| emit_start(start, o)),
         None => Ok(0),
     }
 }
@@ -178,7 +176,7 @@ pub fn emit_element_section<O: Write>(
     if module.elements().is_empty() {
         Ok(0)
     } else {
-        emit_section(ModuleSection::ElementSection, output, |o| {
+        emit_section(ModuleSection::Element, output, |o| {
             emit_vector(module.elements(), o, emit_element)
         })
     }
@@ -194,7 +192,7 @@ pub fn emit_data_count_section<O: Write>(
     if module.data().is_empty() {
         Ok(0)
     } else {
-        emit_section(ModuleSection::DataCountSection, output, |o| {
+        emit_section(ModuleSection::DataCount, output, |o| {
             emit_usize(module.data().len(), o)
         })
     }
@@ -210,7 +208,7 @@ pub fn emit_code_section<O: Write>(
     if module.functions().is_empty() {
         Ok(0)
     } else {
-        emit_section(ModuleSection::CodeSection, output, |o| {
+        emit_section(ModuleSection::Code, output, |o| {
             emit_vector(module.functions(), o, emit_function)
         })
     }
@@ -226,7 +224,7 @@ pub fn emit_data_section<O: Write>(
     if module.data().is_empty() {
         Ok(0)
     } else {
-        emit_section(ModuleSection::DataSection, output, |o| {
+        emit_section(ModuleSection::Data, output, |o| {
             emit_vector(module.data(), o, emit_data)
         })
     }
@@ -234,7 +232,7 @@ pub fn emit_data_section<O: Write>(
 
 /// Emit a custom section with the version of the language the module was compiled.
 pub fn emit_version_custom_section<O: Write>(output: &mut O) -> Result<usize, CompilerError> {
-    emit_section(ModuleSection::CustomSection, output, |o| {
+    emit_section(ModuleSection::Custom, output, |o| {
         let version_section = Name::new("version".to_string());
         emit_custom_content(&version_section, about::VERSION.as_bytes(), o)
     })
@@ -273,46 +271,46 @@ pub enum ModuleSection {
     /// and are ignored by the WebAssembly semantics.
     /// Their contents consist of a name further identifying the custom section,
     /// followed by an uninterpreted sequence of bytes for custom use.
-    CustomSection = 0,
+    Custom = 0,
     /// The type section has the id 1.
     /// It decodes into a vector of function types that represent the 𝗍𝗒𝗉𝖾𝗌 component of a module.
-    TypeSection,
+    Type,
     /// The import section has the id 2.
     /// It decodes into a vector of imports that represent the 𝗂𝗆𝗉𝗈𝗋𝗍𝗌 component of a module.
-    ImportSection,
+    Import,
     /// The function section has the id 3.
     /// It decodes into a vector of type indices that represent the 𝗍𝗒𝗉𝖾 fields of the functions
     /// in the 𝖿𝗎𝗇𝖼𝗌 component of a module. The 𝗅𝗈𝖼𝖺𝗅𝗌 and 𝖻𝗈𝖽𝗒 fields of the respective functions
     /// are encoded separately in the code section.
-    FunctionSection,
+    Function,
     /// The table section has the id 4.
     /// It decodes into a vector of tables that represent the 𝗍𝖺𝖻𝗅𝖾𝗌 component of a module.
-    TableSection,
+    Table,
     /// The memory section has the id 5.
     /// It decodes into a vector of memories that represent the 𝗆𝖾𝗆𝗌 component of a module.
-    MemorySection,
+    Memory,
     /// The global section has the id 6.
     /// It decodes into a vector of globals that represent the 𝗀𝗅𝗈𝖻𝖺𝗅𝗌 component of a module.
-    GlobalSection,
+    Global,
     /// The export section has the id 7.
     /// It decodes into a vector of exports that represent the 𝖾𝗑𝗉𝗈𝗋𝗍𝗌 component of a module.
-    ExportSection,
+    Export,
     /// The start section has the id 8.
     /// It decodes into an optional start function that represents the 𝗌𝗍𝖺𝗋𝗍 component of a module.
-    StartSection,
+    Start,
     /// The element section has the id 9.
     /// It decodes into a vector of element segments that represent the 𝖾𝗅𝖾𝗆𝗌 component of a module.
-    ElementSection,
+    Element,
     /// The code section has the id 10.
     /// It decodes into a vector of code entries that are pairs of value type vectors and expressions.
     /// They represent the 𝗅𝗈𝖼𝖺𝗅𝗌 and 𝖻𝗈𝖽𝗒 field of the functions in the 𝖿𝗎𝗇𝖼𝗌 component of a module.
     /// The 𝗍𝗒𝗉𝖾 fields of the respective functions are encoded separately in the function section.
-    CodeSection,
+    Code,
     /// The data section has the id 11.
     /// It decodes into a vector of data segments that represent the 𝖽𝖺𝗍𝖺𝗌 component of a module.
-    DataSection,
+    Data,
     /// The data count section has the id 12.
     /// It decodes into an optional u32 that represents the number of data segments in the data section.
     /// If this count does not match the length of the data segment vector, the module is malformed.
-    DataCountSection,
+    DataCount,
 }

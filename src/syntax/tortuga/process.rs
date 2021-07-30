@@ -20,7 +20,7 @@ impl Default for Process {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct Uri {
     pub path: Vec<String>,
 }

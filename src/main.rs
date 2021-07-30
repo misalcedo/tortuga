@@ -22,7 +22,7 @@ fn set_verbosity(matches: &ArgMatches) -> Result<(), TortugaError> {
         0 => Level::WARN,
         1 => Level::INFO,
         2 => Level::DEBUG,
-        3 | _ => Level::TRACE,
+        _ => Level::TRACE,
     };
 
     LogTracer::init()?;

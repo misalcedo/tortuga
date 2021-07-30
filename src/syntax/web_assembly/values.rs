@@ -15,7 +15,7 @@ impl Name {
     }
 
     pub fn as_bytes(&self) -> &[u8] {
-        &self.value.as_bytes()
+        self.value.as_bytes()
     }
 
     pub fn len(&self) -> usize {

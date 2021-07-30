@@ -67,10 +67,14 @@ impl Module {
 
     pub fn add_table(&mut self, table: Table) -> TableIndex {
         self.tables.push(table);
-        
-        let imported_tables = self.imports().iter().filter(|import| matches!(import.description(), ImportDescription::Table(_))).count();
 
-        imported_tables + self.tables().len() - 1
+        let imported_tables = self
+            .imports()
+            .iter()
+            .filter(|import| matches!(import.description(), ImportDescription::Table(_)))
+            .count();
+
+        imported_tables + self.tables.len() - 1
     }
 
     /// The 𝗆𝖾𝗆𝗌 component of a module defines a vector of linear memories (or memories for short)
@@ -79,8 +83,16 @@ impl Module {
         &self.memories
     }
 
-    pub fn add_memory(&mut self, memory: Memory) {
+    pub fn add_memory(&mut self, memory: Memory) -> MemoryIndex {
         self.memories.push(memory);
+
+        let imported_memories = self
+            .imports()
+            .iter()
+            .filter(|import| matches!(import.description(), ImportDescription::Memory(_)))
+            .count();
+
+        imported_memories + self.memories.len() - 1
     }
 
     /// The 𝗀𝗅𝗈𝖻𝖺𝗅𝗌 component of a module defines a vector of global variables (or globals for short).
@@ -131,7 +143,11 @@ impl Module {
 
         self.imports.push(import);
 
-        self.imports().iter().filter(|i| discriminant(i.description()) == import_discriminant).count() - 1
+        self.imports()
+            .iter()
+            .filter(|i| discriminant(i.description()) == import_discriminant)
+            .count()
+            - 1
     }
 
     /// The 𝖾𝗑𝗉𝗈𝗋𝗍𝗌 component of a module defines a set of exports that become accessible to the

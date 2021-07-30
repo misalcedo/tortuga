@@ -24,7 +24,7 @@ pub async fn emit_binary<O: AsyncWrite + Debug + Unpin>(
 ) -> Result<usize, CompilerError> {
     let mut buffer = Vec::with_capacity(INITIAL_BUFFER_CAPACITY);
 
-    let bytes = emit_module(&module, &mut buffer)?;
+    let bytes = emit_module(module, &mut buffer)?;
 
     output.write_all(&buffer[..]).await?;
 
