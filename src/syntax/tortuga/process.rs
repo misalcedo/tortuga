@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::fmt::{self, Display};
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Process {
-    identifier: Uri,
-    children: Vec<ChildDeclaration>,
-    texts: Vec<TextDeclaration>,
-    intentions: Vec<Intention>,
+    pub identifier: Uri,
+    pub children: Vec<ChildDeclaration>,
+    pub texts: Vec<TextDeclaration>,
+    pub intentions: Vec<Intention>,
 }
 
 impl Default for Process {
@@ -21,28 +21,28 @@ impl Default for Process {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-struct Uri {
-    scheme: String,
-    host: String,
-    port: u16,
-    path: PathBuf,
+pub struct Uri {
+    pub path: Vec<String>,
+}
+
+impl Display for Uri {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.path.join("/"))
+    }
 }
 
 impl Default for Uri {
     fn default() -> Self {
         Uri {
-            scheme: String::default(),
-            host: String::default(),
-            port: u16::default(),
-            path: PathBuf::default(),
+            path: Vec::default(),
         }
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-struct ChildDeclaration {
-    handle: ProcessHandle,
-    identifier: Uri,
+pub struct ChildDeclaration {
+    pub handle: ProcessHandle,
+    pub identifier: Uri,
 }
 
 impl Default for ChildDeclaration {
@@ -55,8 +55,8 @@ impl Default for ChildDeclaration {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-struct ProcessHandle {
-    name: String,
+pub struct ProcessHandle {
+    pub name: String,
 }
 
 impl Default for ProcessHandle {
@@ -68,9 +68,9 @@ impl Default for ProcessHandle {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-struct TextDeclaration {
-    handle: TextHandle,
-    reference: TextReference,
+pub struct TextDeclaration {
+    pub handle: TextHandle,
+    pub reference: TextReference,
 }
 
 impl Default for TextDeclaration {
@@ -83,8 +83,8 @@ impl Default for TextDeclaration {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-struct TextHandle {
-    name: String,
+pub struct TextHandle {
+    pub name: String,
 }
 
 impl Default for TextHandle {
@@ -96,8 +96,8 @@ impl Default for TextHandle {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-struct TextReference {
-    identifier: String,
+pub struct TextReference {
+    pub identifier: String,
 }
 
 impl Default for TextReference {
@@ -109,9 +109,9 @@ impl Default for TextReference {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-struct Intention {
-    signature: Signature,
-    expression: Expression,
+pub struct Intention {
+    pub signature: Signature,
+    pub expression: Expression,
 }
 
 impl Default for Intention {
@@ -124,8 +124,8 @@ impl Default for Intention {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-struct Signature {
-    fields: Vec<Field>,
+pub struct Signature {
+    pub fields: Vec<Field>,
 }
 
 impl Default for Signature {
@@ -137,9 +137,9 @@ impl Default for Signature {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-struct Field {
-    name: Option<FieldName>,
-    kind: FieldKind,
+pub struct Field {
+    pub name: Option<FieldName>,
+    pub kind: FieldKind,
 }
 
 impl Default for Field {
@@ -152,7 +152,7 @@ impl Default for Field {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-struct FieldName {
+pub struct FieldName {
     name: String,
 }
 
@@ -165,7 +165,7 @@ impl Default for FieldName {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-enum FieldKind {
+pub enum FieldKind {
     Number {
         whole: u128,
         fractional: Option<u128>,
@@ -180,7 +180,7 @@ enum FieldKind {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-struct Expression {
+pub struct Expression {
     instructions: Vec<Instruction>,
 }
 
@@ -193,7 +193,7 @@ impl Default for Expression {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-enum Instruction {
+pub enum Instruction {
     SendToField {
         recipient: FieldName,
         message: Message,
@@ -206,8 +206,8 @@ enum Instruction {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-struct Message {
-    data: Vec<Datum>,
+pub struct Message {
+    pub data: Vec<Datum>,
 }
 
 impl Default for Message {
@@ -217,7 +217,7 @@ impl Default for Message {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-enum Datum {
+pub enum Datum {
     Number {
         whole: u128,
         fractional: Option<u128>,
@@ -237,11 +237,11 @@ mod tests {
     #[test]
     fn test_yaml() {
         let mut ping = Process::default();
-        ping.identifier.path.push("/ping");
+        ping.identifier.path.push("ping".to_string());
 
         let mut pong = ChildDeclaration::default();
         pong.handle.name.push_str("pong");
-        pong.identifier.path.push("/pong");
+        pong.identifier.path.push("pong".to_string());
         ping.children.push(pong.clone());
 
         let mut message = TextDeclaration::default();

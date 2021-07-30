@@ -3,7 +3,8 @@ identifier:
   scheme: ""
   host: ""
   port: 0
-  path: /ping
+  path: 
+  - ping
 children:
   - handle:
       name: pong
@@ -11,7 +12,8 @@ children:
       scheme: ""
       host: ""
       port: 0
-      path: /pong
+      path:
+      - pong
 texts:
   - handle:
       name: message

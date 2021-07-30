@@ -45,8 +45,9 @@ impl Module {
         &self.function_types
     }
 
-    pub fn add_type(&mut self, function_type: FunctionType) {
+    pub fn add_type(&mut self, function_type: FunctionType) -> TypeIndex {
         self.function_types.push(function_type);
+        self.function_types.len() - 1
     }
 
     /// The 𝖿𝗎𝗇𝖼𝗌 component of a module defines a vector of functions.
