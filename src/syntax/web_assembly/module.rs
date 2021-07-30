@@ -1,6 +1,7 @@
 use crate::syntax::web_assembly::types::*;
 use crate::syntax::web_assembly::{Expression, Name};
 use serde::{Deserialize, Serialize};
+use std::mem::discriminant;
 
 /// WebAssembly programs are organized into modules, which are the unit of deployment, loading, and compilation.
 /// A module collects definitions for types, functions, tables, memories, and globals.
@@ -64,8 +65,12 @@ impl Module {
         &self.tables
     }
 
-    pub fn add_table(&mut self, table: Table) {
+    pub fn add_table(&mut self, table: Table) -> TableIndex {
         self.tables.push(table);
+        
+        let imported_tables = self.imports().iter().filter(|import| matches!(import.description(), ImportDescription::Table(_))).count();
+
+        imported_tables + self.tables().len() - 1
     }
 
     /// The 𝗆𝖾𝗆𝗌 component of a module defines a vector of linear memories (or memories for short)
@@ -92,8 +97,9 @@ impl Module {
         &self.elements
     }
 
-    pub fn add_element(&mut self, element: Element) {
+    pub fn add_element(&mut self, element: Element) -> ElementIndex {
         self.elements.push(element);
+        self.elements().len() - 1
     }
 
     /// The 𝖽𝖺𝗍𝖺𝗌 component of a module defines a vector of data segments.
@@ -120,8 +126,12 @@ impl Module {
         &self.imports
     }
 
-    pub fn add_import(&mut self, import: Import) {
+    pub fn add_import(&mut self, import: Import) -> usize {
+        let import_discriminant = discriminant(import.description());
+
         self.imports.push(import);
+
+        self.imports().iter().filter(|i| discriminant(i.description()) == import_discriminant).count() - 1
     }
 
     /// The 𝖾𝗑𝗉𝗈𝗋𝗍𝗌 component of a module defines a set of exports that become accessible to the
