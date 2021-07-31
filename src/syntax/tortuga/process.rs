@@ -82,12 +82,9 @@ pub struct Field {
     pub kind: FieldKind,
 }
 
-impl Default for Field {
-    fn default() -> Self {
-        Field {
-            name: FieldName::default(),
-            kind: FieldKind::Tail,
-        }
+impl Field {
+    pub fn new(name: FieldName, kind: FieldKind) -> Self {
+        Field { name, kind }
     }
 }
 
@@ -176,7 +173,7 @@ mod tests {
 
     #[test]
     fn test_yaml() {
-        let mut example = Process::new(Identifier::new("example"));
+        let example = Process::new(Identifier::new("example"));
         let string = serde_yaml::to_string(&example).unwrap();
         let process: Process = serde_yaml::from_str(string.as_str()).unwrap();
 

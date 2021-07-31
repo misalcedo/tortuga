@@ -1,6 +1,6 @@
 use crate::compiler::lexer::{Token, TokenKind};
 use crate::compiler::CompilerError;
-use crate::syntax::tortuga::Process;
+use crate::syntax::tortuga::{Identifier, Process};
 
 #[tracing::instrument]
 pub async fn parse(tokens: &[Token]) -> Result<Process, CompilerError> {
@@ -15,6 +15,6 @@ pub async fn parse(tokens: &[Token]) -> Result<Process, CompilerError> {
 
             Ok(node)
         }
-        None => Ok(Process::default()),
+        None => Ok(Process::new(Identifier::new("placeholder"))),
     }
 }
