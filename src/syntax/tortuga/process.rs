@@ -89,15 +89,11 @@ impl Field {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct FieldName {
-    name: String,
-}
+pub struct FieldName(String);
 
 impl FieldName {
     pub fn new(name: &str) -> Self {
-        FieldName {
-            name: name.to_string(),
-        }
+        FieldName(name.to_string())
     }
 }
 
@@ -173,7 +169,19 @@ mod tests {
 
     #[test]
     fn test_yaml() {
-        let example = Process::new(Identifier::new("example"));
+        let mut message = Message::default();
+        message.data.push(Datum::SelfHandle);
+        message.data.push(Datum::Number(Number::new(42, None)));
+
+        let sender = FieldName::new("sender");
+        let mut intent = Intent::default();
+        intent.signature.fields.push(Field::new(sender.clone(), FieldKind::ProcessHandle));
+        intent.signature.fields.push(Field::new(FieldName::new("value"), FieldKind::Number));
+        intent.expression.instructions.push(Instruction::SendToField(SendToField::new(sender.clone(), message)));
+
+        let mut example = Process::new(Identifier::new("example"));
+        example.intents.push(intent);
+
         let string = serde_yaml::to_string(&example).unwrap();
         let process: Process = serde_yaml::from_str(string.as_str()).unwrap();
 

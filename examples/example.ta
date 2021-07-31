@@ -1,8 +1,8 @@
 ---
 identifier:
   path:
-  - example
-intentions:
+    - example
+intents:
   - signature:
       fields:
         - name: sender
@@ -12,11 +12,10 @@ intentions:
     expression:
       instructions:
         - SendToField:
-            recipient:
-              name: sender
+            recipient: sender
             message:
               data:
                 - SelfHandle
                 - Number:
                     whole: 42
-                    fractional: 0
+                    fractional: ~
