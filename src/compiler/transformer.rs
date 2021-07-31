@@ -1,5 +1,5 @@
 use crate::compiler::CompilerError;
-use crate::syntax::tortuga::{Process, Uri};
+use crate::syntax::tortuga::{Identifier, Process};
 use crate::syntax::web_assembly::{
     Element, ElementInitializer, ElementMode, Export, ExportDescription, Expression, FunctionIndex,
     FunctionType, Import, ImportDescription, Limit, Memory, MemoryIndex, MemoryType, Module, Name,
@@ -80,7 +80,7 @@ fn define_host_imports(
     let spawn_index = module.add_type(spawn_type);
     let mut indices = Vec::new();
 
-    let children: HashSet<Uri> = process
+    let children: HashSet<Identifier> = process
         .children
         .iter()
         .map(|child| child.identifier.clone())

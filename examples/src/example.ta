@@ -1,0 +1,22 @@
+---
+identifier:
+  path:
+  - example
+intentions:
+  - signature:
+      fields:
+        - name: sender
+          kind: ProcessHandle
+        - name: value
+          kind: Number
+    expression:
+      instructions:
+        - SendToField:
+            recipient:
+              name: sender
+            message:
+              data:
+                - SelfHandle
+                - Number:
+                    whole: 42
+                    fractional: 0
