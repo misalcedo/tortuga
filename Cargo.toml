@@ -15,10 +15,6 @@ lto = true
 [dev-dependencies]
 criterion = "0.3"
 
-[[bench]]
-name = "emit_module"
-harness = false
-
 [dependencies]
 anyhow = "1.0"
 byteorder = "1.4"

@@ -6,6 +6,8 @@ use clap::{App, Arg, ArgMatches, SubCommand};
 use std::path::Path;
 use tracing::{subscriber::set_global_default, Level};
 use tracing_log::LogTracer;
+use std::io::{stdin, stdout, Write};
+use std::fs;
 
 const APP_NAME: &str = env!("CARGO_BIN_NAME");
 
@@ -65,14 +67,35 @@ fn parse_arguments<'matches>() -> ArgMatches<'matches> {
 fn run_subcommand(matches: ArgMatches<'_>) -> Result<(), TortugaError> {
     if let Some(matches) = matches.subcommand_matches("run") {
         let input = matches.value_of("input").map(Path::new).unwrap();
+        let source = fs::read_to_string(input)?;
 
-        Ok(())
+        run(source.as_str())
     } else {
-        Err(errors::TortugaError::InvalidSubcommand(
-            matches
-                .subcommand_name()
-                .map(String::from)
-                .unwrap_or_else(Default::default),
-        ))
+        run_prompt(matches)
     }
+}
+
+#[tracing::instrument]
+fn run(code: &str) -> Result<(), TortugaError> {
+    Ok(())
+}
+
+#[tracing::instrument]
+fn run_prompt(matches: ArgMatches<'_>) -> Result<(), TortugaError> {
+    loop {
+        print!("> ");
+        stdout().flush()?;
+
+        let mut buffer = String::new();
+        stdin().read_line(&mut buffer)?;
+
+        let line = buffer.trim();
+        if line.is_empty() {
+            break;
+        }
+    
+        run(line)?;
+    }
+
+    Ok(())
 }

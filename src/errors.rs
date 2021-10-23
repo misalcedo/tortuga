@@ -13,6 +13,4 @@ pub enum TortugaError {
     Walk(#[from] walkdir::Error),
     #[error("Unable to remove the input path from the file name.")]
     InvalidPath(#[from] std::path::StripPrefixError),
-    #[error("Invalid subcommand name: {0}")]
-    InvalidSubcommand(String),
 }
