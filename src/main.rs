@@ -1,5 +1,6 @@
-mod errors;
 mod about;
+mod errors;
+mod scanner;
 
 use errors::TortugaError;
 use clap::{App, Arg, ArgMatches, SubCommand};
@@ -8,6 +9,7 @@ use tracing::{subscriber::set_global_default, Level};
 use tracing_log::LogTracer;
 use std::io::{stdin, stdout, Write};
 use std::fs;
+use scanner::Scanner;
 
 const APP_NAME: &str = env!("CARGO_BIN_NAME");
 
@@ -77,6 +79,12 @@ fn run_subcommand(matches: ArgMatches<'_>) -> Result<(), TortugaError> {
 
 #[tracing::instrument]
 fn run(code: &str) -> Result<(), TortugaError> {
+    let tokens = Scanner::new().scan(code);
+
+    for token in tokens {
+        println!("Token: {:?}", token);
+    }
+
     Ok(())
 }
 
