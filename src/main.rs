@@ -10,7 +10,7 @@ use tracing::{subscriber::set_global_default, Level};
 use tracing_log::LogTracer;
 use std::io::{stdin, stdout, Write};
 use std::fs;
-use scanner::Scanner;
+use scanner::{Location, Scanner};
 
 const APP_NAME: &str = env!("CARGO_BIN_NAME");
 
@@ -104,7 +104,7 @@ fn run_prompt(matches: ArgMatches<'_>) -> Result<(), TortugaError> {
         }
     
         if let Err(e) = run(line) {
-            report::print(0, (0, 0), e);
+            report::print(Location::new(0, 0), e);
         }
     }
 
