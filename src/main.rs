@@ -1,5 +1,6 @@
 mod about;
 mod errors;
+mod report;
 mod scanner;
 
 use errors::TortugaError;
@@ -102,7 +103,9 @@ fn run_prompt(matches: ArgMatches<'_>) -> Result<(), TortugaError> {
             break;
         }
     
-        run(line)?;
+        if let Err(e) = run(line) {
+            report::print(0, (0, 0), e);
+        }
     }
 
     Ok(())
