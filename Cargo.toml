@@ -33,7 +33,7 @@ tokio-util = { version = "0.6", features = ["full"] }
 tracing = "0.1"
 tracing-futures = "0.2"
 tracing-log = "0.1"
-tracing-subscriber = { version = "0.2", features = ["parking_lot"] }
+tracing-subscriber = { version = "0.3", features = ["parking_lot"] }
 serde = "1.0"
 serde_yaml = "0.8"
 walkdir = "2.3"
