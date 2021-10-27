@@ -1,5 +1,5 @@
 use thiserror::Error;
-use crate::scanner::Location;
+use crate::token::Location;
 
 /// An error that occurred while interacting with Tortuga.
 #[derive(Error, Debug)]
@@ -14,11 +14,6 @@ pub enum TortugaError {
     Walk(#[from] walkdir::Error),
     #[error("Unable to remove the input path from the file name.")]
     InvalidPath(#[from] std::path::StripPrefixError),
-}
-
-/// An error that occurred while scanning a Tortuga source file.
-#[derive(Error, Debug)]
-pub enum LexicalError {
-    #[error("Unable to determine the exact kind of error.")]
-    Unknown(Location),
+    #[error("A lexical error occurred while analyzing the source code on {1}: {0}.")]
+    Lexical(String, Location)
 }

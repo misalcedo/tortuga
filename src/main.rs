@@ -2,6 +2,7 @@ mod about;
 mod errors;
 mod report;
 mod scanner;
+mod token;
 
 use errors::TortugaError;
 use clap::{App, Arg, ArgMatches, SubCommand};
@@ -10,7 +11,8 @@ use tracing::{subscriber::set_global_default, Level};
 use tracing_log::LogTracer;
 use std::io::{stdin, stdout, Write};
 use std::fs;
-use scanner::{Location, Scanner};
+use scanner::Scanner;
+use token::Location;
 
 const APP_NAME: &str = env!("CARGO_BIN_NAME");
 
