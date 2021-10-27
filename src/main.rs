@@ -104,7 +104,7 @@ fn run_prompt(matches: ArgMatches<'_>) -> Result<(), TortugaError> {
         }
     
         if let Err(e) = run(line) {
-            report::print(Location::new(0, 0), e);
+            report::print(Location::default(), e);
         }
     }
 
