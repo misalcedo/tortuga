@@ -80,9 +80,9 @@ fn run_subcommand(matches: ArgMatches<'_>) -> Result<(), TortugaError> {
 
 #[tracing::instrument]
 fn run(code: &str) -> Result<(), TortugaError> {
-    let tokens = Scanner::new().scan(code);
+    let scanner = Scanner::new(code);
 
-    for token in tokens {
+    for token in scanner {
         println!("Token: {:?}", token);
     }
 

@@ -2,10 +2,6 @@
 
 use std::iter::Iterator;
 
-/// Scanner for the tortuga language.
-pub struct Scanner {
-}
-
 /// The line and column of the start of a lexeme.
 #[derive(Debug)]
 pub struct Location {
@@ -29,9 +25,9 @@ impl Location {
 
 /// A lexical token.
 #[derive(Debug)]
-pub struct Token {
+pub struct Token<'source> {
     kind: TokenKind,
-    lexeme: String,
+    lexeme: &'source str,
     location: Location
 }
 
@@ -81,12 +77,25 @@ pub enum TokenKind {
     Number
 }
 
-impl Scanner {
-    pub fn new() -> Self {
-        Scanner {}
-    }
+/// Scanner for the tortuga language.
+pub struct Scanner<'source> {
+    code: &'source str,
+}
 
-    pub fn scan(&self, code: &str) -> impl Iterator<Item=Token> {
-        std::iter::empty::<Token>()
+impl<'source> Scanner<'source> {
+    /// Creates a new `Scanner` for the given source code.
+    pub fn new(code: &'source str) -> Self {
+        Scanner { code }
+    }
+}
+
+// Implement `Iterator` of `Token`s for `Scanner`.
+impl<'source> Iterator for Scanner<'source> {
+    // We can refer to this type using Self::Item
+    type Item = Token<'source>;
+    
+    // Consumes the next token from the `Scanner`. 
+    fn next(&mut self) -> Option<Self::Item> {
+        None
     }
 }
