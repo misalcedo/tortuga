@@ -5,30 +5,7 @@ use std::fmt;
 pub struct Location {
     line: usize,
     start_column: usize,
-    end_column: Option<usize>,
-}
-
-impl Location {
-    /// The lexeme location at the next line.
-    pub fn next_line(&self) -> Self {
-        Location {
-            line: self.line + 1,
-            start_column: 1,
-            end_column: None,
-        }
-    }
-
-    /// Binds a lexical token ending at the current location.
-    /// This location is not terminated, only its start column is incremented.__rust_force_expr!
-    /// Returns the bound token.
-    pub fn bind(&mut self) -> Self {
-        let mut cloned = self.clone();
-
-        self.start_column += 1;
-
-        cloned.end_column.insert(self.start_column);
-        cloned
-    }
+    end_column: usize,
 }
 
 impl fmt::Display for Location {
@@ -37,13 +14,33 @@ impl fmt::Display for Location {
     }
 }
 
-impl Default for Location {
-    fn default() -> Self {
+impl Location {
+    /// Creates a new location.
+    pub fn new<R: LocationRangeBounds>(line: usize, range: R) -> Self {
         Location {
-            line: 1,
-            start_column: 1,
-            end_column: None,
+            line: line,
+            start_column: range.start_column(),
+            end_column: range.end_column(),
         }
+    }
+}
+
+/// A half-open range bounds for locations.
+pub trait LocationRangeBounds {
+    /// The start column (inclusive) of the lexeme location.
+    fn start_column(&self) -> usize;
+
+    /// The end column (exclusive) of the lexeme location.
+    fn end_column(&self) -> usize;
+}
+
+impl LocationRangeBounds for (usize, &str) {
+    fn start_column(&self) -> usize {
+        self.0
+    }
+
+    fn end_column(&self) -> usize {
+        self.0 + self.1.len()
     }
 }
 
@@ -64,10 +61,18 @@ impl<'source> Token<'source> {
             location,
         }
     }
+
+    pub fn kind(&self) -> TokenKind {
+        self.kind
+    }
+
+    pub fn columns(&self) -> usize {
+        self.location.end_column - self.location.start_column
+    }
 }
 
 /// The kind of a lexical token.
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum TokenKind {
     // Single-character tokens
     LeftParenthesis,

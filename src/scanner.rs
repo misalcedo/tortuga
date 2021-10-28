@@ -2,44 +2,70 @@
 
 use crate::errors::TortugaError;
 use crate::token::{Location, Token, TokenKind};
-use std::iter::Iterator;
-use unicode_segmentation::{GraphemeIndices, UnicodeSegmentation};
+use std::iter::{Iterator, Peekable};
+use unicode_segmentation::UnicodeSegmentation;
 
 /// Scanner for the tortuga language.
-pub struct Scanner<'source> {
+pub struct Scanner<'source, I>
+where
+    I: Iterator<Item = (usize, &'source str)>,
+{
     code: &'source str,
-    location: Location,
-    remaining: GraphemeIndices<'source>,
+    line: usize,
+    column: usize,
+    remaining: Peekable<I>,
 }
 
-impl<'source> Scanner<'source> {
-    /// Creates a new `Scanner` for the given source code.
-    pub fn new(code: &'source str) -> Self {
-        Scanner {
-            code,
-            location: Location::default(),
-            remaining: code.grapheme_indices(true),
-        }
+/// Creates a new `Scanner` for the given source code.
+pub fn new_scanner<'source>(
+    code: &'source str,
+) -> Scanner<'source, impl Iterator<Item = (usize, &'source str)>> {
+    Scanner {
+        code,
+        line: 1,
+        column: 1,
+        remaining: code
+            .grapheme_indices(true)
+            .filter(|(_, grapheme)| &"\r" != grapheme)
+            .peekable(),
     }
 }
 
 // Implement `Iterator` of `Token`s for `Scanner`.
-impl<'source> Iterator for Scanner<'source> {
+impl<'source, I> Iterator for Scanner<'source, I>
+where
+    I: Iterator<Item = (usize, &'source str)>,
+{
     // We can refer to this type using Self::Item
     type Item = Result<Token<'source>, TortugaError>;
 
     // Consumes the next token from the `Scanner`.
     fn next(&mut self) -> Option<Self::Item> {
-        let next_grapheme = self.remaining.next();
-
-        match next_grapheme {
-            None => None,
-            Some((index, grapheme @ "+")) => Some(Ok(Token::new(
-                TokenKind::Plus,
-                &self.code[index..grapheme.len()],
-                self.location.bind(),
-            ))),
-            Some(_) => Some(Err(TortugaError::Lexical("".to_string(), self.location))),
+        // Skip new lines.
+        while matches!(self.remaining.peek(), Some((_, "\n"))) {
+            self.remaining.next();
+            self.line += 1;
+            self.column = 1;
         }
+
+        let next_token = match self.remaining.next() {
+            None => None,
+            Some((_, grapheme @ "+")) => Some(Ok(Token::new(
+                TokenKind::Plus,
+                grapheme,
+                Location::new(self.line, (self.column, grapheme)),
+            ))),
+            Some((_, grapheme)) => Some(Err(TortugaError::Lexical(Location::new(
+                self.line,
+                (self.column, grapheme),
+            )))),
+        };
+
+        // Update column.
+        if let Some(Ok(ref token)) = next_token {
+            self.column += token.columns();
+        }
+
+        next_token
     }
 }

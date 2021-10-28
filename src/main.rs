@@ -6,11 +6,10 @@ mod token;
 
 use clap::{App, Arg, ArgMatches, SubCommand};
 use errors::TortugaError;
-use scanner::Scanner;
+use scanner::new_scanner;
 use std::fs;
 use std::io::{stdin, stdout, Write};
 use std::path::Path;
-use token::Location;
 use tracing::{subscriber::set_global_default, Level};
 use tracing_log::LogTracer;
 
@@ -82,7 +81,7 @@ fn run_subcommand(matches: ArgMatches<'_>) -> Result<(), TortugaError> {
 
 #[tracing::instrument]
 fn run(code: &str) -> Result<(), TortugaError> {
-    let scanner = Scanner::new(code);
+    let scanner = new_scanner(code);
 
     for token in scanner {
         println!("Token: {:?}", token);
@@ -102,13 +101,11 @@ fn run_prompt(matches: ArgMatches<'_>) -> Result<(), TortugaError> {
 
         let line = buffer.trim();
         if line.is_empty() {
-            break;
+            continue;
         }
 
         if let Err(e) = run(line) {
-            report::print(Location::default(), e);
+            report::print(e);
         }
     }
-
-    Ok(())
 }
