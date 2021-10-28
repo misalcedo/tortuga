@@ -14,13 +14,13 @@ impl Location {
         Location {
             line: self.line + 1,
             start_column: 1,
-            end_column: None
+            end_column: None,
         }
     }
 
     /// Binds a lexical token ending at the current location.
     /// This location is not terminated, only its start column is incremented.__rust_force_expr!
-    /// Returns the bound token. 
+    /// Returns the bound token.
     pub fn bind(&mut self) -> Self {
         let mut cloned = self.clone();
 
@@ -39,7 +39,11 @@ impl fmt::Display for Location {
 
 impl Default for Location {
     fn default() -> Self {
-        Location { line: 1, start_column: 1, end_column: None }
+        Location {
+            line: 1,
+            start_column: 1,
+            end_column: None,
+        }
     }
 }
 
@@ -49,13 +53,15 @@ impl Default for Location {
 pub struct Token<'source> {
     kind: TokenKind,
     lexeme: &'source str,
-    location: Location
+    location: Location,
 }
 
 impl<'source> Token<'source> {
     pub fn new(kind: TokenKind, lexeme: &'source str, location: Location) -> Self {
         Token {
-            kind, lexeme, location
+            kind,
+            lexeme,
+            location,
         }
     }
 }
@@ -103,5 +109,5 @@ pub enum TokenKind {
 
     // Literals
     Identifier,
-    Number
+    Number,
 }

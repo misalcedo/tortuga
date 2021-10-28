@@ -1,5 +1,5 @@
-use thiserror::Error;
 use crate::token::Location;
+use thiserror::Error;
 
 /// An error that occurred while interacting with Tortuga.
 #[derive(Error, Debug)]
@@ -15,5 +15,5 @@ pub enum TortugaError {
     #[error("Unable to remove the input path from the file name.")]
     InvalidPath(#[from] std::path::StripPrefixError),
     #[error("A lexical error occurred while analyzing the source code on {1}: {0}.")]
-    Lexical(String, Location)
+    Lexical(String, Location),
 }

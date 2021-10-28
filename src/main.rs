@@ -4,15 +4,15 @@ mod report;
 mod scanner;
 mod token;
 
-use errors::TortugaError;
 use clap::{App, Arg, ArgMatches, SubCommand};
+use errors::TortugaError;
+use scanner::Scanner;
+use std::fs;
+use std::io::{stdin, stdout, Write};
 use std::path::Path;
+use token::Location;
 use tracing::{subscriber::set_global_default, Level};
 use tracing_log::LogTracer;
-use std::io::{stdin, stdout, Write};
-use std::fs;
-use scanner::Scanner;
-use token::Location;
 
 const APP_NAME: &str = env!("CARGO_BIN_NAME");
 
@@ -63,7 +63,7 @@ fn parse_arguments<'matches>() -> ArgMatches<'matches> {
                         .help("The input file to execute.")
                         .takes_value(true)
                         .index(1),
-                )
+                ),
         )
         .get_matches()
 }
@@ -104,7 +104,7 @@ fn run_prompt(matches: ArgMatches<'_>) -> Result<(), TortugaError> {
         if line.is_empty() {
             break;
         }
-    
+
         if let Err(e) = run(line) {
             report::print(Location::default(), e);
         }
