@@ -1,46 +1,42 @@
 use std::fmt;
 
-/// The line and column of the start and end (exclusive) of a lexeme.
+/// The line and column of the start of a lexeme.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Location {
     line: usize,
-    start_column: usize,
-    end_column: usize,
+    column: usize,
 }
 
 impl fmt::Display for Location {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Line: {}, Column: {}", self.line, self.start_column)
+        write!(f, "Line: {}, Column: {}", self.line, self.column)
     }
 }
 
 impl Location {
     /// Creates a new location.
-    pub fn new<R: LocationRangeBounds>(line: usize, range: R) -> Self {
+    pub fn new(line: usize, column: usize) -> Self {
         Location {
-            line: line,
-            start_column: range.start_column(),
-            end_column: range.end_column(),
+            line,
+            column,
         }
     }
-}
 
-/// A half-open range bounds for locations.
-pub trait LocationRangeBounds {
-    /// The start column (inclusive) of the lexeme location.
-    fn start_column(&self) -> usize;
-
-    /// The end column (exclusive) of the lexeme location.
-    fn end_column(&self) -> usize;
-}
-
-impl LocationRangeBounds for (usize, &str) {
-    fn start_column(&self) -> usize {
-        self.0
+    /// Moves this `Location` to the next line, first column.
+    pub fn next_line(&mut self) {
+        self.line += 1;
+        self.column = 1;
     }
 
-    fn end_column(&self) -> usize {
-        self.0 + self.1.len()
+    /// Add the specificied columns to this `Location`.
+    pub fn add_columns(&mut self, columns: usize) {
+        self.column += columns;
+    }
+}
+
+impl Default for Location {
+    fn default() -> Self {
+        Location { line: 1, column: 1 }
     }
 }
 
@@ -50,15 +46,15 @@ impl LocationRangeBounds for (usize, &str) {
 pub struct Token<'source> {
     kind: TokenKind,
     lexeme: &'source str,
-    location: Location,
+    start: Location,
 }
 
 impl<'source> Token<'source> {
-    pub fn new(kind: TokenKind, lexeme: &'source str, location: Location) -> Self {
+    pub fn new(kind: TokenKind, lexeme: &'source str, start: Location) -> Self {
         Token {
             kind,
             lexeme,
-            location,
+            start,
         }
     }
 
@@ -66,8 +62,12 @@ impl<'source> Token<'source> {
         self.kind
     }
 
-    pub fn columns(&self) -> usize {
-        self.location.end_column - self.location.start_column
+    pub fn lexeme(&self) -> &'source str {
+        self.lexeme
+    }
+
+    pub fn start(&self) -> Location {
+        self.start
     }
 }
 

@@ -11,8 +11,7 @@ where
     I: Iterator<Item = (usize, &'source str)>,
 {
     code: &'source str,
-    line: usize,
-    column: usize,
+    location: Location,
     remaining: Peekable<I>,
 }
 
@@ -22,13 +21,38 @@ pub fn new_scanner<'source>(
 ) -> Scanner<'source, impl Iterator<Item = (usize, &'source str)>> {
     Scanner {
         code,
-        line: 1,
-        column: 1,
+        location: Location::default(),
         remaining: code
             .grapheme_indices(true)
-            .filter(|(_, grapheme)| &"\r" != grapheme)
             .peekable(),
     }
+}
+
+/// Skips comments and new lines.
+/// Returns the new location relative to the source code.
+fn skip_non_tokens<'source, I>(mut start: Location, iterator: &mut Peekable<I>) -> Location 
+    where I: Iterator<Item = (usize, &'source str)> 
+{
+    loop {
+        match iterator.peek() {
+            Some((_, "\r")) => {
+                iterator.next();
+            },
+            Some((_, "\n")) => {
+                iterator.next();
+                start.next_line();
+            },
+            Some((_, ";")) => {
+                iterator.next();
+
+                while iterator.next_if(|(_, g)| g != &"\n").is_some() {
+                }
+            },
+            _ => break
+        }
+    }
+
+    start
 }
 
 // Implement `Iterator` of `Token`s for `Scanner`.
@@ -41,197 +65,150 @@ where
 
     // Consumes the next token from the `Scanner`.
     fn next(&mut self) -> Option<Self::Item> {
-        // Skip new lines and comments.
-        loop {
-            match self.remaining.peek() {
-                Some((_, "\n")) => {
-                    self.remaining.next();
-                    self.line += 1;
-                    self.column = 1;
-                },
-                Some((_, ";")) => {
-                    self.remaining.next();
-
-                    loop {
-                        match self.remaining.peek() {
-                            Some((_, "\n")) => break,
-                            Some((_, _)) => { self.remaining.next(); },
-                            _ => break
-                        }
-                    }
-                },
-                _ => break
-            }
-        }
+        self.location = skip_non_tokens(self.location, &mut self.remaining);
 
         let next_token = match self.remaining.next() {
             None => None,
-            Some((_, grapheme @ "`")) => Some(Ok(Token::new(
+            Some((_, grapheme @ "`")) => Some(Ok((
                 TokenKind::BackQuote,
                 grapheme,
-                Location::new(self.line, (self.column, grapheme)),
             ))),
-            Some((_, grapheme @ "~")) => Some(Ok(Token::new(
+            Some((_, grapheme @ "~")) => Some(Ok((
                 TokenKind::Tilde,
                 grapheme,
-                Location::new(self.line, (self.column, grapheme)),
             ))),
-            Some((_, grapheme @ "!")) => Some(Ok(Token::new(
+            Some((_, grapheme @ "!")) => Some(Ok((
                 TokenKind::Exclamation,
                 grapheme,
-                Location::new(self.line, (self.column, grapheme)),
             ))),
-            Some((_, grapheme @ "@")) => Some(Ok(Token::new(
+            Some((_, grapheme @ "@")) => Some(Ok((
                 TokenKind::At,
                 grapheme,
-                Location::new(self.line, (self.column, grapheme)),
             ))),
-            Some((_, grapheme @ "#")) => Some(Ok(Token::new(
+            Some((_, grapheme @ "#")) => Some(Ok((
                 TokenKind::Pound,
                 grapheme,
-                Location::new(self.line, (self.column, grapheme)),
             ))),
-            Some((_, grapheme @ "$")) => Some(Ok(Token::new(
+            Some((_, grapheme @ "$")) => Some(Ok((
                 TokenKind::Dollar,
                 grapheme,
-                Location::new(self.line, (self.column, grapheme)),
             ))),
-            Some((_, grapheme @ "%")) => Some(Ok(Token::new(
+            Some((_, grapheme @ "%")) => Some(Ok((
                 TokenKind::Percent,
                 grapheme,
-                Location::new(self.line, (self.column, grapheme)),
             ))),
-            Some((_, grapheme @ "^")) => Some(Ok(Token::new(
+            Some((_, grapheme @ "^")) => Some(Ok((
                 TokenKind::Caret,
                 grapheme,
-                Location::new(self.line, (self.column, grapheme)),
             ))),
-            Some((_, grapheme @ "&")) => Some(Ok(Token::new(
+            Some((_, grapheme @ "&")) => Some(Ok((
                 TokenKind::Ampersand,
                 grapheme,
-                Location::new(self.line, (self.column, grapheme)),
             ))),
-            Some((_, grapheme @ "*")) => Some(Ok(Token::new(
+            Some((_, grapheme @ "*")) => Some(Ok((
                 TokenKind::Star,
                 grapheme,
-                Location::new(self.line, (self.column, grapheme)),
             ))),
-            Some((_, grapheme @ "-")) => Some(Ok(Token::new(
+            Some((_, grapheme @ "-")) => Some(Ok((
                 TokenKind::Minus,
                 grapheme,
-                Location::new(self.line, (self.column, grapheme)),
             ))),
-            Some((_, grapheme @ "_")) => Some(Ok(Token::new(
+            Some((_, grapheme @ "_")) => Some(Ok((
                 TokenKind::Underscore,
                 grapheme,
-                Location::new(self.line, (self.column, grapheme)),
             ))),
-            Some((_, grapheme @ "=")) => Some(Ok(Token::new(
+            Some((_, grapheme @ "=")) => Some(Ok((
                 TokenKind::Equals,
                 grapheme,
-                Location::new(self.line, (self.column, grapheme)),
             ))),
-            Some((_, grapheme @ "+")) => Some(Ok(Token::new(
+            Some((_, grapheme @ "+")) => Some(Ok((
                 TokenKind::Plus,
                 grapheme,
-                Location::new(self.line, (self.column, grapheme)),
             ))),
-            Some((_, grapheme @ "(")) => Some(Ok(Token::new(
+            Some((_, grapheme @ "(")) => Some(Ok((
                 TokenKind::LeftParenthesis,
                 grapheme,
-                Location::new(self.line, (self.column, grapheme)),
             ))),
-            Some((_, grapheme @ ")")) => Some(Ok(Token::new(
+            Some((_, grapheme @ ")")) => Some(Ok((
                 TokenKind::RightParenthesis,
                 grapheme,
-                Location::new(self.line, (self.column, grapheme)),
             ))),
-            Some((_, grapheme @ "[")) => Some(Ok(Token::new(
+            Some((_, grapheme @ "[")) => Some(Ok((
                 TokenKind::LeftBracket,
                 grapheme,
-                Location::new(self.line, (self.column, grapheme)),
             ))),
-            Some((_, grapheme @ "]")) => Some(Ok(Token::new(
+            Some((_, grapheme @ "]")) => Some(Ok((
                 TokenKind::RightBracket,
                 grapheme,
-                Location::new(self.line, (self.column, grapheme)),
             ))),
-            Some((_, grapheme @ "{")) => Some(Ok(Token::new(
+            Some((_, grapheme @ "{")) => Some(Ok((
                 TokenKind::LeftBrace,
                 grapheme,
-                Location::new(self.line, (self.column, grapheme)),
             ))),
-            Some((_, grapheme @ "}")) => Some(Ok(Token::new(
+            Some((_, grapheme @ "}")) => Some(Ok((
                 TokenKind::RightBrace,
                 grapheme,
-                Location::new(self.line, (self.column, grapheme)),
             ))),
-            Some((_, grapheme @ "|")) => Some(Ok(Token::new(
+            Some((_, grapheme @ "|")) => Some(Ok((
                 TokenKind::Pipe,
                 grapheme,
-                Location::new(self.line, (self.column, grapheme)),
             ))),
-            Some((_, grapheme @ r"\")) => Some(Ok(Token::new(
+            Some((_, grapheme @ r"\")) => Some(Ok((
                 TokenKind::BackSlash,
                 grapheme,
-                Location::new(self.line, (self.column, grapheme)),
             ))),
-            Some((_, grapheme @ ":")) => Some(Ok(Token::new(
+            Some((_, grapheme @ ":")) => Some(Ok((
                 TokenKind::Colon,
                 grapheme,
-                Location::new(self.line, (self.column, grapheme)),
             ))),
-            Some((_, grapheme @ "?")) => Some(Ok(Token::new(
+            Some((_, grapheme @ "?")) => Some(Ok((
                 TokenKind::Question,
                 grapheme,
-                Location::new(self.line, (self.column, grapheme)),
             ))),
-            Some((_, grapheme @ "/")) => Some(Ok(Token::new(
+            Some((_, grapheme @ "/")) => Some(Ok((
                 TokenKind::ForwardSlash,
                 grapheme,
-                Location::new(self.line, (self.column, grapheme)),
             ))),
-            Some((_, grapheme @ "<")) => Some(Ok(Token::new(
+            Some((_, grapheme @ "<")) => Some(Ok((
                 TokenKind::LessThan,
                 grapheme,
-                Location::new(self.line, (self.column, grapheme)),
             ))),
-            Some((_, grapheme @ ",")) => Some(Ok(Token::new(
+            Some((_, grapheme @ ",")) => Some(Ok((
                 TokenKind::Comma,
                 grapheme,
-                Location::new(self.line, (self.column, grapheme)),
             ))),
-            Some((_, grapheme @ ">")) => Some(Ok(Token::new(
+            Some((_, grapheme @ ">")) => Some(Ok((
                 TokenKind::GreaterThan,
                 grapheme,
-                Location::new(self.line, (self.column, grapheme)),
             ))),
-            Some((_, grapheme @ ".")) => Some(Ok(Token::new(
+            Some((_, grapheme @ ".")) => Some(Ok((
                 TokenKind::Period,
                 grapheme,
-                Location::new(self.line, (self.column, grapheme)),
             ))),
-            Some((_, grapheme @ "'")) => Some(Ok(Token::new(
+            Some((_, grapheme @ "'")) => Some(Ok((
                 TokenKind::SingleQuote,
                 grapheme,
-                Location::new(self.line, (self.column, grapheme)),
             ))),
-            Some((_, grapheme @ "\"")) => Some(Ok(Token::new(
+            Some((_, grapheme @ "\"")) => Some(Ok((
                 TokenKind::DoubleQuote,
                 grapheme,
-                Location::new(self.line, (self.column, grapheme)),
             ))),
-            Some((_, grapheme)) => Some(Err(TortugaError::Lexical(Location::new(
-                self.line,
-                (self.column, grapheme),
-            )))),
+            Some(_) => Some(Err(TortugaError::Lexical(self.location))),
         };
 
-        // Update column.
-        if let Some(Ok(ref token)) = next_token {
-            self.column += token.columns();
+        match next_token {
+            None => None,
+            Some(Ok((kind, lexeme))) => {
+                let start = self.location.clone();
+                
+                self.location.add_columns(lexeme.graphemes(true).count());
+                
+                Some(Ok(Token::new(kind, lexeme, start)))
+            },
+            Some(Err(error)) => {
+                self.location.add_columns(1);
+                Some(Err(error))
+            }
         }
-
-        next_token
     }
 }
