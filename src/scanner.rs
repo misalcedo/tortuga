@@ -50,8 +50,153 @@ where
 
         let next_token = match self.remaining.next() {
             None => None,
+            Some((_, grapheme @ "`")) => Some(Ok(Token::new(
+                TokenKind::BackQuote,
+                grapheme,
+                Location::new(self.line, (self.column, grapheme)),
+            ))),
+            Some((_, grapheme @ "~")) => Some(Ok(Token::new(
+                TokenKind::Tilde,
+                grapheme,
+                Location::new(self.line, (self.column, grapheme)),
+            ))),
+            Some((_, grapheme @ "!")) => Some(Ok(Token::new(
+                TokenKind::Exclamation,
+                grapheme,
+                Location::new(self.line, (self.column, grapheme)),
+            ))),
+            Some((_, grapheme @ "@")) => Some(Ok(Token::new(
+                TokenKind::At,
+                grapheme,
+                Location::new(self.line, (self.column, grapheme)),
+            ))),
+            Some((_, grapheme @ "#")) => Some(Ok(Token::new(
+                TokenKind::Pound,
+                grapheme,
+                Location::new(self.line, (self.column, grapheme)),
+            ))),
+            Some((_, grapheme @ "$")) => Some(Ok(Token::new(
+                TokenKind::Dollar,
+                grapheme,
+                Location::new(self.line, (self.column, grapheme)),
+            ))),
+            Some((_, grapheme @ "%")) => Some(Ok(Token::new(
+                TokenKind::Percent,
+                grapheme,
+                Location::new(self.line, (self.column, grapheme)),
+            ))),
+            Some((_, grapheme @ "^")) => Some(Ok(Token::new(
+                TokenKind::Caret,
+                grapheme,
+                Location::new(self.line, (self.column, grapheme)),
+            ))),
+            Some((_, grapheme @ "&")) => Some(Ok(Token::new(
+                TokenKind::Ampersand,
+                grapheme,
+                Location::new(self.line, (self.column, grapheme)),
+            ))),
+            Some((_, grapheme @ "*")) => Some(Ok(Token::new(
+                TokenKind::Star,
+                grapheme,
+                Location::new(self.line, (self.column, grapheme)),
+            ))),
+            Some((_, grapheme @ "-")) => Some(Ok(Token::new(
+                TokenKind::Minus,
+                grapheme,
+                Location::new(self.line, (self.column, grapheme)),
+            ))),
+            Some((_, grapheme @ "_")) => Some(Ok(Token::new(
+                TokenKind::Underscore,
+                grapheme,
+                Location::new(self.line, (self.column, grapheme)),
+            ))),
+            Some((_, grapheme @ "=")) => Some(Ok(Token::new(
+                TokenKind::Equals,
+                grapheme,
+                Location::new(self.line, (self.column, grapheme)),
+            ))),
             Some((_, grapheme @ "+")) => Some(Ok(Token::new(
                 TokenKind::Plus,
+                grapheme,
+                Location::new(self.line, (self.column, grapheme)),
+            ))),
+            Some((_, grapheme @ "(")) => Some(Ok(Token::new(
+                TokenKind::LeftParenthesis,
+                grapheme,
+                Location::new(self.line, (self.column, grapheme)),
+            ))),
+            Some((_, grapheme @ ")")) => Some(Ok(Token::new(
+                TokenKind::RightParenthesis,
+                grapheme,
+                Location::new(self.line, (self.column, grapheme)),
+            ))),
+            Some((_, grapheme @ "[")) => Some(Ok(Token::new(
+                TokenKind::LeftBracket,
+                grapheme,
+                Location::new(self.line, (self.column, grapheme)),
+            ))),
+            Some((_, grapheme @ "]")) => Some(Ok(Token::new(
+                TokenKind::RightBracket,
+                grapheme,
+                Location::new(self.line, (self.column, grapheme)),
+            ))),
+            Some((_, grapheme @ "{")) => Some(Ok(Token::new(
+                TokenKind::LeftBrace,
+                grapheme,
+                Location::new(self.line, (self.column, grapheme)),
+            ))),
+            Some((_, grapheme @ "}")) => Some(Ok(Token::new(
+                TokenKind::RightBrace,
+                grapheme,
+                Location::new(self.line, (self.column, grapheme)),
+            ))),
+            Some((_, grapheme @ "|")) => Some(Ok(Token::new(
+                TokenKind::Pipe,
+                grapheme,
+                Location::new(self.line, (self.column, grapheme)),
+            ))),
+            Some((_, grapheme @ r"\")) => Some(Ok(Token::new(
+                TokenKind::BackSlash,
+                grapheme,
+                Location::new(self.line, (self.column, grapheme)),
+            ))),
+            Some((_, grapheme @ ":")) => Some(Ok(Token::new(
+                TokenKind::Colon,
+                grapheme,
+                Location::new(self.line, (self.column, grapheme)),
+            ))),
+            Some((_, grapheme @ ";")) => Some(Ok(Token::new(
+                TokenKind::Semicolon,
+                grapheme,
+                Location::new(self.line, (self.column, grapheme)),
+            ))),
+            Some((_, grapheme @ "?")) => Some(Ok(Token::new(
+                TokenKind::Question,
+                grapheme,
+                Location::new(self.line, (self.column, grapheme)),
+            ))),
+            Some((_, grapheme @ "/")) => Some(Ok(Token::new(
+                TokenKind::ForwardSlash,
+                grapheme,
+                Location::new(self.line, (self.column, grapheme)),
+            ))),
+            Some((_, grapheme @ "<")) => Some(Ok(Token::new(
+                TokenKind::LessThan,
+                grapheme,
+                Location::new(self.line, (self.column, grapheme)),
+            ))),
+            Some((_, grapheme @ ",")) => Some(Ok(Token::new(
+                TokenKind::Comma,
+                grapheme,
+                Location::new(self.line, (self.column, grapheme)),
+            ))),
+            Some((_, grapheme @ ">")) => Some(Ok(Token::new(
+                TokenKind::GreaterThan,
+                grapheme,
+                Location::new(self.line, (self.column, grapheme)),
+            ))),
+            Some((_, grapheme @ ".")) => Some(Ok(Token::new(
+                TokenKind::Period,
                 grapheme,
                 Location::new(self.line, (self.column, grapheme)),
             ))),
