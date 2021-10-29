@@ -74,44 +74,51 @@ impl<'source> Token<'source> {
 /// The kind of a lexical token.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum TokenKind {
-    // Single-character tokens
+    // Mathematical Symbols
     LeftParenthesis,
     RightParenthesis,
-    LeftBrace,
-    RightBrace,
-    LeftBracket,
-    RightBracket,
-    Pipe,
-    Comma,
-    Period,
-    Underscore,
-    Semicolon,
-    Colon,
     ForwardSlash,
-    BackSlash,
     Star,
-    Dollar,
-    Caret,
-    Ampersand,
-    At,
-    Pound,
-    Exclamation,
     Percent,
     Equals,
     Plus,
     Minus,
     LessThan,
     GreaterThan,
+    Caret,
+    Tilde,
+    LeftBrace,
+    RightBrace,
+    LeftBracket,
+    RightBracket,
+    Pipe,
+
+    // Single-character tokens
+    Comma,
+    Period,
+    Underscore,
+    Semicolon,
+    Colon,
+    BackSlash,
+    Dollar,
+    Ampersand,
+    At,
+    Pound,
+    Exclamation,
     Question,
     SingleQuote,
     DoubleQuote,
     BackQuote,
-    Tilde,
 
-    // Combination
+    // Comparisons
     GreaterThanOrEqual,
     LessThanOrEqual,
 
+    // Logic (keywords)
+    And,
+    Or,
+    ExclusiveOr,
+    
     // Literals
     Identifier,
     Number,
