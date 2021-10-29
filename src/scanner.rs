@@ -41,11 +41,27 @@ where
 
     // Consumes the next token from the `Scanner`.
     fn next(&mut self) -> Option<Self::Item> {
-        // Skip new lines.
-        while matches!(self.remaining.peek(), Some((_, "\n"))) {
-            self.remaining.next();
-            self.line += 1;
-            self.column = 1;
+        // Skip new lines and comments.
+        loop {
+            match self.remaining.peek() {
+                Some((_, "\n")) => {
+                    self.remaining.next();
+                    self.line += 1;
+                    self.column = 1;
+                },
+                Some((_, ";")) => {
+                    self.remaining.next();
+
+                    loop {
+                        match self.remaining.peek() {
+                            Some((_, "\n")) => break,
+                            Some((_, _)) => { self.remaining.next(); },
+                            _ => break
+                        }
+                    }
+                },
+                _ => break
+            }
         }
 
         let next_token = match self.remaining.next() {
@@ -162,11 +178,6 @@ where
             ))),
             Some((_, grapheme @ ":")) => Some(Ok(Token::new(
                 TokenKind::Colon,
-                grapheme,
-                Location::new(self.line, (self.column, grapheme)),
-            ))),
-            Some((_, grapheme @ ";")) => Some(Ok(Token::new(
-                TokenKind::Semicolon,
                 grapheme,
                 Location::new(self.line, (self.column, grapheme)),
             ))),

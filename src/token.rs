@@ -97,7 +97,6 @@ pub enum TokenKind {
     Comma,
     Period,
     Underscore,
-    Semicolon,
     Colon,
     BackSlash,
     Dollar,
