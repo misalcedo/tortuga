@@ -200,6 +200,16 @@ where
                 grapheme,
                 Location::new(self.line, (self.column, grapheme)),
             ))),
+            Some((_, grapheme @ "'")) => Some(Ok(Token::new(
+                TokenKind::SingleQuote,
+                grapheme,
+                Location::new(self.line, (self.column, grapheme)),
+            ))),
+            Some((_, grapheme @ "\"")) => Some(Ok(Token::new(
+                TokenKind::SingleQuote,
+                grapheme,
+                Location::new(self.line, (self.column, grapheme)),
+            ))),
             Some((_, grapheme)) => Some(Err(TortugaError::Lexical(Location::new(
                 self.line,
                 (self.column, grapheme),
