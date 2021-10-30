@@ -90,30 +90,6 @@ pub enum TokenKind {
     RightBracket,
     Pipe,
 
-    // Single-character tokens
-    Comma,
-    Period,
-    Underscore,
-    Colon,
-    BackSlash,
-    Dollar,
-    Ampersand,
-    At,
-    Pound,
-    Exclamation,
-    Question,
-    SingleQuote,
-    BackQuote,
-
-    // Comparisons
-    GreaterThanOrEqual,
-    LessThanOrEqual,
-
-    // Logic (keywords)
-    And,
-    Or,
-    ExclusiveOr,
-
     // Literals
     Identifier,
     TextReference,

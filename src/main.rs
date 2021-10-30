@@ -6,7 +6,7 @@ mod token;
 
 use clap::{App, Arg, ArgMatches, SubCommand};
 use errors::TortugaError;
-use scanner::new_scanner;
+use scanner::Scanner;
 use std::fs;
 use std::io::{stdin, stdout, Write};
 use std::path::Path;
@@ -81,7 +81,7 @@ fn run_subcommand(matches: ArgMatches<'_>) -> Result<(), TortugaError> {
 
 #[tracing::instrument]
 fn run(code: &str) -> Result<(), TortugaError> {
-    let scanner = new_scanner(code);
+    let scanner = Scanner::new(code);
 
     for token in scanner {
         println!("Token: {:?}", token);

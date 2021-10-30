@@ -14,6 +14,14 @@ pub enum TortugaError {
     Walk(#[from] walkdir::Error),
     #[error("Unable to remove the input path from the file name.")]
     InvalidPath(#[from] std::path::StripPrefixError),
+    #[error("Incomplete grapheme in source code.")]
+    IncompleteGrapheme(unicode_segmentation::GraphemeIncomplete),
     #[error("A lexical error occurred while analyzing the source code on {0}.")]
     Lexical(Location),
+}
+
+impl From<unicode_segmentation::GraphemeIncomplete> for TortugaError {
+    fn from(e: unicode_segmentation::GraphemeIncomplete) -> Self {
+        TortugaError::IncompleteGrapheme(e)
+    }
 }

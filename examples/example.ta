@@ -1,9 +1,7 @@
-!@
-#$
 +-
 0110#2
 ; This is a comment ; the comment continues until the end of the line.
-; Another comment "this is ignored"
++ ; Another comment "this is ignored"
 
 "this is a text reference"
 "not valid;

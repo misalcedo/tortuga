@@ -2,135 +2,124 @@
 
 use crate::errors::TortugaError;
 use crate::token::{Location, Token, TokenKind};
-use std::iter::{Iterator, Peekable};
-use unicode_segmentation::UnicodeSegmentation;
+use std::iter::Iterator;
+use unicode_segmentation::{GraphemeCursor, UnicodeSegmentation};
 
 /// Scanner for the tortuga language.
-pub struct Scanner<'source, I>
-where
-    I: Iterator<Item = (usize, &'source str)>,
-{
+pub struct Scanner<'source> {
     code: &'source str,
     location: Location,
-    remaining: Peekable<I>,
+    cursor: GraphemeCursor,
 }
 
-/// Creates a new `Scanner` for the given source code.
-pub fn new_scanner<'source>(
-    code: &'source str,
-) -> Scanner<'source, impl Iterator<Item = (usize, &'source str)>> {
-    Scanner {
-        code,
-        location: Location::default(),
-        remaining: code.grapheme_indices(true).peekable(),
-    }
+/// Creates a new token and updates the location past the given lexeme.
+fn new_token<'source>(kind: TokenKind, lexeme: &'source str, location: &mut Location) -> Token<'source> {
+    let start = location.clone();
+    
+    location.add_columns(lexeme.graphemes(true).count());
+
+    Token::new(kind, lexeme, start)
 }
 
-/// Skips comments and new lines.
-/// Returns the new location relative to the source code.
-fn skip_non_tokens<'source, I>(mut start: Location, iterator: &mut Peekable<I>) -> Location
-where
-    I: Iterator<Item = (usize, &'source str)>,
-{
-    loop {
-        match iterator.peek() {
-            Some((_, "\r" | "\t" | " ")) => {
-                iterator.next();
-            }
-            Some((_, "\n")) => {
-                iterator.next();
-                start.next_line();
-            }
-            Some((_, ";")) => {
-                iterator.next();
-
-                while iterator.next_if(|(_, g)| g != &"\n").is_some() {}
-            }
-            _ => break,
+impl<'source> Scanner<'source> {
+    /// Creates a new `Scanner` for the given source code.
+    pub fn new(code: &'source str) -> Scanner<'source> {
+        Scanner {
+            code,
+            location: Location::default(),
+            cursor: GraphemeCursor::new(0, code.len(), true),
         }
     }
 
-    start
-}
+    /// Skips comments until the end of the current line.
+    /// The location is not updated as all comments end in either a new line or EOF (end of file).
+    fn skip_comment(&mut self) -> Result<(), TortugaError>
+    {
+        while let Some(grapheme) = self.next_grapheme(1)? {
+            if grapheme == "\n" {
+                self.cursor.prev_boundary(self.code, 0)?;
+                break;
+            }
+        }
 
-/// Scans a text reference in double quotes ("...").
-/// Text references can contain any grapheme except a double quote or a new line.
-fn scan_text_referene<'source, I>(iterator: &mut Peekable<I>) -> Option<usize>
-where
-    I: Iterator<Item = (usize, &'source str)>,
-{
-    while iterator
-        .next_if(|(_, g)| g != &"\"" && g != &"\n")
-        .is_some()
-    {}
+        Ok(())
+    }
 
-    match iterator.next_if(|(_, g)| g == &"\"")? {
-        (index, grapheme @ "\"") => Some(index + grapheme.len()),
-        _ => None,
+    /// The next grapheme in the source code.
+    fn next_grapheme(&mut self, lookahead: usize) -> Result<Option<&'source str>, TortugaError> {
+        let start = self.cursor.cur_cursor();
+
+        for _ in 0..lookahead {
+            self.cursor.next_boundary(self.code, 0)?;
+        }
+
+        let end = self.cursor.cur_cursor();
+
+        if start == end {
+            return Ok(None);
+        }
+
+        let remaining = &self.code[start..end];
+
+        Ok(Some(remaining))
+    }
+
+    /// The next lexical token in the source code.
+    fn next_token(&mut self) -> Result<Option<Token<'source>>, TortugaError> {
+        let mut token = None;
+
+        loop {
+            match self.next_grapheme(1)? {
+                Some(grapheme @ "~") => { token.insert(new_token(TokenKind::Tilde, grapheme, &mut self.location)); },
+                Some(grapheme @ "%") => { token.insert(new_token(TokenKind::Percent, grapheme, &mut self.location)); },
+                Some(grapheme @ "^") => { token.insert(new_token(TokenKind::Caret, grapheme, &mut self.location)); },
+                Some(grapheme @ "*") => { token.insert(new_token(TokenKind::Star, grapheme, &mut self.location)); },
+                Some(grapheme @ "-") => { token.insert(new_token(TokenKind::Minus, grapheme, &mut self.location)); },
+                Some(grapheme @ "=") => { token.insert(new_token(TokenKind::Equals, grapheme, &mut self.location)); },
+                Some(grapheme @ "+") => { token.insert(new_token(TokenKind::Plus, grapheme, &mut self.location)); },
+                Some(grapheme @ "(") => { token.insert(new_token(TokenKind::LeftParenthesis, grapheme, &mut self.location)); },
+                Some(grapheme @ ")") => { token.insert(new_token(TokenKind::RightParenthesis, grapheme, &mut self.location)); },
+                Some(grapheme @ "[") => { token.insert(new_token(TokenKind::LeftBracket, grapheme, &mut self.location)); },
+                Some(grapheme @ "]") => { token.insert(new_token(TokenKind::RightBracket, grapheme, &mut self.location)); },
+                Some(grapheme @ "{") => { token.insert(new_token(TokenKind::LeftBrace, grapheme, &mut self.location)); },
+                Some(grapheme @ "}") => { token.insert(new_token(TokenKind::RightBrace, grapheme, &mut self.location)); },
+                Some(grapheme @ "|") => { token.insert(new_token(TokenKind::Pipe, grapheme, &mut self.location)); },
+                Some(grapheme @ "/") => { token.insert(new_token(TokenKind::ForwardSlash, grapheme, &mut self.location)); },
+                Some(grapheme @ "<") => { token.insert(new_token(TokenKind::LessThan, grapheme, &mut self.location)); },
+                Some(grapheme @ ">") => { token.insert(new_token(TokenKind::GreaterThan, grapheme, &mut self.location)); },
+                Some("\t") => self.location.add_columns(4),
+                Some(" ") => self.location.add_columns(1),
+                Some("\r") => (),
+                Some("\n") => self.location.next_line(),
+                Some(";") => self.skip_comment()?,
+                Some(_) => {
+                    let start = self.location.clone();
+                    self.location.add_columns(1);
+                    Err(TortugaError::Lexical(start))?
+                },
+                None => break
+            }
+
+            if token.is_some() {
+                break
+            }
+        }
+
+        Ok(token)
     }
 }
 
 // Implement `Iterator` of `Token`s for `Scanner`.
-impl<'source, I> Iterator for Scanner<'source, I>
-where
-    I: Iterator<Item = (usize, &'source str)>,
+impl<'source> Iterator for Scanner<'source>
 {
     // We can refer to this type using Self::Item
     type Item = Result<Token<'source>, TortugaError>;
 
     // Consumes the next token from the `Scanner`.
     fn next(&mut self) -> Option<Self::Item> {
-        self.location = skip_non_tokens(self.location, &mut self.remaining);
-
-        let next_token = match self.remaining.next()? {
-            (_, grapheme @ "`") => Ok((TokenKind::BackQuote, grapheme)),
-            (_, grapheme @ "~") => Ok((TokenKind::Tilde, grapheme)),
-            (_, grapheme @ "!") => Ok((TokenKind::Exclamation, grapheme)),
-            (_, grapheme @ "@") => Ok((TokenKind::At, grapheme)),
-            (_, grapheme @ "#") => Ok((TokenKind::Pound, grapheme)),
-            (_, grapheme @ "$") => Ok((TokenKind::Dollar, grapheme)),
-            (_, grapheme @ "%") => Ok((TokenKind::Percent, grapheme)),
-            (_, grapheme @ "^") => Ok((TokenKind::Caret, grapheme)),
-            (_, grapheme @ "&") => Ok((TokenKind::Ampersand, grapheme)),
-            (_, grapheme @ "*") => Ok((TokenKind::Star, grapheme)),
-            (_, grapheme @ "-") => Ok((TokenKind::Minus, grapheme)),
-            (_, grapheme @ "_") => Ok((TokenKind::Underscore, grapheme)),
-            (_, grapheme @ "=") => Ok((TokenKind::Equals, grapheme)),
-            (_, grapheme @ "+") => Ok((TokenKind::Plus, grapheme)),
-            (_, grapheme @ "(") => Ok((TokenKind::LeftParenthesis, grapheme)),
-            (_, grapheme @ ")") => Ok((TokenKind::RightParenthesis, grapheme)),
-            (_, grapheme @ "[") => Ok((TokenKind::LeftBracket, grapheme)),
-            (_, grapheme @ "]") => Ok((TokenKind::RightBracket, grapheme)),
-            (_, grapheme @ "{") => Ok((TokenKind::LeftBrace, grapheme)),
-            (_, grapheme @ "}") => Ok((TokenKind::RightBrace, grapheme)),
-            (_, grapheme @ "|") => Ok((TokenKind::Pipe, grapheme)),
-            (_, grapheme @ r"\") => Ok((TokenKind::BackSlash, grapheme)),
-            (_, grapheme @ ":") => Ok((TokenKind::Colon, grapheme)),
-            (_, grapheme @ "?") => Ok((TokenKind::Question, grapheme)),
-            (_, grapheme @ "/") => Ok((TokenKind::ForwardSlash, grapheme)),
-            (_, grapheme @ "<") => Ok((TokenKind::LessThan, grapheme)),
-            (_, grapheme @ ",") => Ok((TokenKind::Comma, grapheme)),
-            (_, grapheme @ ">") => Ok((TokenKind::GreaterThan, grapheme)),
-            (_, grapheme @ ".") => Ok((TokenKind::Period, grapheme)),
-            (_, grapheme @ "'") => Ok((TokenKind::SingleQuote, grapheme)),
-            (start, "\"") => match scan_text_referene(&mut self.remaining) {
-                Some(end) => Ok((TokenKind::TextReference, &self.code[start..end])),
-                None => Err(TortugaError::Lexical(self.location)),
-            },
-            _ => {
-                self.location.add_columns(1);
-                Err(TortugaError::Lexical(self.location))
-            }
-        };
-
-        match next_token {
-            Ok((kind, lexeme)) => {
-                let start = self.location.clone();
-
-                self.location.add_columns(lexeme.graphemes(true).count());
-
-                Some(Ok(Token::new(kind, lexeme, start)))
-            }
+        match self.next_token() {
+            Ok(Some(token)) => Some(Ok(token)),
+            Ok(None) => None,
             Err(error) => Some(Err(error)),
         }
     }
