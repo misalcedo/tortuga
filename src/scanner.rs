@@ -6,6 +6,7 @@ use std::iter::Iterator;
 use unicode_segmentation::{GraphemeCursor, UnicodeSegmentation};
 
 /// Scanner for the tortuga language.
+/// Uses a grapheme cursor to allow for arbitrary lookahead and lookback.
 pub struct Scanner<'source> {
     code: &'source str,
     location: Location,
