@@ -35,7 +35,7 @@ fn skip_non_tokens<'source, I>(mut start: Location, iterator: &mut Peekable<I>) 
 {
     loop {
         match iterator.peek() {
-            Some((_, "\r")) => {
+            Some((_, "\r" | "\t" | " ")) => {
                 iterator.next();
             },
             Some((_, "\n")) => {
