@@ -16,10 +16,7 @@ impl fmt::Display for Location {
 impl Location {
     /// Creates a new location.
     pub fn new(line: usize, column: usize) -> Self {
-        Location {
-            line,
-            column,
-        }
+        Location { line, column }
     }
 
     /// Moves this `Location` to the next line, first column.
@@ -106,7 +103,6 @@ pub enum TokenKind {
     Exclamation,
     Question,
     SingleQuote,
-    DoubleQuote,
     BackQuote,
 
     // Comparisons
@@ -117,8 +113,9 @@ pub enum TokenKind {
     And,
     Or,
     ExclusiveOr,
-    
+
     // Literals
     Identifier,
+    TextReference,
     Number,
 }
