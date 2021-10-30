@@ -14,11 +14,6 @@ impl fmt::Display for Location {
 }
 
 impl Location {
-    /// Creates a new location.
-    pub fn new(line: usize, column: usize) -> Self {
-        Location { line, column }
-    }
-
     /// Moves this `Location` to the next line, first column.
     pub fn next_line(&mut self) {
         self.line += 1;
