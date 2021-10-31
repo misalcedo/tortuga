@@ -14,14 +14,25 @@ pub enum TortugaError {
     Walk(#[from] walkdir::Error),
     #[error("Unable to remove the input path from the file name.")]
     InvalidPath(#[from] std::path::StripPrefixError),
-    #[error("Incomplete grapheme in source code.")]
-    IncompleteGrapheme(unicode_segmentation::GraphemeIncomplete),
-    #[error("A lexical error occurred while analyzing the source code on {0}.")]
-    Lexical(Location),
+    #[error("A lexical error occurred while analyzing the source code. {0}")]
+    Lexical(#[from] LexicalError),
 }
 
-impl From<unicode_segmentation::GraphemeIncomplete> for TortugaError {
+/// An error that occurred while interacting with Tortuga.
+#[derive(Error, Debug)]
+pub enum LexicalError {
+    #[error("Incomplete grapheme found in source code.")]
+    IncompleteGrapheme(unicode_segmentation::GraphemeIncomplete),
+    #[error("An unexpected grapheme was found on {0}: {1}.")]
+    UnexpectedGrapheme(Location, String),
+    #[error("A numeric literal was found with more than 1 decimal point on {0}: {1}.")]
+    DuplicateDecimal(Location, String),
+    #[error("A numeric literal was found ending with a decimal point on {0}: {1}.")]
+    TerminalDecimal(Location, String),
+}
+
+impl From<unicode_segmentation::GraphemeIncomplete> for LexicalError {
     fn from(e: unicode_segmentation::GraphemeIncomplete) -> Self {
-        TortugaError::IncompleteGrapheme(e)
+        LexicalError::IncompleteGrapheme(e)
     }
 }
