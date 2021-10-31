@@ -29,6 +29,10 @@ pub enum LexicalError {
     DuplicateDecimal(Location, String),
     #[error("A numeric literal was found ending with a decimal point on {0}: {1}.")]
     TerminalDecimal(Location, String),
+    #[error("A text reference is missing the closing quote on {0}: {1}.")]
+    MissingClosingQuote(Location, String),
+    #[error("A text reference is empty on {0}.")]
+    BlankTextReference(Location),
 }
 
 impl From<unicode_segmentation::GraphemeIncomplete> for LexicalError {

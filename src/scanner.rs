@@ -71,6 +71,44 @@ impl<'source> Scanner<'source> {
         Ok(Some(remaining))
     }
 
+    fn get_lexeme(&self, start: usize) -> &'source str {
+        &self.code[start..self.cursor.cur_cursor()]
+    }
+
+    /// A text reference is used for internationalization.
+    /// The text within quotes is used to lookup a localized string literal during compilation.
+    /// Text references may contain any character except double quote and new line.
+    /// Also, text references must not be blank (only space or empty).
+    fn scan_text_reference(&mut self) -> Result<Token<'source>, LexicalError>
+    {
+        let start = self.location.clone();
+        let start_index = self.cursor.cur_cursor() - "\"".len();
+
+        loop {
+            match self.next_grapheme(1)? {
+                Some("\"") => {
+                    self.location.add_columns(1);
+                    break;
+                }
+                Some("\n") => {
+                    self.step_back()?;
+                    let lexeme = self.get_lexeme(start_index).to_string();
+                    Err(LexicalError::MissingClosingQuote(self.location.clone(), lexeme))?;
+                },
+                Some(_) => self.location.add_columns(1),
+                None => break
+            }
+        }
+
+        let lexeme = self.get_lexeme(start_index);
+
+        if lexeme[1..lexeme.len()-1].trim().is_empty() {
+            Err(LexicalError::BlankTextReference(start))
+        } else {
+            Ok(Token::new(TokenKind::TextReference, lexeme, start))
+        }
+    }
+
     /// Scans a number literal.
     /// Numbers are decimal digits with an optional decimal part.
     /// 
@@ -92,8 +130,7 @@ impl<'source> Scanner<'source> {
                 Some("0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9") => self.location.add_columns(1),
                 Some(".") if has_fractional => { 
                     self.location.add_columns(1);
-                    let lexeme = self.code[start_index..self.cursor.cur_cursor()].to_string();
-                    Err(LexicalError::DuplicateDecimal(self.location.clone(), lexeme))?;
+                    Err(LexicalError::DuplicateDecimal(self.location.clone(), self.get_lexeme(start_index).to_string()))?;
                 },
                 Some(".") => {
                     has_fractional = true;
@@ -107,8 +144,7 @@ impl<'source> Scanner<'source> {
             } 
         }
 
-        let end_index = self.cursor.cur_cursor();
-        let lexeme = &self.code[start_index..end_index];
+        let lexeme = self.get_lexeme(start_index);
 
         if lexeme.ends_with(".") {
             Err(LexicalError::TerminalDecimal(self.location.clone(), lexeme.to_string()))
@@ -140,6 +176,7 @@ impl<'source> Scanner<'source> {
                 Some(grapheme @ "/") => { token.insert(new_token(TokenKind::ForwardSlash, grapheme, &mut self.location)); },
                 Some(grapheme @ "<") => { token.insert(new_token(TokenKind::LessThan, grapheme, &mut self.location)); },
                 Some(grapheme @ ">") => { token.insert(new_token(TokenKind::GreaterThan, grapheme, &mut self.location)); },
+                Some("\"") => { token.insert(self.scan_text_reference()?); },
                 Some("0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | ".") => { token.insert(self.scan_number()?); },
                 Some("\t") => self.location.add_columns(4),
                 Some(" ") => self.location.add_columns(1),
