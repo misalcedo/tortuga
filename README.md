@@ -55,7 +55,7 @@ Defines the interface between the guest and host. Relied upon by the system to r
 The grammar for tortuga is defined using the following rules:
 
 ```
-statement -> literal;
+statement -> literal | binary | grouping;
 literal -> NUMBER | TEXT_REFERENCE | IDENTIFIER;
 grouping -> "(" statement ")";
 binary -> statement operator statement;
