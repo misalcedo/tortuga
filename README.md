@@ -1,15 +1,6 @@
 # Tortuga
-
----
-**NOTE:**
-The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL
-NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and
-"OPTIONAL" in this document are to be interpreted as described in
-[RFC 2119](https://datatracker.ietf.org/doc/html/rfc2119).
----
-
 ## Abstract
-Tortuga is an actor-based programming language and runtime. The runtime is a Rust program to provide performance and memory safety, while the language compiles to WebAssembly. Using WebAssembly allows developers to utilize their favorite programming language to write actors for the runtime. Targeting WebAssembly as the compilation architecture allows us to test the runtime itself without a dependency on the programming language, so the two can be developed independently.
+Tortuga is a functionally-oriented concurrent programming language. The runtime is a Rust program to provide performance and memory safety; the language compiles to WebAssembly. Using WebAssembly allows developers to utilize their favorite programming language to write actors for the runtime. Targeting WebAssembly as the compilation architecture allows us to test the runtime itself without a dependency on the programming language, so the two can be developed independently.
 
 ## Badges
 [![Build](https://github.com/misalcedo/tortuga/actions/workflows/build.yml/badge.svg)](https://github.com/misalcedo/tortuga/actions/workflows/build.yml)
@@ -18,32 +9,25 @@ Tortuga is an actor-based programming language and runtime. The runtime is a Rus
 [![Docs.rs Version](https://docs.rs/tortuga/badge.svg)](https://docs.rs/tortuga)
 
 # Glossary
+## Modules
+Tortuga programs are comprised of modules, functions, and processes. Each module may contain multiple definitions of functions and processes.
 
-## Actors
+## Function
+A block of logic that is exposed by a module for consumption by other modules.
+Functions are the building blocks of libraries. Functions are side-effect free.
 
-> An actor is a computational entity that, in response to a message it receives, can concurrently:
->
-> 1.  Send a finite number of messages to other actors.
->
-> 2.  Create a finite number of new actors.
->
-> 3.  Designate the behavior to be used for the next message it receives.
->
-> — 
-> Wikipedia
-> https://en.wikipedia.org/wiki/Actor_model
+## Process
+A computational entity that can:
 
-## Intent
-The intent is the set of behaviors that an actor may execute in response to receiving a message. An intent must have at least one behavior that is the default behavior.
+- Send a finite number of messages to other actors.
+- Create a finite number of new processes.
+- Designate the behavior to be used for the next message it receives.
 
 ## Behavior
-A behavior is a set of logical instructions (i.e., messages sent to actors) executed in the context of an actor’s continuation for a specific message.
-
-## Continuation
-An instantiation of an actor’s intent in the actor system to process a message. Continuations may be re-used between multiple messages as long as the re-use is not perceivable (i.e., does not affect the outcome of the intent).
+A set of logical instructions (i.e., messages sent to processes, function invocations) executed in the context of a process for a specific message. Behaviors are different from functions in that they may have side-effects. The only side effect a behavior may invoke directly is sending a message. All other side-effects: writing to a file, reading bytes from a network interface, starting a new process, etc.
 
 ## Supervision
-Actors in an actor system may form a supervision tree. The system provides a root actor for all supervision trees. The root actor has children for system actors and user actors. When an actor creates a new actor, the creator becomes the supervisor of the created. On failure to process a message, the system queries the supervisor to determine the appropriate action (e.g., create a new continuation and re-process the message, discard the message, etc.).
+Processes may form a supervision tree. The system provides a root process for all supervision trees. The root has children for system processes and user processes. When an process creates a new child process, the creator becomes the supervisor of the created. On failure to process a message, the system queries the supervisor to determine the appropriate action (e.g., restart the process and re-process the message, discard the message, etc.).
 
 ## Host
 The WebAssembly runtime that instantiates guests for each actor continuation and routes messages.
@@ -52,21 +36,29 @@ The WebAssembly runtime that instantiates guests for each actor continuation and
 The guest is an instance of a WebAssembly module with access to the Application Programming Language (API) of the Tortuga runtime. A guest maps to a continuation of an actor.
 
 # Design
-
 ## Compiler
 
--   Lexer
+-   Scanner (i.e., Lexer)
 -   Parser
 -   Transformer
 -   Emitter
 
-## WebAssembly (WASM)
+## WebAssembly (WASM-AST)
 
-Small wrapper around the WASM library.
+Crate modeling the WebAssembly specification.
 
 ## Runtime
 
 Defines the interface between the guest and host. Relied upon by the system to run instances.
+
+# Grammar
+The grammar for tortuga is defined using the following rules:
+
+```
+statement -> literal;
+literal -> NUMBER | TEXT_REFENCE | IDENTIFIER;
+operator -> "+" | "-" | "*" | "/";
+```
 
 # Usage
 
