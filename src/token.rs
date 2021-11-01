@@ -9,7 +9,7 @@ pub struct Location {
 
 impl fmt::Display for Location {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Line: {}, Column: {}", self.line, self.column)
+        write!(f, "Line {}, Column {}", self.line, self.column)
     }
 }
 
@@ -87,6 +87,7 @@ pub enum TokenKind {
 
     // Literals
     Identifier,
+    Underscore,
     TextReference,
     Number,
 }

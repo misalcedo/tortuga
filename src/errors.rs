@@ -33,6 +33,8 @@ pub enum LexicalError {
     MissingClosingQuote(Location, String),
     #[error("A text reference is empty on {0}.")]
     BlankTextReference(Location),
+    #[error("An identifier was found ending with an underscore on {0}: {1}.")]
+    TerminalUnderscore(Location, String),
 }
 
 impl From<unicode_segmentation::GraphemeIncomplete> for LexicalError {

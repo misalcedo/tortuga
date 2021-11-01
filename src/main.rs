@@ -83,9 +83,14 @@ fn run_subcommand(matches: ArgMatches<'_>) -> Result<(), TortugaError> {
 fn run(code: &str) -> Result<(), TortugaError> {
     let scanner = Scanner::new(code);
 
-    for token in scanner {
-        println!("Token: {:?}", token);
+    for result in scanner {
+        match result {
+            Ok(token) => println!("Token: {:?}", token),
+            Err(error) => report::print_lexical(code, error),
+        }
     }
+
+    println!("Reached the end of the file.");
 
     Ok(())
 }
@@ -105,7 +110,7 @@ fn run_prompt(matches: ArgMatches<'_>) -> Result<(), TortugaError> {
         }
 
         if let Err(e) = run(line) {
-            report::print(e);
+            report::print(line, e);
         }
     }
 }
