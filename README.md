@@ -56,8 +56,10 @@ The grammar for tortuga is defined using the following rules:
 
 ```
 statement -> literal;
-literal -> NUMBER | TEXT_REFENCE | IDENTIFIER;
-operator -> "+" | "-" | "*" | "/";
+literal -> NUMBER | TEXT_REFERENCE | IDENTIFIER;
+grouping -> "(" statement ")";
+binary -> statement operator statement;
+operator -> "+" | "-" | "*" | "/" | "<" | ">" | "=";
 ```
 
 # Usage
