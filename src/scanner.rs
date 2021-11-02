@@ -14,9 +14,13 @@ pub struct Scanner<'source> {
 }
 
 /// Creates a new token and updates the location past the given lexeme.
-fn new_token<'source>(kind: TokenKind, lexeme: &'source str, location: &mut Location) -> Token<'source> {
-    let start = location.clone();
-    
+fn new_token<'source>(
+    kind: TokenKind,
+    lexeme: &'source str,
+    location: &mut Location,
+) -> Token<'source> {
+    let start = *location;
+
     location.add_columns(lexeme.graphemes(true).count());
 
     Token::new(kind, lexeme, start)
@@ -34,8 +38,7 @@ impl<'source> Scanner<'source> {
 
     /// Skips comments until the end of the current line.
     /// The location is not updated as all comments end in either a new line or EOF (end of file).
-    fn skip_comment(&mut self) -> Result<(), LexicalError>
-    {
+    fn skip_comment(&mut self) -> Result<(), LexicalError> {
         while let Some(grapheme) = self.next_grapheme(1)? {
             if grapheme == "\n" {
                 self.step_back()?;
@@ -79,9 +82,8 @@ impl<'source> Scanner<'source> {
     /// The text within quotes is used to lookup a localized string literal during compilation.
     /// Text references may contain any character except double quote and new line.
     /// Also, text references must not be blank (only space or empty).
-    fn scan_text_reference(&mut self) -> Result<Token<'source>, LexicalError>
-    {
-        let start = self.location.clone();
+    fn scan_text_reference(&mut self) -> Result<Token<'source>, LexicalError> {
+        let start = self.location;
         let start_index = self.cursor.cur_cursor() - "\"".len();
 
         loop {
@@ -93,16 +95,16 @@ impl<'source> Scanner<'source> {
                 Some("\n") => {
                     self.step_back()?;
                     let lexeme = self.get_lexeme(start_index).to_string();
-                    Err(LexicalError::MissingClosingQuote(self.location.clone(), lexeme))?;
-                },
+                    return Err(LexicalError::MissingClosingQuote(self.location, lexeme));
+                }
                 Some(_) => self.location.add_columns(1),
-                None => break
+                None => break,
             }
         }
 
         let lexeme = self.get_lexeme(start_index);
 
-        if lexeme[1..lexeme.len()-1].trim().is_empty() {
+        if lexeme[1..lexeme.len() - 1].trim().is_empty() {
             Err(LexicalError::BlankTextReference(start))
         } else {
             Ok(Token::new(TokenKind::TextReference, lexeme, start))
@@ -111,34 +113,38 @@ impl<'source> Scanner<'source> {
 
     /// Scans a number literal.
     /// Numbers are decimal digits with an optional decimal part.
-    /// 
+    ///
     /// Examples:
     /// - 0.25
     /// - .25
     /// - 1.25
     /// - 0
-    fn scan_number(&mut self) -> Result<Token<'source>, LexicalError>
-    {
+    fn scan_number(&mut self) -> Result<Token<'source>, LexicalError> {
         self.step_back()?;
 
-        let start = self.location.clone();
+        let start = self.location;
         let start_index = self.cursor.cur_cursor();
         let mut has_fractional = false;
 
         loop {
             match self.next_grapheme(1)? {
-                Some("0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9") => self.location.add_columns(1),
-                Some(".") if has_fractional => { 
+                Some("0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9") => {
+                    self.location.add_columns(1)
+                }
+                Some(".") if has_fractional => {
                     self.location.add_columns(1);
-                    Err(LexicalError::DuplicateDecimal(self.location.clone(), self.get_lexeme(start_index).to_string()))?;
-                },
+                    return Err(LexicalError::DuplicateDecimal(
+                        self.location,
+                        self.get_lexeme(start_index).to_string(),
+                    ));
+                }
                 Some(".") => {
                     has_fractional = true;
                     self.location.add_columns(1);
-                },
+                }
                 Some(_) => {
                     self.step_back()?;
-                    break
+                    break;
                 }
                 None => break,
             }
@@ -146,8 +152,11 @@ impl<'source> Scanner<'source> {
 
         let lexeme = self.get_lexeme(start_index);
 
-        if lexeme.ends_with(".") {
-            Err(LexicalError::TerminalDecimal(self.location.clone(), lexeme.to_string()))
+        if lexeme.ends_with('.') {
+            Err(LexicalError::TerminalDecimal(
+                self.location,
+                lexeme.to_string(),
+            ))
         } else {
             Ok(Token::new(TokenKind::Number, lexeme, start))
         }
@@ -157,19 +166,20 @@ impl<'source> Scanner<'source> {
     /// Identifiers must start with an alphabetic character.
     /// The remaining characters must be alphanumeric or an underscore.
     /// Identifiers must not end in an underscore.
-    fn scan_identifier(&mut self) -> Result<Token<'source>, LexicalError>
-    {
+    fn scan_identifier(&mut self) -> Result<Token<'source>, LexicalError> {
         self.step_back()?;
 
-        let start = self.location.clone();
+        let start = self.location;
         let start_index = self.cursor.cur_cursor();
 
         loop {
             match self.next_grapheme(1)? {
-                Some(grapheme) if grapheme.chars().all(|c| c.is_alphanumeric() || c == '_') => self.location.add_columns(1),
+                Some(grapheme) if grapheme.chars().all(|c| c.is_alphanumeric() || c == '_') => {
+                    self.location.add_columns(1)
+                }
                 Some(_) => {
                     self.step_back()?;
-                    break
+                    break;
                 }
                 None => break,
             }
@@ -177,10 +187,17 @@ impl<'source> Scanner<'source> {
 
         let lexeme = self.get_lexeme(start_index);
 
-        if lexeme.ends_with("_") {
-            Err(LexicalError::TerminalUnderscore(self.location.clone(), lexeme.to_string()))
+        if lexeme.ends_with('_') {
+            Err(LexicalError::TerminalUnderscore(
+                self.location,
+                lexeme.to_string(),
+            ))
         } else {
-            Ok(Token::new(TokenKind::Identifier, self.get_lexeme(start_index), start))
+            Ok(Token::new(
+                TokenKind::Identifier,
+                self.get_lexeme(start_index),
+                start,
+            ))
         }
     }
     /// The next lexical token in the source code.
@@ -189,42 +206,123 @@ impl<'source> Scanner<'source> {
 
         loop {
             match self.next_grapheme(1)? {
-                Some(grapheme @ "~") => { token.insert(new_token(TokenKind::Tilde, grapheme, &mut self.location)); },
-                Some(grapheme @ "%") => { token.insert(new_token(TokenKind::Percent, grapheme, &mut self.location)); },
-                Some(grapheme @ "^") => { token.insert(new_token(TokenKind::Caret, grapheme, &mut self.location)); },
-                Some(grapheme @ "*") => { token.insert(new_token(TokenKind::Star, grapheme, &mut self.location)); },
-                Some(grapheme @ "-") => { token.insert(new_token(TokenKind::Minus, grapheme, &mut self.location)); },
-                Some(grapheme @ "=") => { token.insert(new_token(TokenKind::Equals, grapheme, &mut self.location)); },
-                Some(grapheme @ "+") => { token.insert(new_token(TokenKind::Plus, grapheme, &mut self.location)); },
-                Some(grapheme @ "(") => { token.insert(new_token(TokenKind::LeftParenthesis, grapheme, &mut self.location)); },
-                Some(grapheme @ ")") => { token.insert(new_token(TokenKind::RightParenthesis, grapheme, &mut self.location)); },
-                Some(grapheme @ "[") => { token.insert(new_token(TokenKind::LeftBracket, grapheme, &mut self.location)); },
-                Some(grapheme @ "]") => { token.insert(new_token(TokenKind::RightBracket, grapheme, &mut self.location)); },
-                Some(grapheme @ "{") => { token.insert(new_token(TokenKind::LeftBrace, grapheme, &mut self.location)); },
-                Some(grapheme @ "}") => { token.insert(new_token(TokenKind::RightBrace, grapheme, &mut self.location)); },
-                Some(grapheme @ "|") => { token.insert(new_token(TokenKind::Pipe, grapheme, &mut self.location)); },
-                Some(grapheme @ "/") => { token.insert(new_token(TokenKind::ForwardSlash, grapheme, &mut self.location)); },
-                Some(grapheme @ "<") => { token.insert(new_token(TokenKind::LessThan, grapheme, &mut self.location)); },
-                Some(grapheme @ ">") => { token.insert(new_token(TokenKind::GreaterThan, grapheme, &mut self.location)); },
-                Some(grapheme @ "_") => { token.insert(new_token(TokenKind::Underscore, grapheme, &mut self.location)); },
-                Some("\"") => { token.insert(self.scan_text_reference()?); },
-                Some("0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | ".") => { token.insert(self.scan_number()?); },
+                Some(grapheme @ "~") => {
+                    token.insert(new_token(TokenKind::Tilde, grapheme, &mut self.location));
+                }
+                Some(grapheme @ "%") => {
+                    token.insert(new_token(TokenKind::Percent, grapheme, &mut self.location));
+                }
+                Some(grapheme @ "^") => {
+                    token.insert(new_token(TokenKind::Caret, grapheme, &mut self.location));
+                }
+                Some(grapheme @ "*") => {
+                    token.insert(new_token(TokenKind::Star, grapheme, &mut self.location));
+                }
+                Some(grapheme @ "-") => {
+                    token.insert(new_token(TokenKind::Minus, grapheme, &mut self.location));
+                }
+                Some(grapheme @ "=") => {
+                    token.insert(new_token(TokenKind::Equals, grapheme, &mut self.location));
+                }
+                Some(grapheme @ "+") => {
+                    token.insert(new_token(TokenKind::Plus, grapheme, &mut self.location));
+                }
+                Some(grapheme @ "(") => {
+                    token.insert(new_token(
+                        TokenKind::LeftParenthesis,
+                        grapheme,
+                        &mut self.location,
+                    ));
+                }
+                Some(grapheme @ ")") => {
+                    token.insert(new_token(
+                        TokenKind::RightParenthesis,
+                        grapheme,
+                        &mut self.location,
+                    ));
+                }
+                Some(grapheme @ "[") => {
+                    token.insert(new_token(
+                        TokenKind::LeftBracket,
+                        grapheme,
+                        &mut self.location,
+                    ));
+                }
+                Some(grapheme @ "]") => {
+                    token.insert(new_token(
+                        TokenKind::RightBracket,
+                        grapheme,
+                        &mut self.location,
+                    ));
+                }
+                Some(grapheme @ "{") => {
+                    token.insert(new_token(
+                        TokenKind::LeftBrace,
+                        grapheme,
+                        &mut self.location,
+                    ));
+                }
+                Some(grapheme @ "}") => {
+                    token.insert(new_token(
+                        TokenKind::RightBrace,
+                        grapheme,
+                        &mut self.location,
+                    ));
+                }
+                Some(grapheme @ "|") => {
+                    token.insert(new_token(TokenKind::Pipe, grapheme, &mut self.location));
+                }
+                Some(grapheme @ "/") => {
+                    token.insert(new_token(
+                        TokenKind::ForwardSlash,
+                        grapheme,
+                        &mut self.location,
+                    ));
+                }
+                Some(grapheme @ "<") => {
+                    token.insert(new_token(TokenKind::LessThan, grapheme, &mut self.location));
+                }
+                Some(grapheme @ ">") => {
+                    token.insert(new_token(
+                        TokenKind::GreaterThan,
+                        grapheme,
+                        &mut self.location,
+                    ));
+                }
+                Some(grapheme @ "_") => {
+                    token.insert(new_token(
+                        TokenKind::Underscore,
+                        grapheme,
+                        &mut self.location,
+                    ));
+                }
+                Some("\"") => {
+                    token.insert(self.scan_text_reference()?);
+                }
+                Some("0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | ".") => {
+                    token.insert(self.scan_number()?);
+                }
                 Some("\t") => self.location.add_columns(4),
                 Some(" ") => self.location.add_columns(1),
                 Some("\r") => (),
                 Some("\n") => self.location.next_line(),
                 Some(";") => self.skip_comment()?,
-                Some(grapheme) if grapheme.chars().all(char::is_alphabetic) => { token.insert(self.scan_identifier()?); },
+                Some(grapheme) if grapheme.chars().all(char::is_alphabetic) => {
+                    token.insert(self.scan_identifier()?);
+                }
                 Some(grapheme) => {
-                    let start = self.location.clone();
+                    let start = self.location;
                     self.location.add_columns(1);
-                    Err(LexicalError::UnexpectedGrapheme(start, grapheme.to_string()))?
-                },
-                None => break
+                    return Err(LexicalError::UnexpectedGrapheme(
+                        start,
+                        grapheme.to_string(),
+                    ));
+                }
+                None => break,
             }
 
             if token.is_some() {
-                break
+                break;
             }
         }
 
@@ -233,8 +331,7 @@ impl<'source> Scanner<'source> {
 }
 
 // Implement `Iterator` of `Token`s for `Scanner`.
-impl<'source> Iterator for Scanner<'source>
-{
+impl<'source> Iterator for Scanner<'source> {
     // We can refer to this type using Self::Item
     type Item = Result<Token<'source>, LexicalError>;
 
