@@ -2,12 +2,10 @@
 
 /// A statement in the tortuga grammar.
 pub enum Statement {
-    /// ( Statement )
     Grouping(Grouping),
-    /// NUMBER
     Number(Number),
-    /// TEXT_REFERENCE
     TextReference(TextReference),
+    Locale(Locale),
     BinaryOperation(BinaryOperation),
     ComparisonOperation(ComparisonOperation),
 }

@@ -296,6 +296,13 @@ impl<'source> Scanner<'source> {
                         &mut self.location,
                     ));
                 }
+                Some(grapheme @ ":") => {
+                    token.insert(new_token(
+                        TokenKind::Locale,
+                        grapheme,
+                        &mut self.location,
+                    ));
+                }
                 Some("\"") => {
                     token.insert(self.scan_text_reference()?);
                 }

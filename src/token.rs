@@ -90,4 +90,5 @@ pub enum TokenKind {
     Underscore,
     TextReference,
     Number,
+    Locale
 }
