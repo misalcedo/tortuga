@@ -3,7 +3,7 @@
 ; This is a comment ; the comment continues until the end of the line.
 + ; Another comment "this is ignored"
 
-"this is a text reference"
+"this is a text reference" en:US
 "not valid;
 " " 5 ""
 0025 * 3 - (1.75 + .25)

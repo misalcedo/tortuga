@@ -86,7 +86,7 @@ fn run(code: &str) -> Result<(), TortugaError> {
 
     for result in scanner {
         match result {
-            Ok(token) => println!("Token: {:?}", token),
+            Ok(token) => println!("{:?}", token),
             Err(error) => report::print_lexical(code, error),
         }
     }
