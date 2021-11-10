@@ -25,10 +25,10 @@ pub enum LexicalError {
     IncompleteGrapheme(unicode_segmentation::GraphemeIncomplete),
     #[error("An unexpected grapheme was found on {0}: {1}.")]
     UnexpectedGrapheme(Location, String),
+    #[error("Expected a number (0-9) but none was found on {0}.")]
+    ExpectedDigits(Location),
     #[error("A numeric literal was found with more than 1 decimal point on {0}: {1}.")]
     DuplicateDecimal(Location, String),
-    #[error("A numeric literal was found ending with a decimal point on {0}: {1}.")]
-    TerminalDecimal(Location, String),
     #[error("A text reference is missing the closing quote on {0}: {1}.")]
     MissingClosingQuote(Location, String),
     #[error("A text reference is empty on {0}.")]

@@ -111,36 +111,14 @@ impl<'source> Scanner<'source> {
         }
     }
 
-    /// Scans a number literal.
-    /// Numbers are decimal digits with an optional decimal part.
-    ///
-    /// Examples:
-    /// - 0.25
-    /// - .25
-    /// - 1.25
-    /// - 0
-    fn scan_number(&mut self) -> Result<Token<'source>, LexicalError> {
-        self.step_back()?;
-
-        let start = self.location;
+    /// Scans a continous string of digits (i.e., 0-9).
+    fn scan_digits(&mut self) -> Result<Option<&'source str>, LexicalError> {
         let start_index = self.cursor.cur_cursor();
-        let mut has_fractional = false;
 
         loop {
             match self.next_grapheme(1)? {
                 Some("0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9") => {
                     self.location.add_columns(1)
-                }
-                Some(".") if has_fractional => {
-                    self.location.add_columns(1);
-                    return Err(LexicalError::DuplicateDecimal(
-                        self.location,
-                        self.get_lexeme(start_index).to_string(),
-                    ));
-                }
-                Some(".") => {
-                    has_fractional = true;
-                    self.location.add_columns(1);
                 }
                 Some(_) => {
                     self.step_back()?;
@@ -152,13 +130,66 @@ impl<'source> Scanner<'source> {
 
         let lexeme = self.get_lexeme(start_index);
 
-        if lexeme.ends_with('.') {
-            Err(LexicalError::TerminalDecimal(
-                self.location,
-                lexeme.to_string(),
-            ))
+        if lexeme.is_empty() {
+            Ok(None)
         } else {
-            Ok(Token::new(TokenKind::Number, lexeme, start))
+            Ok(Some(lexeme))
+        }
+    }
+
+    /// Scans a number literal.
+    /// Numbers are decimal digits with an optional decimal part.
+    ///
+    /// Examples:
+    /// - 0.25
+    /// - .25
+    /// - 1.25
+    /// - 0
+    /// - 0.
+    fn scan_number(&mut self) -> Result<Token<'source>, LexicalError> {
+        self.step_back()?;
+
+        let start = self.location;
+        let start_index = self.cursor.cur_cursor();
+        let whole = self.scan_digits()?;
+
+        // Check if we have a fractional part.
+        let has_fractional = match self.next_grapheme(1)? {
+            Some(".") => {
+                self.location.add_columns(1);
+                true
+            },
+            Some(_) => {
+                self.step_back()?;
+                false
+            }
+            None => false
+        };
+
+        if !has_fractional {
+            return Ok(Token::new(TokenKind::Number, self.get_lexeme(start_index), start));
+        }
+
+        let fraction = self.scan_digits()?;
+
+        if let (None, None) = (whole, fraction) {
+            return Err(LexicalError::ExpectedDigits(start));
+        }
+
+        let lexeme = self.get_lexeme(start_index);
+
+        match self.next_grapheme(1)? {
+            Some(".") => {
+                Err(LexicalError::DuplicateDecimal(
+                    self.location,
+                    lexeme.to_string(),
+                ))
+            },
+            Some(_) => {
+                self.step_back()?;
+                Ok(Token::new(TokenKind::Number, lexeme, start))
+            }
+            None => Ok(Token::new(TokenKind::Number, lexeme, start))
         }
     }
 
