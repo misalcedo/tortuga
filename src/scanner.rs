@@ -158,16 +158,20 @@ impl<'source> Scanner<'source> {
             Some(".") => {
                 self.location.add_columns(1);
                 true
-            },
+            }
             Some(_) => {
                 self.step_back()?;
                 false
             }
-            None => false
+            None => false,
         };
 
         if !has_fractional {
-            return Ok(Token::new(TokenKind::Number, self.get_lexeme(start_index), start));
+            return Ok(Token::new(
+                TokenKind::Number,
+                self.get_lexeme(start_index),
+                start,
+            ));
         }
 
         let fraction = self.scan_digits()?;
@@ -179,17 +183,15 @@ impl<'source> Scanner<'source> {
         let lexeme = self.get_lexeme(start_index);
 
         match self.next_grapheme(1)? {
-            Some(".") => {
-                Err(LexicalError::DuplicateDecimal(
-                    self.location,
-                    lexeme.to_string(),
-                ))
-            },
+            Some(".") => Err(LexicalError::DuplicateDecimal(
+                self.location,
+                lexeme.to_string(),
+            )),
             Some(_) => {
                 self.step_back()?;
                 Ok(Token::new(TokenKind::Number, lexeme, start))
             }
-            None => Ok(Token::new(TokenKind::Number, lexeme, start))
+            None => Ok(Token::new(TokenKind::Number, lexeme, start)),
         }
     }
 
@@ -328,11 +330,7 @@ impl<'source> Scanner<'source> {
                     ));
                 }
                 Some(grapheme @ ":") => {
-                    token.insert(new_token(
-                        TokenKind::Locale,
-                        grapheme,
-                        &mut self.location,
-                    ));
+                    token.insert(new_token(TokenKind::Locale, grapheme, &mut self.location));
                 }
                 Some("\"") => {
                     token.insert(self.scan_text_reference()?);
