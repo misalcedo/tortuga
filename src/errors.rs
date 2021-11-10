@@ -29,6 +29,8 @@ pub enum LexicalError {
     ExpectedDigits(Location),
     #[error("A numeric literal was found with more than 1 decimal point on {0}: {1}.")]
     DuplicateDecimal(Location, String),
+    #[error("A numeric literal is missing the radix on {0}: {1}.")]
+    MissingRadix(Location, String),
     #[error("A text reference is missing the closing quote on {0}: {1}.")]
     MissingClosingQuote(Location, String),
     #[error("A text reference is empty on {0}.")]

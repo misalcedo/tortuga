@@ -5,7 +5,7 @@
 
 "this is a text reference" en:US
 "not valid;
-" " 5 ""
+" " 5# "" .
 0025 * 3 - (1.75 + .25)
 0. * 0.23.5
 a_small-snake$ = 42

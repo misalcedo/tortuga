@@ -137,6 +137,27 @@ impl<'source> Scanner<'source> {
         }
     }
 
+    /// Scans for an optional radix in a numeric literal.
+    fn scan_radix(&mut self, start_index: usize) -> Result<Option<&'source str>, LexicalError> {
+        match self.next_grapheme(1)? {
+            Some(".") => Err(LexicalError::DuplicateDecimal(
+                self.location,
+                self.get_lexeme(start_index).to_string(),
+            )),
+            Some("#") => {
+                match self.scan_digits()? {
+                    None => Err(LexicalError::MissingRadix(self.location, self.get_lexeme(start_index).to_string())),
+                    Some(radix) => Ok(Some(radix))
+                }
+            },
+            Some(_) => {
+                self.step_back()?;
+                Ok(None)
+            }
+            None => Ok(None),
+        }
+    }
+
     /// Scans a number literal.
     /// Numbers are decimal digits with an optional decimal part.
     ///
@@ -166,33 +187,13 @@ impl<'source> Scanner<'source> {
             None => false,
         };
 
-        if !has_fractional {
-            return Ok(Token::new(
-                TokenKind::Number,
-                self.get_lexeme(start_index),
-                start,
-            ));
-        }
-
-        let fraction = self.scan_digits()?;
-
-        if let (None, None) = (whole, fraction) {
+        if has_fractional && whole.is_none() && self.scan_digits()?.is_none() {
             return Err(LexicalError::ExpectedDigits(start));
         }
 
-        let lexeme = self.get_lexeme(start_index);
-
-        match self.next_grapheme(1)? {
-            Some(".") => Err(LexicalError::DuplicateDecimal(
-                self.location,
-                lexeme.to_string(),
-            )),
-            Some(_) => {
-                self.step_back()?;
-                Ok(Token::new(TokenKind::Number, lexeme, start))
-            }
-            None => Ok(Token::new(TokenKind::Number, lexeme, start)),
-        }
+        self.scan_radix(start_index)?;
+        
+        Ok(Token::new(TokenKind::Number, self.get_lexeme(start_index), start))
     }
 
     /// Scans an identifier from the source code.
