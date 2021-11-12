@@ -57,9 +57,9 @@ The grammar for tortuga is defined using the following rules:
 ```
 statement -> primary | factor | term | comparison;
 comparison -> term ( ( "<" | ">" | "=" | "<>" | "<=" | ">=" ) term )+;
-term -> factor ( ( "+" | "-" ) factor )+
-factor -> primary ( ( "*" | "/" ) primary )+
-primary -> NUMBER | TEXT_REFERENCE | LOCALE | "(" statement ")";
+term -> factor ( ( "+" | "-" ) factor )+;
+factor -> primary ( ( "*" | "/" ) primary )+;
+primary -> ( "+" | "-" )? NUMBER | TEXT_REFERENCE | LOCALE | "(" statement ")";
 ```
 
 # Usage
