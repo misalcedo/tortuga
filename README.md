@@ -55,11 +55,11 @@ Defines the interface between the guest and host. Relied upon by the system to r
 The grammar for tortuga is defined using the following rules:
 
 ```
-statement -> literal | binary | grouping;
-literal -> NUMBER | TEXT_REFERENCE | LOCALE;
-grouping -> "(" statement ")";
-binary -> statement operator statement;
-operator -> "+" | "-" | "*" | "/" | "<" | ">" | "=";
+statement -> primary | factor | term | comparison;
+comparison -> term ( ( "<" | ">" | "=" | "<>" | "<=" | ">=" ) term )+;
+term -> factor ( ( "+" | "-" ) factor )+
+factor -> primary ( ( "*" | "/" ) primary )+
+primary -> NUMBER | TEXT_REFERENCE | LOCALE | "(" statement ")";
 ```
 
 # Usage
