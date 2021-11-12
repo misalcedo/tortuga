@@ -1,7 +1,7 @@
 //! The Syntax Tree for the tortuga grammar.
 
-/// A statement in the tortuga grammar.
-pub enum Statement {
+/// An expression in the tortuga grammar.
+pub enum Expression {
     Grouping(Grouping),
     Number(Number),
     TextReference(TextReference),
@@ -10,9 +10,9 @@ pub enum Statement {
     ComparisonOperation(ComparisonOperation),
 }
 
-/// Groups a statement to change the order of precedence.
+/// Groups an expression to change the order of precedence.
 pub struct Grouping {
-    statement: Box<Statement>,
+    statement: Box<Expression>,
 }
 
 /// A numeric literal.
@@ -57,9 +57,9 @@ pub enum Country {
 
 /// An operator that takes 2 arguments.
 pub struct BinaryOperation {
-    left: Box<Statement>,
+    left: Box<Expression>,
     operator: Operator,
-    right: Box<Statement>,
+    right: Box<Expression>,
 }
 
 pub enum Operator {
@@ -71,9 +71,9 @@ pub enum Operator {
 
 /// An operation that compares 2 arguments relative to each other.
 pub struct ComparisonOperation {
-    left: Box<Statement>,
+    left: Box<Expression>,
     comparator: ComparisonOperator,
-    right: Box<Statement>,
+    right: Box<Expression>,
 }
 
 /// An operator to compare two items to each other.
