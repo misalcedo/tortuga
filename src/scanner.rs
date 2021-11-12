@@ -5,6 +5,9 @@ use crate::token::{Location, Token, TokenKind};
 use std::iter::Iterator;
 use unicode_segmentation::{GraphemeCursor, UnicodeSegmentation};
 
+/// Result type for the scanning of a lexical token.
+pub type TokenResult<'source> = Result<Token<'source>, LexicalError>;
+
 /// Scanner for the tortuga language.
 /// Uses a grapheme cursor to allow for arbitrary lookahead and lookback.
 pub struct Scanner<'source> {
@@ -144,11 +147,12 @@ impl<'source> Scanner<'source> {
                 self.location,
                 self.get_lexeme(start_index).to_string(),
             )),
-            Some("#") => {
-                match self.scan_digits()? {
-                    None => Err(LexicalError::MissingRadix(self.location, self.get_lexeme(start_index).to_string())),
-                    Some(radix) => Ok(Some(radix))
-                }
+            Some("#") => match self.scan_digits()? {
+                None => Err(LexicalError::MissingRadix(
+                    self.location,
+                    self.get_lexeme(start_index).to_string(),
+                )),
+                Some(radix) => Ok(Some(radix)),
             },
             Some(_) => {
                 self.step_back()?;
@@ -192,8 +196,12 @@ impl<'source> Scanner<'source> {
         }
 
         self.scan_radix(start_index)?;
-        
-        Ok(Token::new(TokenKind::Number, self.get_lexeme(start_index), start))
+
+        Ok(Token::new(
+            TokenKind::Number,
+            self.get_lexeme(start_index),
+            start,
+        ))
     }
 
     /// Scans an identifier from the source code.

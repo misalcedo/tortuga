@@ -8,6 +8,7 @@ mod token;
 
 use clap::{App, Arg, ArgMatches, SubCommand};
 use errors::TortugaError;
+use parser::Parser;
 use scanner::Scanner;
 use std::fs;
 use std::io::{stdin, stdout, Write};
@@ -84,15 +85,9 @@ fn run_subcommand(matches: ArgMatches<'_>) -> Result<(), TortugaError> {
 #[tracing::instrument]
 fn run(code: &str) -> Result<(), TortugaError> {
     let scanner = Scanner::new(code);
+    let parser = Parser::new(scanner);
 
-    for result in scanner {
-        match result {
-            Ok(token) => println!("{:?}", token),
-            Err(error) => report::print_lexical(code, error),
-        }
-    }
-
-    println!("Reached the end of the file.");
+    println!("{:?}", parser.parse());
 
     Ok(())
 }

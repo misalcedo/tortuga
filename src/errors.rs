@@ -16,9 +16,11 @@ pub enum TortugaError {
     InvalidPath(#[from] std::path::StripPrefixError),
     #[error("A lexical error occurred while analyzing the source code. {0}")]
     Lexical(#[from] LexicalError),
+    #[error("A syntax error occurred while parsing the source code. {0}")]
+    Syntax(#[from] SyntaxError),
 }
 
-/// An error that occurred while interacting with Tortuga.
+/// An error that occurred during lexical analysis.
 #[derive(Error, Debug)]
 pub enum LexicalError {
     #[error("Incomplete grapheme found in source code.")]
@@ -43,4 +45,11 @@ impl From<unicode_segmentation::GraphemeIncomplete> for LexicalError {
     fn from(e: unicode_segmentation::GraphemeIncomplete) -> Self {
         LexicalError::IncompleteGrapheme(e)
     }
+}
+
+/// An error that occurred while parsing a stream of tokens.
+#[derive(Error, Debug)]
+pub enum SyntaxError {
+    #[error("An unknown error occurred.")]
+    Unknown,
 }
