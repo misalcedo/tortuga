@@ -26,6 +26,17 @@ pub struct Number {
     fractional: u128,
 }
 
+impl Number {
+    /// Creates a number with the given positivity.
+    pub fn new(positive: bool, whole: u128, fractional: u128) -> Self {
+        Number {
+            positive,
+            whole,
+            fractional
+        }
+    }
+}
+
 /// A reference to internationalized text.
 /// Text References are opaque types and thus cannot be manipulated in any way.
 /// However, the contents of the reference must be valid UTF-8 text.

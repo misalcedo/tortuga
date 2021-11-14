@@ -1,4 +1,4 @@
-use crate::token::Location;
+use crate::token::{Location, Token, TokenKind};
 use thiserror::Error;
 
 /// An error that occurred while interacting with Tortuga.
@@ -24,7 +24,7 @@ pub enum TortugaError {
 #[derive(Error, Debug)]
 pub enum LexicalError {
     #[error("Incomplete grapheme found in source code.")]
-    IncompleteGrapheme(unicode_segmentation::GraphemeIncomplete),
+    IncompleteGrapheme(Location, unicode_segmentation::GraphemeIncomplete),
     #[error("An unexpected grapheme was found on {0}: {1}.")]
     UnexpectedGrapheme(Location, String),
     #[error("Expected a number (0-9) but none was found on {0}.")]
@@ -41,15 +41,27 @@ pub enum LexicalError {
     TerminalUnderscore(Location, String),
 }
 
-impl From<unicode_segmentation::GraphemeIncomplete> for LexicalError {
-    fn from(e: unicode_segmentation::GraphemeIncomplete) -> Self {
-        LexicalError::IncompleteGrapheme(e)
-    }
-}
-
 /// An error that occurred while parsing a stream of tokens.
 #[derive(Error, Debug)]
 pub enum SyntaxError {
     #[error("An unknown error occurred.")]
     Unknown,
+    #[error("Expected token of type {0}, but found a lexical error. {1}")]
+    Lexical(TokenKind, #[source] LexicalError),
+    #[error("Expected token '{lexeme}' ({actual}) on {location} to be of type {expected}.")]
+    MismatchKind { location: Location, expected: TokenKind, actual: TokenKind, lexeme: String },
+    #[error("Expected a token with type: {0:?}. Instead, reached the end of the file.")]
+    EndOfFile(TokenKind)
+}
+
+impl SyntaxError {
+    /// Creates an error for mismatched token kinds.
+    pub fn mismatched_kind(expected: TokenKind, token: &Token<'_>, ) -> Self {
+        SyntaxError::MismatchKind {
+            location: token.start(),
+            expected,
+            actual: token.kind(),
+            lexeme: token.lexeme().to_string()
+        }
+    }
 }
