@@ -1,5 +1,7 @@
 //! The Syntax Tree for the tortuga grammar.
 
+use crate::number::Number;
+
 /// An expression in the tortuga grammar.
 #[derive(Clone, Debug)]
 pub enum Expression {
@@ -15,26 +17,6 @@ pub enum Expression {
 #[derive(Clone, Debug)]
 pub struct Grouping {
     statement: Box<Expression>,
-}
-
-/// A numeric literal.
-/// Numeric literals represent whole and fractional numbers.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub struct Number {
-    positive: bool,
-    whole: u128,
-    fractional: u128,
-}
-
-impl Number {
-    /// Creates a number with the given positivity.
-    pub fn new(positive: bool, whole: u128, fractional: u128) -> Self {
-        Number {
-            positive,
-            whole,
-            fractional
-        }
-    }
 }
 
 /// A reference to internationalized text.

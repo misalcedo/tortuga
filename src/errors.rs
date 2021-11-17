@@ -46,22 +46,39 @@ pub enum LexicalError {
 pub enum SyntaxError {
     #[error("An unknown error occurred.")]
     Unknown,
+    #[error("Unable to parse the numeric literal '{0}' on {1}.")]
+    InvalidNumber(String, Location),
+    #[error("Unable to parse the numeric literal '{1}' on {2}. Radix of {0} is too large; maximum supported is 36.")]
+    RadixTooLarge(u32, String, Location),
+    #[error("Unable to parse the numeric literal '{1}' on {2}. Fraction contains {0} digits, but the maximum supported is `u32::MAX`.")]
+    FractionTooLong(usize, String, Location),
+    #[error("Unable to parse the integer portion of a numeric literal '{1}' on {2}.")]
+    InvalidInteger(#[source] std::num::ParseIntError, String, Location),
+    #[error("Unable to parse the fraction portion of a numeric literal '{1}' on {2}.")]
+    InvalidFraction(#[source] std::num::ParseIntError, String, Location),
+    #[error("Unable to parse the radix of a numeric literal '{1}' on {2}.")]
+    InvalidRadix(#[source] std::num::ParseIntError, String, Location),
     #[error("Expected token of type {0}, but found a lexical error. {1}")]
     Lexical(TokenKind, #[source] LexicalError),
     #[error("Expected token '{lexeme}' ({actual}) on {location} to be of type {expected}.")]
-    MismatchKind { location: Location, expected: TokenKind, actual: TokenKind, lexeme: String },
+    MismatchKind {
+        location: Location,
+        expected: TokenKind,
+        actual: TokenKind,
+        lexeme: String,
+    },
     #[error("Expected a token with type: {0:?}. Instead, reached the end of the file.")]
-    EndOfFile(TokenKind)
+    EndOfFile(TokenKind),
 }
 
 impl SyntaxError {
     /// Creates an error for mismatched token kinds.
-    pub fn mismatched_kind(expected: TokenKind, token: &Token<'_>, ) -> Self {
+    pub fn mismatched_kind(expected: TokenKind, token: &Token<'_>) -> Self {
         SyntaxError::MismatchKind {
             location: token.start(),
             expected,
             actual: token.kind(),
-            lexeme: token.lexeme().to_string()
+            lexeme: token.lexeme().to_string(),
         }
     }
 }

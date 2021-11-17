@@ -54,7 +54,9 @@ impl<'source> Scanner<'source> {
 
     /// Revert the cursor location to the previous grapheme boundary.
     fn step_back(&mut self) -> Result<(), LexicalError> {
-        self.cursor.prev_boundary(self.code, 0).map_err(|e| LexicalError::IncompleteGrapheme(self.location, e))?;
+        self.cursor
+            .prev_boundary(self.code, 0)
+            .map_err(|e| LexicalError::IncompleteGrapheme(self.location, e))?;
         Ok(())
     }
 
@@ -63,7 +65,9 @@ impl<'source> Scanner<'source> {
         let start = self.cursor.cur_cursor();
 
         for _ in 0..lookahead {
-            self.cursor.next_boundary(self.code, 0).map_err(|e| LexicalError::IncompleteGrapheme(self.location, e))?;
+            self.cursor
+                .next_boundary(self.code, 0)
+                .map_err(|e| LexicalError::IncompleteGrapheme(self.location, e))?;
         }
 
         let end = self.cursor.cur_cursor();
@@ -191,7 +195,7 @@ impl<'source> Scanner<'source> {
             None => false,
         };
 
-        if has_fractional && whole.is_none() && self.scan_digits()?.is_none() {
+        if has_fractional && self.scan_digits()?.is_none() && whole.is_none() {
             return Err(LexicalError::ExpectedDigits(start));
         }
 

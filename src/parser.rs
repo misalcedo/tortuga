@@ -1,7 +1,8 @@
 //! Parser from a stream of tokens into a syntax tree for the Tortuga language.
 
-use crate::errors::{LexicalError, SyntaxError};
-use crate::grammar::{Expression, Number};
+use crate::errors::SyntaxError;
+use crate::grammar::Expression;
+use crate::number::Number;
 use crate::scanner::TokenResult;
 use crate::token::{Token, TokenKind};
 use std::iter::{IntoIterator, Iterator, Peekable};
@@ -31,24 +32,24 @@ where
         self.parse_number().map(Expression::Number)
     }
 
-    /// Parse a number literal with an optional plus or minus sign. 
+    /// Parse a number literal with an optional plus or minus sign.
     fn parse_number(&mut self) -> Result<Number, SyntaxError> {
         let positive = match self.peek_kind() {
             Some(TokenKind::Plus) => {
                 self.advance();
                 Ok(true)
-            },
+            }
             Some(TokenKind::Minus) => {
                 self.advance();
                 Ok(false)
-            },
+            }
             Some(TokenKind::Number) => Ok(true),
             _ => Err(SyntaxError::Unknown),
         };
-        
+
         let number = self.next_match(TokenKind::Number)?;
-        
-        Ok(Number::new(positive?, 0, 0))
+
+        crate::number::into_number(number, positive?)
     }
 
     /// Advances to the next token in the stream.
@@ -62,7 +63,7 @@ where
             Some(Ok(token)) if token.kind() == expected => Ok(token),
             Some(Ok(token)) => Err(SyntaxError::mismatched_kind(expected, &token)),
             Some(Err(error)) => Err(SyntaxError::Lexical(expected, error)),
-            None => Err(SyntaxError::EndOfFile(expected)) 
+            None => Err(SyntaxError::EndOfFile(expected)),
         }
     }
 
@@ -70,7 +71,7 @@ where
     fn peek_kind(&mut self) -> Option<TokenKind> {
         match self.tokens.peek()? {
             Ok(token) => Some(token.kind()),
-            Err(error) => None
+            Err(error) => None,
         }
     }
 }

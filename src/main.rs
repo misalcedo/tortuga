@@ -1,6 +1,7 @@
 mod about;
 mod errors;
 mod grammar;
+mod number;
 mod parser;
 mod report;
 mod scanner;
