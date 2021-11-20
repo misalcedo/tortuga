@@ -2,9 +2,10 @@
 
 use crate::errors::SyntaxError;
 use crate::grammar::Expression;
-use crate::number::Number;
+use crate::number::{Number, Sign};
 use crate::scanner::TokenResult;
 use crate::token::{Token, TokenKind};
+use std::convert::TryFrom;
 use std::iter::{IntoIterator, Iterator, Peekable};
 
 /// A recursive descent parser for a stream of tokens into a syntax tree for the Tortuga language.
@@ -34,44 +35,40 @@ where
 
     /// Parse a number literal with an optional plus or minus sign.
     fn parse_number(&mut self) -> Result<Number, SyntaxError> {
-        let positive = match self.peek_kind() {
-            Some(TokenKind::Plus) => {
-                self.advance();
-                Ok(true)
-            }
-            Some(TokenKind::Minus) => {
-                self.advance();
-                Ok(false)
-            }
-            Some(TokenKind::Number) => Ok(true),
-            _ => Err(SyntaxError::Unknown),
+        let sign = match self.skip_kind(&[TokenKind::Plus, TokenKind::Minus]) {
+            Some(TokenKind::Minus) => Sign::Negative,
+            _ => Sign::Positive,
+        };
+        
+        let token = self.next_if_kind(&[TokenKind::Number])?;
+        let mut number = Number::try_from(token)?;
+
+        number.set_sign(sign);
+
+        Ok(number)
+    }
+
+    /// Gets the next token if it matches the expected kind or returns an error.
+    fn next_if_kind(&mut self, expected: &[TokenKind]) -> Result<Token<'source>, SyntaxError> {
+        match self.tokens.next() {
+            Some(Ok(token)) if expected.contains(&token.kind()) => Ok(token),
+            next => Err(SyntaxError::mismatched_kind(expected, next)),
+        }
+    }
+
+    /// Skips the next token if it exists with the given kind. Does not advance the token stream.
+    fn skip_kind(&mut self, expected: &[TokenKind]) -> Option<TokenKind> {
+        let kind = match self.tokens.peek() {
+            Some(Ok(token)) if expected.contains(&token.kind()) => {
+                Some(token.kind())
+            },
+            _ => None,
         };
 
-        let number = self.next_match(TokenKind::Number)?;
+        if kind.is_some() {
+            self.tokens.next();
+        } 
 
-        crate::number::into_number(number, positive?)
-    }
-
-    /// Advances to the next token in the stream.
-    fn advance(&mut self) {
-        self.tokens.next();
-    }
-
-    /// Gets the next token only if it matches the expected kind.
-    fn next_match(&mut self, expected: TokenKind) -> Result<Token<'source>, SyntaxError> {
-        match self.tokens.next() {
-            Some(Ok(token)) if token.kind() == expected => Ok(token),
-            Some(Ok(token)) => Err(SyntaxError::mismatched_kind(expected, &token)),
-            Some(Err(error)) => Err(SyntaxError::Lexical(expected, error)),
-            None => Err(SyntaxError::EndOfFile(expected)),
-        }
-    }
-
-    /// Peeks the token kind of the next token in the stream
-    fn peek_kind(&mut self) -> Option<TokenKind> {
-        match self.tokens.peek()? {
-            Ok(token) => Some(token.kind()),
-            Err(error) => None,
-        }
+        kind
     }
 }

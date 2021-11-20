@@ -3,14 +3,19 @@
 use crate::errors::SyntaxError;
 use crate::token::Token;
 use nom::bytes::complete::tag;
+use nom::branch::alt;
 use nom::character::complete::digit1;
 use nom::combinator::{all_consuming, map, opt};
 use nom::sequence::{preceded, tuple};
+use std::convert::TryFrom;
 
-/// Parses a numeric literal into the correspoding grammar rule.
-pub fn into_number(token: Token<'_>, is_positive: bool) -> Result<Number, SyntaxError> {
-    let (_, (integer, fraction, radix)) =
+impl<'source> TryFrom<Token<'source>> for Number {
+    type Error = SyntaxError;
+
+    fn try_from(token: Token<'source>) -> Result<Self, Self::Error> {
+        let (_, (sign, integer, fraction, radix)) =
         all_consuming::<_, _, nom::error::Error<&str>, _>(tuple((
+            map(opt(alt((tag("+"), tag("-")))), |s| Sign::from(s.unwrap_or("+"))),
             map(opt(digit1), |i| i.unwrap_or("0")),
             map(preceded(opt(tag(".")), opt(digit1)), |f| f.unwrap_or("0")),
             map(opt(preceded(tag("#"), digit1)), |r| r.unwrap_or("10")),
@@ -43,10 +48,11 @@ pub fn into_number(token: Token<'_>, is_positive: bool) -> Result<Number, Syntax
         .map_err(|e| SyntaxError::InvalidFraction(e, token.lexeme().to_string(), token.start()))?;
 
     Ok(Number::new(
-        is_positive.into(),
+        sign,
         integer,
         Fraction::new(numerator, radix.pow(fraction.len() as u32).into()),
     ))
+    }
 }
 
 /// Represents an number with both an integer and fractional portion.
@@ -77,9 +83,9 @@ impl Number {
         }
     }
 
-    /// Negates the sign of a number.
-    pub fn negate(&mut self) {
-        self.sign = self.sign.negate();
+    /// Sets the sign of this number.
+    pub fn set_sign(&mut self, sign: Sign) {
+        self.sign = sign;
     }
 }
 
@@ -96,6 +102,15 @@ impl From<bool> for Sign {
             Self::Positive
         } else {
             Self::Negative
+        }
+    }
+}
+
+impl From<&str> for Sign {
+    fn from(sign: &str) -> Self {
+        match sign {
+            "-" => Self::Negative,
+            _ => Self::Positive
         }
     }
 }

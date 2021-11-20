@@ -58,27 +58,31 @@ pub enum SyntaxError {
     InvalidFraction(#[source] std::num::ParseIntError, String, Location),
     #[error("Unable to parse the radix of a numeric literal '{1}' on {2}.")]
     InvalidRadix(#[source] std::num::ParseIntError, String, Location),
-    #[error("Expected token of type {0}, but found a lexical error. {1}")]
-    Lexical(TokenKind, #[source] LexicalError),
-    #[error("Expected token '{lexeme}' ({actual}) on {location} to be of type {expected}.")]
+    #[error("Expected token of type {0:?}, but found a lexical error. {1}")]
+    Lexical(Vec<TokenKind>, #[source] LexicalError),
+    #[error("Expected token '{lexeme}' ({actual}) on {location} to be of type {expected:?}.")]
     MismatchKind {
         location: Location,
-        expected: TokenKind,
+        expected: Vec<TokenKind>,
         actual: TokenKind,
         lexeme: String,
     },
     #[error("Expected a token with type: {0:?}. Instead, reached the end of the file.")]
-    EndOfFile(TokenKind),
+    EndOfFile(Vec<TokenKind>),
 }
 
 impl SyntaxError {
     /// Creates an error for mismatched token kinds.
-    pub fn mismatched_kind(expected: TokenKind, token: &Token<'_>) -> Self {
-        SyntaxError::MismatchKind {
-            location: token.start(),
-            expected,
-            actual: token.kind(),
-            lexeme: token.lexeme().to_string(),
+    pub fn mismatched_kind(expected: &[TokenKind], token: Option<Result<Token<'_>, LexicalError>>) -> Self {
+        match token {
+            Some(Ok(token)) => SyntaxError::MismatchKind {
+                location: token.start(),
+                expected: expected.to_vec(),
+                actual: token.kind(),
+                lexeme: token.lexeme().to_string(),
+            },
+            Some(Err(error)) => SyntaxError::Lexical(expected.to_vec(), error),
+            None => SyntaxError::EndOfFile(expected.to_vec())
         }
     }
 }
