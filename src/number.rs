@@ -164,20 +164,16 @@ mod tests {
 
     #[test]
     fn positive_with_fraction_binary() {
-        let positive = true;
         let token = Token::new(TokenKind::Number, "1.01#2", Location::default());
-
-        let actual = into_number(token, positive).unwrap();
+        let actual = Number::try_from(token).unwrap();
 
         assert_eq!(actual, Number::new(Sign::Positive, 1, Fraction::new(1, 4)));
     }
 
     #[test]
     fn negative_with_fraction_decimal() {
-        let positive = false;
-        let token = Token::new(TokenKind::Number, "5.25", Location::default());
-
-        let actual = into_number(token, positive).unwrap();
+        let token = Token::new(TokenKind::Number, "-5.25", Location::default());
+        let actual = Number::try_from(token).unwrap();
 
         assert_eq!(
             actual,
@@ -187,10 +183,8 @@ mod tests {
 
     #[test]
     fn positive_fraction_only_hex() {
-        let positive = true;
-        let token = Token::new(TokenKind::Number, ".25#16", Location::default());
-
-        let actual = into_number(token, positive).unwrap();
+        let token = Token::new(TokenKind::Number, "+.25#16", Location::default());
+        let actual = Number::try_from(token).unwrap();
 
         assert_eq!(
             actual,
@@ -200,10 +194,8 @@ mod tests {
 
     #[test]
     fn negative_integer_octal() {
-        let positive = false;
-        let token = Token::new(TokenKind::Number, "7.#8", Location::default());
-
-        let actual = into_number(token, positive).unwrap();
+        let token = Token::new(TokenKind::Number, "-7.#8", Location::default());
+        let actual = Number::try_from(token).unwrap();
 
         assert_eq!(actual, Number::new(Sign::Negative, 7, Fraction::new(0, 8)));
     }

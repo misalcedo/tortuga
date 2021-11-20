@@ -44,8 +44,6 @@ pub enum LexicalError {
 /// An error that occurred while parsing a stream of tokens.
 #[derive(Error, Debug)]
 pub enum SyntaxError {
-    #[error("An unknown error occurred.")]
-    Unknown,
     #[error("Unable to parse the numeric literal '{0}' on {1}.")]
     InvalidNumber(String, Location),
     #[error("Unable to parse the numeric literal '{1}' on {2}. Radix of {0} is too large; maximum supported is 36.")]
