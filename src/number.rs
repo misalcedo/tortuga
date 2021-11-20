@@ -121,16 +121,6 @@ impl Default for Sign {
     }
 }
 
-impl Sign {
-    /// Negates the sign (i.e., negative to positve and vice versa).
-    pub fn negate(&self) -> Self {
-        match self {
-            Self::Negative => Self::Positive,
-            Self::Positive => Self::Negative,
-        }
-    }
-}
-
 /// Represents a fractional number.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Fraction {
