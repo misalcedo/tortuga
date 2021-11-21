@@ -1,32 +1,17 @@
 //! Scans a source code file for lexical tokens.
 
-use crate::errors::LexicalError;
+use crate::errors::ValidationError;
+use crate::number::{DECIMAL_RADIX, MAX_RADIX};
 use crate::token::{Location, Token, TokenKind};
-use std::iter::Iterator;
-use unicode_segmentation::{GraphemeCursor, UnicodeSegmentation};
-
-/// Result type for the scanning of a lexical token.
-pub type TokenResult<'source> = Result<Token<'source>, LexicalError>;
+use std::iter::{Iterator, Peekable};
+use std::str::Chars;
 
 /// Scanner for the tortuga language.
-/// Uses a grapheme cursor to allow for arbitrary lookahead and lookback.
+/// The scanner can step back in the source code until the character after the last token was emitted.
 pub struct Scanner<'source> {
     code: &'source str,
     location: Location,
-    cursor: GraphemeCursor,
-}
-
-/// Creates a new token and updates the location past the given lexeme.
-fn new_token<'source>(
-    kind: TokenKind,
-    lexeme: &'source str,
-    location: &mut Location,
-) -> Token<'source> {
-    let start = *location;
-
-    location.add_columns(lexeme.graphemes(true).count());
-
-    Token::new(kind, lexeme, start)
+    characters: Peekable<Chars<'source>>,
 }
 
 impl<'source> Scanner<'source> {
@@ -35,134 +20,100 @@ impl<'source> Scanner<'source> {
         Scanner {
             code,
             location: Location::default(),
-            cursor: GraphemeCursor::new(0, code.len(), true),
+            characters: code.chars().peekable(),
+        }
+    }
+
+    /// Returns the next charater only if it is not a new line.
+    fn next_unless_newline(&mut self) -> Option<char> {
+        match self.characters.next_if(|c| c != &'\n')? {
+            '\r' => None,
+            c => Some(c),
         }
     }
 
     /// Skips comments until the end of the current line.
-    /// The location is not updated as all comments end in either a new line or EOF (end of file).
-    fn skip_comment(&mut self) -> Result<(), LexicalError> {
-        while let Some(grapheme) = self.next_grapheme(1)? {
-            if grapheme == "\n" {
-                self.step_back()?;
-                break;
-            }
+    fn skip_comment(&mut self) {
+        let mut current = self.location;
+
+        while let Some(c) = self.next_unless_newline() {
+            current.add_column(c);
         }
 
-        Ok(())
+        self.location = current;
     }
 
-    /// Revert the cursor location to the previous grapheme boundary.
-    fn step_back(&mut self) -> Result<(), LexicalError> {
-        self.cursor
-            .prev_boundary(self.code, 0)
-            .map_err(|e| LexicalError::IncompleteGrapheme(self.location, e))?;
-        Ok(())
+    /// Reverts the iterator this scanner's location's offset in the source code.
+    fn backtrack(&mut self) {
+        self.characters = self.code[self.location.offset()..].chars().peekable();
     }
 
-    /// The next grapheme in the source code.
-    fn next_grapheme(&mut self, lookahead: usize) -> Result<Option<&'source str>, LexicalError> {
-        let start = self.cursor.cur_cursor();
-
-        for _ in 0..lookahead {
-            self.cursor
-                .next_boundary(self.code, 0)
-                .map_err(|e| LexicalError::IncompleteGrapheme(self.location, e))?;
-        }
-
-        let end = self.cursor.cur_cursor();
-
-        if start == end {
-            return Ok(None);
-        }
-
-        let remaining = &self.code[start..end];
-
-        Ok(Some(remaining))
+    /// Gets the lexeme starting at this scanner's location (inclusive) until the given end location (exclusive).
+    fn get_lexeme(&self, end: Location) -> &'source str {
+        &self.code[self.location.offset()..end.offset()]
     }
 
-    fn get_lexeme(&self, start: usize) -> &'source str {
-        &self.code[start..self.cursor.cur_cursor()]
+    fn new_token(
+        &mut self,
+        kind: TokenKind,
+        end: Location,
+        validations: Vec<ValidationError>,
+    ) -> Token<'source> {
+        let start = self.location;
+        let lexeme = self.get_lexeme(end);
+
+        self.location = end;
+
+        Token::new(kind, lexeme, start, validations)
+    }
+
+    /// Creates a new token for single character lexemes.
+    fn new_short_token(&mut self, kind: TokenKind, character: char) -> Option<Token<'source>> {
+        Some(self.new_token(kind, self.location.successor(character), Vec::new()))
     }
 
     /// A text reference is used for internationalization.
     /// The text within quotes is used to lookup a localized string literal during compilation.
     /// Text references may contain any character except double quote and new line.
     /// Also, text references must not be blank (only space or empty).
-    fn scan_text_reference(&mut self) -> Result<Token<'source>, LexicalError> {
-        let start = self.location;
-        let start_index = self.cursor.cur_cursor() - "\"".len();
+    fn scan_text_reference(&mut self) -> Token<'source> {
+        let mut current = self.location;
+        let mut validations = Vec::new();
 
         loop {
-            match self.next_grapheme(1)? {
-                Some("\"") => {
-                    self.location.add_columns(1);
+            match self.next_unless_newline() {
+                Some(c @ '"') => {
+                    current.add_column(c);
                     break;
                 }
-                Some("\n") => {
-                    self.step_back()?;
-                    let lexeme = self.get_lexeme(start_index).to_string();
-                    return Err(LexicalError::MissingClosingQuote(self.location, lexeme));
+                Some(c) => current.add_column(c),
+                None => {
+                    validations.push(ValidationError::MissingClosingQuote);
+                    break;
                 }
-                Some(_) => self.location.add_columns(1),
-                None => break,
             }
         }
 
-        let lexeme = self.get_lexeme(start_index);
-
-        if lexeme[1..lexeme.len() - 1].trim().is_empty() {
-            Err(LexicalError::BlankTextReference(start))
-        } else {
-            Ok(Token::new(TokenKind::TextReference, lexeme, start))
+        let reference = self.get_lexeme(current)[1..].trim();
+        if reference.is_empty() || reference == "\"" {
+            validations.push(ValidationError::BlankTextReference);
         }
+
+        self.new_token(TokenKind::TextReference, current, validations)
     }
 
-    /// Scans a continous string of digits (i.e., 0-9).
-    fn scan_digits(&mut self) -> Result<Option<&'source str>, LexicalError> {
-        let start_index = self.cursor.cur_cursor();
-
-        loop {
-            match self.next_grapheme(1)? {
-                Some("0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9") => {
-                    self.location.add_columns(1)
-                }
-                Some(_) => {
-                    self.step_back()?;
-                    break;
-                }
-                None => break,
-            }
+    /// Scans a continous string of digits (e.g. 0-9, a-z, A-Z).
+    fn scan_digits(&mut self, radix: u32, current: &mut Location) -> Option<&'source str> {
+        while let Some(c) = self.characters.next_if(|c| c.is_digit(radix)) {
+            current.add_column(c)
         }
 
-        let lexeme = self.get_lexeme(start_index);
+        let lexeme = self.get_lexeme(*current);
 
         if lexeme.is_empty() {
-            Ok(None)
+            None
         } else {
-            Ok(Some(lexeme))
-        }
-    }
-
-    /// Scans for an optional radix in a numeric literal.
-    fn scan_radix(&mut self, start_index: usize) -> Result<Option<&'source str>, LexicalError> {
-        match self.next_grapheme(1)? {
-            Some(".") => Err(LexicalError::DuplicateDecimal(
-                self.location,
-                self.get_lexeme(start_index).to_string(),
-            )),
-            Some("#") => match self.scan_digits()? {
-                None => Err(LexicalError::MissingRadix(
-                    self.location,
-                    self.get_lexeme(start_index).to_string(),
-                )),
-                Some(radix) => Ok(Some(radix)),
-            },
-            Some(_) => {
-                self.step_back()?;
-                Ok(None)
-            }
-            None => Ok(None),
+            Some(lexeme)
         }
     }
 
@@ -175,221 +126,117 @@ impl<'source> Scanner<'source> {
     /// - 1.25
     /// - 0
     /// - 0.
-    fn scan_number(&mut self) -> Result<Token<'source>, LexicalError> {
-        self.step_back()?;
+    fn scan_number(&mut self) -> Token<'source> {
+        let mut current = self.location;
+        let mut validations = Vec::new();
 
-        let start = self.location;
-        let start_index = self.cursor.cur_cursor();
-        let whole = self.scan_digits()?;
+        self.backtrack();
+
+        let integer = self.scan_digits(MAX_RADIX, &mut current);
 
         // Check if we have a fractional part.
-        let has_fractional = match self.next_grapheme(1)? {
-            Some(".") => {
-                self.location.add_columns(1);
-                true
-            }
-            Some(_) => {
-                self.step_back()?;
-                false
-            }
-            None => false,
-        };
+        if let Some(c) = self.characters.next_if_eq(&'.') {
+            current.add_column(c);
 
-        if has_fractional && self.scan_digits()?.is_none() && whole.is_none() {
-            return Err(LexicalError::ExpectedDigits(start));
+            let fraction = self.scan_digits(MAX_RADIX, &mut current);
+
+            if integer.is_none() && fraction.is_none() {
+                validations.push(ValidationError::ExpectedDigits);
+            }
         }
 
-        self.scan_radix(start_index)?;
+        if let Some(c) = self.characters.next_if_eq(&'.') {
+            current.add_column(c);
+            validations.push(ValidationError::DuplicateDecimal);
+        }
 
-        Ok(Token::new(
-            TokenKind::Number,
-            self.get_lexeme(start_index),
-            start,
-        ))
+        if let Some(c) = self.characters.next_if_eq(&'#') {
+            current.add_column(c);
+
+            let radix = self.scan_digits(DECIMAL_RADIX, &mut current);
+            if radix.is_none() {
+                validations.push(ValidationError::MissingRadix);
+            }
+        }
+
+        self.new_token(TokenKind::Number, current, validations)
     }
 
     /// Scans an identifier from the source code.
     /// Identifiers must start with an alphabetic character.
     /// The remaining characters must be alphanumeric or an underscore.
     /// Identifiers must not end in an underscore.
-    fn scan_identifier(&mut self) -> Result<Token<'source>, LexicalError> {
-        self.step_back()?;
+    fn scan_identifier(&mut self) -> Token<'source> {
+        let mut current = self.location;
+        let mut validations = Vec::new();
 
-        let start = self.location;
-        let start_index = self.cursor.cur_cursor();
+        self.backtrack();
 
-        loop {
-            match self.next_grapheme(1)? {
-                Some(grapheme) if grapheme.chars().all(|c| c.is_alphanumeric() || c == '_') => {
-                    self.location.add_columns(1)
-                }
-                Some(_) => {
-                    self.step_back()?;
-                    break;
-                }
-                None => break,
-            }
+        while let Some(c) = self
+            .characters
+            .next_if(|c| c.is_alphanumeric() || c == &'_')
+        {
+            current.add_column(c);
         }
 
-        let lexeme = self.get_lexeme(start_index);
+        let lexeme = self.get_lexeme(current);
 
         if lexeme.ends_with('_') {
-            Err(LexicalError::TerminalUnderscore(
-                self.location,
-                lexeme.to_string(),
-            ))
-        } else {
-            Ok(Token::new(
-                TokenKind::Identifier,
-                self.get_lexeme(start_index),
-                start,
-            ))
+            validations.push(ValidationError::TerminalUnderscore);
         }
+
+        self.new_token(TokenKind::Identifier, current, validations)
     }
+
     /// The next lexical token in the source code.
-    fn next_token(&mut self) -> Result<Option<Token<'source>>, LexicalError> {
-        let mut token = None;
-
+    fn next_token(&mut self) -> Option<Token<'source>> {
         loop {
-            match self.next_grapheme(1)? {
-                Some(grapheme @ "~") => {
-                    token.insert(new_token(TokenKind::Tilde, grapheme, &mut self.location));
+            match self.characters.next()? {
+                c @ '~' => return self.new_short_token(TokenKind::Tilde, c),
+                c @ '+' => return self.new_short_token(TokenKind::Plus, c),
+                c @ '-' => return self.new_short_token(TokenKind::Minus, c),
+                c @ '*' => return self.new_short_token(TokenKind::Star, c),
+                c @ '/' => return self.new_short_token(TokenKind::ForwardSlash, c),
+                c @ '=' => return self.new_short_token(TokenKind::Equals, c),
+                c @ '<' => return self.new_short_token(TokenKind::LessThan, c),
+                c @ '>' => return self.new_short_token(TokenKind::GreaterThan, c),
+                c @ '|' => return self.new_short_token(TokenKind::Pipe, c),
+                c @ '^' => return self.new_short_token(TokenKind::Caret, c),
+                c @ '%' => return self.new_short_token(TokenKind::Percent, c),
+                c @ '_' => return self.new_short_token(TokenKind::Underscore, c),
+                c @ ':' => return self.new_short_token(TokenKind::Locale, c),
+                c @ '(' => return self.new_short_token(TokenKind::LeftParenthesis, c),
+                c @ ')' => return self.new_short_token(TokenKind::RightParenthesis, c),
+                c @ '[' => return self.new_short_token(TokenKind::LeftBracket, c),
+                c @ ']' => return self.new_short_token(TokenKind::RightBracket, c),
+                c @ '{' => return self.new_short_token(TokenKind::LeftBrace, c),
+                c @ '}' => return self.new_short_token(TokenKind::RightBrace, c),
+                '"' => return Some(self.scan_text_reference()),
+                '\r' => (),
+                '\n' => self.location.next_line(),
+                ';' => self.skip_comment(),
+                c @ ('\t' | ' ') => self.location.add_column(c),
+                c if c.is_digit(MAX_RADIX) || c == '.' => return Some(self.scan_number()),
+                c if c.is_alphabetic() || c == '.' => return Some(self.scan_identifier()),
+                c => {
+                    return Some(self.new_token(
+                        TokenKind::Identifier,
+                        self.location.successor(c),
+                        vec![ValidationError::UnexpectedCharacter(c)],
+                    ))
                 }
-                Some(grapheme @ "%") => {
-                    token.insert(new_token(TokenKind::Percent, grapheme, &mut self.location));
-                }
-                Some(grapheme @ "^") => {
-                    token.insert(new_token(TokenKind::Caret, grapheme, &mut self.location));
-                }
-                Some(grapheme @ "*") => {
-                    token.insert(new_token(TokenKind::Star, grapheme, &mut self.location));
-                }
-                Some(grapheme @ "-") => {
-                    token.insert(new_token(TokenKind::Minus, grapheme, &mut self.location));
-                }
-                Some(grapheme @ "=") => {
-                    token.insert(new_token(TokenKind::Equals, grapheme, &mut self.location));
-                }
-                Some(grapheme @ "+") => {
-                    token.insert(new_token(TokenKind::Plus, grapheme, &mut self.location));
-                }
-                Some(grapheme @ "(") => {
-                    token.insert(new_token(
-                        TokenKind::LeftParenthesis,
-                        grapheme,
-                        &mut self.location,
-                    ));
-                }
-                Some(grapheme @ ")") => {
-                    token.insert(new_token(
-                        TokenKind::RightParenthesis,
-                        grapheme,
-                        &mut self.location,
-                    ));
-                }
-                Some(grapheme @ "[") => {
-                    token.insert(new_token(
-                        TokenKind::LeftBracket,
-                        grapheme,
-                        &mut self.location,
-                    ));
-                }
-                Some(grapheme @ "]") => {
-                    token.insert(new_token(
-                        TokenKind::RightBracket,
-                        grapheme,
-                        &mut self.location,
-                    ));
-                }
-                Some(grapheme @ "{") => {
-                    token.insert(new_token(
-                        TokenKind::LeftBrace,
-                        grapheme,
-                        &mut self.location,
-                    ));
-                }
-                Some(grapheme @ "}") => {
-                    token.insert(new_token(
-                        TokenKind::RightBrace,
-                        grapheme,
-                        &mut self.location,
-                    ));
-                }
-                Some(grapheme @ "|") => {
-                    token.insert(new_token(TokenKind::Pipe, grapheme, &mut self.location));
-                }
-                Some(grapheme @ "/") => {
-                    token.insert(new_token(
-                        TokenKind::ForwardSlash,
-                        grapheme,
-                        &mut self.location,
-                    ));
-                }
-                Some(grapheme @ "<") => {
-                    token.insert(new_token(TokenKind::LessThan, grapheme, &mut self.location));
-                }
-                Some(grapheme @ ">") => {
-                    token.insert(new_token(
-                        TokenKind::GreaterThan,
-                        grapheme,
-                        &mut self.location,
-                    ));
-                }
-                Some(grapheme @ "_") => {
-                    token.insert(new_token(
-                        TokenKind::Underscore,
-                        grapheme,
-                        &mut self.location,
-                    ));
-                }
-                Some(grapheme @ ":") => {
-                    token.insert(new_token(TokenKind::Locale, grapheme, &mut self.location));
-                }
-                Some("\"") => {
-                    token.insert(self.scan_text_reference()?);
-                }
-                Some("0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | ".") => {
-                    token.insert(self.scan_number()?);
-                }
-                Some("\t") => self.location.add_columns(4),
-                Some(" ") => self.location.add_columns(1),
-                Some("\r") => (),
-                Some("\n") => self.location.next_line(),
-                Some(";") => self.skip_comment()?,
-                Some(grapheme) if grapheme.chars().all(char::is_alphabetic) => {
-                    token.insert(self.scan_identifier()?);
-                }
-                Some(grapheme) => {
-                    let start = self.location;
-                    self.location.add_columns(1);
-                    return Err(LexicalError::UnexpectedGrapheme(
-                        start,
-                        grapheme.to_string(),
-                    ));
-                }
-                None => break,
-            }
-
-            if token.is_some() {
-                break;
             }
         }
-
-        Ok(token)
     }
 }
 
 // Implement `Iterator` of `Token`s for `Scanner`.
 impl<'source> Iterator for Scanner<'source> {
     // We can refer to this type using Self::Item
-    type Item = Result<Token<'source>, LexicalError>;
+    type Item = Token<'source>;
 
     // Consumes the next token from the `Scanner`.
     fn next(&mut self) -> Option<Self::Item> {
-        match self.next_token() {
-            Ok(Some(token)) => Some(Ok(token)),
-            Ok(None) => None,
-            Err(error) => Some(Err(error)),
-        }
+        self.next_token()
     }
 }

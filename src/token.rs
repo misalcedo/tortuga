@@ -1,3 +1,5 @@
+use crate::errors::ValidationError;
+use std::borrow::Borrow;
 use std::fmt;
 
 /// The line and column of the start of a lexeme.
@@ -5,6 +7,7 @@ use std::fmt;
 pub struct Location {
     line: usize,
     column: usize,
+    offset: usize,
 }
 
 impl fmt::Display for Location {
@@ -18,17 +21,40 @@ impl Location {
     pub fn next_line(&mut self) {
         self.line += 1;
         self.column = 1;
+        self.offset += 1;
     }
 
     /// Add the specificied columns to this `Location`.
-    pub fn add_columns(&mut self, columns: usize) {
-        self.column += columns;
+    pub fn add_columns(&mut self, lexeme: &str) {
+        self.column += lexeme.chars().count();
+        self.offset += lexeme.len();
+    }
+
+    /// Adds a single column to this `Location`.
+    pub fn add_column<T: Borrow<char>>(&mut self, character: T) {
+        self.column += 1;
+        self.offset += character.borrow().len_utf8();
+    }
+
+    pub fn offset(&self) -> usize {
+        self.offset
+    }
+
+    /// Returns the location equivalent to adding the given character as a column.
+    pub fn successor(&self, character: char) -> Location {
+        let mut next = self.clone();
+        next.add_column(character);
+        next
     }
 }
 
 impl Default for Location {
     fn default() -> Self {
-        Location { line: 1, column: 1 }
+        Location {
+            line: 1,
+            column: 1,
+            offset: 0,
+        }
     }
 }
 
@@ -39,14 +65,22 @@ pub struct Token<'source> {
     kind: TokenKind,
     lexeme: &'source str,
     start: Location,
+    validations: Vec<ValidationError>,
 }
 
 impl<'source> Token<'source> {
-    pub fn new(kind: TokenKind, lexeme: &'source str, start: Location) -> Self {
+    /// Creates a token with no lexical error.
+    pub fn new(
+        kind: TokenKind,
+        lexeme: &'source str,
+        start: Location,
+        validations: Vec<ValidationError>,
+    ) -> Self {
         Token {
             kind,
             lexeme,
             start,
+            validations,
         }
     }
 
@@ -60,6 +94,11 @@ impl<'source> Token<'source> {
 
     pub fn start(&self) -> Location {
         self.start
+    }
+
+    /// The list of validation errors for this token.
+    pub fn validations(&mut self) -> Vec<ValidationError> {
+        self.validations.drain(..).collect()
     }
 }
 

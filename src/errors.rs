@@ -14,52 +14,50 @@ pub enum TortugaError {
     Walk(#[from] walkdir::Error),
     #[error("Unable to remove the input path from the file name.")]
     InvalidPath(#[from] std::path::StripPrefixError),
-    #[error("A lexical error occurred while analyzing the source code. {0}")]
-    Lexical(#[from] LexicalError),
     #[error("A syntax error occurred while parsing the source code. {0}")]
-    Syntax(#[from] SyntaxError),
+    Parser(#[from] ParseError),
 }
 
-/// An error that occurred during lexical analysis.
+/// An error that occurred during lexical analysis while validating a lexem.
 #[derive(Error, Debug)]
-pub enum LexicalError {
-    #[error("Incomplete grapheme found in source code.")]
-    IncompleteGrapheme(Location, unicode_segmentation::GraphemeIncomplete),
-    #[error("An unexpected grapheme was found on {0}: {1}.")]
-    UnexpectedGrapheme(Location, String),
-    #[error("Expected a number (0-9) but none was found on {0}.")]
-    ExpectedDigits(Location),
-    #[error("A numeric literal was found with more than 1 decimal point on {0}: {1}.")]
-    DuplicateDecimal(Location, String),
-    #[error("A numeric literal is missing the radix on {0}: {1}.")]
-    MissingRadix(Location, String),
-    #[error("A text reference is missing the closing quote on {0}: {1}.")]
-    MissingClosingQuote(Location, String),
-    #[error("A text reference is empty on {0}.")]
-    BlankTextReference(Location),
-    #[error("An identifier was found ending with an underscore on {0}: {1}.")]
-    TerminalUnderscore(Location, String),
+pub enum ValidationError {
+    #[error("Expected a digit (e.g. 0-9, a-z, A-Z) but none was found.")]
+    ExpectedDigits,
+    #[error("Numeric literal has more than 1 decimal point.")]
+    DuplicateDecimal,
+    #[error("Numeric literal is missing the radix.")]
+    MissingRadix,
+    #[error("Text reference is missing the closing quote.")]
+    MissingClosingQuote,
+    #[error("Found a blank (empty or only non-visible characters) text reference.")]
+    BlankTextReference,
+    #[error("An identifier was found ending with an underscore .")]
+    TerminalUnderscore,
+    #[error("Unable to parse the numeric literal.")]
+    InvalidNumber,
+    #[error("Radix of {0} is too large; maximum supported is {1}.")]
+    RadixTooLarge(u32, u32),
+    #[error("Fraction contains {0} digits, but the maximum supported is {1}.")]
+    FractionTooLong(usize, u32),
+    #[error("Unable to parse the integer portion of a numeric literal.")]
+    InvalidInteger(#[source] std::num::ParseIntError),
+    #[error("Unable to parse the fraction portion of a numeric literal.")]
+    InvalidFraction(#[source] std::num::ParseIntError),
+    #[error("Unable to parse the radix of a numeric literal.")]
+    InvalidRadix(#[source] std::num::ParseIntError),
+    #[error("Encountered an unexpected character {0} while scanning for an identifier.")]
+    UnexpectedCharacter(char),
 }
 
 /// An error that occurred while parsing a stream of tokens.
 #[derive(Error, Debug)]
-pub enum SyntaxError {
-    #[error("Unable to parse the numeric literal '{0}' on {1}.")]
-    InvalidNumber(String, Location),
-    #[error("Unable to parse the numeric literal '{1}' on {2}. Radix of {0} is too large; maximum supported is 36.")]
-    RadixTooLarge(u32, String, Location),
-    #[error("Unable to parse the numeric literal '{1}' on {2}. Fraction contains {0} digits, but the maximum supported is `u32::MAX`.")]
-    FractionTooLong(usize, String, Location),
-    #[error("Unable to parse the integer portion of a numeric literal '{1}' on {2}.")]
-    InvalidInteger(#[source] std::num::ParseIntError, String, Location),
-    #[error("Unable to parse the fraction portion of a numeric literal '{1}' on {2}.")]
-    InvalidFraction(#[source] std::num::ParseIntError, String, Location),
-    #[error("Unable to parse the radix of a numeric literal '{1}' on {2}.")]
-    InvalidRadix(#[source] std::num::ParseIntError, String, Location),
-    #[error("Expected token of type {0:?}, but found a lexical error. {1}")]
-    Lexical(Vec<TokenKind>, #[source] LexicalError),
+pub enum ParseError {
+    #[error("Expected token of type {0:?}, but found one or more lexical errors. {1:?}")]
+    Lexical(Vec<TokenKind>, Vec<ValidationError>),
+    #[error("Failed to validate the current token. {0}")]
+    Validation(#[from] ValidationError),
     #[error("Expected token '{lexeme}' ({actual}) on {location} to be of type {expected:?}.")]
-    MismatchKind {
+    Syntax {
         location: Location,
         expected: Vec<TokenKind>,
         actual: TokenKind,
@@ -69,18 +67,17 @@ pub enum SyntaxError {
     EndOfFile(Vec<TokenKind>),
 }
 
-impl SyntaxError {
+impl ParseError {
     /// Creates an error for mismatched token kinds.
-    pub fn mismatched_kind(expected: &[TokenKind], token: Option<Result<Token<'_>, LexicalError>>) -> Self {
+    pub fn mismatched_kind(expected: &[TokenKind], token: Option<Token<'_>>) -> Self {
         match token {
-            Some(Ok(token)) => SyntaxError::MismatchKind {
+            Some(token) => Self::Syntax {
                 location: token.start(),
                 expected: expected.to_vec(),
                 actual: token.kind(),
                 lexeme: token.lexeme().to_string(),
             },
-            Some(Err(error)) => SyntaxError::Lexical(expected.to_vec(), error),
-            None => SyntaxError::EndOfFile(expected.to_vec())
+            None => Self::EndOfFile(expected.to_vec()),
         }
     }
 }
