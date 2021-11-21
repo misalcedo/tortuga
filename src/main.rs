@@ -88,7 +88,10 @@ fn run(code: &str) -> Result<(), TortugaError> {
     let scanner = Scanner::new(code);
     let parser = Parser::new(scanner);
 
-    println!("{:?}", parser.parse());
+    match parser.parse() {
+        Ok(expression) => println!("{:?}", expression),
+        Err(error) => eprintln!("{}", error)
+    }
 
     Ok(())
 }

@@ -24,12 +24,6 @@ impl Location {
         self.offset += 1;
     }
 
-    /// Add the specificied columns to this `Location`.
-    pub fn add_columns(&mut self, lexeme: &str) {
-        self.column += lexeme.chars().count();
-        self.offset += lexeme.len();
-    }
-
     /// Adds a single column to this `Location`.
     pub fn add_column<T: Borrow<char>>(&mut self, character: T) {
         self.column += 1;
@@ -97,7 +91,12 @@ impl<'source> Token<'source> {
     }
 
     /// The list of validation errors for this token.
-    pub fn validations(&mut self) -> Vec<ValidationError> {
+    pub fn validations(&mut self) -> &[ValidationError] {
+        self.validations.as_slice()
+    }
+
+    /// The list of validation errors for this token.
+    pub fn take_validations(&mut self) -> Vec<ValidationError> {
         self.validations.drain(..).collect()
     }
 }

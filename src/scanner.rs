@@ -222,7 +222,7 @@ impl<'source> Scanner<'source> {
                     return Some(self.new_token(
                         TokenKind::Identifier,
                         self.location.successor(c),
-                        vec![ValidationError::UnexpectedCharacter(c)],
+                        vec![ValidationError::UnexpectedCharacter],
                     ))
                 }
             }

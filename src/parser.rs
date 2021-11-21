@@ -34,12 +34,16 @@ where
 
     /// Parse a number literal with an optional plus or minus sign.
     fn parse_number(&mut self) -> Result<Number, ParseError> {
-        let sign = match self.skip_kind(&[TokenKind::Plus, TokenKind::Minus]) {
+        let sign = match self
+            .next_if_kind(&[TokenKind::Plus, TokenKind::Minus])?
+            .as_ref()
+            .map(Token::kind)
+        {
             Some(TokenKind::Minus) => Sign::Negative,
             _ => Sign::Positive,
         };
 
-        let token = self.next_if_kind(&[TokenKind::Number])?;
+        let token = self.next_kind(&[TokenKind::Number])?;
         let mut number = Number::try_from(token)?;
 
         number.set_sign(sign);
@@ -48,24 +52,19 @@ where
     }
 
     /// Gets the next token if it matches the expected kind or returns an error.
-    fn next_if_kind(&mut self, expected: &[TokenKind]) -> Result<Token<'source>, ParseError> {
-        match self.tokens.next() {
-            Some(token) if expected.contains(&token.kind()) => Ok(token),
-            next => Err(ParseError::mismatched_kind(expected, next)),
-        }
+    fn next_kind(&mut self, expected: &[TokenKind]) -> Result<Token<'source>, ParseError> {
+        self.next_if_kind(expected)?
+            .ok_or_else(|| ParseError::mismatched_kind(expected, self.tokens.peek()))
     }
 
-    /// Skips the next token if it exists with the given kind. Does not advance the token stream.
-    fn skip_kind(&mut self, expected: &[TokenKind]) -> Option<TokenKind> {
-        let kind = match self.tokens.peek() {
-            Some(token) if expected.contains(&token.kind()) => Some(token.kind()),
-            _ => None,
-        };
-
-        if kind.is_some() {
-            self.tokens.next();
-        }
-
-        kind
+    /// Gets the next token only if it has one of the given kind.
+    fn next_if_kind(
+        &mut self,
+        expected: &[TokenKind],
+    ) -> Result<Option<Token<'source>>, ParseError> {
+        self.tokens
+            .next_if(|token| expected.contains(&token.kind()))
+            .map(ParseError::validate)
+            .transpose()
     }
 }

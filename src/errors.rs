@@ -1,5 +1,6 @@
 use crate::token::{Location, Token, TokenKind};
 use thiserror::Error;
+use std::fmt;
 
 /// An error that occurred while interacting with Tortuga.
 #[derive(Error, Debug)]
@@ -45,15 +46,20 @@ pub enum ValidationError {
     InvalidFraction(#[source] std::num::ParseIntError),
     #[error("Unable to parse the radix of a numeric literal.")]
     InvalidRadix(#[source] std::num::ParseIntError),
-    #[error("Encountered an unexpected character {0} while scanning for an identifier.")]
-    UnexpectedCharacter(char),
+    #[error("Encountered an unexpected character while scanning for an identifier.")]
+    UnexpectedCharacter,
 }
 
 /// An error that occurred while parsing a stream of tokens.
 #[derive(Error, Debug)]
 pub enum ParseError {
-    #[error("Expected token of type {0:?}, but found one or more lexical errors. {1:?}")]
-    Lexical(Vec<TokenKind>, Vec<ValidationError>),
+    #[error("Found lexical errors while scanning {kind} token '{lexeme}' on {location}:\n{errors}")]
+    Lexical {
+        location: Location,
+        kind: TokenKind,
+        lexeme: String,
+        errors: ValidationErrors
+    },
     #[error("Failed to validate the current token. {0}")]
     Validation(#[from] ValidationError),
     #[error("Expected token '{lexeme}' ({actual}) on {location} to be of type {expected:?}.")]
@@ -69,7 +75,7 @@ pub enum ParseError {
 
 impl ParseError {
     /// Creates an error for mismatched token kinds.
-    pub fn mismatched_kind(expected: &[TokenKind], token: Option<Token<'_>>) -> Self {
+    pub fn mismatched_kind(expected: &[TokenKind], token: Option<&Token<'_>>) -> Self {
         match token {
             Some(token) => Self::Syntax {
                 location: token.start(),
@@ -79,5 +85,33 @@ impl ParseError {
             },
             None => Self::EndOfFile(expected.to_vec()),
         }
+    }
+
+    /// Creates an error for mismatched token kinds.
+    pub fn validate<'source>(mut token: Token<'source>) -> Result<Token<'source>, Self> {
+        if token.validations().is_empty() {
+            Ok(token)
+        } else {
+            Err(Self::Lexical {
+                location: token.start(),
+                kind: token.kind(),
+                lexeme: token.lexeme().to_string(),
+                errors: ValidationErrors(token.take_validations()),
+            })
+        }
+    }
+}
+
+/// Wrapper struct to define Display trait.
+#[derive(Debug)]
+pub struct ValidationErrors(Vec<ValidationError>);
+
+impl fmt::Display for ValidationErrors {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for error in &self.0 {
+            writeln!(f, " - {}", error)?;
+        }
+
+        Ok(())
     }
 }
