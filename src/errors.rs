@@ -62,15 +62,15 @@ pub enum ParseError {
     },
     #[error("Failed to validate the current token. {0}")]
     Validation(#[from] ValidationError),
-    #[error("Expected token '{lexeme}' ({actual}) on {location} to be of type {expected:?}.")]
+    #[error("Expected token '{lexeme}' ({actual}) on {location} to be of type {expected}.")]
     Syntax {
         location: Location,
-        expected: Vec<TokenKind>,
+        expected: TokenKinds,
         actual: TokenKind,
         lexeme: String,
     },
-    #[error("Expected a token with type: {0:?}. Instead, reached the end of the file.")]
-    EndOfFile(Vec<TokenKind>),
+    #[error("Expected a token with type {0}. Instead, reached the end of the file.")]
+    EndOfFile(TokenKinds),
 }
 
 impl ParseError {
@@ -79,11 +79,11 @@ impl ParseError {
         match token {
             Some(token) => Self::Syntax {
                 location: token.start(),
-                expected: expected.to_vec(),
+                expected: TokenKinds(expected.to_vec()),
                 actual: token.kind(),
                 lexeme: token.lexeme().to_string(),
             },
-            None => Self::EndOfFile(expected.to_vec()),
+            None => Self::EndOfFile(TokenKinds(expected.to_vec())),
         }
     }
 
@@ -99,6 +99,26 @@ impl ParseError {
                 errors: ValidationErrors(token.take_validations()),
             })
         }
+    }
+}
+
+/// Wrapper struct to define Display trait.
+#[derive(Debug)]
+pub struct TokenKinds(Vec<TokenKind>);
+
+impl fmt::Display for TokenKinds {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut iterator = self.0.iter().peekable();
+
+        while let Some(kind) = iterator.next() {
+            write!(f, "{}", kind)?;
+
+            if iterator.peek().is_some() {
+                write!(f, ", or ")?;
+            }
+        }
+
+        Ok(())
     }
 }
 
