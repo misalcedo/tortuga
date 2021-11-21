@@ -53,7 +53,7 @@ pub enum ValidationError {
 /// An error that occurred while parsing a stream of tokens.
 #[derive(Error, Debug)]
 pub enum ParseError {
-    #[error("Found lexical errors while scanning {kind} token '{lexeme}' on {location}:\n{errors}")]
+    #[error("Found one or more lexical errors while scanning {kind} token '{lexeme}' on {location}:\n{errors}")]
     Lexical {
         location: Location,
         kind: TokenKind,
