@@ -73,7 +73,7 @@ impl Default for Number {
 
 impl From<Number> for f64 {
     fn from(number: Number) -> Self {
-        f64::from(number.sign) * (number.integer as f64) + f64::from(number.fraction)
+        f64::from(number.sign) * ((number.integer as f64) + f64::from(number.fraction))
     }
 }
 
