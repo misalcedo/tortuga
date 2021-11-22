@@ -8,6 +8,7 @@ use std::str::Chars;
 
 /// Scanner for the tortuga language.
 /// The scanner can step back in the source code until the character after the last token was emitted.
+/// Assumes the source code is written left to write.
 pub struct Scanner<'source> {
     code: &'source str,
     location: Location,

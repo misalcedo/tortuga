@@ -37,30 +37,30 @@ where
 
     /// Parse a term grammar rule (i.e., add and subtract).
     fn parse_term(&mut self) -> Result<Expression, ParseError> {
-        let left = self.parse_factor()?;
+        let mut expression = self.parse_factor()?;
         
-        if !self.next_matches_kind(&TERM_TOKEN_KINDS) {
-            return Ok(left);
+        while self.next_matches_kind(&TERM_TOKEN_KINDS) {
+            let operator = self.parse_operator(&TERM_TOKEN_KINDS)?;
+            let right = self.parse_factor()?;
+
+            expression = BinaryOperation::new(expression, operator, right).into();
         }
 
-        let operator = self.parse_operator(&TERM_TOKEN_KINDS)?;
-        let right = self.parse_factor()?;
-
-        Ok(Expression::BinaryOperation(BinaryOperation::new(left, operator, right)))
+        Ok(expression)
     }
 
     /// Parse a factor grammar rule (i.e., multiply and divide).
     fn parse_factor(&mut self) -> Result<Expression, ParseError> {
-        let left = self.parse_primary()?;
+        let mut expression = self.parse_primary()?;
 
-        if !self.next_matches_kind(&FACTOR_TOKEN_KINDS) {
-            return Ok(left);
+        while self.next_matches_kind(&FACTOR_TOKEN_KINDS) {
+            let operator = self.parse_operator(&FACTOR_TOKEN_KINDS)?;
+            let right = self.parse_primary()?;
+            
+            expression = BinaryOperation::new(expression, operator, right).into();
         }
 
-        let operator = self.parse_operator(&FACTOR_TOKEN_KINDS)?;
-        let right = self.parse_primary()?;
-
-        Ok(Expression::BinaryOperation(BinaryOperation::new(left, operator, right)))
+        Ok(expression)
     }
 
     /// Parses an operator of the expected token kind.

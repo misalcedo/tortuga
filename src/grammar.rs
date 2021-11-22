@@ -13,6 +13,36 @@ pub enum Expression {
     ComparisonOperation(ComparisonOperation),
 }
 
+impl From<Grouping> for Expression {
+    fn from(grouping: Grouping) -> Self {
+        Expression::Grouping(grouping)
+    }
+}
+
+impl From<Number> for Expression {
+    fn from(number: Number) -> Self {
+        Expression::Number(number)
+    }
+}
+
+impl From<TextReference> for Expression {
+    fn from(reference: TextReference) -> Self {
+        Expression::TextReference(reference)
+    }
+}
+
+impl From<BinaryOperation> for Expression {
+    fn from(operation: BinaryOperation) -> Self {
+        Expression::BinaryOperation(operation)
+    }
+}
+
+impl From<ComparisonOperation> for Expression {
+    fn from(operation: ComparisonOperation) -> Self {
+        Expression::ComparisonOperation(operation)
+    }
+}
+
 /// Groups an expression to change the order of precedence.
 #[derive(Clone, Debug)]
 pub struct Grouping {
