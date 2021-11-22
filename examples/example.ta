@@ -1,21 +1,7 @@
----
-identifier:
-  path:
-    - example
-intents:
-  - signature:
-      fields:
-        - name: sender
-          kind: ProcessHandle
-        - name: value
-          kind: Number
-    expression:
-      instructions:
-        - SendToField:
-            recipient: sender
-            message:
-              data:
-                - SelfHandle
-                - Number:
-                    whole: 42
-                    fractional: ~
+0 = 1 <=> 2 < 5 <> 7
+0025 * 3 - (1.75 + .25) + -0110.011#2
+
+-0110.011#2
+; This is a comment ; the comment continues until the end of the line.
+
+"this is a text reference"

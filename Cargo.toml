@@ -15,21 +15,15 @@ lto = true
 [dev-dependencies]
 criterion = "0.3"
 
-[[bench]]
-name = "emit_module"
-harness = false
-
 [dependencies]
 anyhow = "1.0"
 byteorder = "1.4"
 clap = "2.33"
 futures = "0.3"
-leb128 = "0.2"
 log = "0.4"
+nom = "7"
 uuid = { version = "0.8", features = ["serde", "v4"] }
 thiserror = "1.0"
-tokio = { version = "1.8", features = ["full"] }
-tokio-util = { version = "0.6", features = ["full"] }
 tracing = "0.1"
 tracing-futures = "0.2"
 tracing-log = "0.1"
@@ -37,4 +31,3 @@ tracing-subscriber = { version = "0.2", features = ["parking_lot"] }
 serde = "1.0"
 serde_yaml = "0.8"
 walkdir = "2.3"
-wasmtime = "0.28"
