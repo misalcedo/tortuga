@@ -8,6 +8,7 @@ use nom::character::complete::digit1;
 use nom::combinator::{all_consuming, map, opt};
 use nom::sequence::{preceded, tuple};
 use std::convert::TryFrom;
+use std::fmt;
 
 /// Maximum supported radix for numbers.
 pub const MAX_RADIX: u32 = 36;
@@ -86,6 +87,14 @@ impl Number {
     }
 }
 
+impl fmt::Display for Number {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let value = (self.integer as f64) + (self.fraction.numerator as f64) / (self.fraction.denominator as f64);
+
+        write!(f, "{}{}", self.sign, value)
+    }
+}
+
 /// The sign of a number. Either positive or negative.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Sign {
@@ -108,11 +117,26 @@ impl Default for Sign {
     }
 }
 
+impl fmt::Display for Sign {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Positive => Ok(()),
+            Self::Negative => write!(f, "-")
+        }
+    }
+}
+
 /// Represents a fractional number.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Fraction {
     numerator: u128,
     denominator: u128,
+}
+
+impl fmt::Display for Fraction {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", (self.numerator as f64) / (self.denominator as f64))
+    }
 }
 
 impl Default for Fraction {

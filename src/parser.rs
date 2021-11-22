@@ -117,8 +117,9 @@ where
     /// Parse a text reference literal.
     fn parse_text_reference(&mut self) -> Result<TextReference, ParseError> {
         let reference = self.next_kind(&[TokenKind::TextReference])?;
+        let lexeme = reference.lexeme();
 
-        Ok(TextReference::new(reference.lexeme()))
+        Ok(TextReference::new(&lexeme[1..lexeme.len() - 1]))
     }
 
     /// Parse a number literal with an optional plus or minus sign.

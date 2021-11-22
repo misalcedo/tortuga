@@ -89,7 +89,7 @@ fn run(code: &str) -> Result<(), TortugaError> {
     let parser = Parser::new(scanner);
 
     match parser.parse() {
-        Ok(expression) => println!("{:?}", expression),
+        Ok(expression) => println!("{}", expression),
         Err(error) => eprintln!("{}", error),
     }
 

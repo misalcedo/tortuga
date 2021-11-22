@@ -1,6 +1,7 @@
 //! The Syntax Tree for the tortuga grammar.
 
 use crate::number::Number;
+use std::fmt;
 
 /// An expression in the tortuga grammar.
 #[derive(Clone, Debug)]
@@ -11,6 +12,19 @@ pub enum Expression {
     Locale(Locale),
     BinaryOperation(BinaryOperation),
     ComparisonOperation(ComparisonOperation),
+}
+
+impl fmt::Display for Expression {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Grouping(grouping) => write!(f, "{}", grouping),
+            Self::Number(number) => write!(f, "{}", number),
+            Self::TextReference(reference) => write!(f, "{}", reference),
+            Self::Locale(locale) => write!(f, "{}", locale),
+            Self::BinaryOperation(operation) => write!(f, "{}", operation),
+            Self::ComparisonOperation(operation) => write!(f, "{}", operation),
+        }
+    }
 }
 
 impl From<Grouping> for Expression {
@@ -57,6 +71,12 @@ impl Grouping {
     }
 }
 
+impl fmt::Display for Grouping {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({})", self.expression)
+    }
+}
+
 /// A reference to internationalized text.
 /// Text References are opaque types and thus cannot be manipulated in any way.
 /// However, the contents of the reference must be valid UTF-8 text.
@@ -76,11 +96,23 @@ impl TextReference {
     }
 }
 
+impl fmt::Display for TextReference {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "\"{}\"", self.text)
+    }
+}
+
 /// A language and country pair used to determine which text reference translation to use.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Locale {
     language: Language,
     country: Country,
+}
+
+impl fmt::Display for Locale {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}:{}", self.language, self.country)
+    }
 }
 
 /// A 2-letter language code used to denote which translation of a text reference to use.
@@ -93,12 +125,24 @@ pub enum Language {
     Japanese,
 }
 
+impl fmt::Display for Language {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
 /// A 2-letter country code used to denote which tranlation of a text reference to use.
 ///
 /// See <https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2>
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Country {
     UnitedStates,
+}
+
+impl fmt::Display for Country {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 /// An operator that takes 2 arguments.
@@ -119,12 +163,29 @@ impl BinaryOperation {
     }
 }
 
+impl fmt::Display for BinaryOperation {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({} {} {})", self.operator, self.left, self.right)
+    }
+}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Operator {
     Multiply,
     Divide,
     Add,
     Subtract,
+}
+
+impl fmt::Display for Operator {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Multiply => write!(f, "*"),
+            Self::Divide => write!(f, "/"),
+            Self::Add => write!(f, "+"),
+            Self::Subtract => write!(f, "-"),
+        }
+    }
 }
 
 /// An operation that compares 2 arguments relative to each other.
@@ -135,10 +196,26 @@ pub struct ComparisonOperation {
     right: Box<Expression>,
 }
 
+impl fmt::Display for ComparisonOperation {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({} {} {})", self.comparator, self.left, self.right)
+    }
+}
+
 /// An operator to compare two items to each other.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ComparisonOperator {
     LessThan,
     GreaterThan,
     EqualTo,
+}
+
+impl fmt::Display for ComparisonOperator {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::LessThan => write!(f, "<",),
+            Self::GreaterThan => write!(f, ">"),
+            Self::EqualTo => write!(f, "="),
+        }
+    }
 }
