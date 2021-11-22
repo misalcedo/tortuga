@@ -9,7 +9,6 @@ pub enum Expression {
     Grouping(Grouping),
     Number(Number),
     TextReference(TextReference),
-    Locale(Locale),
     BinaryOperation(BinaryOperation),
     ComparisonOperation(ComparisonOperation),
 }
@@ -20,7 +19,6 @@ impl fmt::Display for Expression {
             Self::Grouping(grouping) => write!(f, "{}", grouping),
             Self::Number(number) => write!(f, "{}", number),
             Self::TextReference(reference) => write!(f, "{}", reference),
-            Self::Locale(locale) => write!(f, "{}", locale),
             Self::BinaryOperation(operation) => write!(f, "{}", operation),
             Self::ComparisonOperation(operation) => write!(f, "{}", operation),
         }
@@ -102,49 +100,6 @@ impl fmt::Display for TextReference {
     }
 }
 
-/// A language and country pair used to determine which text reference translation to use.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub struct Locale {
-    language: Language,
-    country: Country,
-}
-
-impl fmt::Display for Locale {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}:{}", self.language, self.country)
-    }
-}
-
-/// A 2-letter language code used to denote which translation of a text reference to use.
-///
-/// See <https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes>
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum Language {
-    English,
-    Spanish,
-    Japanese,
-}
-
-impl fmt::Display for Language {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
-/// A 2-letter country code used to denote which tranlation of a text reference to use.
-///
-/// See <https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2>
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum Country {
-    UnitedStates,
-}
-
-impl fmt::Display for Country {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
 /// An operator that takes 2 arguments.
 #[derive(Clone, Debug)]
 pub struct BinaryOperation {
@@ -196,6 +151,16 @@ pub struct ComparisonOperation {
     right: Box<Expression>,
 }
 
+impl ComparisonOperation {
+    pub fn new(left: Expression, comparator: ComparisonOperator, right: Expression) -> Self {
+        ComparisonOperation {
+            left: Box::new(left),
+            comparator,
+            right: Box::new(right),
+        }
+    }
+}
+
 impl fmt::Display for ComparisonOperation {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "({} {} {})", self.comparator, self.left, self.right)
@@ -206,16 +171,24 @@ impl fmt::Display for ComparisonOperation {
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ComparisonOperator {
     LessThan,
+    LessThanOrEqualTo,
     GreaterThan,
+    GreaterThanOrEqualTo,
     EqualTo,
+    NotEqualTo,
+    Comparable,
 }
 
 impl fmt::Display for ComparisonOperator {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::LessThan => write!(f, "<",),
+            Self::LessThanOrEqualTo => write!(f, "<=",),
             Self::GreaterThan => write!(f, ">"),
+            Self::GreaterThanOrEqualTo => write!(f, ">="),
             Self::EqualTo => write!(f, "="),
+            Self::NotEqualTo => write!(f, "<>"),
+            Self::Comparable => write!(f, "<=>"),
         }
     }
 }

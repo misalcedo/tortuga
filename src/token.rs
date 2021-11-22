@@ -36,7 +36,7 @@ impl Location {
 
     /// Returns the location equivalent to adding the given character as a column.
     pub fn successor(&self, character: char) -> Location {
-        let mut next = self.clone();
+        let mut next = *self;
         next.add_column(character);
         next
     }

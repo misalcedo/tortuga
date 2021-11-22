@@ -73,6 +73,8 @@ pub enum ParseError {
     EndOfFile(TokenKinds),
     #[error("No grammar rule was found to match the token kind {1} on {0}.")]
     NoMatchingGrammar(Location, TokenKind),
+    #[error("No grammar rule was found to match the sequence of comparison operators {1} on {0}.")]
+    InvalidComparator(Location, TokenKinds),
 }
 
 impl ParseError {
@@ -90,7 +92,7 @@ impl ParseError {
     }
 
     /// Creates an error for mismatched token kinds.
-    pub fn validate<'source>(mut token: Token<'source>) -> Result<Token<'source>, Self> {
+    pub fn validate(mut token: Token<'_>) -> Result<Token<'_>, Self> {
         if token.validations().is_empty() {
             Ok(token)
         } else {
@@ -107,6 +109,12 @@ impl ParseError {
 /// Wrapper struct to define Display trait.
 #[derive(Debug)]
 pub struct TokenKinds(Vec<TokenKind>);
+
+impl From<Vec<TokenKind>> for TokenKinds {
+    fn from(kinds: Vec<TokenKind>) -> Self {
+        TokenKinds(kinds)
+    }
+}
 
 impl fmt::Display for TokenKinds {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

@@ -89,7 +89,8 @@ impl Number {
 
 impl fmt::Display for Number {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let value = (self.integer as f64) + (self.fraction.numerator as f64) / (self.fraction.denominator as f64);
+        let value = (self.integer as f64)
+            + (self.fraction.numerator as f64) / (self.fraction.denominator as f64);
 
         write!(f, "{}{}", self.sign, value)
     }
@@ -121,7 +122,7 @@ impl fmt::Display for Sign {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Positive => Ok(()),
-            Self::Negative => write!(f, "-")
+            Self::Negative => write!(f, "-"),
         }
     }
 }

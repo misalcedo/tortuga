@@ -56,10 +56,10 @@ The grammar for tortuga is defined using the following rules:
 
 ```
 expression -> comparison;
-comparison -> term ( ( "<" | ">" | "=" | "<>" | "<=" | ">=" | "<=>" ) term )*;
+comparison -> term ( ( "<" | ">" | "=" | "<" ">" | "<" "=" | ">" "=" | "<" "=" ">" ) term )*;
 term -> factor ( ( "+" | "-" ) factor )*;
 factor -> primary ( ( "*" | "/" ) primary )*;
-primary -> ( "+" | "-" )? NUMBER | TEXT_REFERENCE | LOCALE | "(" expression ")";
+primary -> ( "+" | "-" )? NUMBER | TEXT_REFERENCE | "(" expression ")";
 ```
 
 # Usage
