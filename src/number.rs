@@ -71,6 +71,12 @@ impl Default for Number {
     }
 }
 
+impl From<Number> for f64 {
+    fn from(number: Number) -> Self {
+        f64::from(number.sign) * (number.integer as f64) + f64::from(number.fraction)
+    }
+}
+
 impl Number {
     /// Creates a number with the given sign.
     pub fn new(sign: Sign, integer: u128, fraction: Fraction) -> Self {
@@ -89,10 +95,7 @@ impl Number {
 
 impl fmt::Display for Number {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let value = (self.integer as f64)
-            + (self.fraction.numerator as f64) / (self.fraction.denominator as f64);
-
-        write!(f, "{}{}", self.sign, value)
+        write!(f, "{}", f64::from(*self))
     }
 }
 
@@ -115,6 +118,15 @@ impl From<&str> for Sign {
 impl Default for Sign {
     fn default() -> Self {
         Self::Positive
+    }
+}
+
+impl From<Sign> for f64 {
+    fn from(sign: Sign) -> Self {
+        match sign {
+            Sign::Negative => -1.0,
+            Sign::Positive => 1.0,
+        }
     }
 }
 
@@ -146,6 +158,12 @@ impl Default for Fraction {
             numerator: 0,
             denominator: 1,
         }
+    }
+}
+
+impl From<Fraction> for f64 {
+    fn from(fraction: Fraction) -> Self {
+        (fraction.numerator as f64) / (fraction.denominator as f64)
     }
 }
 

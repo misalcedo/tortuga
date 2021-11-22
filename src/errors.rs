@@ -1,3 +1,4 @@
+use crate::grammar::ComparisonOperator;
 use crate::token::{Location, Token, TokenKind};
 use std::fmt;
 use thiserror::Error;
@@ -17,6 +18,44 @@ pub enum TortugaError {
     InvalidPath(#[from] std::path::StripPrefixError),
     #[error("A syntax error occurred while parsing the source code. {0}")]
     Parser(#[from] ParseError),
+    #[error("A runtime error occurred while interpreting the source code. {0}")]
+    Runtime(#[from] RuntimeError),
+}
+
+/// An error that occurred while interpreting a Tortuga expression.
+#[derive(Error, Debug)]
+pub enum RuntimeError {
+    #[error("An unknown runtime error.")]
+    Unknown,
+    #[error("Expected value of type {expected}, but found {actual}.")]
+    InvalidType { expected: String, actual: String },
+    #[error("Unable to determine whether {left} {comparison} {right}.")]
+    NotComparable {
+        left: String,
+        comparison: ComparisonOperator,
+        right: String,
+    },
+}
+
+impl RuntimeError {
+    pub fn invalid_type(expected: impl fmt::Display, actual: impl fmt::Display) -> Self {
+        Self::InvalidType {
+            expected: format!("{}", expected),
+            actual: format!("{}", actual),
+        }
+    }
+
+    pub fn not_comparable(
+        left: impl fmt::Display,
+        comparison: ComparisonOperator,
+        right: impl fmt::Display,
+    ) -> Self {
+        Self::NotComparable {
+            left: format!("{}", left),
+            comparison,
+            right: format!("{}", right),
+        }
+    }
 }
 
 /// An error that occurred during lexical analysis while validating a lexem.

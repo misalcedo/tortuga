@@ -81,6 +81,8 @@ impl<'source> Scanner<'source> {
         let mut current = self.location;
         let mut validations = Vec::new();
 
+        current.add_column('"');
+
         loop {
             match self.next_unless_newline() {
                 Some(c @ '"') => {

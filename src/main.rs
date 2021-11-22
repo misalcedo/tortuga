@@ -1,6 +1,7 @@
 mod about;
 mod errors;
 mod grammar;
+mod interpret;
 mod number;
 mod parser;
 mod report;
@@ -9,6 +10,7 @@ mod token;
 
 use clap::{App, Arg, ArgMatches, SubCommand};
 use errors::TortugaError;
+use interpret::Interpreter;
 use parser::Parser;
 use scanner::Scanner;
 use std::fs;
@@ -75,7 +77,10 @@ fn parse_arguments<'matches>() -> ArgMatches<'matches> {
 #[tracing::instrument]
 fn run_subcommand(matches: ArgMatches<'_>) -> Result<(), TortugaError> {
     if let Some(matches) = matches.subcommand_matches("run") {
-        let input = matches.value_of("input").map(Path::new).expect("Missing required field INPUT.");
+        let input = matches
+            .value_of("input")
+            .map(Path::new)
+            .expect("Missing required field INPUT.");
         let source = fs::read_to_string(input)?;
 
         run(source.as_str())
@@ -88,9 +93,10 @@ fn run_subcommand(matches: ArgMatches<'_>) -> Result<(), TortugaError> {
 fn run(code: &str) -> Result<(), TortugaError> {
     let scanner = Scanner::new(code);
     let parser = Parser::new(scanner);
+    let interpreter = Interpreter::new();
 
     match parser.parse() {
-        Ok(expression) => println!("{}", expression),
+        Ok(expression) => println!("{}", interpreter.interpret(&expression)?),
         Err(error) => eprintln!("{}", error),
     }
 

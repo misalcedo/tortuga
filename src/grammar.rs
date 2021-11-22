@@ -67,6 +67,11 @@ impl Grouping {
             expression: Box::new(expression),
         }
     }
+
+    /// The inner expression of this grouping
+    pub fn inner(&self) -> &Expression {
+        &self.expression
+    }
 }
 
 impl fmt::Display for Grouping {
@@ -116,6 +121,18 @@ impl BinaryOperation {
             right: Box::new(right),
         }
     }
+
+    pub fn left(&self) -> &Expression {
+        &self.left
+    }
+
+    pub fn operator(&self) -> Operator {
+        self.operator
+    }
+
+    pub fn right(&self) -> &Expression {
+        &self.right
+    }
 }
 
 impl fmt::Display for BinaryOperation {
@@ -158,6 +175,18 @@ impl ComparisonOperation {
             comparator,
             right: Box::new(right),
         }
+    }
+
+    pub fn left(&self) -> &Expression {
+        &self.left
+    }
+
+    pub fn comparator(&self) -> ComparisonOperator {
+        self.comparator
+    }
+
+    pub fn right(&self) -> &Expression {
+        &self.right
     }
 }
 
