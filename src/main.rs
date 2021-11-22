@@ -1,6 +1,21 @@
+mod about;
+mod errors;
+mod grammar;
+mod interpret;
+mod number;
+mod parser;
+mod report;
+mod scanner;
+mod token;
+
 use clap::{App, Arg, ArgMatches, SubCommand};
+use errors::TortugaError;
+use interpret::Interpreter;
+use parser::Parser;
+use scanner::Scanner;
+use std::fs;
+use std::io::{stdin, stdout, Write};
 use std::path::Path;
-use tortuga::{build, clean, TortugaError};
 use tracing::{subscriber::set_global_default, Level};
 use tracing_log::LogTracer;
 
@@ -11,10 +26,7 @@ fn main() -> Result<(), TortugaError> {
 
     set_verbosity(&matches)?;
 
-    tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()?
-        .block_on(async { run_subcommand(matches).await })
+    run_subcommand(matches)
 }
 
 fn set_verbosity(matches: &ArgMatches) -> Result<(), TortugaError> {
@@ -37,9 +49,9 @@ fn set_verbosity(matches: &ArgMatches) -> Result<(), TortugaError> {
 
 fn parse_arguments<'matches>() -> ArgMatches<'matches> {
     App::new(APP_NAME)
-        .version(tortuga::about::VERSION)
-        .author(tortuga::about::AUTHORS)
-        .about(tortuga::about::DESCRIPTION)
+        .version(about::VERSION)
+        .author(about::AUTHORS)
+        .about(about::DESCRIPTION)
         .arg(
             Arg::with_name("verbosity")
                 .long("verbose")
@@ -48,71 +60,65 @@ fn parse_arguments<'matches>() -> ArgMatches<'matches> {
                 .help("Sets the level of verbosity."),
         )
         .subcommand(
-            SubCommand::with_name("build")
-                .about("Compiles the input directory.")
+            SubCommand::with_name("run")
+                .about("Runs the specified input file.")
                 .arg(
                     Arg::with_name("input")
-                        .long("input")
-                        .short("i")
-                        .value_name("PATH")
-                        .default_value("src")
-                        .help("Sets a custom input directory for compilation.")
-                        .takes_value(true),
-                )
-                .arg(
-                    Arg::with_name("output")
-                        .long("output")
-                        .short("o")
-                        .value_name("PATH")
-                        .default_value("out")
-                        .help("Sets a custom output directory for compilation.")
-                        .takes_value(true),
-                ),
-        )
-        .subcommand(
-            SubCommand::with_name("clean")
-                .about("Cleans the output directory.")
-                .arg(
-                    Arg::with_name("output")
-                        .long("output")
-                        .short("o")
-                        .value_name("PATH")
-                        .default_value("out")
-                        .help("Sets a custom output directory for cleaning.")
-                        .takes_value(true),
+                        .value_name("FILE")
+                        .required(true)
+                        .help("The input file to execute.")
+                        .takes_value(true)
+                        .index(1),
                 ),
         )
         .get_matches()
 }
 
 #[tracing::instrument]
-async fn run_subcommand(matches: ArgMatches<'_>) -> Result<(), TortugaError> {
-    if let Some(matches) = matches.subcommand_matches("build") {
-        let output = matches.value_of("output").map(Path::new).unwrap();
-        let input = matches.value_of("input").map(Path::new).unwrap();
+fn run_subcommand(matches: ArgMatches<'_>) -> Result<(), TortugaError> {
+    if let Some(matches) = matches.subcommand_matches("run") {
+        let input = matches
+            .value_of("input")
+            .map(Path::new)
+            .expect("Missing required field INPUT.");
+        let source = fs::read_to_string(input)?;
 
-        let results = build(input, output).await;
-        let errors: Vec<TortugaError> = results
-            .into_iter()
-            .filter(Result::is_err)
-            .map(Result::unwrap_err)
-            .collect();
-
-        if errors.is_empty() {
-            Ok(())
-        } else {
-            Err(TortugaError::Build(errors))
-        }
-    } else if let Some(matches) = matches.subcommand_matches("clean") {
-        let output = matches.value_of("output").map(Path::new).unwrap();
-
-        clean(output).await
+        run(source.as_str())
     } else {
-        Err(tortuga::TortugaError::InvalidSubcommand(
-            matches
-                .subcommand_name()
-                .map(String::from)
-                .unwrap_or_else(Default::default),
-        ))
+        run_prompt(matches)
+    }
+}
+
+#[tracing::instrument]
+fn run(code: &str) -> Result<(), TortugaError> {
+    let scanner = Scanner::new(code);
+    let parser = Parser::new(scanner);
+    let interpreter = Interpreter::new();
+
+    match parser.parse() {
+        Ok(expression) => println!("{}", interpreter.interpret(&expression)?),
+        Err(error) => eprintln!("{}", error),
+    }
+
+    Ok(())
+}
+
+#[tracing::instrument]
+fn run_prompt(matches: ArgMatches<'_>) -> Result<(), TortugaError> {
+    loop {
+        print!("> ");
+        stdout().flush()?;
+
+        let mut buffer = String::new();
+        stdin().read_line(&mut buffer)?;
+
+        let line = buffer.trim();
+        if line.is_empty() {
+            continue;
+        }
+
+        if let Err(e) = run(line) {
+            report::print(line, e);
+        }
     }
 }
