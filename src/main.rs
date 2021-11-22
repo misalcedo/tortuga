@@ -63,6 +63,7 @@ fn parse_arguments<'matches>() -> ArgMatches<'matches> {
                 .arg(
                     Arg::with_name("input")
                         .value_name("FILE")
+                        .required(true)
                         .help("The input file to execute.")
                         .takes_value(true)
                         .index(1),
@@ -74,7 +75,7 @@ fn parse_arguments<'matches>() -> ArgMatches<'matches> {
 #[tracing::instrument]
 fn run_subcommand(matches: ArgMatches<'_>) -> Result<(), TortugaError> {
     if let Some(matches) = matches.subcommand_matches("run") {
-        let input = matches.value_of("input").map(Path::new).unwrap();
+        let input = matches.value_of("input").map(Path::new).expect("Missing required field INPUT.");
         let source = fs::read_to_string(input)?;
 
         run(source.as_str())
