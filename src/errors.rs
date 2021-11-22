@@ -1,6 +1,6 @@
 use crate::token::{Location, Token, TokenKind};
-use thiserror::Error;
 use std::fmt;
+use thiserror::Error;
 
 /// An error that occurred while interacting with Tortuga.
 #[derive(Error, Debug)]
@@ -58,7 +58,7 @@ pub enum ParseError {
         location: Location,
         kind: TokenKind,
         lexeme: String,
-        errors: ValidationErrors
+        errors: ValidationErrors,
     },
     #[error("Failed to validate the current token. {0}")]
     Validation(#[from] ValidationError),
@@ -71,6 +71,8 @@ pub enum ParseError {
     },
     #[error("Expected a token with type {0}. Instead, reached the end of the file.")]
     EndOfFile(TokenKinds),
+    #[error("No grammar rule was found to match the token kind {1} on {0}.")]
+    NoMatchingGrammar(Location, TokenKind),
 }
 
 impl ParseError {

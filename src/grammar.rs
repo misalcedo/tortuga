@@ -16,7 +16,15 @@ pub enum Expression {
 /// Groups an expression to change the order of precedence.
 #[derive(Clone, Debug)]
 pub struct Grouping {
-    statement: Box<Expression>,
+    expression: Box<Expression>,
+}
+
+impl Grouping {
+    pub fn new(expression: Expression) -> Self {
+        Grouping {
+            expression: Box::new(expression),
+        }
+    }
 }
 
 /// A reference to internationalized text.
@@ -27,7 +35,15 @@ pub struct Grouping {
 /// mapped to languages, countrys, and locales in a fallible manner (i.e. can fail).
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TextReference {
-    reference: String,
+    text: String,
+}
+
+impl TextReference {
+    pub fn new(text: &str) -> Self {
+        TextReference {
+            text: text.to_string(),
+        }
+    }
 }
 
 /// A language and country pair used to determine which text reference translation to use.
@@ -63,12 +79,22 @@ pub struct BinaryOperation {
     right: Box<Expression>,
 }
 
+impl BinaryOperation {
+    pub fn new(left: Expression, operator: Operator, right: Expression) -> Self {
+        BinaryOperation {
+            left: Box::new(left),
+            operator,
+            right: Box::new(right),
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Operator {
     Multiply,
     Divide,
-    Plus,
-    Minus,
+    Add,
+    Subtract,
 }
 
 /// An operation that compares 2 arguments relative to each other.

@@ -1,11 +1,14 @@
 //! Parser from a stream of tokens into a syntax tree for the Tortuga language.
 
 use crate::errors::ParseError;
-use crate::grammar::Expression;
+use crate::grammar::{BinaryOperation, Expression, Grouping, Operator, TextReference};
 use crate::number::{Number, Sign};
 use crate::token::{Token, TokenKind};
 use std::convert::TryFrom;
 use std::iter::{IntoIterator, Iterator, Peekable};
+
+const TERM_TOKEN_KINDS: [TokenKind; 2] = [TokenKind::Plus, TokenKind::Minus];
+const FACTOR_TOKEN_KINDS: [TokenKind; 2] = [TokenKind::Star, TokenKind::ForwardSlash];
 
 /// A recursive descent parser for a stream of tokens into a syntax tree for the Tortuga language.
 pub struct Parser<'source, I: Iterator<Item = Token<'source>>> {
@@ -29,7 +32,93 @@ where
     }
 
     fn parse_expression(&mut self) -> Result<Expression, ParseError> {
-        self.parse_number().map(Expression::Number)
+        self.parse_term()
+    }
+
+    /// Parse a term grammar rule (i.e., add and subtract).
+    fn parse_term(&mut self) -> Result<Expression, ParseError> {
+        let left = self.parse_factor()?;
+        
+        if !self.next_matches_kind(&TERM_TOKEN_KINDS) {
+            return Ok(left);
+        }
+
+        let operator = self.parse_operator(&TERM_TOKEN_KINDS)?;
+        let right = self.parse_factor()?;
+
+        Ok(Expression::BinaryOperation(BinaryOperation::new(left, operator, right)))
+    }
+
+    /// Parse a factor grammar rule (i.e., multiply and divide).
+    fn parse_factor(&mut self) -> Result<Expression, ParseError> {
+        let left = self.parse_primary()?;
+
+        if !self.next_matches_kind(&FACTOR_TOKEN_KINDS) {
+            return Ok(left);
+        }
+
+        let operator = self.parse_operator(&FACTOR_TOKEN_KINDS)?;
+        let right = self.parse_primary()?;
+
+        Ok(Expression::BinaryOperation(BinaryOperation::new(left, operator, right)))
+    }
+
+    /// Parses an operator of the expected token kind.
+    fn parse_operator(&mut self, expected: &[TokenKind]) -> Result<Operator, ParseError> {
+        let token = self.next_kind(expected)?;
+
+        match token.kind() {
+            TokenKind::Plus => Ok(Operator::Add),
+            TokenKind::Minus => Ok(Operator::Subtract),
+            TokenKind::Star => Ok(Operator::Multiply),
+            TokenKind::ForwardSlash => Ok(Operator::Divide),
+            kind => Err(ParseError::NoMatchingGrammar(token.start(), kind)),
+        }
+    }
+
+    /// Parse a primary grammar rule.
+    fn parse_primary(&mut self) -> Result<Expression, ParseError> {
+        match self.peek_kind() {
+            Some(TokenKind::LeftParenthesis) => self.parse_grouping().map(Expression::Grouping),
+            Some(TokenKind::Plus | TokenKind::Minus | TokenKind::Number) => {
+                self.parse_number().map(Expression::Number)
+            }
+            Some(TokenKind::TextReference) => {
+                self.parse_text_reference().map(Expression::TextReference)
+            }
+            Some(kind) => {
+                let token = self.next_kind(&[kind])?;
+                Err(ParseError::NoMatchingGrammar(token.start(), token.kind()))
+            }
+            None => Err(ParseError::mismatched_kind(
+                &[
+                    TokenKind::LeftParenthesis,
+                    TokenKind::Plus,
+                    TokenKind::Minus,
+                    TokenKind::Number,
+                    TokenKind::TextReference,
+                ],
+                None,
+            )),
+        }
+    }
+
+    /// Parse a grouping grammar rule.
+    fn parse_grouping(&mut self) -> Result<Grouping, ParseError> {
+        self.next_kind(&[TokenKind::LeftParenthesis])?;
+
+        let expression = self.parse_expression()?;
+
+        self.next_kind(&[TokenKind::RightParenthesis])?;
+
+        Ok(Grouping::new(expression))
+    }
+
+    /// Parse a text reference literal.
+    fn parse_text_reference(&mut self) -> Result<TextReference, ParseError> {
+        let reference = self.next_kind(&[TokenKind::TextReference])?;
+
+        Ok(TextReference::new(reference.lexeme()))
     }
 
     /// Parse a number literal with an optional plus or minus sign.
@@ -66,5 +155,15 @@ where
             .next_if(|token| expected.contains(&token.kind()))
             .map(ParseError::validate)
             .transpose()
+    }
+
+    /// Peeks the next token's kind.
+    fn peek_kind(&mut self) -> Option<TokenKind> {
+        self.tokens.peek().map(|token| token.kind())
+    }
+
+    /// Tests if the next token's kind matches one of the expected ones.
+    fn next_matches_kind(&mut self, expected: &[TokenKind]) -> bool {
+        self.peek_kind().map(|kind| expected.contains(&kind)).unwrap_or(false)
     }
 }

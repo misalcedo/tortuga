@@ -90,7 +90,7 @@ fn run(code: &str) -> Result<(), TortugaError> {
 
     match parser.parse() {
         Ok(expression) => println!("{:?}", expression),
-        Err(error) => eprintln!("{}", error)
+        Err(error) => eprintln!("{}", error),
     }
 
     Ok(())
