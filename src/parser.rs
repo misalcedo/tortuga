@@ -36,8 +36,18 @@ where
 
     /// Parses the stream of tokens into a syntax tree.
     pub fn parse(mut self) -> Result<Expression, ParseError> {
-        self.parse_expression()
+        match self.parse_expression() {
+            error @ Err(_) => {
+                self.synchronize();
+                error
+            }
+            ok => ok,
+        }
     }
+
+    /// Unwinds this parser's recursive descent into the grammar rules upon encountering an error parsing a rule.
+    /// Some tokens may be skipped in order to allow the parser to identify additional errors in the source code.
+    fn synchronize(&mut self) {}
 
     fn parse_expression(&mut self) -> Result<Expression, ParseError> {
         self.parse_comparison()

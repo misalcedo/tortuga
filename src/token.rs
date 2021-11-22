@@ -91,7 +91,7 @@ impl<'source> Token<'source> {
     }
 
     /// The list of validation errors for this token.
-    pub fn validations(&mut self) -> &[ValidationError] {
+    pub fn validations(&self) -> &[ValidationError] {
         self.validations.as_slice()
     }
 
