@@ -105,8 +105,12 @@ fn run(code: &str) -> Result<(), TortugaError> {
 
 #[tracing::instrument]
 fn run_prompt(matches: ArgMatches<'_>) -> Result<(), TortugaError> {
+    let mut line: u128 = 0;
+
     loop {
-        print!("> ");
+        line += 1;
+
+        print!("{}> ", line);
         stdout().flush()?;
 
         let mut buffer = String::new();
