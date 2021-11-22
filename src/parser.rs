@@ -79,8 +79,12 @@ where
         match operators.as_slice() {
             [TokenKind::LessThan] => Ok(ComparisonOperator::LessThan),
             [TokenKind::LessThan, TokenKind::Equals] => Ok(ComparisonOperator::LessThanOrEqualTo),
+            [TokenKind::Equals, TokenKind::LessThan] => Ok(ComparisonOperator::LessThanOrEqualTo),
             [TokenKind::GreaterThan] => Ok(ComparisonOperator::GreaterThan),
             [TokenKind::GreaterThan, TokenKind::Equals] => {
+                Ok(ComparisonOperator::GreaterThanOrEqualTo)
+            },
+            [TokenKind::Equals, TokenKind::GreaterThan] => {
                 Ok(ComparisonOperator::GreaterThanOrEqualTo)
             }
             [TokenKind::Equals] => Ok(ComparisonOperator::EqualTo),
