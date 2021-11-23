@@ -66,19 +66,9 @@ primary -> ( "+" | "-" )? NUMBER | TEXT_REFERENCE | "(" expression ")";
 
 To run the system locally, perform the following steps:
 
-1.  Clone the repository to your local machine.
-
-2.  Run `cargo build`.
-
-3.  Build the examples as described in the [Examples](#Examples) section.
-
-4.  <span id="System"></span> Run `cargo run start`.
-
-5.  <span id="ping"></span> Run `cargo run -- deploy --intent examples/target/wasm32-unknown-unknown/release/ping.wasm`
-
-6.  <span id="pong"></span> Run `cargo run -- deploy --intent examples/target/wasm32-unknown-unknown/release/pong.wasm`
-
-7.  In the terminal that is running the [System](#System), you should see the "Ping!" and "Pong!" messages flowing back and forth.
+1. Run `cargo install tortuga`.
+1. Run `tortuga` to start the interpreter.
+1. Type in some code, such as `10 - 011.01#2 = 6.75`.
 
 # Endianness
 While the system sends all numbers in network byte order (i.e., big endian), WebAssembly uses little-endian for its numbers. Therefore, the system will handle mapping the integers between the types of endianness. See <https://tools.ietf.org/html/draft-newman-network-byte-order-01>

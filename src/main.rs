@@ -4,6 +4,7 @@ mod grammar;
 mod interpret;
 mod number;
 mod parser;
+mod prompt;
 mod report;
 mod scanner;
 mod token;
@@ -12,9 +13,9 @@ use clap::{App, Arg, ArgMatches, SubCommand};
 use errors::TortugaError;
 use interpret::Interpreter;
 use parser::Parser;
+use prompt::Prompt;
 use scanner::Scanner;
 use std::fs;
-use std::io::{stdin, stdout, Write};
 use std::path::Path;
 use tracing::{subscriber::set_global_default, Level};
 use tracing_log::LogTracer;
@@ -105,18 +106,11 @@ fn run(code: &str) -> Result<(), TortugaError> {
 
 #[tracing::instrument]
 fn run_prompt(matches: ArgMatches<'_>) -> Result<(), TortugaError> {
-    let mut line: u128 = 0;
+    let mut user = Prompt::new();
 
     loop {
-        line += 1;
+        let line = user.prompt()?;
 
-        print!("{}> ", line);
-        stdout().flush()?;
-
-        let mut buffer = String::new();
-        stdin().read_line(&mut buffer)?;
-
-        let line = buffer.trim();
         if line.is_empty() {
             continue;
         }
