@@ -4,7 +4,7 @@ use crate::errors::ValidationError;
 use crate::token::Token;
 use nom::branch::alt;
 use nom::bytes::complete::tag;
-use nom::character::complete::digit1;
+use nom::character::complete::{alphanumeric1, digit1};
 use nom::combinator::{all_consuming, map, opt};
 use nom::sequence::{preceded, tuple};
 use std::convert::TryFrom;
@@ -25,8 +25,8 @@ impl<'source> TryFrom<Token<'source>> for Number {
                 map(opt(alt((tag("+"), tag("-")))), |s| {
                     Sign::from(s.unwrap_or("+"))
                 }),
-                map(opt(digit1), |i| i.unwrap_or("0")),
-                map(preceded(opt(tag(".")), opt(digit1)), |f| f.unwrap_or("0")),
+                map(opt(alphanumeric1), |i| i.unwrap_or("0")),
+                map(preceded(opt(tag(".")), opt(alphanumeric1)), |f| f.unwrap_or("0")),
                 map(opt(preceded(tag("#"), digit1)), |r| r.unwrap_or("10")),
             )))(token.lexeme())
             .map_err(|_| Self::Error::InvalidNumber)?;

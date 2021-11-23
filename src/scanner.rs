@@ -107,13 +107,15 @@ impl<'source> Scanner<'source> {
 
     /// Scans a continous string of digits (e.g. 0-9, a-z, A-Z).
     fn scan_digits(&mut self, radix: u32, current: &mut Location) -> Option<&'source str> {
+        let start = *current;
+
         while let Some(c) = self.characters.next_if(|c| c.is_digit(radix)) {
             current.add_column(c)
         }
 
-        let lexeme = self.get_lexeme(*current);
+        let lexeme = &self.code[start.offset()..current.offset()];
 
-        if lexeme.is_empty() {
+        if lexeme.trim().is_empty() {
             None
         } else {
             Some(lexeme)
@@ -121,14 +123,14 @@ impl<'source> Scanner<'source> {
     }
 
     /// Scans a number literal.
-    /// Numbers are decimal digits with an optional decimal part.
+    /// Numbers are decimal digits with an optional radix part.
     ///
     /// Examples:
     /// - 0.25
     /// - .25
     /// - 1.25
     /// - 0
-    /// - 0.
+    /// - 0.#2
     fn scan_number(&mut self) -> Token<'source> {
         let mut current = self.location;
         let mut validations = Vec::new();
@@ -160,6 +162,10 @@ impl<'source> Scanner<'source> {
             if radix.is_none() {
                 validations.push(ValidationError::MissingRadix);
             }
+        } else if self.get_lexeme(current).starts_with(|c: char| c.is_ascii_alphabetic()) {
+            // Treat the token as an identifier if the literal does not have a radix portion, but starts with an ASCII letter.
+            self.backtrack();
+            return self.scan_identifier();
         }
 
         self.new_token(TokenKind::Number, current, validations)
@@ -220,7 +226,7 @@ impl<'source> Scanner<'source> {
                 ';' => self.skip_comment(),
                 c @ ('\t' | ' ') => self.location.add_column(c),
                 c if c.is_digit(MAX_RADIX) || c == '.' => return Some(self.scan_number()),
-                c if c.is_alphabetic() || c == '.' => return Some(self.scan_identifier()),
+                c if c.is_alphabetic() => return Some(self.scan_identifier()),
                 c => {
                     return Some(self.new_token(
                         TokenKind::Identifier,
