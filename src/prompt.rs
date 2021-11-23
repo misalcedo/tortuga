@@ -1,30 +1,34 @@
 //! Terminal prompt reading and printing with editing and history.
 
 use crate::errors::TortugaError;
-use std::io::{stdin, stdout, Write};
+use rustyline::{Editor, error::ReadlineError};
 
 /// The prompt used to communicate with a user.
 pub struct Prompt {
     line: u128,
-    buffer: String
+    editor: Editor<()>
 }
 
 impl Prompt {
     /// Create an instance of a `Prompt`.
     pub fn new() -> Self {
-        Prompt { line: 0, buffer: String::new() }
+        Prompt { line: 0, editor: Editor::<()>::new() }
     }
 
     /// Read input from the user via a terminal prompt.
-    pub fn prompt(&mut self) -> Result<&str, TortugaError> {
+    pub fn prompt(&mut self) -> Result<Option<String>, TortugaError> {
         self.line += 1;
-        self.buffer.clear();
 
-        print!("{}> ", self.line);
-        stdout().flush()?;
+        let prompt = format!("{}> ", self.line);
 
-        stdin().read_line(&mut self.buffer)?;
-
-        Ok(self.buffer.as_str().trim())
+        match self.editor.readline(prompt.as_str()) {
+            Ok(line) => {
+                self.editor.add_history_entry(line.as_str());
+                Ok(Some(line))
+            },
+            Err(ReadlineError::Interrupted) => Ok(None),
+            Err(ReadlineError::Eof) => Ok(None),
+            Err(error) => Err(TortugaError::PromptError(error))
+        }
     }
 }

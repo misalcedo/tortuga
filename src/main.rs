@@ -109,14 +109,13 @@ fn run_prompt(matches: ArgMatches<'_>) -> Result<(), TortugaError> {
     let mut user = Prompt::new();
 
     loop {
-        let line = user.prompt()?;
-
-        if line.is_empty() {
-            continue;
-        }
-
-        if let Err(e) = run(line) {
-            report::print(line, e);
+        match user.prompt()? {
+            None => return Ok(()),
+            Some(line) => {
+                if let Err(e) = run(line.as_str()) {
+                    report::print(line.as_str(), e);
+                }
+            }
         }
     }
 }

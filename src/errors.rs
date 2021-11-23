@@ -20,6 +20,8 @@ pub enum TortugaError {
     Parser(#[from] ParseError),
     #[error("A runtime error occurred while interpreting the source code. {0}")]
     Runtime(#[from] RuntimeError),
+    #[error("Encountered an error prompting the user for input. {0}")]
+    PromptError(#[from] rustyline::error::ReadlineError)
 }
 
 /// An error that occurred while interpreting a Tortuga expression.
