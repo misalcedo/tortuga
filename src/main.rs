@@ -108,9 +108,12 @@ fn run(code: &str) -> Result<(), TortugaError> {
 fn run_prompt(matches: ArgMatches<'_>) -> Result<(), TortugaError> {
     let mut user = Prompt::new();
 
+    println!("{} {}\n", APP_NAME, about::VERSION);
+
     loop {
         match user.prompt()? {
             None => return Ok(()),
+            Some(line) if line.trim().is_empty() => continue,
             Some(line) => {
                 if let Err(e) = run(line.as_str()) {
                     report::print(line.as_str(), e);

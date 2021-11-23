@@ -39,7 +39,7 @@ impl Prompt {
     pub fn prompt(&mut self) -> Result<Option<String>, TortugaError> {
         self.line += 1;
 
-        let prompt = format!("{}> ", self.line);
+        let prompt = format!("{:03}> ", self.line);
 
         match self.editor.readline(prompt.as_str()) {
             Ok(line) => Ok(Some(line)),
@@ -68,6 +68,10 @@ impl Hinter for PromptHelper {
 
 impl Validator for PromptHelper {
     fn validate(&self, ctx: &mut ValidationContext) -> Result<ValidationResult, ReadlineError> {
+        if ctx.input().trim().is_empty() {
+            return Ok(ValidationResult::Valid(None))
+        }
+
         let scanner = Scanner::new(ctx.input());
         let parser = Parser::new(scanner);
 
