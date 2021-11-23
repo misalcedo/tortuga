@@ -26,7 +26,9 @@ impl<'source> TryFrom<Token<'source>> for Number {
                     Sign::from(s.unwrap_or("+"))
                 }),
                 map(opt(alphanumeric1), |i| i.unwrap_or("0")),
-                map(preceded(opt(tag(".")), opt(alphanumeric1)), |f| f.unwrap_or("0")),
+                map(preceded(opt(tag(".")), opt(alphanumeric1)), |f| {
+                    f.unwrap_or("0")
+                }),
                 map(opt(preceded(tag("#"), digit1)), |r| r.unwrap_or("10")),
             )))(token.lexeme())
             .map_err(|_| Self::Error::InvalidNumber)?;

@@ -69,7 +69,7 @@ impl Hinter for PromptHelper {
 impl Validator for PromptHelper {
     fn validate(&self, ctx: &mut ValidationContext) -> Result<ValidationResult, ReadlineError> {
         if ctx.input().trim().is_empty() {
-            return Ok(ValidationResult::Valid(None))
+            return Ok(ValidationResult::Valid(None));
         }
 
         let scanner = Scanner::new(ctx.input());
@@ -78,7 +78,10 @@ impl Validator for PromptHelper {
         match parser.parse() {
             Ok(_) => Ok(ValidationResult::Valid(None)),
             Err(ParseError::EndOfFile(_)) => Ok(ValidationResult::Incomplete),
-            Err(error) => Ok(ValidationResult::Invalid(Some(format!("\t{}", error.to_string())))),
+            Err(error) => Ok(ValidationResult::Invalid(Some(format!(
+                "\t{}",
+                error.to_string()
+            )))),
         }
     }
 }

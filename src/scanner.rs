@@ -162,7 +162,10 @@ impl<'source> Scanner<'source> {
             if radix.is_none() {
                 validations.push(ValidationError::MissingRadix);
             }
-        } else if self.get_lexeme(current).starts_with(|c: char| c.is_ascii_alphabetic()) {
+        } else if self
+            .get_lexeme(current)
+            .starts_with(|c: char| c.is_ascii_alphabetic())
+        {
             // Treat the token as an identifier if the literal does not have a radix portion, but starts with an ASCII letter.
             self.backtrack();
             return self.scan_identifier();
