@@ -1,19 +1,38 @@
 //! Terminal prompt reading and printing with editing and history.
 
-use crate::errors::TortugaError;
-use rustyline::{Editor, error::ReadlineError};
-use rustyline::validate::{Validator, ValidationContext, ValidationResult};
+use crate::errors::{ParseError, TortugaError};
+use crate::parser::Parser;
+use crate::scanner::Scanner;
+
+use rustyline::completion::Completer;
+use rustyline::config::Config;
+use rustyline::highlight::Highlighter;
+use rustyline::hint::Hinter;
+use rustyline::line_buffer::LineBuffer;
+use rustyline::validate::{ValidationContext, ValidationResult, Validator};
+use rustyline::{error::ReadlineError, Editor, Helper};
+
+struct PromptHelper;
 
 /// The prompt used to communicate with a user.
 pub struct Prompt {
     line: u128,
-    editor: Editor<()>
+    editor: Editor<PromptHelper>,
 }
 
 impl Prompt {
     /// Create an instance of a `Prompt`.
     pub fn new() -> Self {
-        Prompt { line: 0, editor: Editor::<()>::new() }
+        let config = Config::builder()
+            .auto_add_history(true)
+            .tab_stop(2)
+            .indent_size(2)
+            .build();
+        let mut editor = Editor::<PromptHelper>::with_config(config);
+
+        editor.set_helper(Some(PromptHelper));
+
+        Prompt { line: 0, editor }
     }
 
     /// Read input from the user via a terminal prompt.
@@ -23,19 +42,39 @@ impl Prompt {
         let prompt = format!("{}> ", self.line);
 
         match self.editor.readline(prompt.as_str()) {
-            Ok(line) => {
-                self.editor.add_history_entry(line.as_str());
-                Ok(Some(line))
-            },
+            Ok(line) => Ok(Some(line)),
             Err(ReadlineError::Interrupted) => Ok(None),
             Err(ReadlineError::Eof) => Ok(None),
-            Err(error) => Err(TortugaError::PromptError(error))
+            Err(error) => Err(TortugaError::PromptError(error)),
         }
     }
 }
 
-impl Validator for Prompt {
-    fn validate(&self, _ctx: &mut ValidationContext) -> Result<ValidationResult, ReadlineError> {
-        Ok(ValidationResult::Valid(None))
+impl Helper for PromptHelper {}
+
+impl Completer for PromptHelper {
+    type Candidate = String;
+
+    fn update(&self, _line: &mut LineBuffer, _start: usize, _elected: &str) {
+        unreachable!()
+    }
+}
+
+impl Highlighter for PromptHelper {}
+
+impl Hinter for PromptHelper {
+    type Hint = String;
+}
+
+impl Validator for PromptHelper {
+    fn validate(&self, ctx: &mut ValidationContext) -> Result<ValidationResult, ReadlineError> {
+        let scanner = Scanner::new(ctx.input());
+        let parser = Parser::new(scanner);
+
+        match parser.parse() {
+            Ok(_) => Ok(ValidationResult::Valid(None)),
+            Err(ParseError::EndOfFile(_)) => Ok(ValidationResult::Incomplete),
+            Err(error) => Ok(ValidationResult::Invalid(Some(format!("\t{}", error.to_string())))),
+        }
     }
 }

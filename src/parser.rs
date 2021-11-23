@@ -83,7 +83,7 @@ where
             [TokenKind::GreaterThan] => Ok(ComparisonOperator::GreaterThan),
             [TokenKind::GreaterThan, TokenKind::Equals] => {
                 Ok(ComparisonOperator::GreaterThanOrEqualTo)
-            },
+            }
             [TokenKind::Equals, TokenKind::GreaterThan] => {
                 Ok(ComparisonOperator::GreaterThanOrEqualTo)
             }

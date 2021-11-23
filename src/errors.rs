@@ -21,7 +21,7 @@ pub enum TortugaError {
     #[error("A runtime error occurred while interpreting the source code. {0}")]
     Runtime(#[from] RuntimeError),
     #[error("Encountered an error prompting the user for input. {0}")]
-    PromptError(#[from] rustyline::error::ReadlineError)
+    PromptError(#[from] rustyline::error::ReadlineError),
 }
 
 /// An error that occurred while interpreting a Tortuga expression.
@@ -94,7 +94,7 @@ pub enum ValidationError {
 /// An error that occurred while parsing a stream of tokens.
 #[derive(Error, Debug)]
 pub enum ParseError {
-    #[error("Found one or more lexical errors while scanning {kind} token '{lexeme}' on {location}:\n{errors}")]
+    #[error("Found one or more lexical errors while scanning {kind} token '{lexeme}' on {location}: {errors}")]
     Lexical {
         location: Location,
         kind: TokenKind,
@@ -179,8 +179,14 @@ pub struct ValidationErrors(Vec<ValidationError>);
 
 impl fmt::Display for ValidationErrors {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for error in &self.0 {
-            writeln!(f, " - {}", error)?;
+        let mut iterator = self.0.iter().enumerate().peekable();
+
+        while let Some((index, kind)) = iterator.next() {
+            write!(f, "{}) {}", index + 1, kind)?;
+
+            if iterator.peek().is_some() {
+                write!(f, ", or ")?;
+            }
         }
 
         Ok(())
