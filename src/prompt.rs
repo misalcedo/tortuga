@@ -2,6 +2,7 @@
 
 use crate::errors::TortugaError;
 use rustyline::{Editor, error::ReadlineError};
+use rustyline::validate::{Validator, ValidationContext, ValidationResult};
 
 /// The prompt used to communicate with a user.
 pub struct Prompt {
@@ -30,5 +31,11 @@ impl Prompt {
             Err(ReadlineError::Eof) => Ok(None),
             Err(error) => Err(TortugaError::PromptError(error))
         }
+    }
+}
+
+impl Validator for Prompt {
+    fn validate(&self, _ctx: &mut ValidationContext) -> Result<ValidationResult, ReadlineError> {
+        Ok(ValidationResult::Valid(None))
     }
 }

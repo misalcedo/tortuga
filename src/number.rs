@@ -54,21 +54,11 @@ impl<'source> TryFrom<Token<'source>> for Number {
 }
 
 /// Represents an number with both an integer and fractional portion.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
 pub struct Number {
     sign: Sign,
     integer: u128,
     fraction: Fraction,
-}
-
-impl Default for Number {
-    fn default() -> Self {
-        Number {
-            sign: Sign::default(),
-            integer: 0,
-            fraction: Fraction::default(),
-        }
-    }
 }
 
 impl From<Number> for f64 {
