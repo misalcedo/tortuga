@@ -59,7 +59,7 @@ expression -> comparison;
 comparison -> term ( ( "<" | ">" | "=" | "<" ">" | "<" "=" | ">" "=" | "<" "=" ">" ) term )*;
 term -> factor ( ( "+" | "-" ) factor )*;
 factor -> primary ( ( "*" | "/" ) primary )*;
-primary -> ( "+" | "-" )? NUMBER | TEXT_REFERENCE | "(" expression ")";
+primary -> ( "+" | "-" )? NUMBER | "(" expression ")";
 ```
 
 # Usage

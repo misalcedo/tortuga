@@ -1,6 +1,5 @@
-0 = 1 <=> 2 < 5 <> 7
 0025 * 3 - (1.75 + .25) + -0110.011#2
-
+0 = 1 <=> 2 < 5 <> 7
 -0110.011#2
 ; This is a comment ; the comment continues until the end of the line.
 

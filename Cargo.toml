@@ -1,7 +1,7 @@
 [package]
 name = "tortuga"
 description = "Compiler and runtime for the Tortuga programming language."
-version = "0.4.3"
+version = "0.4.4"
 authors = ["Miguel D. Salcedo <miguel@salcedo.cc>"]
 edition = "2018"
 license = "Apache-2.0"

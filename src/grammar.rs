@@ -8,7 +8,6 @@ use std::fmt;
 pub enum Expression {
     Grouping(Grouping),
     Number(Number),
-    TextReference(TextReference),
     BinaryOperation(BinaryOperation),
     ComparisonOperation(ComparisonOperation),
 }
@@ -18,7 +17,6 @@ impl fmt::Display for Expression {
         match self {
             Self::Grouping(grouping) => write!(f, "{}", grouping),
             Self::Number(number) => write!(f, "{}", number),
-            Self::TextReference(reference) => write!(f, "{}", reference),
             Self::BinaryOperation(operation) => write!(f, "{}", operation),
             Self::ComparisonOperation(operation) => write!(f, "{}", operation),
         }
@@ -34,12 +32,6 @@ impl From<Grouping> for Expression {
 impl From<Number> for Expression {
     fn from(number: Number) -> Self {
         Expression::Number(number)
-    }
-}
-
-impl From<TextReference> for Expression {
-    fn from(reference: TextReference) -> Self {
-        Expression::TextReference(reference)
     }
 }
 
@@ -77,31 +69,6 @@ impl Grouping {
 impl fmt::Display for Grouping {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "({})", self.expression)
-    }
-}
-
-/// A reference to internationalized text.
-/// Text References are opaque types and thus cannot be manipulated in any way.
-/// However, the contents of the reference must be valid UTF-8 text.
-///
-/// In order to support runtime switching of translations, external text references can be
-/// mapped to languages, countrys, and locales in a fallible manner (i.e. can fail).
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct TextReference {
-    text: String,
-}
-
-impl TextReference {
-    pub fn new(text: &str) -> Self {
-        TextReference {
-            text: text.to_string(),
-        }
-    }
-}
-
-impl fmt::Display for TextReference {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "\"{}\"", self.text)
     }
 }
 

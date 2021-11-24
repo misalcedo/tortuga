@@ -20,7 +20,6 @@ impl Interpreter {
         match expression {
             Expression::Grouping(grouping) => self.interpret_grouping(grouping),
             Expression::Number(number) => self.interpret_number(number),
-            Expression::TextReference(text) => self.interpret_text_reference(text),
             Expression::BinaryOperation(operation) => self.interpret_binary_operation(operation),
             Expression::ComparisonOperation(operation) => {
                 self.interpret_comparison_operation(operation)
@@ -34,10 +33,6 @@ impl Interpreter {
 
     fn interpret_number(&self, number: &Number) -> Result<Value, RuntimeError> {
         Ok(Value::Number((*number).into()))
-    }
-
-    fn interpret_text_reference(&self, text: &TextReference) -> Result<Value, RuntimeError> {
-        Ok(Value::TextReference(format!("{}", text)))
     }
 
     fn interpret_binary_operation(
@@ -67,11 +62,6 @@ impl Interpreter {
             (comparator, Value::Number(left), Value::Number(right)) => {
                 self.compare_numbers(left, comparator, right)
             }
-            (comparator, Value::TextReference(left), Value::TextReference(right)) => {
-                self.compare_text_references(left, comparator, right)
-            }
-            (ComparisonOperator::EqualTo, _, _) => Ok(Value::Boolean(false)),
-            (ComparisonOperator::NotEqualTo, _, _) => Ok(Value::Boolean(true)),
             (ComparisonOperator::Comparable, _, _) => Ok(Value::Boolean(false)),
             (comparator, left, right) => Err(RuntimeError::not_comparable(left, comparator, right)),
         }
@@ -95,23 +85,6 @@ impl Interpreter {
             ComparisonOperator::Comparable => Ok(Value::Boolean(true)),
         }
     }
-
-    fn compare_text_references(
-        &self,
-        left: String,
-        comparator: ComparisonOperator,
-        right: String,
-    ) -> Result<Value, RuntimeError> {
-        match comparator {
-            ComparisonOperator::LessThan => Ok(Value::Boolean(left < right)),
-            ComparisonOperator::LessThanOrEqualTo => Ok(Value::Boolean(left <= right)),
-            ComparisonOperator::GreaterThan => Ok(Value::Boolean(left > right)),
-            ComparisonOperator::GreaterThanOrEqualTo => Ok(Value::Boolean(left >= right)),
-            ComparisonOperator::EqualTo => Ok(Value::Boolean(left == right)),
-            ComparisonOperator::NotEqualTo => Ok(Value::Boolean(left != right)),
-            ComparisonOperator::Comparable => Ok(Value::Boolean(true)),
-        }
-    }
 }
 
 const BOOLEAN_TYPE: &str = "Boolean";
@@ -121,7 +94,6 @@ const TEXT_REFERENCE_TYPE: &str = "TextReference";
 /// Represents the result of a Tortuga expression as a Rust value.
 pub enum Value {
     Number(f64),
-    TextReference(String),
     Boolean(bool),
 }
 
@@ -129,7 +101,6 @@ impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Number(number) => write!(f, "{}", number),
-            Self::TextReference(text) => write!(f, "{}", text),
             Self::Boolean(value) => write!(f, "{}", value),
         }
     }
@@ -142,7 +113,6 @@ impl<'source> TryFrom<Value> for f64 {
         match value {
             Value::Boolean(boolean) => Err(RuntimeError::invalid_type(NUMBER_TYPE, boolean)),
             Value::Number(number) => Ok(number),
-            Value::TextReference(text) => Err(RuntimeError::invalid_type(NUMBER_TYPE, text)),
         }
     }
 }
@@ -156,7 +126,6 @@ impl<'source> TryFrom<Value> for String {
                 Err(RuntimeError::invalid_type(TEXT_REFERENCE_TYPE, boolean))
             }
             Value::Number(number) => Err(RuntimeError::invalid_type(TEXT_REFERENCE_TYPE, number)),
-            Value::TextReference(text) => Ok(text),
         }
     }
 }
@@ -168,7 +137,6 @@ impl<'source> TryFrom<Value> for bool {
         match value {
             Value::Boolean(boolean) => Ok(boolean),
             Value::Number(number) => Err(RuntimeError::invalid_type(BOOLEAN_TYPE, number)),
-            Value::TextReference(text) => Err(RuntimeError::invalid_type(BOOLEAN_TYPE, text)),
         }
     }
 }

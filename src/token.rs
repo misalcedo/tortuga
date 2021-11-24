@@ -24,6 +24,12 @@ impl Location {
         self.offset += 1;
     }
 
+    /// Adds a multiple columns to this `Location`.
+    pub fn add_columns(&mut self, lexeme: &str) {
+        self.column += lexeme.chars().count();
+        self.offset += lexeme.len();
+    }
+
     /// Adds a single column to this `Location`.
     pub fn add_column<T: Borrow<char>>(&mut self, character: T) {
         self.column += 1;
@@ -126,7 +132,6 @@ pub enum TokenKind {
     // Literals
     Identifier,
     Underscore,
-    TextReference,
     Number,
     Locale,
 }

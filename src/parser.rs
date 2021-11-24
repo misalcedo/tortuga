@@ -3,7 +3,6 @@
 use crate::errors::ParseError;
 use crate::grammar::{
     BinaryOperation, ComparisonOperation, ComparisonOperator, Expression, Grouping, Operator,
-    TextReference,
 };
 use crate::number::{Number, Sign};
 use crate::token::{Token, TokenKind};
@@ -163,9 +162,6 @@ where
             Some(TokenKind::Plus | TokenKind::Minus | TokenKind::Number) => {
                 self.parse_number().map(Expression::Number)
             }
-            Some(TokenKind::TextReference) => {
-                self.parse_text_reference().map(Expression::TextReference)
-            }
             Some(kind) => {
                 let token = self.next_kind(&[kind])?;
                 Err(ParseError::NoMatchingGrammar(token.start(), token.kind()))
@@ -176,7 +172,6 @@ where
                     TokenKind::Plus,
                     TokenKind::Minus,
                     TokenKind::Number,
-                    TokenKind::TextReference,
                 ],
                 None,
             )),
@@ -192,14 +187,6 @@ where
         self.next_kind(&[TokenKind::RightParenthesis])?;
 
         Ok(Grouping::new(expression))
-    }
-
-    /// Parse a text reference literal.
-    fn parse_text_reference(&mut self) -> Result<TextReference, ParseError> {
-        let reference = self.next_kind(&[TokenKind::TextReference])?;
-        let lexeme = reference.lexeme();
-
-        Ok(TextReference::new(&lexeme[1..lexeme.len() - 1]))
     }
 
     /// Parse a number literal with an optional plus or minus sign.

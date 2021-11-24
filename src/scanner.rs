@@ -3,7 +3,6 @@
 use crate::errors::ValidationError;
 use crate::number::{DECIMAL_RADIX, MAX_RADIX};
 use crate::token::{Location, Token, TokenKind};
-use std::iter::{Iterator, Peekable};
 use std::str::Chars;
 
 /// Scanner for the tortuga language.
@@ -12,7 +11,22 @@ use std::str::Chars;
 pub struct Scanner<'source> {
     code: &'source str,
     location: Location,
-    characters: Peekable<Chars<'source>>,
+    remaining: Chars<'source>,
+}
+
+/// Scans for digits.
+fn scan_digits(source: &str, radix: u32) -> (Option<&str>, &str) {
+    let mut offset = 0;
+    let mut iterator = source.chars().peekable();
+
+    while iterator.next_if(|c| c.is_digit(radix)).is_some() {
+        offset += 1;
+    }
+
+    (
+        Some(&source[..offset]).filter(|d| !d.is_empty()),
+        &source[offset..],
+    )
 }
 
 impl<'source> Scanner<'source> {
@@ -21,15 +35,50 @@ impl<'source> Scanner<'source> {
         Scanner {
             code,
             location: Location::default(),
-            characters: code.chars().peekable(),
+            remaining: code.chars(),
         }
+    }
+
+    fn peek(&mut self) -> Option<char> {
+        self.remaining.as_str().chars().next()
     }
 
     /// Returns the next charater only if it is not a new line.
     fn next_unless_newline(&mut self) -> Option<char> {
-        match self.characters.next_if(|c| c != &'\n')? {
-            '\r' => None,
+        let checkpoint = self.remaining.as_str();
+
+        match self.remaining.next()? {
+            '\r' | '\n' => {
+                self.remaining = checkpoint.chars();
+                None
+            }
             c => Some(c),
+        }
+    }
+
+    /// Returns the next character only if the given predicate is true.
+    fn next_if(&mut self, predicate: impl FnOnce(&char) -> bool) -> Option<char> {
+        let checkpoint = self.remaining.as_str();
+        let character = self.remaining.next()?;
+
+        if predicate(&character) {
+            Some(character)
+        } else {
+            self.remaining = checkpoint.chars();
+            None
+        }
+    }
+
+    /// Returns the next character only if the equals the expected value.
+    fn next_if_eq(&mut self, expected: char) -> Option<char> {
+        let checkpoint = self.remaining.as_str();
+        let character = self.remaining.next()?;
+
+        if character == expected {
+            Some(character)
+        } else {
+            self.remaining = checkpoint.chars();
+            None
         }
     }
 
@@ -44,82 +93,27 @@ impl<'source> Scanner<'source> {
         self.location = current;
     }
 
-    /// Reverts the iterator this scanner's location's offset in the source code.
-    fn backtrack(&mut self) {
-        self.characters = self.code[self.location.offset()..].chars().peekable();
-    }
-
     /// Gets the lexeme starting at this scanner's location (inclusive) until the given end location (exclusive).
-    fn get_lexeme(&self, end: Location) -> &'source str {
-        &self.code[self.location.offset()..end.offset()]
+    fn get_lexeme(&self) -> &'source str {
+        let start = self.location.offset();
+        let end = self.code.len() - self.remaining.as_str().len();
+
+        &self.code[start..end]
     }
 
-    fn new_token(
-        &mut self,
-        kind: TokenKind,
-        end: Location,
-        validations: Vec<ValidationError>,
-    ) -> Token<'source> {
+    fn new_token(&mut self, kind: TokenKind, validations: Vec<ValidationError>) -> Token<'source> {
         let start = self.location;
-        let lexeme = self.get_lexeme(end);
+        let lexeme = self.get_lexeme();
 
-        self.location = end;
+        self.location.add_columns(lexeme);
 
         Token::new(kind, lexeme, start, validations)
     }
 
     /// Creates a new token for single character lexemes.
-    fn new_short_token(&mut self, kind: TokenKind, character: char) -> Option<Token<'source>> {
-        Some(self.new_token(kind, self.location.successor(character), Vec::new()))
-    }
-
-    /// A text reference is used for internationalization.
-    /// The text within quotes is used to lookup a localized string literal during compilation.
-    /// Text references may contain any character except double quote and new line.
-    /// Also, text references must not be blank (only space or empty).
-    fn scan_text_reference(&mut self) -> Token<'source> {
-        let mut current = self.location;
-        let mut validations = Vec::new();
-
-        current.add_column('"');
-
-        loop {
-            match self.next_unless_newline() {
-                Some(c @ '"') => {
-                    current.add_column(c);
-                    break;
-                }
-                Some(c) => current.add_column(c),
-                None => {
-                    validations.push(ValidationError::MissingClosingQuote);
-                    break;
-                }
-            }
-        }
-
-        let reference = self.get_lexeme(current)[1..].trim();
-        if reference.is_empty() || reference == "\"" {
-            validations.push(ValidationError::BlankTextReference);
-        }
-
-        self.new_token(TokenKind::TextReference, current, validations)
-    }
-
-    /// Scans a continous string of digits (e.g. 0-9, a-z, A-Z).
-    fn scan_digits(&mut self, radix: u32, current: &mut Location) -> Option<&'source str> {
-        let start = *current;
-
-        while let Some(c) = self.characters.next_if(|c| c.is_digit(radix)) {
-            current.add_column(c)
-        }
-
-        let lexeme = &self.code[start.offset()..current.offset()];
-
-        if lexeme.trim().is_empty() {
-            None
-        } else {
-            Some(lexeme)
-        }
+    fn new_short_token(&mut self, kind: TokenKind) -> Option<Token<'source>> {
+        self.remaining.next();
+        Some(self.new_token(kind, Vec::new()))
     }
 
     /// Scans a number literal.
@@ -132,110 +126,82 @@ impl<'source> Scanner<'source> {
     /// - 0
     /// - 0.#2
     fn scan_number(&mut self) -> Token<'source> {
-        let mut current = self.location;
         let mut validations = Vec::new();
 
-        self.backtrack();
+        let integer = scan_digits(self.remaining.as_str(), MAX_RADIX);
 
-        let integer = self.scan_digits(MAX_RADIX, &mut current);
+        self.remaining = integer.1.chars();
 
         // Check if we have a fractional part.
-        if let Some(c) = self.characters.next_if_eq(&'.') {
-            current.add_column(c);
+        if self.next_if_eq('.').is_some() {
+            let fraction = scan_digits(self.remaining.as_str(), MAX_RADIX);
 
-            let fraction = self.scan_digits(MAX_RADIX, &mut current);
+            self.remaining = fraction.1.chars();
 
-            if integer.is_none() && fraction.is_none() {
+            if integer.0.is_none() && fraction.0.is_none() {
                 validations.push(ValidationError::ExpectedDigits);
             }
         }
 
-        if let Some(c) = self.characters.next_if_eq(&'.') {
-            current.add_column(c);
+        if self.next_if_eq('.').is_some() {
             validations.push(ValidationError::DuplicateDecimal);
         }
 
-        if let Some(c) = self.characters.next_if_eq(&'#') {
-            current.add_column(c);
+        if self.next_if_eq('#').is_some() {
+            let radix = scan_digits(self.remaining.as_str(), DECIMAL_RADIX);
 
-            let radix = self.scan_digits(DECIMAL_RADIX, &mut current);
-            if radix.is_none() {
+            self.remaining = radix.1.chars();
+
+            if radix.0.is_none() {
                 validations.push(ValidationError::MissingRadix);
             }
-        } else if self
-            .get_lexeme(current)
-            .starts_with(|c: char| c.is_ascii_alphabetic())
-        {
-            // Treat the token as an identifier if the literal does not have a radix portion, but starts with an ASCII letter.
-            self.backtrack();
-            return self.scan_identifier();
         }
 
-        self.new_token(TokenKind::Number, current, validations)
-    }
-
-    /// Scans an identifier from the source code.
-    /// Identifiers must start with an alphabetic character.
-    /// The remaining characters must be alphanumeric or an underscore.
-    /// Identifiers must not end in an underscore.
-    fn scan_identifier(&mut self) -> Token<'source> {
-        let mut current = self.location;
-        let mut validations = Vec::new();
-
-        self.backtrack();
-
-        while let Some(c) = self
-            .characters
-            .next_if(|c| c.is_alphanumeric() || c == &'_')
-        {
-            current.add_column(c);
-        }
-
-        let lexeme = self.get_lexeme(current);
-
-        if lexeme.ends_with('_') {
-            validations.push(ValidationError::TerminalUnderscore);
-        }
-
-        self.new_token(TokenKind::Identifier, current, validations)
+        self.new_token(TokenKind::Number, validations)
     }
 
     /// The next lexical token in the source code.
     fn next_token(&mut self) -> Option<Token<'source>> {
         loop {
-            match self.characters.next()? {
-                c @ '~' => return self.new_short_token(TokenKind::Tilde, c),
-                c @ '+' => return self.new_short_token(TokenKind::Plus, c),
-                c @ '-' => return self.new_short_token(TokenKind::Minus, c),
-                c @ '*' => return self.new_short_token(TokenKind::Star, c),
-                c @ '/' => return self.new_short_token(TokenKind::ForwardSlash, c),
-                c @ '=' => return self.new_short_token(TokenKind::Equals, c),
-                c @ '<' => return self.new_short_token(TokenKind::LessThan, c),
-                c @ '>' => return self.new_short_token(TokenKind::GreaterThan, c),
-                c @ '|' => return self.new_short_token(TokenKind::Pipe, c),
-                c @ '^' => return self.new_short_token(TokenKind::Caret, c),
-                c @ '%' => return self.new_short_token(TokenKind::Percent, c),
-                c @ '_' => return self.new_short_token(TokenKind::Underscore, c),
-                c @ ':' => return self.new_short_token(TokenKind::Locale, c),
-                c @ '(' => return self.new_short_token(TokenKind::LeftParenthesis, c),
-                c @ ')' => return self.new_short_token(TokenKind::RightParenthesis, c),
-                c @ '[' => return self.new_short_token(TokenKind::LeftBracket, c),
-                c @ ']' => return self.new_short_token(TokenKind::RightBracket, c),
-                c @ '{' => return self.new_short_token(TokenKind::LeftBrace, c),
-                c @ '}' => return self.new_short_token(TokenKind::RightBrace, c),
-                '"' => return Some(self.scan_text_reference()),
-                '\r' => (),
-                '\n' => self.location.next_line(),
+            match self.peek()? {
+                '~' => return self.new_short_token(TokenKind::Tilde),
+                '+' => return self.new_short_token(TokenKind::Plus),
+                '-' => return self.new_short_token(TokenKind::Minus),
+                '*' => return self.new_short_token(TokenKind::Star),
+                '/' => return self.new_short_token(TokenKind::ForwardSlash),
+                '=' => return self.new_short_token(TokenKind::Equals),
+                '<' => return self.new_short_token(TokenKind::LessThan),
+                '>' => return self.new_short_token(TokenKind::GreaterThan),
+                '|' => return self.new_short_token(TokenKind::Pipe),
+                '^' => return self.new_short_token(TokenKind::Caret),
+                '%' => return self.new_short_token(TokenKind::Percent),
+                '_' => return self.new_short_token(TokenKind::Underscore),
+                ':' => return self.new_short_token(TokenKind::Locale),
+                '(' => return self.new_short_token(TokenKind::LeftParenthesis),
+                ')' => return self.new_short_token(TokenKind::RightParenthesis),
+                '[' => return self.new_short_token(TokenKind::LeftBracket),
+                ']' => return self.new_short_token(TokenKind::RightBracket),
+                '{' => return self.new_short_token(TokenKind::LeftBrace),
+                '}' => return self.new_short_token(TokenKind::RightBrace),
+                '\r' => {
+                    self.remaining.next();
+                }
+                '\n' => {
+                    self.remaining.next();
+                    self.location.next_line()
+                }
                 ';' => self.skip_comment(),
-                c @ ('\t' | ' ') => self.location.add_column(c),
+                c @ ('\t' | ' ') => {
+                    self.remaining.next();
+                    self.location.add_column(c)
+                }
                 c if c.is_digit(MAX_RADIX) || c == '.' => return Some(self.scan_number()),
-                c if c.is_alphabetic() => return Some(self.scan_identifier()),
-                c => {
+                _ => {
+                    self.next();
                     return Some(self.new_token(
                         TokenKind::Identifier,
-                        self.location.successor(c),
                         vec![ValidationError::UnexpectedCharacter],
-                    ))
+                    ));
                 }
             }
         }
