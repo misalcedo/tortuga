@@ -193,7 +193,7 @@ where
             write!(f, "{}) {}", index + 1, kind)?;
 
             if iterator.peek().is_some() {
-                write!(f, ", or ")?;
+                write!(f, ", ")?;
             }
         }
 

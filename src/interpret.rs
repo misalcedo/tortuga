@@ -37,6 +37,9 @@ impl Interpreter {
             Expression::BinaryOperation(operation) => self.interpret_binary_operation(operation),
             Expression::ComparisonOperation(operation) => {
                 self.interpret_comparison_operation(operation)
+            },
+            Expression::ChainedComparisonOperation(operation) => {
+                self.interpret_chained_comparison_operation(operation)
             }
         }
     }
@@ -63,6 +66,19 @@ impl Interpreter {
             Operator::Divide => Ok(Value::Number(left / right)),
             Operator::Exponent => Ok(Value::Number(left.powf(right))),
         }
+    }
+
+    fn interpret_chained_comparison_operation(
+        &self,
+        chained_comparison_operation: &ChainedComparisonOperation,
+    ) -> Result<Value, RuntimeError> {
+        let mut value = true;
+
+        for operation in chained_comparison_operation.comparisons() {
+            value = value && bool::try_from(self.interpret_comparison_operation(operation)?)?;
+        }
+
+        Ok(Value::Boolean(value))
     }
 
     fn interpret_comparison_operation(
