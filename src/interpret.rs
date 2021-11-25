@@ -47,6 +47,7 @@ impl Interpreter {
             Operator::Subtract => Ok(Value::Number(left - right)),
             Operator::Multiply => Ok(Value::Number(left * right)),
             Operator::Divide => Ok(Value::Number(left / right)),
+            Operator::Exponent => Ok(Value::Number(left.powf(right))),
         }
     }
 

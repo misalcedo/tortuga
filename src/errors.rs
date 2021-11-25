@@ -114,7 +114,7 @@ pub enum ParseError {
     EndOfFile(TokenKinds),
     #[error("No grammar rule was found to match the token kind {1} on {0}.")]
     NoMatchingGrammar(Location, TokenKind),
-    #[error("No grammar rule was found to match the sequence of comparison operators {1} on {0}.")]
+    #[error("No grammar rule was found to match the sequence of comparison operators {1} on {0}. Valid comparison operators are: <, =, >, <=, >=, <=>.")]
     InvalidComparator(Location, TokenKinds),
 }
 

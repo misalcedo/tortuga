@@ -3,6 +3,21 @@
 use crate::number::Number;
 use std::fmt;
 
+/// A list of zero or more expressions in the tortuga grammar.
+#[derive(Clone, Debug)]
+pub struct Program {
+    expressions: Vec<Expression>
+}
+
+impl Program {
+    /// Creates a new instance of a program.
+     pub fn new(expressions: impl IntoIterator<Item=Expression>) -> Self {
+        Program {
+            expressions: expressions.into_iter().collect()
+        }
+     }
+}
+
 /// An expression in the tortuga grammar.
 #[derive(Clone, Debug)]
 pub enum Expression {
@@ -110,6 +125,7 @@ impl fmt::Display for BinaryOperation {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Operator {
+    Exponent,
     Multiply,
     Divide,
     Add,
@@ -119,6 +135,7 @@ pub enum Operator {
 impl fmt::Display for Operator {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            Self::Exponent => write!(f, "^"),
             Self::Multiply => write!(f, "*"),
             Self::Divide => write!(f, "/"),
             Self::Add => write!(f, "+"),

@@ -16,6 +16,7 @@ const COMPARISON_TOKEN_KINDS: [TokenKind; 3] = [
 ];
 const TERM_TOKEN_KINDS: [TokenKind; 2] = [TokenKind::Plus, TokenKind::Minus];
 const FACTOR_TOKEN_KINDS: [TokenKind; 2] = [TokenKind::Star, TokenKind::ForwardSlash];
+const EXPONENT_TOKEN_KINDS: [TokenKind; 1] = [TokenKind::Caret];
 
 /// A recursive descent parser for a stream of tokens into a syntax tree for the Tortuga language.
 pub struct Parser<'source, I: Iterator<Item = Token<'source>>> {
@@ -78,33 +79,13 @@ where
         match operators.as_slice() {
             [TokenKind::LessThan] => Ok(ComparisonOperator::LessThan),
             [TokenKind::LessThan, TokenKind::Equals] => Ok(ComparisonOperator::LessThanOrEqualTo),
-            [TokenKind::Equals, TokenKind::LessThan] => Ok(ComparisonOperator::LessThanOrEqualTo),
             [TokenKind::GreaterThan] => Ok(ComparisonOperator::GreaterThan),
             [TokenKind::GreaterThan, TokenKind::Equals] => {
                 Ok(ComparisonOperator::GreaterThanOrEqualTo)
             }
-            [TokenKind::Equals, TokenKind::GreaterThan] => {
-                Ok(ComparisonOperator::GreaterThanOrEqualTo)
-            }
             [TokenKind::Equals] => Ok(ComparisonOperator::EqualTo),
             [TokenKind::LessThan, TokenKind::GreaterThan] => Ok(ComparisonOperator::NotEqualTo),
-            [TokenKind::GreaterThan, TokenKind::LessThan] => Ok(ComparisonOperator::NotEqualTo),
             [TokenKind::LessThan, TokenKind::Equals, TokenKind::GreaterThan] => {
-                Ok(ComparisonOperator::Comparable)
-            }
-            [TokenKind::LessThan, TokenKind::GreaterThan, TokenKind::Equals] => {
-                Ok(ComparisonOperator::Comparable)
-            }
-            [TokenKind::GreaterThan, TokenKind::Equals, TokenKind::LessThan] => {
-                Ok(ComparisonOperator::Comparable)
-            }
-            [TokenKind::GreaterThan, TokenKind::LessThan, TokenKind::Equals] => {
-                Ok(ComparisonOperator::Comparable)
-            }
-            [TokenKind::Equals, TokenKind::LessThan, TokenKind::GreaterThan] => {
-                Ok(ComparisonOperator::Comparable)
-            }
-            [TokenKind::Equals, TokenKind::GreaterThan, TokenKind::LessThan] => {
                 Ok(ComparisonOperator::Comparable)
             }
             _ => Err(ParseError::InvalidComparator(
@@ -130,10 +111,24 @@ where
 
     /// Parse a factor grammar rule (i.e., multiply and divide).
     fn parse_factor(&mut self) -> Result<Expression, ParseError> {
-        let mut expression = self.parse_primary()?;
+        let mut expression = self.parse_exponent()?;
 
         while self.next_matches_kind(&FACTOR_TOKEN_KINDS) {
             let operator = self.parse_operator(&FACTOR_TOKEN_KINDS)?;
+            let right = self.parse_exponent()?;
+
+            expression = BinaryOperation::new(expression, operator, right).into();
+        }
+
+        Ok(expression)
+    }
+
+    /// Parse a exponent grammar rule (i.e., multiply and divide).
+    fn parse_exponent(&mut self) -> Result<Expression, ParseError> {
+        let mut expression = self.parse_primary()?;
+
+        while self.next_matches_kind(&EXPONENT_TOKEN_KINDS) {
+            let operator = self.parse_operator(&EXPONENT_TOKEN_KINDS)?;
             let right = self.parse_primary()?;
 
             expression = BinaryOperation::new(expression, operator, right).into();
@@ -151,6 +146,7 @@ where
             TokenKind::Minus => Ok(Operator::Subtract),
             TokenKind::Star => Ok(Operator::Multiply),
             TokenKind::ForwardSlash => Ok(Operator::Divide),
+            TokenKind::Caret => Ok(Operator::Exponent),
             kind => Err(ParseError::NoMatchingGrammar(token.start(), kind)),
         }
     }

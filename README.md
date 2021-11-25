@@ -55,10 +55,12 @@ Defines the interface between the guest and host. Relied upon by the system to r
 The grammar for tortuga is defined using the following rules:
 
 ```
+program -> expression* EOF;
 expression -> comparison;
 comparison -> term ( ( "<" | ">" | "=" | "<" ">" | "<" "=" | ">" "=" | "<" "=" ">" ) term )*;
 term -> factor ( ( "+" | "-" ) factor )*;
-factor -> primary ( ( "*" | "/" ) primary )*;
+factor -> exponent ( ( "*" | "/" ) exponent )*;
+exponent -> primary ( "^" primary )*;
 primary -> ( "+" | "-" )? NUMBER | "(" expression ")";
 ```
 
