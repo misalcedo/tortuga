@@ -11,10 +11,12 @@ pub struct Program {
 
 impl Program {
     /// Creates a new instance of a program.
-    pub fn new(expressions: impl IntoIterator<Item = Expression>) -> Self {
-        Program {
-            expressions: expressions.into_iter().collect(),
-        }
+    pub fn new(expressions: Vec<Expression>) -> Self {
+        Program { expressions }
+    }
+
+    pub fn expressions(&self) -> &[Expression] {
+        self.expressions.as_slice()
     }
 }
 

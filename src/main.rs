@@ -75,7 +75,6 @@ fn parse_arguments<'matches>() -> ArgMatches<'matches> {
         .get_matches()
 }
 
-#[tracing::instrument]
 fn run_subcommand(matches: ArgMatches<'_>) -> Result<(), TortugaError> {
     if let Some(matches) = matches.subcommand_matches("run") {
         let input = matches
@@ -90,22 +89,20 @@ fn run_subcommand(matches: ArgMatches<'_>) -> Result<(), TortugaError> {
     }
 }
 
-#[tracing::instrument]
 fn run(code: &str) -> Result<(), TortugaError> {
     let scanner = Scanner::new(code);
     let parser = Parser::new(scanner);
     let interpreter = Interpreter::new();
 
     match parser.parse() {
-        Ok(expression) => println!("{}", interpreter.interpret(&expression)?),
+        Ok(program) => interpreter.interpret(&program),
         Err(error) => eprintln!("{}", error),
     }
 
     Ok(())
 }
 
-#[tracing::instrument]
-fn run_prompt(matches: ArgMatches<'_>) -> Result<(), TortugaError> {
+fn run_prompt(_matches: ArgMatches<'_>) -> Result<(), TortugaError> {
     let mut user = Prompt::new();
 
     println!("{} {}\n", APP_NAME, about::VERSION);

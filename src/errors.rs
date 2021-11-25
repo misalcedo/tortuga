@@ -16,8 +16,6 @@ pub enum TortugaError {
     Walk(#[from] walkdir::Error),
     #[error("Unable to remove the input path from the file name.")]
     InvalidPath(#[from] std::path::StripPrefixError),
-    #[error("A syntax error occurred while parsing the source code. {0}")]
-    Parser(#[from] ParseError),
     #[error("A runtime error occurred while interpreting the source code. {0}")]
     Runtime(#[from] RuntimeError),
     #[error("Encountered an error prompting the user for input. {0}")]
@@ -99,7 +97,7 @@ pub enum ParseError {
         location: Location,
         kind: TokenKind,
         lexeme: String,
-        errors: ValidationErrors,
+        errors: MultipleErrors<ValidationError>,
     },
     #[error("Failed to validate the current token. {0}")]
     Validation(#[from] ValidationError),
@@ -116,6 +114,8 @@ pub enum ParseError {
     NoMatchingGrammar(Location, TokenKind),
     #[error("No grammar rule was found to match the sequence of comparison operators {1} on {0}. Valid comparison operators are: <, =, >, <=, >=, <=>.")]
     InvalidComparator(Location, TokenKinds),
+    #[error("One or more syntax errors found while parsing the source code. {0}")]
+    MultipleErrors(MultipleErrors<ParseError>),
 }
 
 impl ParseError {
@@ -133,6 +133,11 @@ impl ParseError {
     }
 
     /// Creates an error for mismatched token kinds.
+    pub fn multiple_errors(errors: Vec<ParseError>) -> Self {
+        ParseError::MultipleErrors(MultipleErrors(errors))
+    }
+
+    /// Creates an error for mismatched token kinds.
     pub fn validate(mut token: Token<'_>) -> Result<Token<'_>, Self> {
         if token.validations().is_empty() {
             Ok(token)
@@ -141,7 +146,7 @@ impl ParseError {
                 location: token.start(),
                 kind: token.kind(),
                 lexeme: token.lexeme().to_string(),
-                errors: ValidationErrors(token.take_validations()),
+                errors: MultipleErrors(token.take_validations()),
             })
         }
     }
@@ -175,9 +180,12 @@ impl fmt::Display for TokenKinds {
 
 /// Wrapper struct to define Display trait.
 #[derive(Debug)]
-pub struct ValidationErrors(Vec<ValidationError>);
+pub struct MultipleErrors<E: std::error::Error>(Vec<E>);
 
-impl fmt::Display for ValidationErrors {
+impl<E> fmt::Display for MultipleErrors<E>
+where
+    E: std::error::Error,
+{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut iterator = self.0.iter().enumerate().peekable();
 

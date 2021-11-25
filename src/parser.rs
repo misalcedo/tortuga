@@ -3,6 +3,7 @@
 use crate::errors::ParseError;
 use crate::grammar::{
     BinaryOperation, ComparisonOperation, ComparisonOperator, Expression, Grouping, Operator,
+    Program,
 };
 use crate::number::{Number, Sign};
 use crate::token::{Token, TokenKind};
@@ -35,14 +36,27 @@ where
     }
 
     /// Parses the stream of tokens into a syntax tree.
-    pub fn parse(mut self) -> Result<Expression, ParseError> {
-        let expression = self.parse_expression();
+    pub fn parse(mut self) -> Result<Program, ParseError> {
+        let mut errors: Vec<ParseError> = Vec::new();
+        let mut expressions = Vec::new();
 
-        if expression.is_err() {
-            self.synchronize();
+        while self.tokens.peek().is_some() {
+            match self.parse_expression() {
+                Err(error) => {
+                    errors.push(error);
+                    self.synchronize();
+                }
+                Ok(expression) => {
+                    expressions.push(expression);
+                }
+            }
         }
 
-        expression
+        if errors.is_empty() {
+            Ok(Program::new(expressions))
+        } else {
+            Err(ParseError::multiple_errors(errors))
+        }
     }
 
     /// Unwinds this parser's recursive descent into the grammar rules upon encountering an error parsing a rule.

@@ -5,8 +5,10 @@ use crate::grammar::*;
 use crate::number::Number;
 use std::convert::TryFrom;
 use std::fmt;
+use tracing::debug;
 
 /// Interprets a Tortuga syntax tree to a value that Rust can evaluate.
+#[derive(Debug)]
 pub struct Interpreter {}
 
 impl Interpreter {
@@ -15,8 +17,18 @@ impl Interpreter {
         Interpreter {}
     }
 
-    /// Interprets a tortuga expression to a rust value.
-    pub fn interpret(&self, expression: &Expression) -> Result<Value, RuntimeError> {
+    /// Interprets a tortuga program to a rust value.
+    pub fn interpret(&self, program: &Program) {
+        for expression in program.expressions() {
+            debug!("Evaluating expression: {}.", expression);
+            match self.interpret_expression(expression) {
+                Ok(value) => println!("{}", value),
+                Err(error) => eprintln!("{}", error),
+            }
+        }
+    }
+
+    fn interpret_expression(&self, expression: &Expression) -> Result<Value, RuntimeError> {
         match expression {
             Expression::Grouping(grouping) => self.interpret_grouping(grouping),
             Expression::Number(number) => self.interpret_number(number),
@@ -28,7 +40,7 @@ impl Interpreter {
     }
 
     fn interpret_grouping(&self, grouping: &Grouping) -> Result<Value, RuntimeError> {
-        self.interpret(grouping.inner())
+        self.interpret_expression(grouping.inner())
     }
 
     fn interpret_number(&self, number: &Number) -> Result<Value, RuntimeError> {
@@ -39,8 +51,8 @@ impl Interpreter {
         &self,
         binary_operation: &BinaryOperation,
     ) -> Result<Value, RuntimeError> {
-        let left = f64::try_from(self.interpret(binary_operation.left())?)?;
-        let right = f64::try_from(self.interpret(binary_operation.right())?)?;
+        let left = f64::try_from(self.interpret_expression(binary_operation.left())?)?;
+        let right = f64::try_from(self.interpret_expression(binary_operation.right())?)?;
 
         match binary_operation.operator() {
             Operator::Add => Ok(Value::Number(left + right)),
@@ -57,8 +69,8 @@ impl Interpreter {
     ) -> Result<Value, RuntimeError> {
         match (
             comparison_operation.comparator(),
-            self.interpret(comparison_operation.left())?,
-            self.interpret(comparison_operation.right())?,
+            self.interpret_expression(comparison_operation.left())?,
+            self.interpret_expression(comparison_operation.right())?,
         ) {
             (comparator, Value::Number(left), Value::Number(right)) => {
                 self.compare_numbers(left, comparator, right)
