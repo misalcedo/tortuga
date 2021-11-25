@@ -5,7 +5,6 @@ mod interpret;
 mod number;
 mod parser;
 mod prompt;
-mod report;
 mod scanner;
 mod token;
 
@@ -17,7 +16,7 @@ use prompt::Prompt;
 use scanner::Scanner;
 use std::fs;
 use std::path::Path;
-use tracing::{subscriber::set_global_default, Level};
+use tracing::{subscriber::set_global_default, Level, error};
 use tracing_log::LogTracer;
 
 const APP_NAME: &str = env!("CARGO_BIN_NAME");
@@ -42,7 +41,6 @@ fn set_verbosity(matches: &ArgMatches) -> Result<(), TortugaError> {
 
     let collector = tracing_subscriber::fmt()
         .with_max_level(level)
-        .pretty()
         .finish();
 
     Ok(set_global_default(collector)?)
@@ -96,7 +94,7 @@ fn run(code: &str) -> Result<(), TortugaError> {
 
     match parser.parse() {
         Ok(program) => interpreter.interpret(&program),
-        Err(error) => eprintln!("{}", error),
+        Err(error) => error!("{}", error),
     }
 
     Ok(())
@@ -113,7 +111,7 @@ fn run_prompt(_matches: ArgMatches<'_>) -> Result<(), TortugaError> {
             Some(line) if line.trim().is_empty() => continue,
             Some(line) => {
                 if let Err(e) = run(line.as_str()) {
-                    report::print(line.as_str(), e);
+                    error!("{}", e);
                 }
             }
         }

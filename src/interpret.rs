@@ -5,7 +5,7 @@ use crate::grammar::*;
 use crate::number::Number;
 use std::convert::TryFrom;
 use std::fmt;
-use tracing::debug;
+use tracing::{debug, info, error};
 
 /// Interprets a Tortuga syntax tree to a value that Rust can evaluate.
 #[derive(Debug)]
@@ -19,11 +19,13 @@ impl Interpreter {
 
     /// Interprets a tortuga program to a rust value.
     pub fn interpret(&self, program: &Program) {
+        debug!("Evaluating program: {}.", program);
+
         for expression in program.expressions() {
             debug!("Evaluating expression: {}.", expression);
             match self.interpret_expression(expression) {
-                Ok(value) => println!("{}", value),
-                Err(error) => eprintln!("{}", error),
+                Ok(value) => info!("{}", value),
+                Err(error) => error!("{}", error),
             }
         }
     }

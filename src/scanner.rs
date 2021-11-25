@@ -56,19 +56,6 @@ impl<'source> Scanner<'source> {
         }
     }
 
-    /// Returns the next character only if the given predicate is true.
-    fn next_if(&mut self, predicate: impl FnOnce(&char) -> bool) -> Option<char> {
-        let checkpoint = self.remaining.as_str();
-        let character = self.remaining.next()?;
-
-        if predicate(&character) {
-            Some(character)
-        } else {
-            self.remaining = checkpoint.chars();
-            None
-        }
-    }
-
     /// Returns the next character only if the equals the expected value.
     fn next_if_eq(&mut self, expected: char) -> Option<char> {
         let checkpoint = self.remaining.as_str();
@@ -197,7 +184,7 @@ impl<'source> Scanner<'source> {
                 }
                 c if c.is_digit(MAX_RADIX) || c == '.' => return Some(self.scan_number()),
                 _ => {
-                    self.next();
+                    self.remaining.next();
                     return Some(self.new_token(
                         TokenKind::Identifier,
                         vec![ValidationError::UnexpectedCharacter],
