@@ -6,16 +6,16 @@ use std::fmt;
 /// A list of zero or more expressions in the tortuga grammar.
 #[derive(Clone, Debug)]
 pub struct Program {
-    expressions: Vec<Expression>
+    expressions: Vec<Expression>,
 }
 
 impl Program {
     /// Creates a new instance of a program.
-     pub fn new(expressions: impl IntoIterator<Item=Expression>) -> Self {
+    pub fn new(expressions: impl IntoIterator<Item = Expression>) -> Self {
         Program {
-            expressions: expressions.into_iter().collect()
+            expressions: expressions.into_iter().collect(),
         }
-     }
+    }
 }
 
 /// An expression in the tortuga grammar.

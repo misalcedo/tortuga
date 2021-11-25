@@ -36,13 +36,13 @@ where
 
     /// Parses the stream of tokens into a syntax tree.
     pub fn parse(mut self) -> Result<Expression, ParseError> {
-        match self.parse_expression() {
-            error @ Err(_) => {
-                self.synchronize();
-                error
-            }
-            ok => ok,
+        let expression = self.parse_expression();
+
+        if expression.is_err() {
+            self.synchronize();
         }
+
+        expression
     }
 
     /// Unwinds this parser's recursive descent into the grammar rules upon encountering an error parsing a rule.
