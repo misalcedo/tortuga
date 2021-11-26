@@ -2,8 +2,8 @@
 
 use crate::errors::ParseError;
 use crate::grammar::{
-    BinaryOperation, ChainedComparisonOperation, ComparisonOperation, ComparisonOperator,
-    Expression, Grouping, Operator, Program, Variable,
+    BinaryOperation, ComparisonOperation, ComparisonOperator, Expression, Grouping, Operator,
+    Program, Variable,
 };
 use crate::number::{Number, Sign};
 use crate::token::{Token, TokenKind};
@@ -72,30 +72,16 @@ where
 
     /// Parse a comparison grammar rule.
     fn parse_comparison(&mut self) -> Result<Expression, ParseError> {
-        let mut left = self.parse_term()?;
-
-        if !self.next_matches_kind(&COMPARISON_TOKEN_KINDS) {
-            return Ok(left);
-        }
-
-        let mut operator = self.parse_comparison_operator()?;
-        let mut right = self.parse_term()?;
-
-        if !self.next_matches_kind(&COMPARISON_TOKEN_KINDS) {
-            return Ok(ComparisonOperation::new(left, operator, right).into());
-        }
-
-        let mut comparisons = vec![ComparisonOperation::new(left, operator, right.clone())];
+        let mut expression = self.parse_term()?;
 
         while self.next_matches_kind(&COMPARISON_TOKEN_KINDS) {
-            left = right;
-            operator = self.parse_comparison_operator()?;
-            right = self.parse_term()?;
+            let operator = self.parse_comparison_operator()?;
+            let right = self.parse_term()?;
 
-            comparisons.push(ComparisonOperation::new(left, operator, right.clone()));
+            expression = ComparisonOperation::new(expression, operator, right).into();
         }
 
-        Ok(ChainedComparisonOperation::new(comparisons).into())
+        Ok(expression)
     }
 
     /// Parses a comparison operator of the expected token kind.

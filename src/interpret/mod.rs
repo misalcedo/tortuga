@@ -39,9 +39,6 @@ impl Interpreter {
             Expression::ComparisonOperation(operation) => {
                 self.interpret_comparison_operation(operation)
             }
-            Expression::ChainedComparisonOperation(operation) => {
-                self.interpret_chained_comparison_operation(operation)
-            }
         }
     }
 
@@ -73,19 +70,6 @@ impl Interpreter {
         }
     }
 
-    fn interpret_chained_comparison_operation(
-        &self,
-        chained_comparison_operation: &ChainedComparisonOperation,
-    ) -> Result<Value, RuntimeError> {
-        let mut value = true;
-
-        for operation in chained_comparison_operation.comparisons() {
-            value = value && bool::try_from(self.interpret_comparison_operation(operation)?)?;
-        }
-
-        Ok(Value::Boolean(value))
-    }
-
     fn interpret_comparison_operation(
         &self,
         comparison_operation: &ComparisonOperation,
@@ -96,6 +80,18 @@ impl Interpreter {
             self.interpret_expression(comparison_operation.right())?,
         ) {
             (comparator, Value::Number(left), Value::Number(right)) => {
+                self.compare_numbers(left, comparator, right)
+            }
+            (_,  Value::Boolean(false) | Value::Comparison(false, _, _), Value::Number(_)) => {
+                Ok(Value::Boolean(false))
+            },
+            (_, Value::Number(_), Value::Boolean(false) | Value::Comparison(false, _, _)) => {
+                Ok(Value::Boolean(false))
+            }
+            (comparator, Value::Comparison(true, _, left), Value::Number(right)) => {
+                self.compare_numbers(left, comparator, right)
+            },
+            (comparator, Value::Number(left), Value::Comparison(true, right, _)) => {
                 self.compare_numbers(left, comparator, right)
             }
             (ComparisonOperator::Comparable, _, _) => Ok(Value::Boolean(false)),
@@ -110,27 +106,27 @@ impl Interpreter {
         right: f64,
     ) -> Result<Value, RuntimeError> {
         match comparator {
-            ComparisonOperator::LessThan => Ok(Value::Boolean(left < right)),
-            ComparisonOperator::LessThanOrEqualTo => Ok(Value::Boolean(left <= right)),
-            ComparisonOperator::GreaterThan => Ok(Value::Boolean(left > right)),
-            ComparisonOperator::GreaterThanOrEqualTo => Ok(Value::Boolean(left >= right)),
-            ComparisonOperator::EqualTo => Ok(Value::Boolean((left - right).abs() < f64::EPSILON)),
+            ComparisonOperator::LessThan => Ok(Value::Comparison(left < right, left, right)),
+            ComparisonOperator::LessThanOrEqualTo => Ok(Value::Comparison(left <= right, left, right)),
+            ComparisonOperator::GreaterThan => Ok(Value::Comparison(left > right, left, right)),
+            ComparisonOperator::GreaterThanOrEqualTo => Ok(Value::Comparison(left >= right, left, right)),
+            ComparisonOperator::EqualTo => Ok(Value::Comparison((left - right).abs() < f64::EPSILON, left, right)),
             ComparisonOperator::NotEqualTo => {
-                Ok(Value::Boolean((left - right).abs() > f64::EPSILON))
+                Ok(Value::Comparison((left - right).abs() > f64::EPSILON, left, right))
             }
-            ComparisonOperator::Comparable => Ok(Value::Boolean(true)),
+            ComparisonOperator::Comparable => Ok(Value::Comparison(true, left, right)),
         }
     }
 }
 
 const BOOLEAN_TYPE: &str = "Boolean";
 const NUMBER_TYPE: &str = "Number";
-const TEXT_REFERENCE_TYPE: &str = "TextReference";
 
 /// Represents the result of a Tortuga expression as a Rust value.
 pub enum Value {
     Number(f64),
     Boolean(bool),
+    Comparison(bool, f64, f64),
 }
 
 impl fmt::Display for Value {
@@ -138,6 +134,7 @@ impl fmt::Display for Value {
         match self {
             Self::Number(number) => write!(f, "{}", number),
             Self::Boolean(value) => write!(f, "{}", value),
+            Self::Comparison(value, _, _) => write!(f, "{}", value),
         }
     }
 }
@@ -148,20 +145,8 @@ impl<'source> TryFrom<Value> for f64 {
     fn try_from(value: Value) -> Result<Self, Self::Error> {
         match value {
             Value::Boolean(boolean) => Err(RuntimeError::invalid_type(NUMBER_TYPE, boolean)),
+            Value::Comparison(boolean, _ , _) => Err(RuntimeError::invalid_type(NUMBER_TYPE, boolean)),
             Value::Number(number) => Ok(number),
-        }
-    }
-}
-
-impl<'source> TryFrom<Value> for String {
-    type Error = RuntimeError;
-
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        match value {
-            Value::Boolean(boolean) => {
-                Err(RuntimeError::invalid_type(TEXT_REFERENCE_TYPE, boolean))
-            }
-            Value::Number(number) => Err(RuntimeError::invalid_type(TEXT_REFERENCE_TYPE, number)),
         }
     }
 }
@@ -172,6 +157,7 @@ impl<'source> TryFrom<Value> for bool {
     fn try_from(value: Value) -> Result<Self, Self::Error> {
         match value {
             Value::Boolean(boolean) => Ok(boolean),
+            Value::Comparison(boolean, _ , _) => Ok(boolean),
             Value::Number(number) => Err(RuntimeError::invalid_type(BOOLEAN_TYPE, number)),
         }
     }

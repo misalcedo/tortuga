@@ -34,7 +34,6 @@ pub enum Expression {
     Variable(Variable),
     BinaryOperation(BinaryOperation),
     ComparisonOperation(ComparisonOperation),
-    ChainedComparisonOperation(ChainedComparisonOperation),
 }
 
 impl fmt::Display for Expression {
@@ -45,7 +44,6 @@ impl fmt::Display for Expression {
             Self::Variable(variable) => write!(f, "{}", variable),
             Self::BinaryOperation(operation) => write!(f, "{}", operation),
             Self::ComparisonOperation(operation) => write!(f, "{}", operation),
-            Self::ChainedComparisonOperation(operation) => write!(f, "{}", operation),
         }
     }
 }
@@ -77,12 +75,6 @@ impl From<BinaryOperation> for Expression {
 impl From<ComparisonOperation> for Expression {
     fn from(operation: ComparisonOperation) -> Self {
         Expression::ComparisonOperation(operation)
-    }
-}
-
-impl From<ChainedComparisonOperation> for Expression {
-    fn from(operation: ChainedComparisonOperation) -> Self {
-        Expression::ChainedComparisonOperation(operation)
     }
 }
 
@@ -201,41 +193,20 @@ impl ComparisonOperation {
 impl fmt::Display for ComparisonOperation {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "({} {} {})", self.comparator, self.left, self.right)
-    }
-}
 
-/// A chained list of comparison operations.
-/// The value of this expression is the conjuction of all its comparisons.
-#[derive(Clone, Debug)]
-pub struct ChainedComparisonOperation {
-    comparisons: Vec<ComparisonOperation>,
-}
+        // let mut iterator = self.comparisons.iter().peekable();
 
-impl ChainedComparisonOperation {
-    pub fn new(comparisons: Vec<ComparisonOperation>) -> Self {
-        ChainedComparisonOperation { comparisons }
-    }
+        // write!(f, "(and ")?;
 
-    pub fn comparisons(&self) -> &[ComparisonOperation] {
-        self.comparisons.as_slice()
-    }
-}
+        // while let Some(kind) = iterator.next() {
+        //     write!(f, "{}", kind)?;
 
-impl fmt::Display for ChainedComparisonOperation {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut iterator = self.comparisons.iter().peekable();
+        //     if iterator.peek().is_some() {
+        //         write!(f, " ")?;
+        //     }
+        // }
 
-        write!(f, "(and ")?;
-
-        while let Some(kind) = iterator.next() {
-            write!(f, "{}", kind)?;
-
-            if iterator.peek().is_some() {
-                write!(f, " ")?;
-            }
-        }
-
-        write!(f, ")")
+        // write!(f, ")")
     }
 }
 
