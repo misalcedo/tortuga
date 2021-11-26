@@ -1,22 +1,22 @@
 //! Interpret a syntax tree to a value that can be printed to the user.
 
+mod constraints;
+
 use crate::errors::RuntimeError;
 use crate::grammar::*;
 use crate::number::Number;
+use constraints::ConstraintSolver;
 use std::convert::TryFrom;
 use std::fmt;
 use tracing::{debug, error};
 
 /// Interprets a Tortuga syntax tree to a value that Rust can evaluate.
-#[derive(Debug)]
-pub struct Interpreter {}
+#[derive(Debug, Default)]
+pub struct Interpreter {
+    solver: ConstraintSolver,
+}
 
 impl Interpreter {
-    /// Creates a new instance of an interpreter.
-    pub fn new() -> Self {
-        Interpreter {}
-    }
-
     /// Interprets a tortuga program to a rust value.
     pub fn interpret(&self, program: &Program) {
         debug!("Evaluating program: {}.", program);
@@ -34,10 +34,11 @@ impl Interpreter {
         match expression {
             Expression::Grouping(grouping) => self.interpret_grouping(grouping),
             Expression::Number(number) => self.interpret_number(number),
+            Expression::Variable(variable) => self.interpret_variable(variable),
             Expression::BinaryOperation(operation) => self.interpret_binary_operation(operation),
             Expression::ComparisonOperation(operation) => {
                 self.interpret_comparison_operation(operation)
-            },
+            }
             Expression::ChainedComparisonOperation(operation) => {
                 self.interpret_chained_comparison_operation(operation)
             }
@@ -50,6 +51,10 @@ impl Interpreter {
 
     fn interpret_number(&self, number: &Number) -> Result<Value, RuntimeError> {
         Ok(Value::Number((*number).into()))
+    }
+
+    fn interpret_variable(&self, variable: &Variable) -> Result<Value, RuntimeError> {
+        Ok(Value::Number(self.solver.value_of(variable.name())))
     }
 
     fn interpret_binary_operation(

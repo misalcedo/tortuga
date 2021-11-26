@@ -31,6 +31,7 @@ impl fmt::Display for Program {
 pub enum Expression {
     Grouping(Grouping),
     Number(Number),
+    Variable(Variable),
     BinaryOperation(BinaryOperation),
     ComparisonOperation(ComparisonOperation),
     ChainedComparisonOperation(ChainedComparisonOperation),
@@ -41,6 +42,7 @@ impl fmt::Display for Expression {
         match self {
             Self::Grouping(grouping) => write!(f, "{}", grouping),
             Self::Number(number) => write!(f, "{}", number),
+            Self::Variable(variable) => write!(f, "{}", variable),
             Self::BinaryOperation(operation) => write!(f, "{}", operation),
             Self::ComparisonOperation(operation) => write!(f, "{}", operation),
             Self::ChainedComparisonOperation(operation) => write!(f, "{}", operation),
@@ -57,6 +59,12 @@ impl From<Grouping> for Expression {
 impl From<Number> for Expression {
     fn from(number: Number) -> Self {
         Expression::Number(number)
+    }
+}
+
+impl From<Variable> for Expression {
+    fn from(variable: Variable) -> Self {
+        Expression::Variable(variable)
     }
 }
 
@@ -254,5 +262,28 @@ impl fmt::Display for ComparisonOperator {
             Self::NotEqualTo => write!(f, "<>"),
             Self::Comparable => write!(f, "<=>"),
         }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Variable {
+    name: String,
+}
+
+impl Variable {
+    pub fn new(name: &str) -> Self {
+        Variable {
+            name: name.to_string(),
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        self.name.as_str()
+    }
+}
+
+impl fmt::Display for Variable {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.name)
     }
 }

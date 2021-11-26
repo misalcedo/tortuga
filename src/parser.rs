@@ -2,8 +2,8 @@
 
 use crate::errors::ParseError;
 use crate::grammar::{
-    BinaryOperation, ComparisonOperation, ChainedComparisonOperation, ComparisonOperator, Expression, Grouping, Operator,
-    Program,
+    BinaryOperation, ChainedComparisonOperation, ComparisonOperation, ComparisonOperator,
+    Expression, Grouping, Operator, Program, Variable,
 };
 use crate::number::{Number, Sign};
 use crate::token::{Token, TokenKind};
@@ -61,7 +61,10 @@ where
 
     /// Unwinds this parser's recursive descent into the grammar rules upon encountering an error parsing a rule.
     /// Some tokens may be skipped in order to allow the parser to identify additional errors in the source code.
-    fn synchronize(&mut self) {}
+    fn synchronize(&mut self) {
+        // skip a single (potentially) bad token.
+        self.tokens.next();
+    }
 
     fn parse_expression(&mut self) -> Result<Expression, ParseError> {
         self.parse_comparison()
@@ -186,6 +189,7 @@ where
             Some(TokenKind::Plus | TokenKind::Minus | TokenKind::Number) => {
                 self.parse_number().map(Expression::Number)
             }
+            Some(TokenKind::Identifier) => self.parse_variable().map(Expression::Variable),
             Some(kind) => {
                 let token = self.next_kind(&[kind])?;
                 Err(ParseError::NoMatchingGrammar(token.start(), token.kind()))
@@ -230,6 +234,13 @@ where
         number.set_sign(sign);
 
         Ok(number)
+    }
+
+    /// Parses an identifier token as a variable.
+    fn parse_variable(&mut self) -> Result<Variable, ParseError> {
+        let token = self.next_kind(&[TokenKind::Identifier])?;
+
+        Ok(Variable::new(token.lexeme()))
     }
 
     /// Gets the next token if it matches the expected kind or returns an error.

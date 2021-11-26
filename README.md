@@ -61,7 +61,7 @@ comparison -> term ( ( "<" | ">" | "=" | "<" ">" | "<" "=" | ">" "=" | "<" "=" "
 term -> factor ( ( "+" | "-" ) factor )*;
 factor -> exponent ( ( "*" | "/" ) exponent )*;
 exponent -> primary ( "^" primary )*;
-primary -> ( "+" | "-" )? NUMBER | "(" expression ")";
+primary -> ( "+" | "-" )? NUMBER | IDENTIFIER | "(" expression ")";
 ```
 
 # Usage

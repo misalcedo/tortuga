@@ -16,7 +16,7 @@ use prompt::Prompt;
 use scanner::Scanner;
 use std::fs;
 use std::path::Path;
-use tracing::{subscriber::set_global_default, Level, error};
+use tracing::{error, subscriber::set_global_default, Level};
 use tracing_log::LogTracer;
 
 const APP_NAME: &str = env!("CARGO_BIN_NAME");
@@ -39,9 +39,7 @@ fn set_verbosity(matches: &ArgMatches) -> Result<(), TortugaError> {
 
     LogTracer::init()?;
 
-    let collector = tracing_subscriber::fmt()
-        .with_max_level(level)
-        .finish();
+    let collector = tracing_subscriber::fmt().with_max_level(level).finish();
 
     Ok(set_global_default(collector)?)
 }
@@ -90,7 +88,7 @@ fn run_subcommand(matches: ArgMatches<'_>) -> Result<(), TortugaError> {
 fn run(code: &str) -> Result<(), TortugaError> {
     let scanner = Scanner::new(code);
     let parser = Parser::new(scanner);
-    let interpreter = Interpreter::new();
+    let interpreter = Interpreter::default();
 
     match parser.parse() {
         Ok(program) => interpreter.interpret(&program),

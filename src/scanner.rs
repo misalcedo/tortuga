@@ -56,6 +56,19 @@ impl<'source> Scanner<'source> {
         }
     }
 
+    /// Returns the next character only if the predicate is true.
+    fn next_if(&mut self, predicate: impl FnOnce(&char) -> bool) -> Option<char> {
+        let checkpoint = self.remaining.as_str();
+        let character = self.remaining.next()?;
+
+        if predicate(&character) {
+            Some(character)
+        } else {
+            self.remaining = checkpoint.chars();
+            None
+        }
+    }
+
     /// Returns the next character only if the equals the expected value.
     fn next_if_eq(&mut self, expected: char) -> Option<char> {
         let checkpoint = self.remaining.as_str();
@@ -147,6 +160,34 @@ impl<'source> Scanner<'source> {
         self.new_token(TokenKind::Number, validations)
     }
 
+    /// Scans either an identifier or a number with a radix.
+    fn scan_undetermined(&mut self) -> Token<'source> {
+        match scan_digits(self.remaining.as_str(), MAX_RADIX)
+            .1
+            .chars()
+            .next()
+        {
+            Some('.' | '#') => self.scan_number(),
+            _ => self.scan_identifier(),
+        }
+    }
+
+    /// Scans either an identifier or a number with a radix.
+    fn scan_identifier(&mut self) -> Token<'source> {
+        let mut validations = Vec::new();
+
+        while self
+            .next_if(|c| c.is_ascii_alphanumeric() || c == &'_')
+            .is_some()
+        {}
+
+        if self.get_lexeme().ends_with('_') {
+            validations.push(ValidationError::TerminalUnderscore);
+        }
+
+        self.new_token(TokenKind::Identifier, validations)
+    }
+
     /// The next lexical token in the source code.
     fn next_token(&mut self) -> Option<Token<'source>> {
         loop {
@@ -163,7 +204,6 @@ impl<'source> Scanner<'source> {
                 '^' => return self.new_short_token(TokenKind::Caret),
                 '%' => return self.new_short_token(TokenKind::Percent),
                 '_' => return self.new_short_token(TokenKind::Underscore),
-                ':' => return self.new_short_token(TokenKind::Locale),
                 '(' => return self.new_short_token(TokenKind::LeftParenthesis),
                 ')' => return self.new_short_token(TokenKind::RightParenthesis),
                 '[' => return self.new_short_token(TokenKind::LeftBracket),
@@ -182,7 +222,9 @@ impl<'source> Scanner<'source> {
                     self.remaining.next();
                     self.location.add_column(c)
                 }
+                c if c.is_ascii_alphabetic() => return Some(self.scan_undetermined()),
                 c if c.is_digit(MAX_RADIX) || c == '.' => return Some(self.scan_number()),
+                c if c.is_alphabetic() => return Some(self.scan_identifier()),
                 _ => {
                     self.remaining.next();
                     return Some(self.new_token(

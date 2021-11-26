@@ -133,7 +133,6 @@ pub enum TokenKind {
     Identifier,
     Underscore,
     Number,
-    Locale,
 }
 
 impl fmt::Display for TokenKind {
