@@ -38,7 +38,11 @@ impl Environment {
             ));
         }
 
-        Ok(variable.sample())
+        if refinement == ComparisonOperator::NotEqualTo && variable.domain.contains(right) {
+            Ok(right)
+        } else {
+            Ok(variable.sample())
+        }
     }
 }
 
@@ -69,7 +73,7 @@ impl Variable {
     }
 
     fn refine(&mut self, refinement: ComparisonOperator, right: f64) -> Result<(), ()> {
-        if self.domain.refine(refinement, right)? {
+        if self.domain.refine(refinement, right) {
             self.constraints.push((refinement, right));
         }
 
@@ -121,61 +125,34 @@ impl Domain {
     }
 
     /// Returns true if the refinement shrunk the domain, false otherwise.
-    fn refine(&mut self, refinement: ComparisonOperator, right: f64) -> Result<bool, ()> {
+    fn refine(&mut self, refinement: ComparisonOperator, right: f64) -> bool {
         match refinement {
-            ComparisonOperator::LessThan => {
-                if self.contains(right) && self.end > right {
-                    self.end = right - f64::EPSILON;
-                    self.start = self.start.min(self.end);
-                    Ok(true)
-                } else {
-                    Ok(false)
-                }
+            ComparisonOperator::LessThan if self.contains(right) && self.end > right => {
+                self.end = right - f64::EPSILON;
+                self.start = self.start.min(self.end);
+                true
             }
-            ComparisonOperator::LessThanOrEqualTo => {
-                if self.contains(right) && self.end >= right {
-                    self.end = right;
-                    self.start = self.start.min(self.end);
-                    Ok(true)
-                } else {
-                    Ok(false)
-                }
+            ComparisonOperator::LessThanOrEqualTo if self.contains(right) && self.end >= right => {
+                self.end = right;
+                self.start = self.start.min(self.end);
+                true
             }
-            ComparisonOperator::GreaterThan => {
-                if self.contains(right) && self.start < right {
-                    self.start = right + f64::EPSILON;
-                    self.end = self.end.max(self.start);
-                    Ok(true)
-                } else {
-                    Ok(false)
-                }
+            ComparisonOperator::GreaterThan if self.contains(right) && self.start < right => {
+                self.start = right + f64::EPSILON;
+                self.end = self.end.max(self.start);
+                true
             }
-            ComparisonOperator::GreaterThanOrEqualTo => {
-                if self.contains(right) && self.start <= right {
-                    self.start = right;
-                    self.end = self.end.max(self.start);
-                    Ok(true)
-                } else {
-                    Ok(false)
-                }
+            ComparisonOperator::GreaterThanOrEqualTo if self.contains(right) && self.start <= right => {
+                self.start = right;
+                self.end = self.end.max(self.start);
+                true
             }
-            ComparisonOperator::EqualTo => {
-                if self.contains(right) {
-                    self.start = right;
-                    self.end = right;
-                    Ok(true)
-                } else {
-                    Err(())
-                }
+            ComparisonOperator::EqualTo if self.contains(right) => {
+                self.start = right;
+                self.end = right;
+                true
             }
-            ComparisonOperator::NotEqualTo => {
-                if self.contains(right) {
-                    Err(())
-                } else {
-                    Ok(false)
-                }
-            }
-            ComparisonOperator::Comparable => Ok(false),
+            _ => false,
         }
     }
 }
