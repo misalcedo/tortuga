@@ -22,7 +22,7 @@ impl Program {
 
 impl fmt::Display for Program {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Program with {} expressions.", self.expressions.len())
+        write!(f, "Program with {} expressions", self.expressions.len())
     }
 }
 
@@ -220,6 +220,21 @@ pub enum ComparisonOperator {
     EqualTo,
     NotEqualTo,
     Comparable,
+}
+
+impl ComparisonOperator {
+    /// The corresponding operator when swapping the left and right sides of a comparison operation.
+    pub fn flip(&self) -> ComparisonOperator {
+        match self {
+            Self::LessThan => Self::GreaterThan,
+            Self::LessThanOrEqualTo => Self::GreaterThanOrEqualTo,
+            Self::GreaterThan => Self::LessThan,
+            Self::GreaterThanOrEqualTo => Self::LessThanOrEqualTo,
+            Self::EqualTo => Self::EqualTo,
+            Self::NotEqualTo => Self::NotEqualTo,
+            Self::Comparable => Self::Comparable,
+        }
+    }
 }
 
 impl fmt::Display for ComparisonOperator {

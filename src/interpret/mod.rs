@@ -5,7 +5,7 @@ mod constraints;
 use crate::errors::RuntimeError;
 use crate::grammar::*;
 use crate::number::Number;
-use constraints::ConstraintSolver;
+use constraints::Environment;
 use std::convert::TryFrom;
 use std::fmt;
 use tracing::{debug, error};
@@ -13,13 +13,13 @@ use tracing::{debug, error};
 /// Interprets a Tortuga syntax tree to a value that Rust can evaluate.
 #[derive(Debug, Default)]
 pub struct Interpreter {
-    solver: ConstraintSolver,
+    environment: Environment,
 }
 
 impl Interpreter {
     /// Interprets a tortuga program to a rust value.
-    pub fn interpret(&self, program: &Program) {
-        debug!("Evaluating program: {}.", program);
+    pub fn interpret(&mut self, program: &Program) {
+        debug!("Evaluating a {}.", program);
 
         for expression in program.expressions() {
             debug!("Evaluating expression: {}.", expression);
@@ -30,7 +30,7 @@ impl Interpreter {
         }
     }
 
-    fn interpret_expression(&self, expression: &Expression) -> Result<Value, RuntimeError> {
+    fn interpret_expression(&mut self, expression: &Expression) -> Result<Value, RuntimeError> {
         match expression {
             Expression::Grouping(grouping) => self.interpret_grouping(grouping),
             Expression::Number(number) => self.interpret_number(number),
@@ -42,7 +42,7 @@ impl Interpreter {
         }
     }
 
-    fn interpret_grouping(&self, grouping: &Grouping) -> Result<Value, RuntimeError> {
+    fn interpret_grouping(&mut self, grouping: &Grouping) -> Result<Value, RuntimeError> {
         self.interpret_expression(grouping.inner())
     }
 
@@ -51,11 +51,14 @@ impl Interpreter {
     }
 
     fn interpret_variable(&self, variable: &Variable) -> Result<Value, RuntimeError> {
-        Ok(Value::Number(self.solver.value_of(variable.name())))
+        match self.environment.value_of(variable.name()) {
+            Some(value) => Ok(Value::Number(value)),
+            None => Ok(Value::Variable(variable.name().to_string())),
+        }
     }
 
     fn interpret_binary_operation(
-        &self,
+        &mut self,
         binary_operation: &BinaryOperation,
     ) -> Result<Value, RuntimeError> {
         let left = f64::try_from(self.interpret_expression(binary_operation.left())?)?;
@@ -71,28 +74,48 @@ impl Interpreter {
     }
 
     fn interpret_comparison_operation(
-        &self,
+        &mut self,
         comparison_operation: &ComparisonOperation,
     ) -> Result<Value, RuntimeError> {
-        match (
-            comparison_operation.comparator(),
-            self.interpret_expression(comparison_operation.left())?,
-            self.interpret_expression(comparison_operation.right())?,
-        ) {
+        let left = self.interpret_expression(comparison_operation.left())?;
+        let right = self.interpret_expression(comparison_operation.right())?;
+
+        self.compare_values(comparison_operation.comparator(), left, right)
+    }
+
+    fn compare_values(
+        &mut self,
+        operator: ComparisonOperator,
+        left_value: Value,
+        right_value: Value,
+    ) -> Result<Value, RuntimeError> {
+        match (operator, left_value, right_value) {
             (comparator, Value::Number(left), Value::Number(right)) => {
-                self.compare_numbers(left, comparator, right)
+                self.compare_numbers((Value::Number(left), left), comparator, (Value::Number(right), right))
             }
-            (_,  Value::Boolean(false) | Value::Comparison(false, _, _), Value::Number(_)) => {
+            (comparator, Value::Variable(variable), Value::Number(right)) => {
+                let left = self
+                    .environment
+                    .refine(variable.as_str(), comparator, right)?;
+                self.compare_numbers((Value::Variable(variable), left), comparator, (Value::Number(right), right))
+            }
+            (comparator, Value::Number(left), Value::Variable(variable)) => {
+                let right = self
+                    .environment
+                    .refine(variable.as_str(), comparator.flip(), left)?;
+                self.compare_numbers((Value::Number(left), left), comparator, (Value::Variable(variable), right))
+            }
+            (_, Value::Boolean(false) | Value::Comparison(false, _, _), Value::Number(_)) => {
                 Ok(Value::Boolean(false))
-            },
+            }
             (_, Value::Number(_), Value::Boolean(false) | Value::Comparison(false, _, _)) => {
                 Ok(Value::Boolean(false))
             }
-            (comparator, Value::Comparison(true, _, left), Value::Number(right)) => {
-                self.compare_numbers(left, comparator, right)
-            },
-            (comparator, Value::Number(left), Value::Comparison(true, right, _)) => {
-                self.compare_numbers(left, comparator, right)
+            (comparator, Value::Comparison(true, _, left), right @ Value::Number(_)) => {
+                self.compare_values(comparator, *left, right)
+            }
+            (comparator, left @ Value::Number(_), Value::Comparison(true, right, _)) => {
+                self.compare_values(comparator, left, *right)
             }
             (ComparisonOperator::Comparable, _, _) => Ok(Value::Boolean(false)),
             (comparator, left, right) => Err(RuntimeError::not_comparable(left, comparator, right)),
@@ -101,20 +124,37 @@ impl Interpreter {
 
     fn compare_numbers(
         &self,
-        left: f64,
+        (left_value, left): (Value, f64),
         comparator: ComparisonOperator,
-        right: f64,
+        (right_value, right): (Value, f64),
     ) -> Result<Value, RuntimeError> {
+        let left_value = Box::new(left_value);
+        let right_value = Box::new(right_value);
+
         match comparator {
-            ComparisonOperator::LessThan => Ok(Value::Comparison(left < right, left, right)),
-            ComparisonOperator::LessThanOrEqualTo => Ok(Value::Comparison(left <= right, left, right)),
-            ComparisonOperator::GreaterThan => Ok(Value::Comparison(left > right, left, right)),
-            ComparisonOperator::GreaterThanOrEqualTo => Ok(Value::Comparison(left >= right, left, right)),
-            ComparisonOperator::EqualTo => Ok(Value::Comparison((left - right).abs() < f64::EPSILON, left, right)),
-            ComparisonOperator::NotEqualTo => {
-                Ok(Value::Comparison((left - right).abs() > f64::EPSILON, left, right))
+            ComparisonOperator::LessThan => {
+                Ok(Value::Comparison(left < right, left_value, right_value))
             }
-            ComparisonOperator::Comparable => Ok(Value::Comparison(true, left, right)),
+            ComparisonOperator::LessThanOrEqualTo => {
+                Ok(Value::Comparison(left <= right, left_value, right_value))
+            }
+            ComparisonOperator::GreaterThan => {
+                Ok(Value::Comparison(left > right, left_value, right_value))
+            }
+            ComparisonOperator::GreaterThanOrEqualTo => {
+                Ok(Value::Comparison(left >= right, left_value, right_value))
+            }
+            ComparisonOperator::EqualTo => Ok(Value::Comparison(
+                (left - right).abs() < f64::EPSILON,
+                left_value,
+                right_value,
+            )),
+            ComparisonOperator::NotEqualTo => Ok(Value::Comparison(
+                (left - right).abs() > f64::EPSILON,
+                left_value,
+                right_value,
+            )),
+            ComparisonOperator::Comparable => Ok(Value::Comparison(true, left_value, right_value)),
         }
     }
 }
@@ -126,7 +166,8 @@ const NUMBER_TYPE: &str = "Number";
 pub enum Value {
     Number(f64),
     Boolean(bool),
-    Comparison(bool, f64, f64),
+    Comparison(bool, Box<Value>, Box<Value>),
+    Variable(String),
 }
 
 impl fmt::Display for Value {
@@ -135,6 +176,7 @@ impl fmt::Display for Value {
             Self::Number(number) => write!(f, "{}", number),
             Self::Boolean(value) => write!(f, "{}", value),
             Self::Comparison(value, _, _) => write!(f, "{}", value),
+            Self::Variable(name) => write!(f, "{}", name),
         }
     }
 }
@@ -145,8 +187,11 @@ impl<'source> TryFrom<Value> for f64 {
     fn try_from(value: Value) -> Result<Self, Self::Error> {
         match value {
             Value::Boolean(boolean) => Err(RuntimeError::invalid_type(NUMBER_TYPE, boolean)),
-            Value::Comparison(boolean, _ , _) => Err(RuntimeError::invalid_type(NUMBER_TYPE, boolean)),
+            Value::Comparison(boolean, _, _) => {
+                Err(RuntimeError::invalid_type(NUMBER_TYPE, boolean))
+            }
             Value::Number(number) => Ok(number),
+            Value::Variable(name) => Err(RuntimeError::UndefinedVariableUsed(name)),
         }
     }
 }
@@ -157,8 +202,9 @@ impl<'source> TryFrom<Value> for bool {
     fn try_from(value: Value) -> Result<Self, Self::Error> {
         match value {
             Value::Boolean(boolean) => Ok(boolean),
-            Value::Comparison(boolean, _ , _) => Ok(boolean),
+            Value::Comparison(boolean, _, _) => Ok(boolean),
             Value::Number(number) => Err(RuntimeError::invalid_type(BOOLEAN_TYPE, number)),
+            Value::Variable(name) => Err(RuntimeError::UndefinedVariableUsed(name)),
         }
     }
 }

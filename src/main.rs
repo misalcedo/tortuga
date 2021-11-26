@@ -88,7 +88,7 @@ fn run_subcommand(matches: ArgMatches<'_>) -> Result<(), TortugaError> {
 fn run(code: &str) -> Result<(), TortugaError> {
     let scanner = Scanner::new(code);
     let parser = Parser::new(scanner);
-    let interpreter = Interpreter::default();
+    let mut interpreter = Interpreter::default();
 
     match parser.parse() {
         Ok(program) => interpreter.interpret(&program),
@@ -100,6 +100,7 @@ fn run(code: &str) -> Result<(), TortugaError> {
 
 fn run_prompt(_matches: ArgMatches<'_>) -> Result<(), TortugaError> {
     let mut user = Prompt::new();
+    let mut interpreter = Interpreter::default();
 
     println!("{} {}\n", APP_NAME, about::VERSION);
 
@@ -108,8 +109,12 @@ fn run_prompt(_matches: ArgMatches<'_>) -> Result<(), TortugaError> {
             None => return Ok(()),
             Some(line) if line.trim().is_empty() => continue,
             Some(line) => {
-                if let Err(e) = run(line.as_str()) {
-                    error!("{}", e);
+                let scanner = Scanner::new(line.as_str());
+                let parser = Parser::new(scanner);
+                
+                match parser.parse() {
+                    Ok(program) => interpreter.interpret(&program),
+                    Err(error) => error!("{}", error),
                 }
             }
         }

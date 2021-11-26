@@ -4,22 +4,41 @@
 //! See <https://en.wikipedia.org/wiki/Constraint_programming>
 
 use crate::errors::RuntimeError;
-use crate::grammar::{ComparisonOperation, ComparisonOperator};
+use crate::grammar::ComparisonOperator;
 use std::collections::HashMap;
 
 /// Solves constraints to determine variable values.
 /// Uses a combination of perturbation and refinement to constain variables to a value.
 #[derive(Debug, Default)]
-pub struct ConstraintSolver {
+pub struct Environment {
     variables: HashMap<String, Variable>,
 }
 
-impl ConstraintSolver {
-    pub fn value_of(&self, variable: &str) -> f64 {
-        match self.variables.get(variable) {
-            Some(variable) => variable.value(),
-            None => Variable::default().value(),
+impl Environment {
+    pub fn value_of(&self, name: &str) -> Option<f64> {
+        let variable = self.variables.get(name)?;
+        
+        variable.value()
+    }
+
+    pub fn refine(
+        &mut self,
+        name: &str,
+        refinement: ComparisonOperator,
+        right: f64,
+    ) -> Result<f64, RuntimeError> {
+        let variable = self.variables.entry(name.to_string()).or_default();
+
+        if variable.refine(refinement, right).is_err() {
+            return Err(RuntimeError::InvalidRefinement(
+                name.to_string(),
+                refinement,
+                right,
+                variable.domain(),
+            ));
         }
+
+        Ok(variable.sample())
     }
 }
 
@@ -29,27 +48,39 @@ impl ConstraintSolver {
 #[derive(Clone, Debug, Default)]
 struct Variable {
     domain: Domain,
-    constraints: Vec<ComparisonOperation>,
+    constraints: Vec<(ComparisonOperator, f64)>,
     value: Option<f64>,
 }
 
 impl Variable {
-    fn value(&self) -> f64 {
+    fn value(&self) -> Option<f64> {
+        self.value
+    }
+
+    fn sample(&self) -> f64 {
         match self.value {
             Some(value) => value,
-            None => self.domain.sample(),
+            None => self.domain.sample()
         }
     }
 
-    fn refine(
-        &mut self,
-        constraint: &ComparisonOperation,
-        solver: &ConstraintSolver,
-    ) -> Result<(), RuntimeError> {
-        self.domain.refine(constraint, solver)?;
-        self.constraints.push(constraint.clone());
+    fn domain(&self) -> (f64, f64) {
+        self.domain.clone().into()
+    }
 
-        Ok(())
+    fn refine(&mut self, refinement: ComparisonOperator, right: f64) -> Result<(), ()> {
+        if self.domain.refine(refinement, right)? {
+            self.constraints.push((refinement, right));
+        }
+
+        if refinement == ComparisonOperator::EqualTo && self.value.is_none() {
+            self.value.insert(right);
+            Ok(())
+        } else if refinement == ComparisonOperator::EqualTo {
+            Err(())
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -70,6 +101,12 @@ impl Default for Domain {
     }
 }
 
+impl From<Domain> for (f64, f64) {
+    fn from(domain: Domain) -> Self {
+        (domain.start, domain.end)
+    }
+}
+
 impl Domain {
     fn sample(&self) -> f64 {
         if self.contains(1.0) {
@@ -83,11 +120,62 @@ impl Domain {
         self.start <= value && value <= self.end
     }
 
-    fn refine(
-        &mut self,
-        constraint: &ComparisonOperation,
-        solver: &ConstraintSolver,
-    ) -> Result<(), RuntimeError> {
-        Ok(())
+    /// Returns true if the refinement shrunk the domain, false otherwise.
+    fn refine(&mut self, refinement: ComparisonOperator, right: f64) -> Result<bool, ()> {
+        match refinement {
+            ComparisonOperator::LessThan => {
+                if self.contains(right) && self.end > right {
+                    self.end = right - f64::EPSILON;
+                    self.start = self.start.min(self.end);
+                    Ok(true)
+                } else {
+                    Ok(false)
+                }
+            }
+            ComparisonOperator::LessThanOrEqualTo => {
+                if self.contains(right) && self.end >= right {
+                    self.end = right;
+                    self.start = self.start.min(self.end);
+                    Ok(true)
+                } else {
+                    Ok(false)
+                }
+            }
+            ComparisonOperator::GreaterThan => {
+                if self.contains(right) && self.start < right {
+                    self.start = right + f64::EPSILON;
+                    self.end = self.end.max(self.start);
+                    Ok(true)
+                } else {
+                    Ok(false)
+                }
+            }
+            ComparisonOperator::GreaterThanOrEqualTo => {
+                if self.contains(right) && self.start <= right {
+                    self.start = right;
+                    self.end = self.end.max(self.start);
+                    Ok(true)
+                } else {
+                    Ok(false)
+                }
+            }
+            ComparisonOperator::EqualTo => {
+                if self.contains(right) {
+                    self.start = right;
+                    self.end = right;
+                    Ok(true)
+                } else {
+                    Err(())
+                }
+            }
+            ComparisonOperator::NotEqualTo => {
+                if self.contains(right) {
+                    Err(())
+                } else {
+                    Ok(false)
+                }
+            }
+            ComparisonOperator::Comparable => Ok(false),
+        }
     }
 }
