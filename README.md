@@ -51,19 +51,8 @@ Crate modeling the WebAssembly specification.
 
 Defines the interface between the guest and host. Relied upon by the system to run instances.
 
-# Grammar
-The grammar for tortuga is defined using the following rules:
-
-```
-program -> expression* EOF;
-expression -> comparison;
-comparison -> term ( ( "<" | ">" | "=" | "<" ">" | "<" "=" | ">" "=" | "<" "=" ">" ) term )*;
-term -> factor ( ( "+" | "-" ) factor )*;
-factor -> exponent ( ( "*" | "/" ) exponent )*;
-exponent -> primary ( "^" primary )*;
-primary -> number | "(" expression ")" | IDENTIFIER;
-number -> ( "+" | "-" )? NUMBER;
-```
+# Design
+For design goals, non-goals, grammar, and more see [docs/Design.md](https://github.com/misalcedo/tortuga/blob/main/docs/design.md).
 
 # Usage
 
