@@ -6,7 +6,8 @@ use crate::token::{Location, Token, TokenKind};
 use std::str::Chars;
 
 /// Scanner for the tortuga language.
-/// The scanner can step back in the source code until the character after the last token was emitted.
+/// The scanner can step back in the source code until the character
+/// after the last token was emitted (i.e., one character lookahead with backtracking).
 /// Assumes the source code is written left to write.
 pub struct Scanner<'source> {
     code: &'source str,
