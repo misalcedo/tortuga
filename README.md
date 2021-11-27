@@ -36,22 +36,6 @@ The WebAssembly runtime that instantiates guests for each actor continuation and
 The guest is an instance of a WebAssembly module with access to the Application Programming Language (API) of the Tortuga runtime. A guest maps to a continuation of an actor.
 
 # Design
-## Compiler
-
--   Scanner (i.e., Lexer)
--   Parser
--   Transformer
--   Emitter
-
-## WebAssembly (WASM-AST)
-
-Crate modeling the WebAssembly specification.
-
-## Runtime
-
-Defines the interface between the guest and host. Relied upon by the system to run instances.
-
-# Design
 For design goals, non-goals, grammar, and more see [docs/Design.md](https://github.com/misalcedo/tortuga/blob/main/docs/design.md).
 
 # Usage
