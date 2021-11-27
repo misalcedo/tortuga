@@ -50,11 +50,26 @@ number -> ( "+" | "-" )? NUMBER;
 - Variables must start with an alphabetic unicode character.
 - Variables must not end with an underscore.
 - Variables may have alphanumeric or underscore characters in the middle.
-- Variables are declared implicitly when assigned or refined.
+- Variables are declared implicitly when assigned or refined. Most of the trade offs mentioned in Crafting Interpreters are avoided by having immutable variables that cannot be shadowed. If a new variable with the same name is introduced in an outer scope, the existing variable assignment can be treated as a compiler error (i.e., easily detected as an error). Also, modules are a single file and are the root scope so "global" variables are limited to the current file.
+- Variables may not be mutated once assigned.
+- Variables cannot shadow an existing variable in an enclosing lexical scope.
 - Variables may not be used in mathematical operations until the are assigned to.
 
 ## Control Flow
 - Tortuga has no built-in control flow. Instead programs must rely on recursion, pattern matching and dynamic dispatch.
+
+## Scopes
+- Tortuga only has lexical scoping. Records do not have methods. Therefor every scope is static.
+
+## Modules
+- A module in Tortuga defines a set of functions, variables and procedures.
+- Any of the declared items can be exported for others to consume.
+- Modules cannot be nested within one another.
+- Modules may be namespaced via a directory structure; directories cannot also be modules.
+- Modules are not imported. Instead they are locally aliased in order to shorten their references in the local module. A function can always be referenced without an alias.
+- Libraries are sets of modules that may be downloaded locally by the compiler.
+- Libraries may be version using semantic versioning. Multiple versions of the same library may be referenced by a project at any given time.
+- Projects define aliases for each library module that are implicitly added at the start of that project's modules. The libraries are stored locally using a directory structure to have separate namespaces for different versions. So different versions can be used even in the same project.
 
 ## Functions
 - All functions in tortuga must return a value.
