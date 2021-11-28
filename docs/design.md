@@ -21,14 +21,40 @@ The following are a set of design decisions for Tortuga roughly separated into c
 The grammar for tortuga is defined using the following rules:
 
 ```
-program -> expression* EOF;
-expression -> comparison;
-comparison -> term ( ( "<" | ">" | "=" | "<" ">" | "<" "=" | ">" "=" | "<" "=" ">" ) term )*;
+program -> declaration* EOF;
+
+declaration -> recordDefinition | funtionDefinition | procedureDefinition | patternApplication | expression;
+
+recordDefinition -> IDENTIFIER "=" recordPattern;
+functionDefinition -> IDENTIFIER parameters "=" expression;
+procedureDefinition -> IDENTIFIER "!" parameters "=" procedureBody;
+patternApplication -> pattern "=" expression | expression "=" pattern;
+parameters = "(" (pattern ("," pattern)*)? ")";
+
+pattern -> rangePattern | equalityPattern | comparisonPattern | recordDefinitionPattern | recordPattern | IDENTIFIER;
+rangePattern -> number | number "<"? "..." ">"? number;
+equalityPattern -> number | record;
+comparisonPattern -> IDENTIFIER comparisonOperator number | number comparisonOperator IDENTIFIER;
+recordDefinitionPattern -> "$" IDENTIFIER;
+recordPattern -> "{" (pattern ("," pattern)*)? "}";
+
+procedureBody = statement | "[" statement* "]";
+statement = expression | sendMessage;
+sendMessage = primary "|" IDENTIFIER;
+
+expression -> block | comparison;
+block -> "[" expression+ "]";
+comparison -> term ( comparisonOperator term )*;
 term -> factor ( ( "+" | "-" ) factor )*;
 factor -> exponent ( ( "*" | "/" ) exponent )*;
 exponent -> primary ( "^" primary )*;
-primary -> number | "(" expression ")" | IDENTIFIER;
-number -> ( "+" | "-" )? NUMBER;
+primary -> number | record | IDENTIFIER | "(" expression ")";
+
+number -> sign? NUMBER;
+record -> "{" (primary ("," primary)*)? "}";
+
+comparisonOperator = "<" | ">" | "=" | "<" ">" | "<" "=" | ">" "=" | "<" "=" ">";
+sign -> "+" | "-";
 ```
 
 ##  Data Types
