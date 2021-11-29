@@ -25,7 +25,6 @@ program -> declaration* EOF;
 
 declaration -> recordDefinition | funtionDefinition | procedureDefinition | patternApplication | expression;
 
-recordDefinition -> IDENTIFIER "=" recordPattern;
 functionDefinition -> IDENTIFIER parameters "=" expression;
 procedureDefinition -> IDENTIFIER "!" parameters "=" procedureBody;
 patternApplication -> pattern "=" expression | expression "=" pattern;
