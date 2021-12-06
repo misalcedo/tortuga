@@ -25,8 +25,8 @@ pub enum TortugaError {
 /// An error that occurred while interpreting a Tortuga expression.
 #[derive(Error, Debug)]
 pub enum RuntimeError {
-    #[error("An unknown runtime error.")]
-    Unknown,
+    #[error("A block must have at least one expression.")]
+    EmptyBlock,
     #[error("Expected value of type {expected}, but found {actual}.")]
     InvalidType { expected: String, actual: String },
     #[error("Unable to determine whether {left} {comparison} {right}.")]

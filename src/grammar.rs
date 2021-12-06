@@ -26,6 +26,29 @@ impl fmt::Display for Program {
     }
 }
 
+/// A list of zero or more expressions in the tortuga grammar that defines a lexical scope.
+#[derive(Clone, Debug)]
+pub struct Block {
+    expressions: Vec<Expression>,
+}
+
+impl Block {
+    /// Creates a new instance of a block.
+    pub fn new(expressions: Vec<Expression>) -> Self {
+        Block { expressions }
+    }
+
+    pub fn expressions(&self) -> &[Expression] {
+        self.expressions.as_slice()
+    }
+}
+
+impl fmt::Display for Block {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Block with {} expressions", self.expressions.len())
+    }
+}
+
 /// An expression in the tortuga grammar.
 #[derive(Clone, Debug)]
 pub enum Expression {
@@ -34,6 +57,7 @@ pub enum Expression {
     Variable(Variable),
     BinaryOperation(BinaryOperation),
     ComparisonOperation(ComparisonOperation),
+    Block(Block)
 }
 
 impl fmt::Display for Expression {
@@ -44,6 +68,7 @@ impl fmt::Display for Expression {
             Self::Variable(variable) => write!(f, "{}", variable),
             Self::BinaryOperation(operation) => write!(f, "{}", operation),
             Self::ComparisonOperation(operation) => write!(f, "{}", operation),
+            Self::Block(block) => write!(f, "{}", block),
         }
     }
 }
@@ -75,6 +100,12 @@ impl From<BinaryOperation> for Expression {
 impl From<ComparisonOperation> for Expression {
     fn from(operation: ComparisonOperation) -> Self {
         Expression::ComparisonOperation(operation)
+    }
+}
+
+impl From<Block> for Expression {
+    fn from(block: Block) -> Self {
+        Expression::Block(block)
     }
 }
 

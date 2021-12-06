@@ -24,15 +24,34 @@ impl Interpreter {
         let mut environment = self.environment.new_child();
 
         for expression in program.expressions() {
-            debug!("Evaluating expression: {}.", expression);
             match self.interpret_expression(expression, &mut environment) {
+                Ok(Value::Variable(variable)) => error!("{}", RuntimeError::UndefinedVariableUsed(variable)),
                 Ok(value) => println!("{}", value),
                 Err(error) => error!("{}", error),
             }
         }
     }
 
+    fn interpret_block(&mut self, block: &Block, environment: &mut Environment) -> Result<Value, RuntimeError> {
+        let mut block_environment = environment.new_child();
+        let mut iterator = block.expressions().iter().peekable();
+        let mut value = None;
+
+        while let Some(expression) = iterator.next() {
+            let result = self.interpret_expression(expression, &mut block_environment)?;
+
+            if iterator.peek().is_none() {
+                value.insert(result);
+            }
+        }
+
+        value.ok_or(RuntimeError::EmptyBlock)
+    }
+
+
     fn interpret_expression(&mut self, expression: &Expression, environment: &mut Environment) -> Result<Value, RuntimeError> {
+        debug!("Evaluating expression: {}.", expression);
+       
         match expression {
             Expression::Grouping(grouping) => self.interpret_grouping(grouping, environment),
             Expression::Number(number) => self.interpret_number(number),
@@ -40,7 +59,8 @@ impl Interpreter {
             Expression::BinaryOperation(operation) => self.interpret_binary_operation(operation, environment),
             Expression::ComparisonOperation(operation) => {
                 self.interpret_comparison_operation(operation, environment)
-            }
+            },
+            Expression::Block(block) => self.interpret_block(block, environment)
         }
     }
 
@@ -84,7 +104,7 @@ impl Interpreter {
         let left = self.interpret_expression(comparison_operation.left(), environment)?;
         let right = self.interpret_expression(comparison_operation.right(), environment)?;
 
-        self.compare_values(comparison_operation.comparator(), left, right)
+        self.compare_values(comparison_operation.comparator(), left, right, environment)
     }
 
     fn compare_values(
@@ -92,20 +112,19 @@ impl Interpreter {
         operator: ComparisonOperator,
         left_value: Value,
         right_value: Value,
+        environment: &mut Environment
     ) -> Result<Value, RuntimeError> {
         match (operator, left_value, right_value) {
             (comparator, Value::Number(left), Value::Number(right)) => {
                 self.compare_numbers((Value::Number(left), left), comparator, (Value::Number(right), right))
             }
             (comparator, Value::Variable(variable), Value::Number(right)) => {
-                let left = self
-                    .environment
+                let left = environment
                     .refine(variable.as_str(), comparator, right)?;
                 self.compare_numbers((Value::Variable(variable), left), comparator, (Value::Number(right), right))
             }
             (comparator, Value::Number(left), Value::Variable(variable)) => {
-                let right = self
-                    .environment
+                let right = environment
                     .refine(variable.as_str(), comparator.flip(), left)?;
                 self.compare_numbers((Value::Number(left), left), comparator, (Value::Variable(variable), right))
             }
@@ -116,10 +135,10 @@ impl Interpreter {
                 Ok(Value::Boolean(false))
             }
             (comparator, Value::Comparison(true, _, left), right @ Value::Number(_)) => {
-                self.compare_values(comparator, *left, right)
+                self.compare_values(comparator, *left, right, environment)
             }
             (comparator, left @ Value::Number(_), Value::Comparison(true, right, _)) => {
-                self.compare_values(comparator, left, *right)
+                self.compare_values(comparator, left, *right, environment)
             }
             (ComparisonOperator::Comparable, _, _) => Ok(Value::Boolean(false)),
             (comparator, left, right) => Err(RuntimeError::not_comparable(left, comparator, right)),

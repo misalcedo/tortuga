@@ -2,7 +2,7 @@
 
 use crate::errors::ParseError;
 use crate::grammar::{
-    BinaryOperation, ComparisonOperation, ComparisonOperator, Expression, Grouping, Operator,
+    BinaryOperation, Block, ComparisonOperation, ComparisonOperator, Expression, Grouping, Operator,
     Program, Variable,
 };
 use crate::number::{Number, Sign};
@@ -10,6 +10,7 @@ use crate::token::{Token, TokenKind};
 use std::convert::TryFrom;
 use std::iter::{IntoIterator, Iterator, Peekable};
 
+const BLOCK_END_TOKEN_KINDS: [TokenKind; 1] = [TokenKind::RightBracket];
 const COMPARISON_TOKEN_KINDS: [TokenKind; 3] = [
     TokenKind::LessThan,
     TokenKind::GreaterThan,
@@ -52,10 +53,10 @@ where
             }
         }
 
-        if errors.is_empty() {
-            Ok(Program::new(expressions))
-        } else {
-            Err(ParseError::multiple_errors(errors))
+        match errors.len() {
+            0 => Ok(Program::new(expressions)),
+            1 => Err(errors.pop().unwrap()),
+            _ => Err(ParseError::multiple_errors(errors))
         }
     }
 
@@ -67,7 +68,24 @@ where
     }
 
     fn parse_expression(&mut self) -> Result<Expression, ParseError> {
-        self.parse_comparison()
+        match self.peek_kind() {
+            Some(TokenKind::LeftBracket) => Ok(self.parse_block()?.into()),
+            _ => self.parse_comparison()
+        }
+    }
+
+    fn parse_block(&mut self) -> Result<Block, ParseError> {
+        self.next_kind(&[TokenKind::LeftBracket])?;
+
+        let mut expressions = vec![self.parse_comparison()?];
+
+        while !self.next_matches_kind(&BLOCK_END_TOKEN_KINDS) {
+            expressions.push(self.parse_comparison()?)
+        }
+
+        self.next_kind(&BLOCK_END_TOKEN_KINDS)?;
+
+        Ok(Block::new(expressions))
     }
 
     /// Parse a comparison grammar rule.

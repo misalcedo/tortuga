@@ -42,7 +42,7 @@ statement = expression | sendMessage;
 sendMessage = primary "|" IDENTIFIER;
 
 expression -> block | comparison;
-block -> "[" expression+ "]";
+block -> "[" comparison+ "]";
 comparison -> term ( comparisonOperator term )*;
 term -> factor ( ( "+" | "-" ) factor )*;
 factor -> exponent ( ( "*" | "/" ) exponent )*;
