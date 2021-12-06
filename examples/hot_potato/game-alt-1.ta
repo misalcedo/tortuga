@@ -1,0 +1,45 @@
+Actions = { @HOLD, @PASS }
+Results = { @Started, @Ignored}
+
+; Random number generator.
+$random = $tortuga:math:random
+
+main!(_) = [
+    @/spawn ! {@game, game!}
+    @/spawn ! {@participant1, participant!}
+    @/spawn ! {@participant2, participant!}
+    @/spawn ! {@participant3, participant!}
+
+    participants = {@participant1, @participant2, @participant3}
+    
+    ; Start a game of hot potato with 3-10 rounds.
+    @game ! {@., $random(3, 10), participants}
+]
+
+; Start a game of hot potato.
+game!(@_, rounds, {@holder | others}) = [
+    @. ! {rounds, 1, @holder, others}
+    run_game!
+]
+
+run_game!(@sender, _, {_}) = [
+    @sender ! { @Ignored }
+]
+
+; Start a round of hot potato.
+run_game!(rounds, 0 < round <= rounds, @holder, others) = [
+    @holder ! {@., round}
+]
+
+; Conclude a round of hot potato.
+run_game!(rounds, 0 < round <= rounds, @holder, {@next | others}) = [
+    next_in_line = {others | @holder}
+
+    @. ! {rounds, round + 1, @next, next_in_line}
+
+    @/log/info ! { @game, round, rounds, { @next | next_in_line} }
+]
+
+; A participant in a game of hot potato. Holds the potato during even rounds and if there have been less than 3 rounds.
+participant!(@game, round <= 3 & round % 2 = 0) = @game ! {@., HOLD} ; Sends a message to the game to hold the hot potato.
+participant!(@game, _) = @game ! {@., PASS} ; Sends a message to the game to pass the hot potato.

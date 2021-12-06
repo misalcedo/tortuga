@@ -37,8 +37,10 @@ pub enum RuntimeError {
     },
     #[error("Attempted to use variable '{0}' that is not yet defined.")]
     UndefinedVariableUsed(String),
-    #[error("Attempted to refine variable '{0}' with the operator {1} and value {2}, but the refinement is not valid for domain {3:?}.")]
-    InvalidRefinement(String, ComparisonOperator, f64, (f64, f64)),
+    #[error("Attempted to refine variable '{0}' with the operator {1} and value {2}, but the refinement is not valid.")]
+    InvalidRefinement(String, ComparisonOperator, f64),
+    #[error("Attempted to define variable '{0}' as equal to {2}, but the variable is already equal to {1}.")]
+    AlreadyDefined(String, f64, f64),
 }
 
 impl RuntimeError {

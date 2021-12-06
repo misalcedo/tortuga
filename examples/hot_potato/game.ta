@@ -5,10 +5,10 @@ PASS = HOLD + 1
 $random = $tortuga:math:random
 
 main!(_) = [
-    {@game, game!} ! @/spawn
-    {@participant1, participant!} ! @/spawn
-    {@participant2, participant!} ! @/spawn
-    {@participant3, participant!} ! @/spawn
+    @/spawn ! {@game, game!}
+    @/spawn ! {@participant1, participant!}
+    @/spawn ! {@participant2, participant!}
+    @/spawn ! {@participant3, participant!}
 
     participants = {@participant1, @participant2, @participant3}
     
@@ -17,24 +17,33 @@ main!(_) = [
 ]
 
 ; Start a game of hot potato.
-game!(rounds, {@holder | others}) = [
-    {rounds, 1, @holder, others} ! @.
+game!(@sender, rounds, participants = {_}) = [
+    @/store ! { @sender, rounds, participants }
+    @. ! {rounds, 0, participants}
 ]
 
-; Start a round of hot potato.
-game!(rounds, 0 < round <= rounds, @holder, others) = [
-    {@., round} ! @holder
+; Start round of hot potato.
+game!(rounds, 0 < round <= rounds, participants = {@next | rest}) = [
+    @next ! {@., rounds, round, rest}
+
+    @/log/info ! { @game, rounds, round, participants }
 ]
 
-; Conclude a round of hot potato.
-game!(rounds, 0 < round <= rounds, @holder, {@next | others}) = [
-    next_in_line = {others | @holder}
+game!(@next, HOLD, round) = [
+    @. ! {rounds, round + 1, {rest | @next}}
+]
 
-    {rounds, round + 1, @next, next_in_line} ! @.
 
-    @/log/info ! { @game, round, rounds, { @next | next_in_line} }
+game!(@next, PASS, round) = [
+    @. ! {rounds, round + 1, {rest | @next}}
+]
+
+
+; End a game of hot potato.
+game!(rounds, 0 < round <= rounds, {@next, others}) = [
+    @next ! {@., round}
 ]
 
 ; A participant in a game of hot potato. Holds the potato during even rounds and if there have been less than 3 rounds.
-participant!(@game, round <= 3 & round % 2 = 0) = {@., HOLD} | @game ; Sends a message to the game to hold the hot potato.
-participant!(@game, _) = {@., PASS} ! @game ; Sends a message to the game to pass the hot potato.
+participant!(@game, _, round <= 3 & round % 2 = 0, _) = @game ! {@., HOLD, round} ; Sends a message to the game to hold the hot potato.
+participant!(@game, _, _, _) = @game ! {@., PASS, round} ; Sends a message to the game to pass the hot potato.

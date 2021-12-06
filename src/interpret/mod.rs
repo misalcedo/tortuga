@@ -1,11 +1,11 @@
 //! Interpret a syntax tree to a value that can be printed to the user.
 
-mod constraints;
+mod environment;
 
 use crate::errors::RuntimeError;
 use crate::grammar::*;
 use crate::number::Number;
-use constraints::Environment;
+use environment::Environment;
 use std::convert::TryFrom;
 use std::fmt;
 use tracing::{debug, error};
