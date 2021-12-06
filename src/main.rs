@@ -111,7 +111,7 @@ fn run_prompt(_matches: ArgMatches<'_>) -> Result<(), TortugaError> {
             Some(line) => {
                 let scanner = Scanner::new(line.as_str());
                 let parser = Parser::new(scanner);
-                
+
                 match parser.parse() {
                     Ok(program) => interpreter.interpret(&program),
                     Err(error) => error!("{}", error),

@@ -57,7 +57,7 @@ pub enum Expression {
     Variable(Variable),
     BinaryOperation(BinaryOperation),
     ComparisonOperation(ComparisonOperation),
-    Block(Block)
+    Block(Block),
 }
 
 impl fmt::Display for Expression {

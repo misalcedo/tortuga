@@ -2,8 +2,8 @@
 
 use crate::errors::ParseError;
 use crate::grammar::{
-    BinaryOperation, Block, ComparisonOperation, ComparisonOperator, Expression, Grouping, Operator,
-    Program, Variable,
+    BinaryOperation, Block, ComparisonOperation, ComparisonOperator, Expression, Grouping,
+    Operator, Program, Variable,
 };
 use crate::number::{Number, Sign};
 use crate::token::{Token, TokenKind};
@@ -56,7 +56,7 @@ where
         match errors.len() {
             0 => Ok(Program::new(expressions)),
             1 => Err(errors.pop().unwrap()),
-            _ => Err(ParseError::multiple_errors(errors))
+            _ => Err(ParseError::multiple_errors(errors)),
         }
     }
 
@@ -70,7 +70,7 @@ where
     fn parse_expression(&mut self) -> Result<Expression, ParseError> {
         match self.peek_kind() {
             Some(TokenKind::LeftBracket) => Ok(self.parse_block()?.into()),
-            _ => self.parse_comparison()
+            _ => self.parse_comparison(),
         }
     }
 

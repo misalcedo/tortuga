@@ -5,13 +5,13 @@
 
 use crate::errors::RuntimeError;
 use crate::grammar::ComparisonOperator;
-use std::collections::HashMap;
 use std::collections::hash_map::Entry::{Occupied, Vacant};
+use std::collections::HashMap;
 
 /// The variable context for a single lexical scope.
 /// Environments are a tree, the root of the tree has no parent.
 /// Since all variables are immutable and variables are not allowed to shadow each other,
-/// environments start as a clone of their parent. 
+/// environments start as a clone of their parent.
 #[derive(Clone, Debug, Default)]
 pub struct Environment {
     variables: HashMap<String, Variable>,
@@ -25,7 +25,7 @@ impl Environment {
 
     pub fn value_of(&self, name: &str) -> Option<f64> {
         let variable = self.variables.get(name)?;
-        
+
         Some(variable.0)
     }
 
@@ -37,7 +37,11 @@ impl Environment {
         value: f64,
     ) -> Result<f64, RuntimeError> {
         if comparator != ComparisonOperator::EqualTo {
-            return Err(RuntimeError::InvalidRefinement(name.to_string(), comparator, value))
+            return Err(RuntimeError::InvalidRefinement(
+                name.to_string(),
+                comparator,
+                value,
+            ));
         }
 
         match self.variables.entry(name.to_string()) {
@@ -45,9 +49,11 @@ impl Environment {
                 entry.insert(Variable(value));
                 Ok(value)
             }
-            Occupied(entry) => {
-                Err(RuntimeError::AlreadyDefined(name.to_string(), entry.get().0, value))
-            }
+            Occupied(entry) => Err(RuntimeError::AlreadyDefined(
+                name.to_string(),
+                entry.get().0,
+                value,
+            )),
         }
     }
 }
