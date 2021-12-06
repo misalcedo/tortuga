@@ -21,37 +21,39 @@ impl Interpreter {
     pub fn interpret(&mut self, program: &Program) {
         debug!("Evaluating a {}.", program);
 
+        let mut environment = self.environment.new_child();
+
         for expression in program.expressions() {
             debug!("Evaluating expression: {}.", expression);
-            match self.interpret_expression(expression) {
+            match self.interpret_expression(expression, &mut environment) {
                 Ok(value) => println!("{}", value),
                 Err(error) => error!("{}", error),
             }
         }
     }
 
-    fn interpret_expression(&mut self, expression: &Expression) -> Result<Value, RuntimeError> {
+    fn interpret_expression(&mut self, expression: &Expression, environment: &mut Environment) -> Result<Value, RuntimeError> {
         match expression {
-            Expression::Grouping(grouping) => self.interpret_grouping(grouping),
+            Expression::Grouping(grouping) => self.interpret_grouping(grouping, environment),
             Expression::Number(number) => self.interpret_number(number),
-            Expression::Variable(variable) => self.interpret_variable(variable),
-            Expression::BinaryOperation(operation) => self.interpret_binary_operation(operation),
+            Expression::Variable(variable) => self.interpret_variable(variable, environment),
+            Expression::BinaryOperation(operation) => self.interpret_binary_operation(operation, environment),
             Expression::ComparisonOperation(operation) => {
-                self.interpret_comparison_operation(operation)
+                self.interpret_comparison_operation(operation, environment)
             }
         }
     }
 
-    fn interpret_grouping(&mut self, grouping: &Grouping) -> Result<Value, RuntimeError> {
-        self.interpret_expression(grouping.inner())
+    fn interpret_grouping(&mut self, grouping: &Grouping, environment: &mut Environment) -> Result<Value, RuntimeError> {
+        self.interpret_expression(grouping.inner(), environment)
     }
 
     fn interpret_number(&self, number: &Number) -> Result<Value, RuntimeError> {
         Ok(Value::Number((*number).into()))
     }
 
-    fn interpret_variable(&self, variable: &Variable) -> Result<Value, RuntimeError> {
-        match self.environment.value_of(variable.name()) {
+    fn interpret_variable(&self, variable: &Variable, environment: &Environment) -> Result<Value, RuntimeError> {
+        match environment.value_of(variable.name()) {
             Some(value) => Ok(Value::Number(value)),
             None => Ok(Value::Variable(variable.name().to_string())),
         }
@@ -60,9 +62,10 @@ impl Interpreter {
     fn interpret_binary_operation(
         &mut self,
         binary_operation: &BinaryOperation,
+        environment: &mut Environment
     ) -> Result<Value, RuntimeError> {
-        let left = f64::try_from(self.interpret_expression(binary_operation.left())?)?;
-        let right = f64::try_from(self.interpret_expression(binary_operation.right())?)?;
+        let left = f64::try_from(self.interpret_expression(binary_operation.left(), environment)?)?;
+        let right = f64::try_from(self.interpret_expression(binary_operation.right(), environment)?)?;
 
         match binary_operation.operator() {
             Operator::Add => Ok(Value::Number(left + right)),
@@ -76,9 +79,10 @@ impl Interpreter {
     fn interpret_comparison_operation(
         &mut self,
         comparison_operation: &ComparisonOperation,
+        environment: &mut Environment
     ) -> Result<Value, RuntimeError> {
-        let left = self.interpret_expression(comparison_operation.left())?;
-        let right = self.interpret_expression(comparison_operation.right())?;
+        let left = self.interpret_expression(comparison_operation.left(), environment)?;
+        let right = self.interpret_expression(comparison_operation.right(), environment)?;
 
         self.compare_values(comparison_operation.comparator(), left, right)
     }

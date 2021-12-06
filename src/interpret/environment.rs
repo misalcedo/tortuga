@@ -9,14 +9,20 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry::{Occupied, Vacant};
 
 /// The variable context for a single lexical scope.
-/// Environments are a tree, the root of the tree has not parent.
-#[derive(Debug, Default)]
+/// Environments are a tree, the root of the tree has no parent.
+/// Since all variables are immutable and variables are not allowed to shadow each other,
+/// environments start as a clone of their parent. 
+#[derive(Clone, Debug, Default)]
 pub struct Environment {
-    parent: Option<usize>,
     variables: HashMap<String, Variable>,
 }
 
 impl Environment {
+    /// Creates a child scope.
+    pub fn new_child(&self) -> Environment {
+        self.clone()
+    }
+
     pub fn value_of(&self, name: &str) -> Option<f64> {
         let variable = self.variables.get(name)?;
         
@@ -33,7 +39,7 @@ impl Environment {
         if comparator != ComparisonOperator::EqualTo {
             return Err(RuntimeError::InvalidRefinement(name.to_string(), comparator, value))
         }
-        
+
         match self.variables.entry(name.to_string()) {
             Vacant(entry) => {
                 entry.insert(Variable(value));
