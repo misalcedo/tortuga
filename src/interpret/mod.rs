@@ -13,7 +13,7 @@ use tracing::{debug, error};
 /// Interprets a Tortuga syntax tree to a value that Rust can evaluate.
 #[derive(Debug, Default)]
 pub struct Interpreter {
-    environment: Environment,
+    environment: Option<Environment>,
 }
 
 impl Interpreter {
@@ -21,7 +21,7 @@ impl Interpreter {
     pub fn interpret(&mut self, program: &Program) {
         debug!("Evaluating a {}.", program);
 
-        let mut environment = self.environment.new_child();
+        let mut environment = self.environment.take().unwrap_or_default();
 
         for expression in program.expressions() {
             match self.interpret_expression(expression, &mut environment) {
@@ -32,6 +32,8 @@ impl Interpreter {
                 Err(error) => error!("{}", error),
             }
         }
+
+        self.environment.insert(environment);
     }
 
     fn interpret_block(
