@@ -123,8 +123,10 @@ impl<'source> Scanner<'source> {
     }
 
     /// Peeks at the next character in the source.
+    /// Skips any unnecessary characters before peeking.
     pub fn peek(&mut self) -> Option<char> {
-        self.cursor.peek().map(|c| *c)
+        self.skip();
+        self.cursor.peek().copied()
     }
 
     /// Gets the lexeme starting at this `Scanner`'s start `Location` (inclusive) until this `Scanner`'s end `Location` (exclusive).
@@ -138,7 +140,7 @@ impl<'source> Scanner<'source> {
 
     /// Gets the lexeme starting at the given `Location` (inclusive) until this `Scanner`'s end `Location` (exclusive).
     pub fn lexeme_from(&mut self, start: &Location) -> &'source str {
-        self.source.lexeme(&start, &self.end)
+        self.source.lexeme(start, &self.end)
     }
 
     /// The start location of the current lexeme being scanned.
@@ -175,6 +177,11 @@ mod tests {
     #[test]
     fn peek_non_empty() {
         assert_eq!(Scanner::from("abc").peek(), Some('a'));
+    }
+
+    #[test]
+    fn peek_when_skipping() {
+        assert_eq!(Scanner::from(";hello\r\n\t abc").peek(), Some('a'));
     }
 
     #[test]

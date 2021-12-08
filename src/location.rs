@@ -27,6 +27,15 @@ impl fmt::Display for Location {
 }
 
 impl Location {
+    /// Creates a new instance of a `Location` with the given values.
+    #[cfg(test)]
+    pub fn new(line: usize, column: usize, offset: usize) -> Self {
+        Location {
+            line,
+            column,
+            offset,
+        }
+    }
     /// Moves this `Location` to the next line, first column.
     pub fn next_line(&mut self) {
         self.line += 1;

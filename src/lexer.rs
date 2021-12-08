@@ -114,7 +114,7 @@ fn scan_identifier<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
     let mut validations = Vec::new();
 
     while scanner
-        .next_if(|c| c.is_ascii_alphanumeric() || c == '_')
+        .next_if(|c| c.is_alphanumeric() || c == '_')
         .is_some()
     {}
 
@@ -134,53 +134,49 @@ impl<'scanner, 'source> Lexer<'scanner, 'source> {
         Lexer { scanner }
     }
 
-    fn new_token(&mut self, kind: TokenKind, validations: Vec<ValidationError>) -> Token<'source> {
-        Token::new(
-            kind,
-            *self.scanner.start(),
-            self.scanner.lexeme(),
-            validations,
-        )
-    }
-
     /// Creates a new token for single character lexemes.
     fn new_short_token(&mut self, kind: TokenKind) -> Option<Token<'source>> {
         self.scanner.next();
-        Some(self.new_token(kind, Vec::new()))
+        Some(Token::new(
+            kind,
+            *self.scanner.start(),
+            self.scanner.lexeme(),
+            Vec::new(),
+        ))
     }
 
     /// The next lexical token in the source code.
     fn next_token(&mut self) -> Option<Token<'source>> {
-        loop {
-            match self.scanner.peek()? {
-                '~' => return self.new_short_token(TokenKind::Tilde),
-                '+' => return self.new_short_token(TokenKind::Plus),
-                '-' => return self.new_short_token(TokenKind::Minus),
-                '*' => return self.new_short_token(TokenKind::Star),
-                '/' => return self.new_short_token(TokenKind::ForwardSlash),
-                '=' => return self.new_short_token(TokenKind::Equals),
-                '<' => return self.new_short_token(TokenKind::LessThan),
-                '>' => return self.new_short_token(TokenKind::GreaterThan),
-                '|' => return self.new_short_token(TokenKind::Pipe),
-                '^' => return self.new_short_token(TokenKind::Caret),
-                '%' => return self.new_short_token(TokenKind::Percent),
-                '_' => return self.new_short_token(TokenKind::Underscore),
-                '(' => return self.new_short_token(TokenKind::LeftParenthesis),
-                ')' => return self.new_short_token(TokenKind::RightParenthesis),
-                '[' => return self.new_short_token(TokenKind::LeftBracket),
-                ']' => return self.new_short_token(TokenKind::RightBracket),
-                '{' => return self.new_short_token(TokenKind::LeftBrace),
-                '}' => return self.new_short_token(TokenKind::RightBrace),
-                c if c.is_alphabetic() => return Some(scan_identifier(self.scanner)),
-                c if c.is_ascii_digit() || c == '.' => return Some(scan_number(&mut self.scanner)),
-                _ => {
-                    self.scanner.next();
+        match self.scanner.peek()? {
+            '~' => self.new_short_token(TokenKind::Tilde),
+            '+' => self.new_short_token(TokenKind::Plus),
+            '-' => self.new_short_token(TokenKind::Minus),
+            '*' => self.new_short_token(TokenKind::Star),
+            '/' => self.new_short_token(TokenKind::ForwardSlash),
+            '=' => self.new_short_token(TokenKind::Equals),
+            '<' => self.new_short_token(TokenKind::LessThan),
+            '>' => self.new_short_token(TokenKind::GreaterThan),
+            '|' => self.new_short_token(TokenKind::Pipe),
+            '^' => self.new_short_token(TokenKind::Caret),
+            '%' => self.new_short_token(TokenKind::Percent),
+            '_' => self.new_short_token(TokenKind::Underscore),
+            '(' => self.new_short_token(TokenKind::LeftParenthesis),
+            ')' => self.new_short_token(TokenKind::RightParenthesis),
+            '[' => self.new_short_token(TokenKind::LeftBracket),
+            ']' => self.new_short_token(TokenKind::RightBracket),
+            '{' => self.new_short_token(TokenKind::LeftBrace),
+            '}' => self.new_short_token(TokenKind::RightBrace),
+            c if c.is_alphabetic() => Some(scan_identifier(self.scanner)),
+            c if c.is_ascii_digit() || c == '.' => Some(scan_number(&mut self.scanner)),
+            _ => {
+                self.scanner.next();
 
-                    return Some(self.new_token(
-                        TokenKind::Identifier,
-                        vec![ValidationError::UnexpectedCharacter],
-                    ));
-                }
+                Some(Token::new(
+                    TokenKind::Identifier,
+                    *self.scanner.start(),
+                    self.scanner.lexeme(),
+                    vec![ValidationError::UnexpectedCharacter],
+                ))
             }
         }
     }
@@ -352,5 +348,100 @@ mod tests {
                 )]
             ))
         );
+    }
+
+    #[test]
+    fn lex_invalid_identifier() {
+        let mut scanner = "x_".into();
+        let mut lexer = Lexer::new(&mut scanner);
+
+        assert_eq!(
+            lexer.next(),
+            Some(Token::new(
+                TokenKind::Identifier,
+                Location::default(),
+                "x_",
+                vec![ValidationError::TerminalUnderscore]
+            ))
+        );
+    }
+
+    #[test]
+    fn lex_identifier() {
+        let mut scanner = "x_1".into();
+        let mut lexer = Lexer::new(&mut scanner);
+
+        assert_eq!(
+            lexer.next(),
+            Some(Token::new(
+                TokenKind::Identifier,
+                Location::default(),
+                "x_1",
+                vec![]
+            ))
+        );
+    }
+
+    #[test]
+    fn lex_expression_with_no_space() {
+        let mut scanner = "1x".into();
+        let mut lexer = Lexer::new(&mut scanner);
+
+        assert_eq!(
+            lexer.next(),
+            Some(Token::new(
+                TokenKind::Number,
+                Location::default(),
+                "1",
+                vec![]
+            ))
+        );
+        assert_eq!(
+            lexer.next(),
+            Some(Token::new(
+                TokenKind::Identifier,
+                Location::new(1, 2, 1),
+                "x",
+                vec![]
+            ))
+        );
+    }
+
+    #[test]
+    fn lex_expression_simple() {
+        let mut scanner = "x = 1".into();
+        let mut lexer = Lexer::new(&mut scanner);
+
+        assert_eq!(
+            lexer.next(),
+            Some(Token::new(
+                TokenKind::Identifier,
+                Location::default(),
+                "x",
+                vec![]
+            ))
+        );
+
+        assert_eq!(
+            lexer.next(),
+            Some(Token::new(
+                TokenKind::Equals,
+                Location::new(1, 3, 2),
+                "=",
+                vec![]
+            ))
+        );
+
+        assert_eq!(
+            lexer.next(),
+            Some(Token::new(
+                TokenKind::Number,
+                Location::new(1, 5, 4),
+                "1",
+                vec![]
+            ))
+        );
+
+        assert_eq!(lexer.next(), None);
     }
 }
