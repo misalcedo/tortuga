@@ -1,6 +1,17 @@
 use std::borrow::Borrow;
 use std::fmt;
 
+/// A source for lexemes that can be indexed via a pair of `Location`s.
+pub trait LexemeSource {
+    fn lexeme(&self, start: &Location, end: &Location) -> &Self;
+}
+
+impl LexemeSource for str {
+    fn lexeme(&self, start: &Location, end: &Location) -> &str {
+        &self[start.offset..end.offset]
+    }
+}
+
 /// The line and column of the start of a lexeme.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Location {
@@ -35,9 +46,9 @@ impl Location {
         self.offset += character.borrow().len_utf8();
     }
 
-    /// Returns the subslice of the string slice starting at this `Location`s offset.
-    pub fn slice_from<'source>(&self, text: &'source str) -> &'source str {
-        &text[self.offset..]
+    /// Adds a single offset, without incrementing the column, to this `Location`.
+    pub fn add_offset<T: Borrow<char>>(&mut self, character: T) {
+        self.offset += character.borrow().len_utf8();
     }
 
     /// Returns the location equivalent to adding the given character as a column.
@@ -46,6 +57,15 @@ impl Location {
         next.add_column(character);
         next
     }
+
+    /// Returns the a `Location` with an offset of 0, but the same line and column.
+    pub fn continuation(&self) -> Location {
+        Location {
+            line: self.line,
+            column: self.column,
+            offset: 0
+        }
+    } 
 }
 
 impl Default for Location {
