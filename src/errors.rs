@@ -85,6 +85,8 @@ pub enum ValidationError {
         crate::number::MAX_RADIX
     )]
     RadixTooLarge(u32),
+    #[error("Fraction contains {0} digits, but the maximum supported is {}.", u32::MAX)]
+    FractionTooLong(usize),
     #[error("Unable to parse the integer portion of a numeric literal.")]
     InvalidInteger(#[source] std::num::ParseIntError),
     #[error("Unable to parse the fraction portion of a numeric literal.")]
@@ -129,7 +131,7 @@ impl ParseError {
     pub fn mismatched_kind(expected: &[Kind], token: Option<&Token<'_>>) -> Self {
         match token {
             Some(token) => Self::Syntax {
-                location: token.start(),
+                location: *token.start(),
                 expected: Kinds(expected.to_vec()),
                 actual: token.kind(),
                 lexeme: token.lexeme().to_string(),

@@ -3,9 +3,10 @@
 //! The lexer produces lexical tokens.
 
 use crate::errors::ValidationError;
-use crate::number::{Sign, DECIMAL_RADIX, MAX_RADIX};
+use crate::grammar::{Operator, ComparisonOperator};
+use crate::number::{Fraction, Number, Sign, DECIMAL_RADIX, MAX_RADIX};
 use crate::scanner::Scanner;
-use crate::token::{Kind, Token};
+use crate::token::{Attachment, Kind, Token};
 
 /// Performs Lexical Analysis for the tortuga language.
 pub struct Lexer<'scanner, 'source>
@@ -22,7 +23,7 @@ fn scan_digits<'source>(scanner: &mut Scanner<'source>, radix: u32) -> Option<&'
 
     while scanner.next_if(|c| c.is_digit(radix)).is_some() {}
 
-    let lexeme = scanner.lexeme();
+    let lexeme = scanner.lexeme().source();
 
     if lexeme.is_empty() {
         None
@@ -44,22 +45,22 @@ fn scan_digits<'source>(scanner: &mut Scanner<'source>, radix: u32) -> Option<&'
 fn scan_number<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
     let start = *scanner.start();
     let mut validations = Vec::new();
-    let mut radix = None;
-    let mut _sign = Sign::Positive;
-    let mut integer = scan_digits(scanner, DECIMAL_RADIX);
-    let mut fraction = None;
+    let mut radix_lexeme = None;
+    let mut sign = Sign::Positive;
+    let mut integer_lexeme = scan_digits(scanner, DECIMAL_RADIX);
+    let mut fraction_lexeme = None;
 
     if scanner.next_if_eq('#').is_some() {
-        radix = integer;
-        _sign = match scanner.next_if(|c| c == '+' || c == '-') {
+        radix_lexeme = integer_lexeme;
+        sign = match scanner.next_if(|c| c == '+' || c == '-') {
             Some('-') => Sign::Negative,
             _ => Sign::Positive,
         };
 
-        integer = scan_digits(scanner, MAX_RADIX);
+        integer_lexeme = scan_digits(scanner, MAX_RADIX);
     }
 
-    let radix = match radix.map(|r| r.parse::<u32>()) {
+    let radix = match radix_lexeme.map(|r| r.parse::<u32>()) {
         Some(Ok(value)) if value > MAX_RADIX => {
             validations.push(ValidationError::RadixTooLarge(value));
             MAX_RADIX
@@ -73,14 +74,14 @@ fn scan_number<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
     };
 
     if scanner.next_if_eq('.').is_some() {
-        fraction = scan_digits(scanner, MAX_RADIX);
+        fraction_lexeme = scan_digits(scanner, MAX_RADIX);
     }
 
-    if integer.is_none() && fraction.is_none() {
+    if integer_lexeme.is_none() && fraction_lexeme.is_none() {
         validations.push(ValidationError::ExpectedDigits);
     }
 
-    let _integer = match integer.map(|i| u128::from_str_radix(i, radix)) {
+    let integer = match integer_lexeme.map(|i| u128::from_str_radix(i, radix)) {
         Some(Err(error)) => {
             validations.push(ValidationError::InvalidInteger(error));
             0
@@ -88,7 +89,7 @@ fn scan_number<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
         Some(Ok(value)) => value,
         None => 0,
     };
-    let _fraction = match fraction.map(|f| u128::from_str_radix(f, radix)) {
+    let numerator = match fraction_lexeme.map(|f| u128::from_str_radix(f, radix)) {
         Some(Err(error)) => {
             validations.push(ValidationError::InvalidFraction(error));
             0
@@ -101,12 +102,26 @@ fn scan_number<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
         validations.push(ValidationError::DuplicateDecimal);
     }
 
-    Token::new(
-        Kind::Number,
-        start,
-        scanner.lexeme_from(&start),
-        validations,
-    )
+    let fraction = match fraction_lexeme{
+        Some(value) if value.len() > (u32::MAX as usize) => {
+            validations.push(ValidationError::FractionTooLong(value.len()));
+            Fraction::default()
+        },
+        Some(value) => Fraction::new(numerator, radix.pow(value.len() as u32).into()),
+        None => Fraction::default()
+    };
+
+    let number = Number::new(
+        sign,
+        integer,
+        fraction
+    );
+
+    if validations.is_empty() {
+        Token::new_valid(Attachment::Number(number), scanner.lexeme_from(&start))
+    } else {
+        Token::new_invalid(Some(Kind::Number), scanner.lexeme_from(&start), validations)
+    }
 }
 
 /// Scans either an identifier or a number with a radix.
@@ -118,14 +133,17 @@ fn scan_identifier<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
         .is_some()
     {}
 
-    let start = *scanner.start();
     let lexeme = scanner.lexeme();
 
-    if lexeme.ends_with('_') {
+    if lexeme.source().ends_with('_') {
         validations.push(ValidationError::TerminalUnderscore);
     }
 
-    Token::new(Kind::Identifier, start, lexeme, validations)
+    if validations.is_empty() {
+        Token::new_valid(Attachment::Empty(Kind::Identifier), lexeme)
+    } else {
+        Token::new_invalid(Some(Kind::Identifier), lexeme, validations)
+    }
 }
 
 impl<'scanner, 'source> Lexer<'scanner, 'source> {
@@ -135,29 +153,28 @@ impl<'scanner, 'source> Lexer<'scanner, 'source> {
     }
 
     /// Creates a new token for single character lexemes.
-    fn new_short_token(&mut self, kind: Kind) -> Option<Token<'source>> {
+    fn new_short_token<T: Into<Attachment>>(&mut self, attachment: T) -> Option<Token<'source>> {
         self.scanner.next();
-        Some(Token::new(
-            kind,
-            *self.scanner.start(),
-            self.scanner.lexeme(),
-            Vec::new(),
+
+        Some(Token::new_valid(
+            attachment.into(),
+            self.scanner.lexeme()
         ))
     }
 
     /// The next lexical token in the source code.
     fn next_token(&mut self) -> Option<Token<'source>> {
         match self.scanner.peek()? {
+            '+' => self.new_short_token(Operator::Add),
+            '-' => self.new_short_token(Operator::Subtract),
+            '*' => self.new_short_token(Operator::Multiply),
+            '/' => self.new_short_token(Operator::Divide),
+            '^' => self.new_short_token(Operator::Exponent),
+            '=' => self.new_short_token(ComparisonOperator::EqualTo),
+            '<' => self.new_short_token(ComparisonOperator::LessThan),
+            '>' => self.new_short_token(ComparisonOperator::GreaterThan),
             '~' => self.new_short_token(Kind::Tilde),
-            '+' => self.new_short_token(Kind::Plus),
-            '-' => self.new_short_token(Kind::Minus),
-            '*' => self.new_short_token(Kind::Star),
-            '/' => self.new_short_token(Kind::ForwardSlash),
-            '=' => self.new_short_token(Kind::Equals),
-            '<' => self.new_short_token(Kind::LessThan),
-            '>' => self.new_short_token(Kind::GreaterThan),
             '|' => self.new_short_token(Kind::Pipe),
-            '^' => self.new_short_token(Kind::Caret),
             '%' => self.new_short_token(Kind::Percent),
             '_' => self.new_short_token(Kind::Underscore),
             '(' => self.new_short_token(Kind::LeftParenthesis),
@@ -169,11 +186,10 @@ impl<'scanner, 'source> Lexer<'scanner, 'source> {
             c if c.is_alphabetic() => Some(scan_identifier(self.scanner)),
             c if c.is_ascii_digit() || c == '.' => Some(scan_number(&mut self.scanner)),
             _ => {
-                self.scanner.next();
+                while self.scanner.next_if(|c| !c.is_ascii_punctuation() && !c.is_alphanumeric()).is_some() {}
 
-                Some(Token::new(
-                    Kind::Identifier,
-                    *self.scanner.start(),
+                Some(Token::new_invalid(
+                    None,
                     self.scanner.lexeme(),
                     vec![ValidationError::UnexpectedCharacter],
                 ))
@@ -197,6 +213,7 @@ impl<'scanner, 'source> Iterator for Lexer<'scanner, 'source> {
 mod tests {
     use super::*;
     use crate::location::Location;
+    use crate::token::Lexeme;
 
     #[test]
     fn lex_number() {
@@ -205,11 +222,9 @@ mod tests {
 
         assert_eq!(
             lexer.next(),
-            Some(Token::new(
-                Kind::Number,
-                Location::default(),
-                "1",
-                Vec::new()
+            Some(Token::new_valid(
+                Attachment::Number(Number::new_integer(Sign::Positive, 1)),
+                Lexeme::new("1", Location::default()),
             ))
         );
     }
@@ -221,11 +236,9 @@ mod tests {
 
         assert_eq!(
             lexer.next(),
-            Some(Token::new(
-                Kind::Number,
-                Location::default(),
-                "2#-011.01",
-                Vec::new()
+            Some(Token::new_valid(
+                Attachment::Number(Number::new(Sign::Positive, 3, Fraction::new(1, 4))),
+                Lexeme::new("2#-011.01", Location::default()),
             ))
         );
     }
@@ -237,11 +250,9 @@ mod tests {
 
         assert_eq!(
             lexer.next(),
-            Some(Token::new(
-                Kind::Number,
-                Location::default(),
-                "16#FFFFFF",
-                Vec::new()
+            Some(Token::new_valid(
+                Attachment::Number(Number::new_integer(Sign::Positive, 16777215)),
+                Lexeme::new("16#FFFFFF", Location::default()),
             ))
         );
     }
@@ -253,10 +264,9 @@ mod tests {
 
         assert_eq!(
             lexer.next(),
-            Some(Token::new(
-                Kind::Number,
-                Location::default(),
-                ".",
+            Some(Token::new_invalid(
+                Some(Kind::Number),
+                Lexeme::new(".", Location::default()),
                 vec![ValidationError::ExpectedDigits]
             ))
         );
@@ -269,10 +279,9 @@ mod tests {
 
         assert_eq!(
             lexer.next(),
-            Some(Token::new(
-                Kind::Number,
-                Location::default(),
-                "1.2.",
+            Some(Token::new_invalid(
+                Some(Kind::Number),
+                Lexeme::new("1.2.", Location::default()),
                 vec![ValidationError::DuplicateDecimal]
             ))
         );
@@ -285,10 +294,9 @@ mod tests {
 
         assert_eq!(
             lexer.next(),
-            Some(Token::new(
-                Kind::Number,
-                Location::default(),
-                "256#1.",
+            Some(Token::new_invalid(
+                Some(Kind::Number),
+                Lexeme::new("256#1.", Location::default()),
                 vec![ValidationError::RadixTooLarge(256)]
             ))
         );
@@ -301,10 +309,9 @@ mod tests {
 
         assert_eq!(
             lexer.next(),
-            Some(Token::new(
-                Kind::Number,
-                Location::default(),
-                "222222222222222222222222222222222222222222#1.",
+            Some(Token::new_invalid(
+                Some(Kind::Number),
+                Lexeme::new("222222222222222222222222222222222222222222#1.", Location::default()),
                 vec![ValidationError::InvalidRadix(
                     "222222222222222222222222222222222222222222"
                         .parse::<u32>()
@@ -321,10 +328,9 @@ mod tests {
 
         assert_eq!(
             lexer.next(),
-            Some(Token::new(
-                Kind::Number,
-                Location::default(),
-                "10#FF",
+            Some(Token::new_invalid(
+                Some(Kind::Number),
+                Lexeme::new("10#FF", Location::default()),
                 vec![ValidationError::InvalidInteger(
                     u128::from_str_radix("FF", DECIMAL_RADIX).unwrap_err()
                 )]
@@ -339,10 +345,9 @@ mod tests {
 
         assert_eq!(
             lexer.next(),
-            Some(Token::new(
-                Kind::Number,
-                Location::default(),
-                ".FF",
+            Some(Token::new_invalid(
+                Some(Kind::Number),
+                Lexeme::new(".FF", Location::default()),
                 vec![ValidationError::InvalidFraction(
                     u128::from_str_radix("FF", DECIMAL_RADIX).unwrap_err()
                 )]
@@ -357,10 +362,9 @@ mod tests {
 
         assert_eq!(
             lexer.next(),
-            Some(Token::new(
-                Kind::Identifier,
-                Location::default(),
-                "x_",
+            Some(Token::new_invalid(
+                Some(Kind::Identifier),
+                Lexeme::new("x_", Location::default()),
                 vec![ValidationError::TerminalUnderscore]
             ))
         );
@@ -373,11 +377,9 @@ mod tests {
 
         assert_eq!(
             lexer.next(),
-            Some(Token::new(
-                Kind::Identifier,
-                Location::default(),
-                "x_1",
-                vec![]
+            Some(Token::new_valid(
+                Kind::Identifier.into(),
+                Lexeme::new("x_1", Location::default())
             ))
         );
     }
@@ -389,15 +391,13 @@ mod tests {
 
         assert_eq!(
             lexer.next(),
-            Some(Token::new(Kind::Number, Location::default(), "1", vec![]))
+            Some(Token::new_valid(Attachment::Number(Number::new_integer(Sign::Positive, 1)), Lexeme::new("1", Location::default())))
         );
         assert_eq!(
             lexer.next(),
-            Some(Token::new(
-                Kind::Identifier,
-                Location::new(1, 2, 1),
-                "x",
-                vec![]
+            Some(Token::new_valid(
+                Kind::Identifier.into(),
+                Lexeme::new("x", Location::new(1, 2, 1)),
             ))
         );
     }
@@ -409,31 +409,25 @@ mod tests {
 
         assert_eq!(
             lexer.next(),
-            Some(Token::new(
-                Kind::Identifier,
-                Location::default(),
-                "x",
-                vec![]
+            Some(Token::new_valid(
+                Kind::Identifier.into(),
+                Lexeme::new("x", Location::default()),
             ))
         );
 
         assert_eq!(
             lexer.next(),
-            Some(Token::new(
-                Kind::Equals,
-                Location::new(1, 3, 2),
-                "=",
-                vec![]
+            Some(Token::new_valid(
+                Kind::Equals.into(),
+                Lexeme::new("=", Location::new(1, 3, 2)),
             ))
         );
 
         assert_eq!(
             lexer.next(),
-            Some(Token::new(
-                Kind::Number,
-                Location::new(1, 5, 4),
-                "1",
-                vec![]
+            Some(Token::new_valid(
+                Attachment::Number(Number::new_integer(Sign::Positive, 1)),
+                Lexeme::new("1", Location::new(1, 5, 4)),
             ))
         );
 

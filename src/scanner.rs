@@ -2,6 +2,7 @@
 //! The scanner produces a finite stream of characters, ignoring comments and blank space.
 
 use crate::location::{LexemeSource, Location};
+use crate::token::Lexeme;
 use std::iter::Peekable;
 use std::str::Chars;
 
@@ -130,17 +131,17 @@ impl<'source> Scanner<'source> {
     }
 
     /// Gets the lexeme starting at this `Scanner`'s start `Location` (inclusive) until this `Scanner`'s end `Location` (exclusive).
-    pub fn lexeme(&mut self) -> &'source str {
+    pub fn lexeme(&mut self) -> Lexeme<'source> {
         let substring = self.source.lexeme(&self.start, &self.end);
 
         self.step_forward();
 
-        substring
+        Lexeme::new(substring, self.start)
     }
 
     /// Gets the lexeme starting at the given `Location` (inclusive) until this `Scanner`'s end `Location` (exclusive).
-    pub fn lexeme_from(&mut self, start: &Location) -> &'source str {
-        self.source.lexeme(start, &self.end)
+    pub fn lexeme_from(&mut self, start: &Location) -> Lexeme<'source> {
+        Lexeme::new(self.source.lexeme(start, &self.end), *start)
     }
 
     /// The start location of the current lexeme being scanned.

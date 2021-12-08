@@ -243,14 +243,14 @@ where
     /// Gets the next token only if it has one of the given kind.
     fn next_if_kind(&mut self, expected: &[Kind]) -> Result<Option<Token<'source>>, ParseError> {
         self.tokens
-            .next_if(|token| expected.contains(&token.kind()))
+            .next_if(|token| token.kind().filter(|k| expected.contains(k)).is_some())
             .map(ParseError::validate)
             .transpose()
     }
 
     /// Peeks the next token's kind.
     fn peek_kind(&mut self) -> Option<Kind> {
-        self.tokens.peek().map(|token| token.kind())
+        self.tokens.peek().map(|token| token.kind()).flatten()
     }
 
     /// Tests if the next token's kind matches one of the expected ones.

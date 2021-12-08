@@ -1,55 +1,12 @@
 //! Parses numeric literals into a suntax tree node.
 
-use nom::branch::alt;
-use nom::bytes::complete::tag;
-use nom::character::complete::{alphanumeric1, digit1};
-use nom::combinator::{all_consuming, map, opt};
-use nom::sequence::{preceded, tuple};
-use std::convert::TryFrom;
 use std::fmt;
-
-use crate::errors::ValidationError;
 
 /// Maximum supported radix for numbers.
 pub const MAX_RADIX: u32 = 36;
 
 /// The radix for decimal (0-9) numbers.
 pub const DECIMAL_RADIX: u32 = 10;
-
-impl TryFrom<&str> for Number {
-    type Error = ValidationError;
-
-    fn try_from(lexeme: &str) -> Result<Self, Self::Error> {
-        let (_, (sign, integer, fraction, radix)) =
-            all_consuming::<_, _, nom::error::Error<&str>, _>(tuple((
-                map(opt(alt((tag("+"), tag("-")))), |s| {
-                    Sign::from(s.unwrap_or("+"))
-                }),
-                map(opt(alphanumeric1), |i| i.unwrap_or("0")),
-                map(preceded(opt(tag(".")), opt(alphanumeric1)), |f| {
-                    f.unwrap_or("0")
-                }),
-                map(opt(preceded(tag("#"), digit1)), |r| r.unwrap_or("10")),
-            )))(lexeme)
-            .map_err(|_| Self::Error::InvalidNumber)?;
-
-        let radix = radix.parse::<u32>().map_err(Self::Error::InvalidRadix)?;
-
-        if radix > 36 {
-            return Err(Self::Error::RadixTooLarge(radix));
-        }
-
-        let integer = u128::from_str_radix(integer, radix).map_err(Self::Error::InvalidInteger)?;
-        let numerator =
-            u128::from_str_radix(fraction, radix).map_err(Self::Error::InvalidFraction)?;
-
-        Ok(Number::new(
-            sign,
-            integer,
-            Fraction::new(numerator, radix.pow(fraction.len() as u32).into()),
-        ))
-    }
-}
 
 /// Represents an number with both an integer and fractional portion.
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
@@ -72,6 +29,16 @@ impl Number {
             sign,
             integer,
             fraction,
+        }
+    }
+
+    /// Creates a integer number with the given sign.
+    #[cfg(test)]
+    pub fn new_integer(sign: Sign, integer: u128) -> Self {
+        Number {
+            sign,
+            integer,
+            fraction: Fraction::default(),
         }
     }
 
@@ -168,40 +135,6 @@ impl Fraction {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn positive_with_fraction_binary() {
-        let actual = Number::try_from("1.01#2").unwrap();
-
-        assert_eq!(actual, Number::new(Sign::Positive, 1, Fraction::new(1, 4)));
-    }
-
-    #[test]
-    fn negative_with_fraction_decimal() {
-        let actual = Number::try_from("-5.25").unwrap();
-
-        assert_eq!(
-            actual,
-            Number::new(Sign::Negative, 5, Fraction::new(25, 100))
-        );
-    }
-
-    #[test]
-    fn positive_fraction_only_hex() {
-        let actual = Number::try_from("+.25#16").unwrap();
-
-        assert_eq!(
-            actual,
-            Number::new(Sign::Positive, 0, Fraction::new(37, 256))
-        );
-    }
-
-    #[test]
-    fn negative_integer_octal() {
-        let actual = Number::try_from("-7.#8").unwrap();
-
-        assert_eq!(actual, Number::new(Sign::Negative, 7, Fraction::new(0, 8)));
-    }
 
     #[test]
     fn default_is_zero() {
