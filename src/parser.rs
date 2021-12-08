@@ -6,19 +6,19 @@ use crate::grammar::{
     Operator, Program, Variable,
 };
 use crate::number::{Number, Sign};
-use crate::token::{Token, TokenKind};
+use crate::token::{Token, Kind};
 use std::convert::TryFrom;
 use std::iter::{IntoIterator, Iterator, Peekable};
 
-const BLOCK_END_TOKEN_KINDS: [TokenKind; 1] = [TokenKind::RightBracket];
-const COMPARISON_TOKEN_KINDS: [TokenKind; 3] = [
-    TokenKind::LessThan,
-    TokenKind::GreaterThan,
-    TokenKind::Equals,
+const BLOCK_END_TOKEN_KINDS: [Kind; 1] = [Kind::RightBracket];
+const COMPARISON_TOKEN_KINDS: [Kind; 3] = [
+    Kind::LessThan,
+    Kind::GreaterThan,
+    Kind::Equals,
 ];
-const TERM_TOKEN_KINDS: [TokenKind; 2] = [TokenKind::Plus, TokenKind::Minus];
-const FACTOR_TOKEN_KINDS: [TokenKind; 2] = [TokenKind::Star, TokenKind::ForwardSlash];
-const EXPONENT_TOKEN_KINDS: [TokenKind; 1] = [TokenKind::Caret];
+const TERM_TOKEN_KINDS: [Kind; 2] = [Kind::Plus, Kind::Minus];
+const FACTOR_TOKEN_KINDS: [Kind; 2] = [Kind::Star, Kind::ForwardSlash];
+const EXPONENT_TOKEN_KINDS: [Kind; 1] = [Kind::Caret];
 
 /// A recursive descent parser for a stream of tokens into a syntax tree for the Tortuga language.
 pub struct Parser<'source, I: Iterator<Item = Token<'source>>> {
@@ -69,13 +69,13 @@ where
 
     fn parse_expression(&mut self) -> Result<Expression, ParseError> {
         match self.peek_kind() {
-            Some(TokenKind::LeftBracket) => Ok(self.parse_block()?.into()),
+            Some(Kind::LeftBracket) => Ok(self.parse_block()?.into()),
             _ => self.parse_comparison(),
         }
     }
 
     fn parse_block(&mut self) -> Result<Block, ParseError> {
-        self.next_kind(&[TokenKind::LeftBracket])?;
+        self.next_kind(&[Kind::LeftBracket])?;
 
         let mut expressions = vec![self.parse_comparison()?];
 
@@ -112,15 +112,15 @@ where
         }
 
         match operators.as_slice() {
-            [TokenKind::LessThan] => Ok(ComparisonOperator::LessThan),
-            [TokenKind::LessThan, TokenKind::Equals] => Ok(ComparisonOperator::LessThanOrEqualTo),
-            [TokenKind::GreaterThan] => Ok(ComparisonOperator::GreaterThan),
-            [TokenKind::GreaterThan, TokenKind::Equals] => {
+            [Kind::LessThan] => Ok(ComparisonOperator::LessThan),
+            [Kind::LessThan, Kind::Equals] => Ok(ComparisonOperator::LessThanOrEqualTo),
+            [Kind::GreaterThan] => Ok(ComparisonOperator::GreaterThan),
+            [Kind::GreaterThan, Kind::Equals] => {
                 Ok(ComparisonOperator::GreaterThanOrEqualTo)
             }
-            [TokenKind::Equals] => Ok(ComparisonOperator::EqualTo),
-            [TokenKind::LessThan, TokenKind::GreaterThan] => Ok(ComparisonOperator::NotEqualTo),
-            [TokenKind::LessThan, TokenKind::Equals, TokenKind::GreaterThan] => {
+            [Kind::Equals] => Ok(ComparisonOperator::EqualTo),
+            [Kind::LessThan, Kind::GreaterThan] => Ok(ComparisonOperator::NotEqualTo),
+            [Kind::LessThan, Kind::Equals, Kind::GreaterThan] => {
                 Ok(ComparisonOperator::Comparable)
             }
             _ => Err(ParseError::InvalidComparator(
@@ -173,15 +173,15 @@ where
     }
 
     /// Parses an operator of the expected token kind.
-    fn parse_operator(&mut self, expected: &[TokenKind]) -> Result<Operator, ParseError> {
+    fn parse_operator(&mut self, expected: &[Kind]) -> Result<Operator, ParseError> {
         let token = self.next_kind(expected)?;
 
         match token.kind() {
-            TokenKind::Plus => Ok(Operator::Add),
-            TokenKind::Minus => Ok(Operator::Subtract),
-            TokenKind::Star => Ok(Operator::Multiply),
-            TokenKind::ForwardSlash => Ok(Operator::Divide),
-            TokenKind::Caret => Ok(Operator::Exponent),
+            Kind::Plus => Ok(Operator::Add),
+            Kind::Minus => Ok(Operator::Subtract),
+            Kind::Star => Ok(Operator::Multiply),
+            Kind::ForwardSlash => Ok(Operator::Divide),
+            Kind::Caret => Ok(Operator::Exponent),
             kind => Err(ParseError::NoMatchingGrammar(token.start(), kind)),
         }
     }
@@ -189,21 +189,21 @@ where
     /// Parse a primary grammar rule.
     fn parse_primary(&mut self) -> Result<Expression, ParseError> {
         match self.peek_kind() {
-            Some(TokenKind::LeftParenthesis) => self.parse_grouping().map(Expression::Grouping),
-            Some(TokenKind::Plus | TokenKind::Minus | TokenKind::Number) => {
+            Some(Kind::LeftParenthesis) => self.parse_grouping().map(Expression::Grouping),
+            Some(Kind::Plus | Kind::Minus | Kind::Number) => {
                 self.parse_number().map(Expression::Number)
             }
-            Some(TokenKind::Identifier) => self.parse_variable().map(Expression::Variable),
+            Some(Kind::Identifier) => self.parse_variable().map(Expression::Variable),
             Some(kind) => {
                 let token = self.next_kind(&[kind])?;
                 Err(ParseError::NoMatchingGrammar(token.start(), token.kind()))
             }
             None => Err(ParseError::mismatched_kind(
                 &[
-                    TokenKind::LeftParenthesis,
-                    TokenKind::Plus,
-                    TokenKind::Minus,
-                    TokenKind::Number,
+                    Kind::LeftParenthesis,
+                    Kind::Plus,
+                    Kind::Minus,
+                    Kind::Number,
                 ],
                 None,
             )),
@@ -212,11 +212,11 @@ where
 
     /// Parse a grouping grammar rule.
     fn parse_grouping(&mut self) -> Result<Grouping, ParseError> {
-        self.next_kind(&[TokenKind::LeftParenthesis])?;
+        self.next_kind(&[Kind::LeftParenthesis])?;
 
         let expression = self.parse_expression()?;
 
-        self.next_kind(&[TokenKind::RightParenthesis])?;
+        self.next_kind(&[Kind::RightParenthesis])?;
 
         Ok(Grouping::new(expression))
     }
@@ -224,15 +224,15 @@ where
     /// Parse a number literal with an optional plus or minus sign.
     fn parse_number(&mut self) -> Result<Number, ParseError> {
         let sign = match self
-            .next_if_kind(&[TokenKind::Plus, TokenKind::Minus])?
+            .next_if_kind(&[Kind::Plus, Kind::Minus])?
             .as_ref()
             .map(Token::kind)
         {
-            Some(TokenKind::Minus) => Sign::Negative,
+            Some(Kind::Minus) => Sign::Negative,
             _ => Sign::Positive,
         };
 
-        let token = self.next_kind(&[TokenKind::Number])?;
+        let token = self.next_kind(&[Kind::Number])?;
         let mut number = Number::try_from(token.lexeme())?;
 
         number.set_sign(sign);
@@ -242,13 +242,13 @@ where
 
     /// Parses an identifier token as a variable.
     fn parse_variable(&mut self) -> Result<Variable, ParseError> {
-        let token = self.next_kind(&[TokenKind::Identifier])?;
+        let token = self.next_kind(&[Kind::Identifier])?;
 
         Ok(Variable::new(token.lexeme()))
     }
 
     /// Gets the next token if it matches the expected kind or returns an error.
-    fn next_kind(&mut self, expected: &[TokenKind]) -> Result<Token<'source>, ParseError> {
+    fn next_kind(&mut self, expected: &[Kind]) -> Result<Token<'source>, ParseError> {
         self.next_if_kind(expected)?
             .ok_or_else(|| ParseError::mismatched_kind(expected, self.tokens.peek()))
     }
@@ -256,7 +256,7 @@ where
     /// Gets the next token only if it has one of the given kind.
     fn next_if_kind(
         &mut self,
-        expected: &[TokenKind],
+        expected: &[Kind],
     ) -> Result<Option<Token<'source>>, ParseError> {
         self.tokens
             .next_if(|token| expected.contains(&token.kind()))
@@ -265,12 +265,12 @@ where
     }
 
     /// Peeks the next token's kind.
-    fn peek_kind(&mut self) -> Option<TokenKind> {
+    fn peek_kind(&mut self) -> Option<Kind> {
         self.tokens.peek().map(|token| token.kind())
     }
 
     /// Tests if the next token's kind matches one of the expected ones.
-    fn next_matches_kind(&mut self, expected: &[TokenKind]) -> bool {
+    fn next_matches_kind(&mut self, expected: &[Kind]) -> bool {
         self.peek_kind()
             .map(|kind| expected.contains(&kind))
             .unwrap_or(false)

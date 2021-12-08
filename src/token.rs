@@ -6,7 +6,7 @@ use std::fmt;
 /// The reference is used when displaying lexemes in errors.
 #[derive(Debug, PartialEq)]
 pub struct Token<'source> {
-    kind: TokenKind,
+    kind: Kind,
     lexeme: &'source str,
     start: Location,
     validations: Vec<ValidationError>,
@@ -15,7 +15,7 @@ pub struct Token<'source> {
 impl<'source> Token<'source> {
     /// Creates a token with no lexical error.
     pub fn new(
-        kind: TokenKind,
+        kind: Kind,
         start: Location,
         lexeme: &'source str,
         validations: Vec<ValidationError>,
@@ -28,7 +28,7 @@ impl<'source> Token<'source> {
         }
     }
 
-    pub fn kind(&self) -> TokenKind {
+    pub fn kind(&self) -> Kind {
         self.kind
     }
 
@@ -53,7 +53,7 @@ impl<'source> Token<'source> {
 
 /// The kind of a lexical token.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum TokenKind {
+pub enum Kind {
     // Mathematical Symbols
     LeftParenthesis,
     RightParenthesis,
@@ -79,7 +79,7 @@ pub enum TokenKind {
     Number,
 }
 
-impl fmt::Display for TokenKind {
+impl fmt::Display for Kind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
     }

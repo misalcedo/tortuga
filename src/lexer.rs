@@ -5,7 +5,7 @@
 use crate::errors::ValidationError;
 use crate::number::{Sign, DECIMAL_RADIX, MAX_RADIX};
 use crate::scanner::Scanner;
-use crate::token::{Token, TokenKind};
+use crate::token::{Token, Kind};
 
 /// Performs Lexical Analysis for the tortuga language.
 pub struct Lexer<'scanner, 'source>
@@ -102,7 +102,7 @@ fn scan_number<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
     }
 
     Token::new(
-        TokenKind::Number,
+        Kind::Number,
         start,
         scanner.lexeme_from(&start),
         validations,
@@ -125,7 +125,7 @@ fn scan_identifier<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
         validations.push(ValidationError::TerminalUnderscore);
     }
 
-    Token::new(TokenKind::Identifier, start, lexeme, validations)
+    Token::new(Kind::Identifier, start, lexeme, validations)
 }
 
 impl<'scanner, 'source> Lexer<'scanner, 'source> {
@@ -135,7 +135,7 @@ impl<'scanner, 'source> Lexer<'scanner, 'source> {
     }
 
     /// Creates a new token for single character lexemes.
-    fn new_short_token(&mut self, kind: TokenKind) -> Option<Token<'source>> {
+    fn new_short_token(&mut self, kind: Kind) -> Option<Token<'source>> {
         self.scanner.next();
         Some(Token::new(
             kind,
@@ -148,31 +148,31 @@ impl<'scanner, 'source> Lexer<'scanner, 'source> {
     /// The next lexical token in the source code.
     fn next_token(&mut self) -> Option<Token<'source>> {
         match self.scanner.peek()? {
-            '~' => self.new_short_token(TokenKind::Tilde),
-            '+' => self.new_short_token(TokenKind::Plus),
-            '-' => self.new_short_token(TokenKind::Minus),
-            '*' => self.new_short_token(TokenKind::Star),
-            '/' => self.new_short_token(TokenKind::ForwardSlash),
-            '=' => self.new_short_token(TokenKind::Equals),
-            '<' => self.new_short_token(TokenKind::LessThan),
-            '>' => self.new_short_token(TokenKind::GreaterThan),
-            '|' => self.new_short_token(TokenKind::Pipe),
-            '^' => self.new_short_token(TokenKind::Caret),
-            '%' => self.new_short_token(TokenKind::Percent),
-            '_' => self.new_short_token(TokenKind::Underscore),
-            '(' => self.new_short_token(TokenKind::LeftParenthesis),
-            ')' => self.new_short_token(TokenKind::RightParenthesis),
-            '[' => self.new_short_token(TokenKind::LeftBracket),
-            ']' => self.new_short_token(TokenKind::RightBracket),
-            '{' => self.new_short_token(TokenKind::LeftBrace),
-            '}' => self.new_short_token(TokenKind::RightBrace),
+            '~' => self.new_short_token(Kind::Tilde),
+            '+' => self.new_short_token(Kind::Plus),
+            '-' => self.new_short_token(Kind::Minus),
+            '*' => self.new_short_token(Kind::Star),
+            '/' => self.new_short_token(Kind::ForwardSlash),
+            '=' => self.new_short_token(Kind::Equals),
+            '<' => self.new_short_token(Kind::LessThan),
+            '>' => self.new_short_token(Kind::GreaterThan),
+            '|' => self.new_short_token(Kind::Pipe),
+            '^' => self.new_short_token(Kind::Caret),
+            '%' => self.new_short_token(Kind::Percent),
+            '_' => self.new_short_token(Kind::Underscore),
+            '(' => self.new_short_token(Kind::LeftParenthesis),
+            ')' => self.new_short_token(Kind::RightParenthesis),
+            '[' => self.new_short_token(Kind::LeftBracket),
+            ']' => self.new_short_token(Kind::RightBracket),
+            '{' => self.new_short_token(Kind::LeftBrace),
+            '}' => self.new_short_token(Kind::RightBrace),
             c if c.is_alphabetic() => Some(scan_identifier(self.scanner)),
             c if c.is_ascii_digit() || c == '.' => Some(scan_number(&mut self.scanner)),
             _ => {
                 self.scanner.next();
 
                 Some(Token::new(
-                    TokenKind::Identifier,
+                    Kind::Identifier,
                     *self.scanner.start(),
                     self.scanner.lexeme(),
                     vec![ValidationError::UnexpectedCharacter],
@@ -206,7 +206,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Token::new(
-                TokenKind::Number,
+                Kind::Number,
                 Location::default(),
                 "1",
                 Vec::new()
@@ -222,7 +222,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Token::new(
-                TokenKind::Number,
+                Kind::Number,
                 Location::default(),
                 "2#-011.01",
                 Vec::new()
@@ -238,7 +238,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Token::new(
-                TokenKind::Number,
+                Kind::Number,
                 Location::default(),
                 "16#FFFFFF",
                 Vec::new()
@@ -254,7 +254,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Token::new(
-                TokenKind::Number,
+                Kind::Number,
                 Location::default(),
                 ".",
                 vec![ValidationError::ExpectedDigits]
@@ -270,7 +270,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Token::new(
-                TokenKind::Number,
+                Kind::Number,
                 Location::default(),
                 "1.2.",
                 vec![ValidationError::DuplicateDecimal]
@@ -286,7 +286,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Token::new(
-                TokenKind::Number,
+                Kind::Number,
                 Location::default(),
                 "256#1.",
                 vec![ValidationError::RadixTooLarge(256)]
@@ -302,7 +302,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Token::new(
-                TokenKind::Number,
+                Kind::Number,
                 Location::default(),
                 "222222222222222222222222222222222222222222#1.",
                 vec![ValidationError::InvalidRadix(
@@ -322,7 +322,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Token::new(
-                TokenKind::Number,
+                Kind::Number,
                 Location::default(),
                 "10#FF",
                 vec![ValidationError::InvalidInteger(
@@ -340,7 +340,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Token::new(
-                TokenKind::Number,
+                Kind::Number,
                 Location::default(),
                 ".FF",
                 vec![ValidationError::InvalidFraction(
@@ -358,7 +358,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Token::new(
-                TokenKind::Identifier,
+                Kind::Identifier,
                 Location::default(),
                 "x_",
                 vec![ValidationError::TerminalUnderscore]
@@ -374,7 +374,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Token::new(
-                TokenKind::Identifier,
+                Kind::Identifier,
                 Location::default(),
                 "x_1",
                 vec![]
@@ -390,7 +390,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Token::new(
-                TokenKind::Number,
+                Kind::Number,
                 Location::default(),
                 "1",
                 vec![]
@@ -399,7 +399,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Token::new(
-                TokenKind::Identifier,
+                Kind::Identifier,
                 Location::new(1, 2, 1),
                 "x",
                 vec![]
@@ -415,7 +415,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Token::new(
-                TokenKind::Identifier,
+                Kind::Identifier,
                 Location::default(),
                 "x",
                 vec![]
@@ -425,7 +425,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Token::new(
-                TokenKind::Equals,
+                Kind::Equals,
                 Location::new(1, 3, 2),
                 "=",
                 vec![]
@@ -435,7 +435,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Token::new(
-                TokenKind::Number,
+                Kind::Number,
                 Location::new(1, 5, 4),
                 "1",
                 vec![]

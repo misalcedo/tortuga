@@ -1,6 +1,6 @@
 use crate::grammar::ComparisonOperator;
 use crate::location::Location;
-use crate::token::{Token, TokenKind};
+use crate::token::{Token, Kind};
 use std::fmt;
 use thiserror::Error;
 
@@ -101,7 +101,7 @@ pub enum ParseError {
     #[error("Found one or more lexical errors while scanning {kind} token '{lexeme}' on {location}: {errors}")]
     Lexical {
         location: Location,
-        kind: TokenKind,
+        kind: Kind,
         lexeme: String,
         errors: MultipleErrors<ValidationError>,
     },
@@ -110,31 +110,31 @@ pub enum ParseError {
     #[error("Expected token '{lexeme}' ({actual}) on {location} to be of type {expected}.")]
     Syntax {
         location: Location,
-        expected: TokenKinds,
-        actual: TokenKind,
+        expected: Kinds,
+        actual: Kind,
         lexeme: String,
     },
     #[error("Expected a token with type {0}. Instead, reached the end of the file.")]
-    EndOfFile(TokenKinds),
+    EndOfFile(Kinds),
     #[error("No grammar rule was found to match the token kind {1} on {0}.")]
-    NoMatchingGrammar(Location, TokenKind),
+    NoMatchingGrammar(Location, Kind),
     #[error("No grammar rule was found to match the sequence of comparison operators {1} on {0}. Valid comparison operators are: <, =, >, <=, >=, <=>.")]
-    InvalidComparator(Location, TokenKinds),
+    InvalidComparator(Location, Kinds),
     #[error("One or more syntax errors found while parsing the source code. {0}")]
     MultipleErrors(MultipleErrors<ParseError>),
 }
 
 impl ParseError {
     /// Creates an error for mismatched token kinds.
-    pub fn mismatched_kind(expected: &[TokenKind], token: Option<&Token<'_>>) -> Self {
+    pub fn mismatched_kind(expected: &[Kind], token: Option<&Token<'_>>) -> Self {
         match token {
             Some(token) => Self::Syntax {
                 location: token.start(),
-                expected: TokenKinds(expected.to_vec()),
+                expected: Kinds(expected.to_vec()),
                 actual: token.kind(),
                 lexeme: token.lexeme().to_string(),
             },
-            None => Self::EndOfFile(TokenKinds(expected.to_vec())),
+            None => Self::EndOfFile(Kinds(expected.to_vec())),
         }
     }
 
@@ -160,15 +160,15 @@ impl ParseError {
 
 /// Wrapper struct to define Display trait.
 #[derive(Debug)]
-pub struct TokenKinds(Vec<TokenKind>);
+pub struct Kinds(Vec<Kind>);
 
-impl From<Vec<TokenKind>> for TokenKinds {
-    fn from(kinds: Vec<TokenKind>) -> Self {
-        TokenKinds(kinds)
+impl From<Vec<Kind>> for Kinds {
+    fn from(kinds: Vec<Kind>) -> Self {
+        Kinds(kinds)
     }
 }
 
-impl fmt::Display for TokenKinds {
+impl fmt::Display for Kinds {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut iterator = self.0.iter().peekable();
 
