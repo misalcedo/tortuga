@@ -6,16 +6,12 @@ use crate::grammar::{
     Operator, Program, Variable,
 };
 use crate::number::{Number, Sign};
-use crate::token::{Token, Kind};
+use crate::token::{Kind, Token};
 use std::convert::TryFrom;
 use std::iter::{IntoIterator, Iterator, Peekable};
 
 const BLOCK_END_TOKEN_KINDS: [Kind; 1] = [Kind::RightBracket];
-const COMPARISON_TOKEN_KINDS: [Kind; 3] = [
-    Kind::LessThan,
-    Kind::GreaterThan,
-    Kind::Equals,
-];
+const COMPARISON_TOKEN_KINDS: [Kind; 3] = [Kind::LessThan, Kind::GreaterThan, Kind::Equals];
 const TERM_TOKEN_KINDS: [Kind; 2] = [Kind::Plus, Kind::Minus];
 const FACTOR_TOKEN_KINDS: [Kind; 2] = [Kind::Star, Kind::ForwardSlash];
 const EXPONENT_TOKEN_KINDS: [Kind; 1] = [Kind::Caret];
@@ -115,14 +111,10 @@ where
             [Kind::LessThan] => Ok(ComparisonOperator::LessThan),
             [Kind::LessThan, Kind::Equals] => Ok(ComparisonOperator::LessThanOrEqualTo),
             [Kind::GreaterThan] => Ok(ComparisonOperator::GreaterThan),
-            [Kind::GreaterThan, Kind::Equals] => {
-                Ok(ComparisonOperator::GreaterThanOrEqualTo)
-            }
+            [Kind::GreaterThan, Kind::Equals] => Ok(ComparisonOperator::GreaterThanOrEqualTo),
             [Kind::Equals] => Ok(ComparisonOperator::EqualTo),
             [Kind::LessThan, Kind::GreaterThan] => Ok(ComparisonOperator::NotEqualTo),
-            [Kind::LessThan, Kind::Equals, Kind::GreaterThan] => {
-                Ok(ComparisonOperator::Comparable)
-            }
+            [Kind::LessThan, Kind::Equals, Kind::GreaterThan] => Ok(ComparisonOperator::Comparable),
             _ => Err(ParseError::InvalidComparator(
                 token.start(),
                 operators.into(),
@@ -199,12 +191,7 @@ where
                 Err(ParseError::NoMatchingGrammar(token.start(), token.kind()))
             }
             None => Err(ParseError::mismatched_kind(
-                &[
-                    Kind::LeftParenthesis,
-                    Kind::Plus,
-                    Kind::Minus,
-                    Kind::Number,
-                ],
+                &[Kind::LeftParenthesis, Kind::Plus, Kind::Minus, Kind::Number],
                 None,
             )),
         }
@@ -254,10 +241,7 @@ where
     }
 
     /// Gets the next token only if it has one of the given kind.
-    fn next_if_kind(
-        &mut self,
-        expected: &[Kind],
-    ) -> Result<Option<Token<'source>>, ParseError> {
+    fn next_if_kind(&mut self, expected: &[Kind]) -> Result<Option<Token<'source>>, ParseError> {
         self.tokens
             .next_if(|token| expected.contains(&token.kind()))
             .map(ParseError::validate)

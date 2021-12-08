@@ -5,7 +5,7 @@
 use crate::errors::ValidationError;
 use crate::number::{Sign, DECIMAL_RADIX, MAX_RADIX};
 use crate::scanner::Scanner;
-use crate::token::{Token, Kind};
+use crate::token::{Kind, Token};
 
 /// Performs Lexical Analysis for the tortuga language.
 pub struct Lexer<'scanner, 'source>
@@ -389,12 +389,7 @@ mod tests {
 
         assert_eq!(
             lexer.next(),
-            Some(Token::new(
-                Kind::Number,
-                Location::default(),
-                "1",
-                vec![]
-            ))
+            Some(Token::new(Kind::Number, Location::default(), "1", vec![]))
         );
         assert_eq!(
             lexer.next(),

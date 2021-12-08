@@ -1,6 +1,6 @@
 use crate::grammar::ComparisonOperator;
 use crate::location::Location;
-use crate::token::{Token, Kind};
+use crate::token::{Kind, Token};
 use std::fmt;
 use thiserror::Error;
 
