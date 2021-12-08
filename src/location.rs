@@ -73,3 +73,106 @@ impl Default for Location {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_location() {
+        assert_eq!(Location::default(), Location::new(1, 1, 0));
+    }
+
+    #[test]
+    fn add_offset_to_location_when_ascii() {
+        let mut location = Location::default();
+        let c = 'a';
+
+        location.add_offset(c);
+
+        assert_eq!(location, Location::new(1, 1, c.len_utf8()));
+    }
+
+    #[test]
+    fn add_offset_to_location_when_multi_byte() {
+        let mut location = Location::default();
+        let c = '〞';
+
+        location.add_offset(c);
+
+        assert_eq!(location, Location::new(1, 1, c.len_utf8()));
+    }
+
+    #[test]
+    fn add_column_to_location_when_ascii() {
+        let mut location = Location::default();
+        let c = 'a';
+
+        location.add_column(c);
+
+        assert_eq!(location, Location::new(1, 2, c.len_utf8()));
+    }
+
+    #[test]
+    fn add_column_to_location_when_newline() {
+        let mut location = Location::default();
+        let c = '\n';
+
+        location.add_column(c);
+
+        assert_eq!(location, Location::new(1, 2, c.len_utf8()));
+    }
+
+    #[test]
+    fn add_column_to_location_when_multi_byte() {
+        let mut location = Location::default();
+        let c = '〞';
+
+        location.add_column(c);
+
+        assert_eq!(location, Location::new(1, 2, c.len_utf8()));
+    }
+
+    #[test]
+    fn next_line_when_first_column() {
+        let mut location = Location::default();
+
+        location.next_line();
+
+        assert_eq!(location, Location::new(2, 1, '\n'.len_utf8()));
+    }
+
+    #[test]
+    fn next_line_when_not_first_column() {
+        let mut location = Location::default();
+        let c = '〞';
+
+        location.add_column(c);
+        location.next_line();
+        location.add_column(c);
+
+        assert_eq!(
+            location,
+            Location::new(2, 2, (2 * c.len_utf8()) + '\n'.len_utf8())
+        );
+    }
+
+    #[test]
+    fn continuation_when_offset_is_zero() {
+        let location = Location::default();
+
+        assert_eq!(location.continuation(), location);
+    }
+
+    #[test]
+    fn continuation_when_not_default() {
+        let mut location = Location::default();
+        let c = '〞';
+
+        location.add_column(c);
+        location.next_line();
+        location.add_column(c);
+
+        assert_eq!(location.continuation(), Location::new(2, 2, 0));
+    }
+}
