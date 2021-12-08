@@ -1,10 +1,9 @@
 //! Terminal prompt reading and printing with editing and history.
 
 use crate::errors::{ParseError, TortugaError};
+use crate::lexer::Lexer;
 use crate::parser::Parser;
 use crate::scanner::Scanner;
-use crate::lexer::Lexer;
-
 use rustyline::completion::Completer;
 use rustyline::config::Config;
 use rustyline::highlight::Highlighter;

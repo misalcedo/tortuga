@@ -50,9 +50,9 @@ impl Location {
         Location {
             line: self.line,
             column: self.column,
-            offset: 0
+            offset: 0,
         }
-    } 
+    }
 }
 
 impl Default for Location {

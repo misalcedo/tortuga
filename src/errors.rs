@@ -66,14 +66,12 @@ impl RuntimeError {
 }
 
 /// An error that occurred during lexical analysis while validating a lexem.
-#[derive(Error, Debug)]
+#[derive(Debug, Error, PartialEq)]
 pub enum ValidationError {
     #[error("Expected a digit (e.g. 0-9, a-z, A-Z) but none was found.")]
     ExpectedDigits,
     #[error("Numeric literal has more than 1 decimal point.")]
     DuplicateDecimal,
-    #[error("Numeric literal is missing the radix.")]
-    MissingRadix,
     #[error("Text reference is missing the closing quote.")]
     MissingClosingQuote,
     #[error("Found a blank (empty or only non-visible characters) text reference.")]
@@ -82,7 +80,10 @@ pub enum ValidationError {
     TerminalUnderscore,
     #[error("Unable to parse the numeric literal.")]
     InvalidNumber,
-    #[error("Radix of {0} is too large; maximum supported is {}.", crate::number::MAX_RADIX)]
+    #[error(
+        "Radix of {0} is too large; maximum supported is {}.",
+        crate::number::MAX_RADIX
+    )]
     RadixTooLarge(u32),
     #[error("Unable to parse the integer portion of a numeric literal.")]
     InvalidInteger(#[source] std::num::ParseIntError),

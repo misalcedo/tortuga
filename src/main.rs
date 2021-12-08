@@ -119,7 +119,7 @@ fn run_prompt(_matches: ArgMatches<'_>) -> Result<(), TortugaError> {
                 let mut scanner = Scanner::continue_from(start, line.as_str());
                 let lexer = Lexer::new(&mut scanner);
                 let parser = Parser::new(lexer);
-        
+
                 match parser.parse() {
                     Ok(program) => interpreter.interpret(&program),
                     Err(error) => error!("{}", error),

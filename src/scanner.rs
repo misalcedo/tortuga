@@ -1,10 +1,9 @@
 //! Scans a source file for valid characters.
 //! The scanner produces a finite stream of characters, ignoring comments and blank space.
 
+use crate::location::{LexemeSource, Location};
 use std::iter::Peekable;
 use std::str::Chars;
-
-use crate::location::{Location, LexemeSource};
 
 /// Scans a source text until completion.
 /// Skips comments, new lines, and blank space.
@@ -14,7 +13,7 @@ pub struct Scanner<'source> {
     source: &'source str,
     start: Location,
     end: Location,
-    cursor: Peekable<Chars<'source>>
+    cursor: Peekable<Chars<'source>>,
 }
 
 impl Default for Scanner<'_> {
@@ -35,7 +34,7 @@ impl<'source> From<&'source str> for Scanner<'source> {
             source,
             start: Location::default(),
             end: Location::default(),
-            cursor: source.chars().peekable()
+            cursor: source.chars().peekable(),
         }
     }
 }
@@ -48,12 +47,12 @@ impl<'source> Scanner<'source> {
             source,
             start: start.continuation(),
             end: start.continuation(),
-            cursor: source.chars().peekable()
+            cursor: source.chars().peekable(),
         }
     }
 
     /// If the current `Scanner` has not fully scanned the source, returns None.
-    /// Otherwise, returns the end `Location` of this `Scanner`. 
+    /// Otherwise, returns the end `Location` of this `Scanner`.
     pub fn consume(mut self) -> Option<Location> {
         if self.cursor.peek().is_some() {
             return None;
@@ -69,19 +68,24 @@ impl<'source> Scanner<'source> {
         }
     }
 
-    fn step_forward(&mut self) {
+    /// Set this `Scanner`s start `Location` equal to its end.
+    /// Resets the next lexeme to start at the current end `Location`.
+    pub fn step_forward(&mut self) {
         self.start = self.end;
     }
 
     /// Skips any tokens are not meant to be part of a lexeme.
     fn skip(&mut self) {
         loop {
-            match self.cursor.next_if(|c| c == &'\r' || c == &'\n' || c == &'\t' || c == &' ' || c == &';') {
+            match self
+                .cursor
+                .next_if(|c| c == &'\r' || c == &'\n' || c == &'\t' || c == &' ' || c == &';')
+            {
                 Some(';') => self.skip_comment(),
                 Some('\n') => self.end.next_line(),
                 Some(c @ '\r') => self.end.add_offset(c),
                 Some(c @ ('\t' | ' ')) => self.end.add_column(c),
-                _ => break
+                _ => break,
             };
 
             self.step_forward()
@@ -94,24 +98,28 @@ impl<'source> Scanner<'source> {
         self.skip();
 
         let c = self.cursor.next()?;
-        
+
         self.end.add_column(c);
-        
+
         Some(c)
     }
 
     /// Returns the next character only if the next one equals the expected value.
     pub fn next_if_eq(&mut self, expected: char) -> Option<char> {
-        self.skip();
-        
-        self.cursor.next_if_eq(&expected)
+        let c = self.cursor.next_if_eq(&expected)?;
+
+        self.end.add_column(c);
+
+        Some(c)
     }
 
     /// Returns the next character only if the next one matches the given predicate.
     pub fn next_if(&mut self, predicate: impl FnOnce(char) -> bool) -> Option<char> {
-        self.skip();
-        
-        self.cursor.next_if(|c| predicate(*c))
+        let c = self.cursor.next_if(|c| predicate(*c))?;
+
+        self.end.add_column(c);
+
+        Some(c)
     }
 
     /// Peeks at the next character in the source.
@@ -119,19 +127,24 @@ impl<'source> Scanner<'source> {
         self.cursor.peek().map(|c| *c)
     }
 
-    /// Gets the lexeme starting at this scanner's location (inclusive) until the given end location (exclusive).
+    /// Gets the lexeme starting at this `Scanner`'s start `Location` (inclusive) until this `Scanner`'s end `Location` (exclusive).
     pub fn lexeme(&mut self) -> &'source str {
         let substring = self.source.lexeme(&self.start, &self.end);
-        
+
         self.step_forward();
-        
+
         substring
+    }
+
+    /// Gets the lexeme starting at the given `Location` (inclusive) until this `Scanner`'s end `Location` (exclusive).
+    pub fn lexeme_from(&mut self, start: &Location) -> &'source str {
+        self.source.lexeme(&start, &self.end)
     }
 
     /// The start location of the current lexeme being scanned.
     pub fn start(&self) -> &Location {
         &self.start
-    } 
+    }
 }
 
 #[cfg(test)]
@@ -141,7 +154,7 @@ mod tests {
     #[test]
     fn continue_with_consumed() {
         let mut scanner = Scanner::from("a");
-        
+
         scanner.next();
         scanner = Scanner::continue_from(scanner.consume().unwrap(), "bc");
 
@@ -181,7 +194,10 @@ mod tests {
 
     #[test]
     fn next_if_when_true() {
-        assert_eq!(Scanner::from("abc").next_if(|c| c.is_ascii_alphabetic()), Some('a'));
+        assert_eq!(
+            Scanner::from("abc").next_if(|c| c.is_ascii_alphabetic()),
+            Some('a')
+        );
     }
 
     #[test]
@@ -202,7 +218,7 @@ mod tests {
     #[test]
     fn start_when_scanned() {
         let mut scanner = Scanner::from("abc");
-        
+
         scanner.next();
 
         assert_eq!(*scanner.start(), Location::default());
@@ -229,18 +245,29 @@ mod tests {
     }
 
     #[test]
+    fn step_forward() {
+        let mut scanner = Scanner::from("abc");
+
+        scanner.next();
+        scanner.step_forward();
+        scanner.next_if_eq('b');
+
+        assert_eq!(scanner.lexeme(), "b");
+    }
+
+    #[test]
     fn lexeme() {
         let mut scanner = Scanner::from("abc");
 
         scanner.next();
-        scanner.next();
+        scanner.next_if_eq('b');
 
         let start = *scanner.start();
         let first = scanner.lexeme();
 
         assert_ne!(start, *scanner.start());
 
-        scanner.next();
+        scanner.next_if(|c| c.is_ascii_alphabetic());
 
         let second = scanner.lexeme();
         let third = scanner.lexeme();

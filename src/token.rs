@@ -1,11 +1,10 @@
 use crate::errors::ValidationError;
-use std::fmt;
-
 use crate::location::Location;
+use std::fmt;
 
 /// A lexical token with a reference to the source.
 /// The reference is used when displaying lexemes in errors.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Token<'source> {
     kind: TokenKind,
     lexeme: &'source str,
