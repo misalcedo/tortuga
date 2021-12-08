@@ -13,9 +13,11 @@ mod token;
 use clap::{App, Arg, ArgMatches, SubCommand};
 use errors::TortugaError;
 use interpret::Interpreter;
+use lexer::Lexer;
+use location::Location;
 use parser::Parser;
 use prompt::Prompt;
-use lexer::Scanner;
+use scanner::Scanner;
 use std::fs;
 use std::path::Path;
 use tracing::{error, subscriber::set_global_default, Level};
@@ -88,8 +90,10 @@ fn run_subcommand(matches: ArgMatches<'_>) -> Result<(), TortugaError> {
 }
 
 fn run(code: &str) -> Result<(), TortugaError> {
-    let scanner = Scanner::new(code);
-    let parser = Parser::new(scanner);
+    let mut scanner = Scanner::from(code);
+    let lexer = Lexer::new(&mut scanner);
+    let parser = Parser::new(lexer);
+
     let mut interpreter = Interpreter::default();
 
     match parser.parse() {
@@ -102,6 +106,7 @@ fn run(code: &str) -> Result<(), TortugaError> {
 
 fn run_prompt(_matches: ArgMatches<'_>) -> Result<(), TortugaError> {
     let mut user = Prompt::new();
+    let mut start = Location::default();
     let mut interpreter = Interpreter::default();
 
     println!("{} {}\n", APP_NAME, about::VERSION);
@@ -111,13 +116,16 @@ fn run_prompt(_matches: ArgMatches<'_>) -> Result<(), TortugaError> {
             None => return Ok(()),
             Some(line) if line.trim().is_empty() => continue,
             Some(line) => {
-                let scanner = Scanner::new(line.as_str());
-                let parser = Parser::new(scanner);
-
+                let mut scanner = Scanner::continue_from(start, line.as_str());
+                let lexer = Lexer::new(&mut scanner);
+                let parser = Parser::new(lexer);
+        
                 match parser.parse() {
                     Ok(program) => interpreter.interpret(&program),
                     Err(error) => error!("{}", error),
-                }
+                };
+
+                start = scanner.consume().unwrap_or_default();
             }
         }
     }

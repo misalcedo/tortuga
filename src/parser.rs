@@ -233,7 +233,7 @@ where
         };
 
         let token = self.next_kind(&[TokenKind::Number])?;
-        let mut number = Number::try_from(token)?;
+        let mut number = Number::try_from(token.lexeme())?;
 
         number.set_sign(sign);
 

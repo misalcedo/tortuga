@@ -7,3 +7,4 @@ X = 5
 ; This is a comment ; the comment continues until the end of the line.
 
 X = Y + 2^2 ; Y = 1
+0025 * 3 - (1.75 + .25) + -0110.011#2

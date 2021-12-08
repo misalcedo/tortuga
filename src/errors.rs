@@ -1,5 +1,6 @@
 use crate::grammar::ComparisonOperator;
-use crate::token::{Location, Token, TokenKind};
+use crate::location::Location;
+use crate::token::{Token, TokenKind};
 use std::fmt;
 use thiserror::Error;
 
@@ -81,10 +82,8 @@ pub enum ValidationError {
     TerminalUnderscore,
     #[error("Unable to parse the numeric literal.")]
     InvalidNumber,
-    #[error("Radix of {0} is too large; maximum supported is {1}.")]
-    RadixTooLarge(u32, u32),
-    #[error("Fraction contains {0} digits, but the maximum supported is {1}.")]
-    FractionTooLong(usize, u32),
+    #[error("Radix of {0} is too large; maximum supported is {}.", crate::number::MAX_RADIX)]
+    RadixTooLarge(u32),
     #[error("Unable to parse the integer portion of a numeric literal.")]
     InvalidInteger(#[source] std::num::ParseIntError),
     #[error("Unable to parse the fraction portion of a numeric literal.")]

@@ -3,16 +3,24 @@
 
 use std::iter::Peekable;
 use std::str::Chars;
+
 use crate::location::{Location, LexemeSource};
 
 /// Scans a source text until completion.
 /// Skips comments, new lines, and blank space.
+/// Assumes the source code is written left to write.
 #[derive(Clone, Debug)]
 pub struct Scanner<'source> {
     source: &'source str,
     start: Location,
     end: Location,
     cursor: Peekable<Chars<'source>>
+}
+
+impl Default for Scanner<'_> {
+    fn default() -> Self {
+        Scanner::from("")
+    }
 }
 
 impl<'a> PartialEq for Scanner<'a> {
@@ -34,19 +42,24 @@ impl<'source> From<&'source str> for Scanner<'source> {
 
 impl<'source> Scanner<'source> {
     /// Creates a new `Scanner` to scan the given source code starting at the given location.
-    /// If the current `Scanner` has not fully scanned the source, returns None. 
     /// The location is not used to skip content in the source, but can be used to scan a chunked source across multiple scanners.
-    pub fn continue_with(mut self, source: &'source str) -> Option<Self> {
+    pub fn continue_from(start: Location, source: &'source str) -> Self {
+        Scanner {
+            source,
+            start: start.continuation(),
+            end: start.continuation(),
+            cursor: source.chars().peekable()
+        }
+    }
+
+    /// If the current `Scanner` has not fully scanned the source, returns None.
+    /// Otherwise, returns the end `Location` of this `Scanner`. 
+    pub fn consume(mut self) -> Option<Location> {
         if self.cursor.peek().is_some() {
             return None;
         }
 
-        Some(Scanner {
-            source,
-            start: self.end.continuation(),
-            end: self.end.continuation(),
-            cursor: source.chars().peekable()
-        })
+        Some(self.end)
     }
 
     /// Skips comments until the end of the current line.
@@ -95,10 +108,10 @@ impl<'source> Scanner<'source> {
     }
 
     /// Returns the next character only if the next one matches the given predicate.
-    pub fn next_if(&mut self, predicate: impl FnOnce(&char) -> bool) -> Option<char> {
+    pub fn next_if(&mut self, predicate: impl FnOnce(char) -> bool) -> Option<char> {
         self.skip();
         
-        self.cursor.next_if(predicate)
+        self.cursor.next_if(|c| predicate(*c))
     }
 
     /// Peeks at the next character in the source.
@@ -114,6 +127,11 @@ impl<'source> Scanner<'source> {
         
         substring
     }
+
+    /// The start location of the current lexeme being scanned.
+    pub fn start(&self) -> &Location {
+        &self.start
+    } 
 }
 
 #[cfg(test)]
@@ -125,7 +143,7 @@ mod tests {
         let mut scanner = Scanner::from("a");
         
         scanner.next();
-        scanner = scanner.continue_with("bc").unwrap();
+        scanner = Scanner::continue_from(scanner.consume().unwrap(), "bc");
 
         assert_eq!(scanner.next(), Some('b'));
         assert_eq!(scanner.lexeme(), "b");
@@ -133,7 +151,7 @@ mod tests {
 
     #[test]
     fn continue_with_unfinished() {
-        assert_eq!(Scanner::from("a").continue_with("bc"), None);
+        assert_eq!(Scanner::from("a").consume(), None);
     }
 
     #[test]
@@ -182,6 +200,20 @@ mod tests {
     }
 
     #[test]
+    fn start_when_scanned() {
+        let mut scanner = Scanner::from("abc");
+        
+        scanner.next();
+
+        assert_eq!(*scanner.start(), Location::default());
+    }
+
+    #[test]
+    fn start_when_default() {
+        assert_eq!(Scanner::from("abc").start(), &Location::default());
+    }
+
+    #[test]
     fn next_when_skipping() {
         assert_eq!(Scanner::from("\t abc").next(), Some('a'));
     }
@@ -203,7 +235,10 @@ mod tests {
         scanner.next();
         scanner.next();
 
+        let start = *scanner.start();
         let first = scanner.lexeme();
+
+        assert_ne!(start, *scanner.start());
 
         scanner.next();
 
@@ -218,5 +253,10 @@ mod tests {
     #[test]
     fn lexeme_when_empty() {
         assert_eq!(Scanner::from("abc").lexeme(), "");
+    }
+
+    #[test]
+    fn default_scanner() {
+        assert_eq!(Scanner::default(), Scanner::from(""))
     }
 }

@@ -34,12 +34,6 @@ impl Location {
         self.offset += '\n'.len_utf8();
     }
 
-    /// Adds a multiple columns to this `Location`.
-    pub fn add_columns(&mut self, lexeme: &str) {
-        self.column += lexeme.chars().count();
-        self.offset += lexeme.len();
-    }
-
     /// Adds a single column to this `Location`.
     pub fn add_column<T: Borrow<char>>(&mut self, character: T) {
         self.column += 1;
@@ -49,13 +43,6 @@ impl Location {
     /// Adds a single offset, without incrementing the column, to this `Location`.
     pub fn add_offset<T: Borrow<char>>(&mut self, character: T) {
         self.offset += character.borrow().len_utf8();
-    }
-
-    /// Returns the location equivalent to adding the given character as a column.
-    pub fn successor(&self, character: char) -> Location {
-        let mut next = *self;
-        next.add_column(character);
-        next
     }
 
     /// Returns the a `Location` with an offset of 0, but the same line and column.

@@ -1,7 +1,5 @@
 //! Parses numeric literals into a suntax tree node.
 
-use crate::errors::ValidationError;
-use crate::token::Token;
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::character::complete::{alphanumeric1, digit1};
@@ -10,16 +8,18 @@ use nom::sequence::{preceded, tuple};
 use std::convert::TryFrom;
 use std::fmt;
 
+use crate::errors::ValidationError;
+
 /// Maximum supported radix for numbers.
 pub const MAX_RADIX: u32 = 36;
 
 /// The radix for decimal (0-9) numbers.
 pub const DECIMAL_RADIX: u32 = 10;
 
-impl<'source> TryFrom<Token<'source>> for Number {
+impl TryFrom<&str> for Number {
     type Error = ValidationError;
 
-    fn try_from(token: Token<'source>) -> Result<Self, Self::Error> {
+    fn try_from(lexeme: &str) -> Result<Self, Self::Error> {
         let (_, (sign, integer, fraction, radix)) =
             all_consuming::<_, _, nom::error::Error<&str>, _>(tuple((
                 map(opt(alt((tag("+"), tag("-")))), |s| {
@@ -30,17 +30,13 @@ impl<'source> TryFrom<Token<'source>> for Number {
                     f.unwrap_or("0")
                 }),
                 map(opt(preceded(tag("#"), digit1)), |r| r.unwrap_or("10")),
-            )))(token.lexeme())
+            )))(lexeme)
             .map_err(|_| Self::Error::InvalidNumber)?;
 
         let radix = radix.parse::<u32>().map_err(Self::Error::InvalidRadix)?;
 
         if radix > 36 {
-            return Err(Self::Error::RadixTooLarge(radix, MAX_RADIX));
-        }
-
-        if fraction.len() > u32::MAX as usize {
-            return Err(Self::Error::FractionTooLong(fraction.len(), u32::MAX));
+            return Err(Self::Error::RadixTooLarge(radix));
         }
 
         let integer = u128::from_str_radix(integer, radix).map_err(Self::Error::InvalidInteger)?;
@@ -172,20 +168,17 @@ impl Fraction {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::token::{Location, TokenKind};
 
     #[test]
     fn positive_with_fraction_binary() {
-        let token = Token::new(TokenKind::Number, "1.01#2", Location::default(), Vec::new());
-        let actual = Number::try_from(token).unwrap();
+        let actual = Number::try_from("1.01#2").unwrap();
 
         assert_eq!(actual, Number::new(Sign::Positive, 1, Fraction::new(1, 4)));
     }
 
     #[test]
     fn negative_with_fraction_decimal() {
-        let token = Token::new(TokenKind::Number, "-5.25", Location::default(), Vec::new());
-        let actual = Number::try_from(token).unwrap();
+        let actual = Number::try_from("-5.25").unwrap();
 
         assert_eq!(
             actual,
@@ -195,13 +188,7 @@ mod tests {
 
     #[test]
     fn positive_fraction_only_hex() {
-        let token = Token::new(
-            TokenKind::Number,
-            "+.25#16",
-            Location::default(),
-            Vec::new(),
-        );
-        let actual = Number::try_from(token).unwrap();
+        let actual = Number::try_from("+.25#16").unwrap();
 
         assert_eq!(
             actual,
@@ -211,8 +198,7 @@ mod tests {
 
     #[test]
     fn negative_integer_octal() {
-        let token = Token::new(TokenKind::Number, "-7.#8", Location::default(), Vec::new());
-        let actual = Number::try_from(token).unwrap();
+        let actual = Number::try_from("-7.#8").unwrap();
 
         assert_eq!(actual, Number::new(Sign::Negative, 7, Fraction::new(0, 8)));
     }

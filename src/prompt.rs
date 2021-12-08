@@ -2,7 +2,8 @@
 
 use crate::errors::{ParseError, TortugaError};
 use crate::parser::Parser;
-use crate::lexer::Scanner;
+use crate::scanner::Scanner;
+use crate::lexer::Lexer;
 
 use rustyline::completion::Completer;
 use rustyline::config::Config;
@@ -72,8 +73,9 @@ impl Validator for PromptHelper {
             return Ok(ValidationResult::Valid(None));
         }
 
-        let scanner = Scanner::new(ctx.input());
-        let parser = Parser::new(scanner);
+        let mut scanner = Scanner::from(ctx.input());
+        let lexer = Lexer::new(&mut scanner);
+        let parser = Parser::new(lexer);
 
         match parser.parse() {
             Ok(_) => Ok(ValidationResult::Valid(None)),
