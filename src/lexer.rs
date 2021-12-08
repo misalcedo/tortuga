@@ -109,6 +109,25 @@ fn scan_number<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
     )
 }
 
+/// Scans either an identifier or a number with a radix.
+fn scan_identifier<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
+    let mut validations = Vec::new();
+
+    while scanner
+        .next_if(|c| c.is_ascii_alphanumeric() || c == '_')
+        .is_some()
+    {}
+
+    let start = *scanner.start();
+    let lexeme = scanner.lexeme();
+
+    if lexeme.ends_with('_') {
+        validations.push(ValidationError::TerminalUnderscore);
+    }
+
+    Token::new(TokenKind::Identifier, start, lexeme, validations)
+}
+
 impl<'scanner, 'source> Lexer<'scanner, 'source> {
     /// Creates a new `Lexer` for the given source code.
     pub fn new(scanner: &'scanner mut Scanner<'source>) -> Lexer<'scanner, 'source> {
@@ -128,23 +147,6 @@ impl<'scanner, 'source> Lexer<'scanner, 'source> {
     fn new_short_token(&mut self, kind: TokenKind) -> Option<Token<'source>> {
         self.scanner.next();
         Some(self.new_token(kind, Vec::new()))
-    }
-
-    /// Scans either an identifier or a number with a radix.
-    fn scan_identifier(&mut self) -> Token<'source> {
-        let mut validations = Vec::new();
-
-        while self
-            .scanner
-            .next_if(|c| c.is_ascii_alphanumeric() || c == '_')
-            .is_some()
-        {}
-
-        if self.scanner.lexeme().ends_with('_') {
-            validations.push(ValidationError::TerminalUnderscore);
-        }
-
-        self.new_token(TokenKind::Identifier, validations)
     }
 
     /// The next lexical token in the source code.
@@ -169,7 +171,7 @@ impl<'scanner, 'source> Lexer<'scanner, 'source> {
                 ']' => return self.new_short_token(TokenKind::RightBracket),
                 '{' => return self.new_short_token(TokenKind::LeftBrace),
                 '}' => return self.new_short_token(TokenKind::RightBrace),
-                c if c.is_alphabetic() => return Some(self.scan_identifier()),
+                c if c.is_alphabetic() => return Some(scan_identifier(self.scanner)),
                 c if c.is_ascii_digit() || c == '.' => return Some(scan_number(&mut self.scanner)),
                 _ => {
                     self.scanner.next();
