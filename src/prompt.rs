@@ -2,7 +2,7 @@
 
 use crate::errors::{ParseError, TortugaError};
 use crate::parser::Parser;
-use crate::scanner::Scanner;
+use crate::lexer::Scanner;
 
 use rustyline::completion::Completer;
 use rustyline::config::Config;
