@@ -1,5 +1,5 @@
 use crate::grammar::ComparisonOperator;
-use crate::token::Kind;
+use crate::token::{InvalidToken, Kind};
 use std::fmt;
 use thiserror::Error;
 
@@ -65,7 +65,7 @@ impl RuntimeError {
 }
 
 /// An error that occurred during lexical analysis while validating a lexem.
-#[derive(Debug, Error, PartialEq)]
+#[derive(Clone, Debug, Error, PartialEq)]
 pub enum LexicalError {
     #[error("Expected a digit (e.g. 0-9, a-z, A-Z) but none was found.")]
     ExpectedDigits,
@@ -95,7 +95,7 @@ pub enum LexicalError {
 
 /// A syntactal error that occurs when no grammar rule matches a sequence of lexical tokens.
 #[derive(Error, Debug)]
-pub enum SyntaxError {
+pub enum SyntaxError<'source> {
     #[error("Reached the end of the source code while parsing a grammar rule.")]
     IncompleteRule,
     #[error("No grammar rule found to match the next lexical token (whether valid or invalid).")]
@@ -103,18 +103,16 @@ pub enum SyntaxError {
     #[error(
         "Encountered a token with one or more lexical errors while that matches a grammar rule."
     )]
-    InvalidToken,
+    InvalidToken(InvalidToken<'source>),
 }
 
 /// An error that occurred while parsing a stream of tokens.
 #[derive(Error, Debug)]
-pub enum ParseError {
-    #[error("Unknown.")]
-    Unknown,
+pub enum ParseError<'source> {
     #[error("Expected a token, but reached the end of the file.")]
     EndOfFile,
     #[error("One or more syntax errors found while parsing the source code. {0}")]
-    MultipleErrors(MultipleErrors<SyntaxError>),
+    MultipleErrors(MultipleErrors<SyntaxError<'source>>),
 }
 
 /// Wrapper struct to define Display trait.
