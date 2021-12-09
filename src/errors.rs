@@ -1,5 +1,5 @@
 use crate::grammar::ComparisonOperator;
-use crate::token::{InvalidToken, Kind};
+use crate::token::{InvalidToken, Kind, ValidToken};
 use std::fmt;
 use thiserror::Error;
 
@@ -97,9 +97,9 @@ pub enum LexicalError {
 #[derive(Error, Debug)]
 pub enum SyntaxError<'source> {
     #[error("Reached the end of the source code while parsing a grammar rule.")]
-    IncompleteRule,
-    #[error("No grammar rule found to match the next lexical token (whether valid or invalid).")]
-    NoMatchingRule,
+    IncompleteRule(Vec<Kind>),
+    #[error("No grammar rule found to match the next lexical token.")]
+    NoMatchingRule(ValidToken<'source>, Vec<Kind>),
     #[error(
         "Encountered a token with one or more lexical errors while that matches a grammar rule."
     )]
@@ -108,64 +108,9 @@ pub enum SyntaxError<'source> {
 
 /// An error that occurred while parsing a stream of tokens.
 #[derive(Error, Debug)]
-pub enum ParseError<'source> {
+pub enum ParseError {
     #[error("Expected a token, but reached the end of the file.")]
     EndOfFile,
-    #[error("One or more syntax errors found while parsing the source code. {0}")]
-    MultipleErrors(MultipleErrors<SyntaxError<'source>>),
-}
-
-/// Wrapper struct to define Display trait.
-#[derive(Debug)]
-pub struct Kinds(Vec<Kind>);
-
-impl From<Vec<Kind>> for Kinds {
-    fn from(kinds: Vec<Kind>) -> Self {
-        Kinds(kinds)
-    }
-}
-
-impl fmt::Display for Kinds {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut iterator = self.0.iter().peekable();
-
-        while let Some(kind) = iterator.next() {
-            write!(f, "{}", kind)?;
-
-            if iterator.peek().is_some() {
-                write!(f, ", or ")?;
-            }
-        }
-
-        Ok(())
-    }
-}
-
-/// Wrapper struct to define Display trait.
-#[derive(Debug)]
-pub struct MultipleErrors<E: std::error::Error>(Vec<E>);
-
-impl<E: std::error::Error> From<Vec<E>> for MultipleErrors<E> {
-    fn from(errors: Vec<E>) -> Self {
-        MultipleErrors(errors)
-    }
-}
-
-impl<E> fmt::Display for MultipleErrors<E>
-where
-    E: std::error::Error,
-{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut iterator = self.0.iter().enumerate().peekable();
-
-        while let Some((index, kind)) = iterator.next() {
-            write!(f, "{}) {}", index + 1, kind)?;
-
-            if iterator.peek().is_some() {
-                write!(f, ", ")?;
-            }
-        }
-
-        Ok(())
-    }
+    #[error("One or more syntax errors found while parsing the source code.")]
+    MultipleErrors,
 }

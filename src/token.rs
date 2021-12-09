@@ -5,7 +5,7 @@ use crate::number::Number;
 use std::fmt;
 
 /// A combination of a `Location` and an excerpt from the source code representing the lexeme.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct Lexeme<'source> {
     source: &'source str,
     start: Location,
@@ -30,7 +30,7 @@ impl<'source> Lexeme<'source> {
 
 /// An attachment is used to pass parsed information from the lexical analysis to the parser.
 /// This avoids having to duplicate the format of tokens in different places.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum Attachment {
     Number(Number),
     Operator(Operator),
@@ -86,7 +86,7 @@ pub trait LexicalToken<'source> {
 }
 
 /// A token with no lexical errors.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct ValidToken<'source> {
     lexeme: Lexeme<'source>,
     attachment: Attachment,
@@ -111,7 +111,7 @@ impl<'source> ValidToken<'source> {
 }
 
 /// A token with one or more lexical errors.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct InvalidToken<'source> {
     kind: Option<Kind>,
     lexeme: Lexeme<'source>,
