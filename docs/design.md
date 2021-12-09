@@ -56,6 +56,9 @@ comparisonOperator = "<" | ">" | "=" | "<" ">" | "<" "=" | ">" "=" | "<" "=" ">"
 sign -> "+" | "-";
 ```
 
+### Notes
+1. Numbers with a radix portion always set their sign explicitly (default to positive when no sign is present) as the sign is part of the literal. Numbers without a radix, however, always set the sign to `None` to denote that the sign is not part of the literal; the sign is a separate token altogether.
+
 ##  Data Types
 - Tortuga has no String type. String programming makes internationalization more difficult. Instead the standard library will provide a mechanism to map byte string triplets (key, language, and an optional region) into a different byte string.
 - No null, nil, etc. All types are actual types.
