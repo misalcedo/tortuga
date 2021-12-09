@@ -1,5 +1,4 @@
 use crate::grammar::ComparisonOperator;
-use crate::location::Location;
 use crate::token::Kind;
 use std::fmt;
 use thiserror::Error;
@@ -79,7 +78,10 @@ pub enum LexicalError {
         crate::number::MAX_RADIX
     )]
     RadixTooLarge(u32),
-    #[error("Fraction contains {0} digits, but the maximum supported is {}.", u32::MAX)]
+    #[error(
+        "Fraction contains {0} digits, but the maximum supported is {}.",
+        u32::MAX
+    )]
     FractionTooLong(usize),
     #[error("Unable to parse the integer portion of a numeric literal.")]
     InvalidInteger(#[source] std::num::ParseIntError),
@@ -94,6 +96,14 @@ pub enum LexicalError {
 /// A syntactal error that occurs when no grammar rule matches a sequence of lexical tokens.
 #[derive(Error, Debug)]
 pub enum SyntaxError {
+    #[error("Reached the end of the source code while parsing a grammar rule.")]
+    IncompleteRule,
+    #[error("No grammar rule found to match the next lexical token (whether valid or invalid).")]
+    NoMatchingRule,
+    #[error(
+        "Encountered a token with one or more lexical errors while that matches a grammar rule."
+    )]
+    InvalidToken,
 }
 
 /// An error that occurred while parsing a stream of tokens.
@@ -101,30 +111,10 @@ pub enum SyntaxError {
 pub enum ParseError {
     #[error("Unknown.")]
     Unknown,
-    #[error("Found one or more lexical errors while scanning {kind:?} token '{lexeme}' on {location}: {errors}")]
-    Lexical {
-        location: Location,
-        kind: Option<Kind>,
-        lexeme: String,
-        errors: MultipleErrors<LexicalError>,
-    },
-    #[error("Failed to validate the current token. {0}")]
-    Validation(#[from] LexicalError),
-    #[error("Expected token '{lexeme}' ({actual}) on {location} to be of type {expected}.")]
-    Syntax {
-        location: Location,
-        expected: Kinds,
-        actual: Kind,
-        lexeme: String,
-    },
-    #[error("Expected a token with type {0}. Instead, reached the end of the file.")]
-    EndOfFile(Kinds),
-    #[error("No grammar rule was found to match the token kind {1} on {0}.")]
-    NoMatchingGrammar(Location, Kind),
-    #[error("No grammar rule was found to match the sequence of comparison operators {1} on {0}. Valid comparison operators are: <, =, >, <=, >=, <=>.")]
-    InvalidComparator(Location, Kinds),
+    #[error("Expected a token, but reached the end of the file.")]
+    EndOfFile,
     #[error("One or more syntax errors found while parsing the source code. {0}")]
-    MultipleErrors(MultipleErrors<ParseError>),
+    MultipleErrors(MultipleErrors<SyntaxError>),
 }
 
 /// Wrapper struct to define Display trait.

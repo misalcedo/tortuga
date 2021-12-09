@@ -18,7 +18,8 @@ pub struct Number {
 
 impl From<Number> for f64 {
     fn from(number: Number) -> Self {
-        f64::from(number.sign.unwrap_or_default()) * ((number.integer as f64) + f64::from(number.fraction))
+        f64::from(number.sign.unwrap_or_default())
+            * ((number.integer as f64) + f64::from(number.fraction))
     }
 }
 
@@ -138,10 +139,7 @@ mod tests {
 
     #[test]
     fn default_is_zero() {
-        assert_eq!(
-            Number::default(),
-            Number::new(None, 0, Fraction::new(0, 1))
-        );
+        assert_eq!(Number::default(), Number::new(None, 0, Fraction::new(0, 1)));
     }
 
     #[test]

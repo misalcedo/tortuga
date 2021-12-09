@@ -14,9 +14,7 @@ pub struct Lexeme<'source> {
 impl<'source> Lexeme<'source> {
     /// Creates a new instance of a `Lexeme` with the given `Location` and lexeme.
     pub fn new(source: &'source str, start: Location) -> Self {
-        Lexeme {
-            source, start
-        }
+        Lexeme { source, start }
     }
 
     /// The start `Location` of this `Lexeme`.
@@ -36,7 +34,7 @@ impl<'source> Lexeme<'source> {
 pub enum Attachment {
     Number(Number),
     Operator(Operator),
-    Empty(Kind)
+    Empty(Kind),
 }
 
 impl From<&Attachment> for Kind {
@@ -48,7 +46,7 @@ impl From<&Attachment> for Kind {
             Attachment::Operator(Operator::Multiply) => Kind::Minus,
             Attachment::Operator(Operator::Divide) => Kind::ForwardSlash,
             Attachment::Operator(Operator::Exponent) => Kind::Caret,
-            Attachment::Empty(kind) => *kind
+            Attachment::Empty(kind) => *kind,
         }
     }
 }
@@ -78,7 +76,7 @@ pub trait LexicalToken<'source> {
 
     /// The excerpt of the source file that represents this `LexicalToken`.
     fn source(&self) -> &'source str {
-        self.lexeme().source()    
+        self.lexeme().source()
     }
 
     /// The start location in the source file of this `LexicalToken`.
@@ -89,9 +87,9 @@ pub trait LexicalToken<'source> {
 
 /// A token with no lexical errors.
 #[derive(Debug, PartialEq)]
-pub struct ValidToken<'source>  {
+pub struct ValidToken<'source> {
     lexeme: Lexeme<'source>,
-    attachment: Attachment
+    attachment: Attachment,
 }
 
 impl<'source> LexicalToken<'source> for ValidToken<'source> {
@@ -139,7 +137,7 @@ impl<'source> InvalidToken<'source> {
 
     /// The kind of token that was identified during lexical analysis.
     /// If the `Lexer` cannot determine the `Kind` of token, returns `None`.
-    /// Otherwise, returns the kind that was being scanned. 
+    /// Otherwise, returns the kind that was being scanned.
     pub fn kind(&self) -> Option<Kind> {
         self.kind
     }
@@ -150,20 +148,14 @@ impl<'source> InvalidToken<'source> {
 #[derive(Debug, PartialEq)]
 pub enum Token<'source> {
     Valid(ValidToken<'source>),
-    Invalid(InvalidToken<'source>)
+    Invalid(InvalidToken<'source>),
 }
 
 impl<'source> Token<'source> {
     /// Creates a new `Token` with potential lexical errors.
-    pub fn new(
-        attachment: Attachment,
-        lexeme: Lexeme<'source>,
-        errors: Vec<LexicalError>
-    ) -> Self {
+    pub fn new(attachment: Attachment, lexeme: Lexeme<'source>, errors: Vec<LexicalError>) -> Self {
         if errors.is_empty() {
-            Token::Valid(ValidToken {
-                attachment, lexeme
-            })
+            Token::Valid(ValidToken { attachment, lexeme })
         } else {
             Token::Invalid(InvalidToken {
                 kind: Some(attachment.into()),
@@ -174,13 +166,8 @@ impl<'source> Token<'source> {
     }
 
     /// Creates a valid `Token` with no lexical errors.
-    pub fn new_valid(
-        attachment: Attachment,
-        lexeme: Lexeme<'source>,
-    ) -> Self {
-        Token::Valid(ValidToken {
-            attachment, lexeme
-        })
+    pub fn new_valid(attachment: Attachment, lexeme: Lexeme<'source>) -> Self {
+        Token::Valid(ValidToken { attachment, lexeme })
     }
 
     /// Creates an invalid `Token` with one or more lexical errors.

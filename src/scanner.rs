@@ -289,7 +289,10 @@ mod tests {
 
     #[test]
     fn lexeme_when_empty() {
-        assert_eq!(Scanner::from("abc").lexeme(), Lexeme::new("", Location::default()));
+        assert_eq!(
+            Scanner::from("abc").lexeme(),
+            Lexeme::new("", Location::default())
+        );
     }
 
     #[test]

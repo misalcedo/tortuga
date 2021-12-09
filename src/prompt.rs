@@ -78,7 +78,7 @@ impl Validator for PromptHelper {
 
         match parser.parse() {
             Ok(_) => Ok(ValidationResult::Valid(None)),
-            Err(ParseError::EndOfFile(_)) => Ok(ValidationResult::Incomplete),
+            Err(ParseError::EndOfFile) => Ok(ValidationResult::Incomplete),
             Err(error) => Ok(ValidationResult::Invalid(Some(format!(
                 "\t{}",
                 error.to_string()

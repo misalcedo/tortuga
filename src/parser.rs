@@ -1,12 +1,12 @@
 //! Parser from a stream of tokens into a syntax tree for the Tortuga language.
 
-use crate::errors::ParseError;
+use crate::errors::{ParseError, SyntaxError};
 use crate::grammar::{
     BinaryOperation, Block, ComparisonOperation, ComparisonOperator, Expression, Grouping,
     Operator, Program, Variable,
 };
 use crate::number::{Number, Sign};
-use crate::token::{Attachment, Kind, LexicalToken, Token, ValidToken};
+use crate::token::{Attachment, InvalidToken, Kind, LexicalToken, Token, ValidToken};
 use std::iter::{IntoIterator, Iterator, Peekable};
 
 const BLOCK_END_TOKEN_KINDS: [Kind; 1] = [Kind::RightBracket];
@@ -14,6 +14,51 @@ const COMPARISON_TOKEN_KINDS: [Kind; 3] = [Kind::LessThan, Kind::GreaterThan, Ki
 const TERM_TOKEN_KINDS: [Kind; 2] = [Kind::Plus, Kind::Minus];
 const FACTOR_TOKEN_KINDS: [Kind; 2] = [Kind::Star, Kind::ForwardSlash];
 const EXPONENT_TOKEN_KINDS: [Kind; 1] = [Kind::Caret];
+
+/// A stream of `Token`s to be consumed by the `Parser`.
+trait TokenStream<'source> {
+    /// Gets the next `Token` if it matches the expected kind. Otherwise, returns an error.
+    /// Returns an error if there are not more `Token`s in the stream.
+    fn next_kind(&mut self, expected: &[Kind]) -> Result<ValidToken<'source>, SyntaxError>;
+
+    /// Gets the next `Token` only if it has the given kind. Otherwise, returns an empty `Option`.
+    /// Returns an error if there are not more `Token`s in the stream.
+    fn next_if_kind(
+        &mut self,
+        expected: &[Kind],
+    ) -> Result<Option<ValidToken<'source>>, SyntaxError>;
+
+    /// Peeks the next `Token`'s `Kind`.
+    /// Returns an error if there are not more `Token`s in the stream.
+    fn peek_kind(&mut self) -> Result<Kind, SyntaxError>;
+
+    /// Tests if the next token's kind matches one of the expected ones.
+    fn next_matches_kind(&mut self, expected: &[Kind]) -> bool;
+}
+
+impl<'source, I> TokenStream<'source> for Peekable<I>
+where
+    I: Iterator<Item = Token<'source>>,
+{
+    fn next_kind(&mut self, expected: &[Kind]) -> Result<ValidToken<'source>, SyntaxError> {
+        Err(SyntaxError::IncompleteRule)
+    }
+
+    fn next_if_kind(
+        &mut self,
+        expected: &[Kind],
+    ) -> Result<Option<ValidToken<'source>>, SyntaxError> {
+        Err(SyntaxError::IncompleteRule)
+    }
+
+    fn peek_kind(&mut self) -> Result<Kind, SyntaxError> {
+        Err(SyntaxError::IncompleteRule)
+    }
+
+    fn next_matches_kind(&mut self, expected: &[Kind]) -> bool {
+        false
+    }
+}
 
 /// A recursive descent parser for a stream of tokens into a syntax tree for the Tortuga language.
 pub struct Parser<'source, I: Iterator<Item = Token<'source>>> {
@@ -33,11 +78,12 @@ where
 
     /// Parses the stream of tokens into a syntax tree.
     pub fn parse(mut self) -> Result<Program, ParseError> {
-        let mut errors: Vec<ParseError> = Vec::new();
+        let mut errors: Vec<SyntaxError> = Vec::new();
         let mut expressions = Vec::new();
 
         while self.tokens.peek().is_some() {
             match self.parse_expression() {
+                Err(SyntaxError::IncompleteRule) => return Err(ParseError::EndOfFile),
                 Err(error) => {
                     errors.push(error);
                     self.synchronize();
@@ -48,10 +94,10 @@ where
             }
         }
 
-        match errors.len() {
-            0 => Ok(Program::new(expressions)),
-            1 => Err(errors.pop().unwrap()),
-            _ => Err(ParseError::MultipleErrors(errors.into())),
+        if errors.is_empty() {
+            Ok(Program::new(expressions))
+        } else {
+            Err(ParseError::MultipleErrors(errors.into()))
         }
     }
 
@@ -62,32 +108,32 @@ where
         self.tokens.next();
     }
 
-    fn parse_expression(&mut self) -> Result<Expression, ParseError> {
-        match self.peek_kind() {
-            Some(Kind::LeftBracket) => Ok(self.parse_block()?.into()),
+    fn parse_expression(&mut self) -> Result<Expression, SyntaxError> {
+        match self.tokens.peek_kind()? {
+            Kind::LeftBracket => Ok(self.parse_block()?.into()),
             _ => self.parse_comparison(),
         }
     }
 
-    fn parse_block(&mut self) -> Result<Block, ParseError> {
-        self.next_kind(&[Kind::LeftBracket])?;
+    fn parse_block(&mut self) -> Result<Block, SyntaxError> {
+        self.tokens.next_kind(&[Kind::LeftBracket])?;
 
         let mut expressions = vec![self.parse_comparison()?];
 
-        while !self.next_matches_kind(&BLOCK_END_TOKEN_KINDS) {
+        while !self.tokens.next_matches_kind(&BLOCK_END_TOKEN_KINDS) {
             expressions.push(self.parse_comparison()?)
         }
 
-        self.next_kind(&BLOCK_END_TOKEN_KINDS)?;
+        self.tokens.next_kind(&BLOCK_END_TOKEN_KINDS)?;
 
         Ok(Block::new(expressions))
     }
 
     /// Parse a comparison grammar rule.
-    fn parse_comparison(&mut self) -> Result<Expression, ParseError> {
+    fn parse_comparison(&mut self) -> Result<Expression, SyntaxError> {
         let mut expression = self.parse_term()?;
 
-        while self.next_matches_kind(&COMPARISON_TOKEN_KINDS) {
+        while self.tokens.next_matches_kind(&COMPARISON_TOKEN_KINDS) {
             let operator = self.parse_comparison_operator()?;
             let right = self.parse_term()?;
 
@@ -98,11 +144,11 @@ where
     }
 
     /// Parses a comparison operator of the expected token kind.
-    fn parse_comparison_operator(&mut self) -> Result<ComparisonOperator, ParseError> {
-        let token = self.next_kind(&COMPARISON_TOKEN_KINDS)?;
+    fn parse_comparison_operator(&mut self) -> Result<ComparisonOperator, SyntaxError> {
+        let token = self.tokens.next_kind(&COMPARISON_TOKEN_KINDS)?;
         let mut operators = vec![token.kind()];
 
-        while let Some(token) = self.next_if_kind(&COMPARISON_TOKEN_KINDS)? {
+        while let Some(token) = self.tokens.next_if_kind(&COMPARISON_TOKEN_KINDS)? {
             operators.push(token.kind())
         }
 
@@ -114,18 +160,15 @@ where
             [Kind::Equals] => Ok(ComparisonOperator::EqualTo),
             [Kind::LessThan, Kind::GreaterThan] => Ok(ComparisonOperator::NotEqualTo),
             [Kind::LessThan, Kind::Equals, Kind::GreaterThan] => Ok(ComparisonOperator::Comparable),
-            _ => Err(ParseError::InvalidComparator(
-                token.start(),
-                operators.into(),
-            )),
+            _ => Err(SyntaxError::NoMatchingRule),
         }
     }
 
     /// Parse a term grammar rule (i.e., add and subtract).
-    fn parse_term(&mut self) -> Result<Expression, ParseError> {
+    fn parse_term(&mut self) -> Result<Expression, SyntaxError> {
         let mut expression = self.parse_factor()?;
 
-        while self.next_matches_kind(&TERM_TOKEN_KINDS) {
+        while self.tokens.next_matches_kind(&TERM_TOKEN_KINDS) {
             let operator = self.parse_operator(&TERM_TOKEN_KINDS)?;
             let right = self.parse_factor()?;
 
@@ -136,10 +179,10 @@ where
     }
 
     /// Parse a factor grammar rule (i.e., multiply and divide).
-    fn parse_factor(&mut self) -> Result<Expression, ParseError> {
+    fn parse_factor(&mut self) -> Result<Expression, SyntaxError> {
         let mut expression = self.parse_exponent()?;
 
-        while self.next_matches_kind(&FACTOR_TOKEN_KINDS) {
+        while self.tokens.next_matches_kind(&FACTOR_TOKEN_KINDS) {
             let operator = self.parse_operator(&FACTOR_TOKEN_KINDS)?;
             let right = self.parse_exponent()?;
 
@@ -150,10 +193,10 @@ where
     }
 
     /// Parse a exponent grammar rule (i.e., multiply and divide).
-    fn parse_exponent(&mut self) -> Result<Expression, ParseError> {
+    fn parse_exponent(&mut self) -> Result<Expression, SyntaxError> {
         let mut expression = self.parse_primary()?;
 
-        while self.next_matches_kind(&EXPONENT_TOKEN_KINDS) {
+        while self.tokens.next_matches_kind(&EXPONENT_TOKEN_KINDS) {
             let operator = self.parse_operator(&EXPONENT_TOKEN_KINDS)?;
             let right = self.parse_primary()?;
 
@@ -164,8 +207,8 @@ where
     }
 
     /// Parses an operator of the expected token kind.
-    fn parse_operator(&mut self, expected: &[Kind]) -> Result<Operator, ParseError> {
-        let token = self.next_kind(expected)?;
+    fn parse_operator(&mut self, expected: &[Kind]) -> Result<Operator, SyntaxError> {
+        let token = self.tokens.next_kind(expected)?;
 
         match token.kind() {
             Kind::Plus => Ok(Operator::Add),
@@ -173,40 +216,39 @@ where
             Kind::Star => Ok(Operator::Multiply),
             Kind::ForwardSlash => Ok(Operator::Divide),
             Kind::Caret => Ok(Operator::Exponent),
-            kind => Err(ParseError::NoMatchingGrammar(token.start(), kind)),
+            kind => Err(SyntaxError::NoMatchingRule),
         }
     }
 
     /// Parse a primary grammar rule.
-    fn parse_primary(&mut self) -> Result<Expression, ParseError> {
-        match self.peek_kind() {
-            Some(Kind::LeftParenthesis) => self.parse_grouping().map(Expression::Grouping),
-            Some(Kind::Plus | Kind::Minus | Kind::Number) => {
+    fn parse_primary(&mut self) -> Result<Expression, SyntaxError> {
+        match self.tokens.peek_kind()? {
+            Kind::LeftParenthesis => self.parse_grouping().map(Expression::Grouping),
+            Kind::Plus | Kind::Minus | Kind::Number => {
                 self.parse_number().map(Expression::Number)
             }
-            Some(Kind::Identifier) => self.parse_variable().map(Expression::Variable),
-            Some(kind) => {
-                let token = self.next_kind(&[kind])?;
-                Err(ParseError::NoMatchingGrammar(token.start(), token.kind()))
+            Kind::Identifier => self.parse_variable().map(Expression::Variable),
+            kind => {
+                let token = self.tokens.next_kind(&[kind])?;
+                Err(SyntaxError::NoMatchingRule)
             }
-            None => Err(ParseError::Unknown),
         }
     }
 
     /// Parse a grouping grammar rule.
-    fn parse_grouping(&mut self) -> Result<Grouping, ParseError> {
-        self.next_kind(&[Kind::LeftParenthesis])?;
+    fn parse_grouping(&mut self) -> Result<Grouping, SyntaxError> {
+        self.tokens.next_kind(&[Kind::LeftParenthesis])?;
 
         let expression = self.parse_expression()?;
 
-        self.next_kind(&[Kind::RightParenthesis])?;
+        self.tokens.next_kind(&[Kind::RightParenthesis])?;
 
         Ok(Grouping::new(expression))
     }
 
     /// Parse a number literal with an optional plus or minus sign.
-    fn parse_number(&mut self) -> Result<Number, ParseError> {
-        let sign = match self
+    fn parse_number(&mut self) -> Result<Number, SyntaxError> {
+        let sign = match self.tokens
             .next_if_kind(&[Kind::Plus, Kind::Minus])?
             .as_ref()
             .map(ValidToken::kind)
@@ -215,41 +257,21 @@ where
             _ => Sign::Positive,
         };
 
-        let token = self.next_kind(&[Kind::Number])?;
-        
+        let token = self.tokens.next_kind(&[Kind::Number])?;
+
         if let Attachment::Number(mut number) = token.attachment() {
             number.set_sign(sign);
 
             Ok(number.clone())
         } else {
-            Err(ParseError::Unknown)
+            Err(SyntaxError::NoMatchingRule)
         }
     }
 
     /// Parses an identifier token as a variable.
-    fn parse_variable(&mut self) -> Result<Variable, ParseError> {
-        let token = self.next_kind(&[Kind::Identifier])?;
+    fn parse_variable(&mut self) -> Result<Variable, SyntaxError> {
+        let token = self.tokens.next_kind(&[Kind::Identifier])?;
 
         Ok(Variable::new(token.source()))
-    }
-
-    /// Gets the next token if it matches the expected kind or returns an error.
-    fn next_kind(&mut self, expected: &[Kind]) -> Result<ValidToken<'source>, ParseError> {
-        Err(ParseError::Unknown)
-    }
-
-    /// Gets the next token only if it has one of the given kind.
-    fn next_if_kind(&mut self, expected: &[Kind]) -> Result<Option<ValidToken<'source>>, ParseError> {
-        Ok(None)
-    }
-
-    /// Peeks the next token's kind.
-    fn peek_kind(&mut self) -> Option<Kind> {
-        None
-    }
-
-    /// Tests if the next token's kind matches one of the expected ones.
-    fn next_matches_kind(&mut self, expected: &[Kind]) -> bool {
-        false
     }
 }

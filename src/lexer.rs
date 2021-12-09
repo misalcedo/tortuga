@@ -37,7 +37,7 @@ fn scan_sign(scanner: &mut Scanner) -> Option<Sign> {
     match scanner.next_if(|c| c == '+' || c == '-') {
         Some('+') => Some(Sign::Positive),
         Some('-') => Some(Sign::Negative),
-        _ => None
+        _ => None,
     }
 }
 
@@ -58,7 +58,7 @@ fn scan_number<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
     let mut radix_lexeme = None;
     let mut integer_lexeme = scan_digits(scanner, DECIMAL_RADIX);
     let mut fraction_lexeme = None;
-    
+
     if scanner.next_if_eq('#').is_some() {
         sign.insert(scan_sign(scanner).unwrap_or_default());
 
@@ -108,18 +108,22 @@ fn scan_number<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
         errors.push(LexicalError::DuplicateDecimal);
     }
 
-    let fraction = match fraction_lexeme{
+    let fraction = match fraction_lexeme {
         Some(value) if value.len() > (u32::MAX as usize) => {
             errors.push(LexicalError::FractionTooLong(value.len()));
             Fraction::default()
-        },
+        }
         Some(value) => Fraction::new(numerator, radix.pow(value.len() as u32).into()),
-        None => Fraction::default()
+        None => Fraction::default(),
     };
 
     let number = Number::new(sign, integer, fraction);
 
-    Token::new(Attachment::Number(number), scanner.lexeme_from(&start), errors)
+    Token::new(
+        Attachment::Number(number),
+        scanner.lexeme_from(&start),
+        errors,
+    )
 }
 
 /// Scans either an identifier or a number with a radix.
@@ -150,10 +154,7 @@ impl<'scanner, 'source> Lexer<'scanner, 'source> {
     fn new_short_token<T: Into<Attachment>>(&mut self, attachment: T) -> Option<Token<'source>> {
         self.scanner.next();
 
-        Some(Token::new_valid(
-            attachment.into(),
-            self.scanner.lexeme()
-        ))
+        Some(Token::new_valid(attachment.into(), self.scanner.lexeme()))
     }
 
     /// The next lexical token in the source code.
@@ -180,7 +181,11 @@ impl<'scanner, 'source> Lexer<'scanner, 'source> {
             c if c.is_alphabetic() => Some(scan_identifier(self.scanner)),
             c if c.is_ascii_digit() || c == '.' => Some(scan_number(&mut self.scanner)),
             _ => {
-                while self.scanner.next_if(|c| !c.is_ascii_punctuation() && !c.is_alphanumeric()).is_some() {}
+                while self
+                    .scanner
+                    .next_if(|c| !c.is_ascii_punctuation() && !c.is_alphanumeric())
+                    .is_some()
+                {}
 
                 Some(Token::new_invalid(
                     None,
@@ -251,7 +256,7 @@ mod tests {
         let mut number = Number::new_integer(16777215);
 
         number.set_sign(Sign::default());
-        
+
         assert_eq!(
             lexer.next(),
             Some(Token::new_valid(
@@ -315,7 +320,10 @@ mod tests {
             lexer.next(),
             Some(Token::new_invalid(
                 Some(Kind::Number),
-                Lexeme::new("222222222222222222222222222222222222222222#1.", Location::default()),
+                Lexeme::new(
+                    "222222222222222222222222222222222222222222#1.",
+                    Location::default()
+                ),
                 vec![LexicalError::InvalidRadix(
                     "222222222222222222222222222222222222222222"
                         .parse::<u32>()
@@ -395,7 +403,10 @@ mod tests {
 
         assert_eq!(
             lexer.next(),
-            Some(Token::new_valid(Attachment::Number(Number::new_integer(1)), Lexeme::new("1", Location::default())))
+            Some(Token::new_valid(
+                Attachment::Number(Number::new_integer(1)),
+                Lexeme::new("1", Location::default())
+            ))
         );
         assert_eq!(
             lexer.next(),
