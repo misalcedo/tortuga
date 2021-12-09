@@ -2,7 +2,7 @@
 //! that is provided by a source code scanner.
 //! The lexer produces lexical tokens.
 
-use crate::errors::ValidationError;
+use crate::errors::LexicalError;
 use crate::grammar::{Operator, ComparisonOperator};
 use crate::number::{Fraction, Number, Sign, DECIMAL_RADIX, MAX_RADIX};
 use crate::scanner::Scanner;
@@ -44,7 +44,7 @@ fn scan_digits<'source>(scanner: &mut Scanner<'source>, radix: u32) -> Option<&'
 /// - 16#-FFFFFF
 fn scan_number<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
     let start = *scanner.start();
-    let mut validations = Vec::new();
+    let mut errors = Vec::new();
     let mut radix_lexeme = None;
     let mut sign = Sign::Positive;
     let mut integer_lexeme = scan_digits(scanner, DECIMAL_RADIX);
@@ -62,11 +62,11 @@ fn scan_number<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
 
     let radix = match radix_lexeme.map(|r| r.parse::<u32>()) {
         Some(Ok(value)) if value > MAX_RADIX => {
-            validations.push(ValidationError::RadixTooLarge(value));
+            errors.push(LexicalError::RadixTooLarge(value));
             MAX_RADIX
         }
         Some(Err(error)) => {
-            validations.push(ValidationError::InvalidRadix(error));
+            errors.push(LexicalError::InvalidRadix(error));
             DECIMAL_RADIX
         }
         Some(Ok(value)) => value,
@@ -78,12 +78,12 @@ fn scan_number<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
     }
 
     if integer_lexeme.is_none() && fraction_lexeme.is_none() {
-        validations.push(ValidationError::ExpectedDigits);
+        errors.push(LexicalError::ExpectedDigits);
     }
 
     let integer = match integer_lexeme.map(|i| u128::from_str_radix(i, radix)) {
         Some(Err(error)) => {
-            validations.push(ValidationError::InvalidInteger(error));
+            errors.push(LexicalError::InvalidInteger(error));
             0
         }
         Some(Ok(value)) => value,
@@ -91,7 +91,7 @@ fn scan_number<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
     };
     let numerator = match fraction_lexeme.map(|f| u128::from_str_radix(f, radix)) {
         Some(Err(error)) => {
-            validations.push(ValidationError::InvalidFraction(error));
+            errors.push(LexicalError::InvalidFraction(error));
             0
         }
         Some(Ok(value)) => value,
@@ -99,12 +99,12 @@ fn scan_number<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
     };
 
     if scanner.next_if_eq('.').is_some() {
-        validations.push(ValidationError::DuplicateDecimal);
+        errors.push(LexicalError::DuplicateDecimal);
     }
 
     let fraction = match fraction_lexeme{
         Some(value) if value.len() > (u32::MAX as usize) => {
-            validations.push(ValidationError::FractionTooLong(value.len()));
+            errors.push(LexicalError::FractionTooLong(value.len()));
             Fraction::default()
         },
         Some(value) => Fraction::new(numerator, radix.pow(value.len() as u32).into()),
@@ -117,16 +117,16 @@ fn scan_number<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
         fraction
     );
 
-    if validations.is_empty() {
+    if errors.is_empty() {
         Token::new_valid(Attachment::Number(number), scanner.lexeme_from(&start))
     } else {
-        Token::new_invalid(Some(Kind::Number), scanner.lexeme_from(&start), validations)
+        Token::new_invalid(Some(Kind::Number), scanner.lexeme_from(&start), errors)
     }
 }
 
 /// Scans either an identifier or a number with a radix.
 fn scan_identifier<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
-    let mut validations = Vec::new();
+    let mut errors = Vec::new();
 
     while scanner
         .next_if(|c| c.is_alphanumeric() || c == '_')
@@ -136,13 +136,13 @@ fn scan_identifier<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
     let lexeme = scanner.lexeme();
 
     if lexeme.source().ends_with('_') {
-        validations.push(ValidationError::TerminalUnderscore);
+        errors.push(LexicalError::TerminalUnderscore);
     }
 
-    if validations.is_empty() {
+    if errors.is_empty() {
         Token::new_valid(Attachment::Empty(Kind::Identifier), lexeme)
     } else {
-        Token::new_invalid(Some(Kind::Identifier), lexeme, validations)
+        Token::new_invalid(Some(Kind::Identifier), lexeme, errors)
     }
 }
 
@@ -170,9 +170,9 @@ impl<'scanner, 'source> Lexer<'scanner, 'source> {
             '*' => self.new_short_token(Operator::Multiply),
             '/' => self.new_short_token(Operator::Divide),
             '^' => self.new_short_token(Operator::Exponent),
-            '=' => self.new_short_token(ComparisonOperator::EqualTo),
-            '<' => self.new_short_token(ComparisonOperator::LessThan),
-            '>' => self.new_short_token(ComparisonOperator::GreaterThan),
+            '=' => self.new_short_token(Kind::Equals),
+            '<' => self.new_short_token(Kind::LessThan),
+            '>' => self.new_short_token(Kind::GreaterThan),
             '~' => self.new_short_token(Kind::Tilde),
             '|' => self.new_short_token(Kind::Pipe),
             '%' => self.new_short_token(Kind::Percent),
@@ -191,7 +191,7 @@ impl<'scanner, 'source> Lexer<'scanner, 'source> {
                 Some(Token::new_invalid(
                     None,
                     self.scanner.lexeme(),
-                    vec![ValidationError::UnexpectedCharacter],
+                    vec![LexicalError::UnexpectedCharacter],
                 ))
             }
         }
@@ -267,7 +267,7 @@ mod tests {
             Some(Token::new_invalid(
                 Some(Kind::Number),
                 Lexeme::new(".", Location::default()),
-                vec![ValidationError::ExpectedDigits]
+                vec![LexicalError::ExpectedDigits]
             ))
         );
     }
@@ -282,7 +282,7 @@ mod tests {
             Some(Token::new_invalid(
                 Some(Kind::Number),
                 Lexeme::new("1.2.", Location::default()),
-                vec![ValidationError::DuplicateDecimal]
+                vec![LexicalError::DuplicateDecimal]
             ))
         );
     }
@@ -297,7 +297,7 @@ mod tests {
             Some(Token::new_invalid(
                 Some(Kind::Number),
                 Lexeme::new("256#1.", Location::default()),
-                vec![ValidationError::RadixTooLarge(256)]
+                vec![LexicalError::RadixTooLarge(256)]
             ))
         );
     }
@@ -312,7 +312,7 @@ mod tests {
             Some(Token::new_invalid(
                 Some(Kind::Number),
                 Lexeme::new("222222222222222222222222222222222222222222#1.", Location::default()),
-                vec![ValidationError::InvalidRadix(
+                vec![LexicalError::InvalidRadix(
                     "222222222222222222222222222222222222222222"
                         .parse::<u32>()
                         .unwrap_err()
@@ -331,7 +331,7 @@ mod tests {
             Some(Token::new_invalid(
                 Some(Kind::Number),
                 Lexeme::new("10#FF", Location::default()),
-                vec![ValidationError::InvalidInteger(
+                vec![LexicalError::InvalidInteger(
                     u128::from_str_radix("FF", DECIMAL_RADIX).unwrap_err()
                 )]
             ))
@@ -348,7 +348,7 @@ mod tests {
             Some(Token::new_invalid(
                 Some(Kind::Number),
                 Lexeme::new(".FF", Location::default()),
-                vec![ValidationError::InvalidFraction(
+                vec![LexicalError::InvalidFraction(
                     u128::from_str_radix("FF", DECIMAL_RADIX).unwrap_err()
                 )]
             ))
@@ -365,7 +365,7 @@ mod tests {
             Some(Token::new_invalid(
                 Some(Kind::Identifier),
                 Lexeme::new("x_", Location::default()),
-                vec![ValidationError::TerminalUnderscore]
+                vec![LexicalError::TerminalUnderscore]
             ))
         );
     }

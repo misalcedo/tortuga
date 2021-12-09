@@ -67,7 +67,7 @@ impl RuntimeError {
 
 /// An error that occurred during lexical analysis while validating a lexem.
 #[derive(Debug, Error, PartialEq)]
-pub enum ValidationError {
+pub enum LexicalError {
     #[error("Expected a digit (e.g. 0-9, a-z, A-Z) but none was found.")]
     ExpectedDigits,
     #[error("Numeric literal has more than 1 decimal point.")]
@@ -105,10 +105,10 @@ pub enum ParseError {
         location: Location,
         kind: Kind,
         lexeme: String,
-        errors: MultipleErrors<ValidationError>,
+        errors: MultipleErrors<LexicalError>,
     },
     #[error("Failed to validate the current token. {0}")]
-    Validation(#[from] ValidationError),
+    Validation(#[from] LexicalError),
     #[error("Expected token '{lexeme}' ({actual}) on {location} to be of type {expected}.")]
     Syntax {
         location: Location,

@@ -1,5 +1,5 @@
-use crate::errors::ValidationError;
-use crate::grammar::{Operator, ComparisonOperator};
+use crate::errors::LexicalError;
+use crate::grammar::Operator;
 use crate::location::Location;
 use crate::number::Number;
 use std::fmt;
@@ -36,7 +36,6 @@ impl<'source> Lexeme<'source> {
 pub enum Attachment {
     Number(Number),
     Operator(Operator),
-    ComparisonOperator(ComparisonOperator),
     Empty(Kind)
 }
 
@@ -49,12 +48,6 @@ impl From<&Attachment> for Kind {
             Attachment::Operator(Operator::Multiply) => Kind::Minus,
             Attachment::Operator(Operator::Divide) => Kind::ForwardSlash,
             Attachment::Operator(Operator::Exponent) => Kind::Caret,
-            Attachment::ComparisonOperator(ComparisonOperator::EqualTo) => Kind::Equals,
-            Attachment::ComparisonOperator(ComparisonOperator::LessThan) => Kind::LessThan,
-            Attachment::ComparisonOperator(ComparisonOperator::LessThanOrEqualTo) => Kind::LessThan,
-            Attachment::ComparisonOperator(ComparisonOperator::GreaterThan) => Kind::GreaterThan,
-            Attachment::ComparisonOperator(ComparisonOperator::GreaterThanOrEqualTo) => Kind::GreaterThan,
-            Attachment::ComparisonOperator(ComparisonOperator::Comparable) => Kind::LessThan,
             Attachment::Empty(kind) => *kind
         }
     }
@@ -63,12 +56,6 @@ impl From<&Attachment> for Kind {
 impl From<Operator> for Attachment {
     fn from(operator: Operator) -> Self {
         Attachment::Operator(operator)
-    }
-}
-
-impl From<ComparisonOperator> for Attachment {
-    fn from(comparator: ComparisonOperator) -> Self {
-        Attachment::ComparisonOperator(comparator)
     }
 }
 
@@ -89,7 +76,7 @@ pub enum Token<'source> {
     Invalid {
         kind: Option<Kind>,
         lexeme: Lexeme<'source>,
-        validations: Vec<ValidationError>,
+        validations: Vec<LexicalError>,
     }
 }
 
@@ -108,7 +95,7 @@ impl<'source> Token<'source> {
     pub fn new_invalid(
         kind: Option<Kind>,
         lexeme: Lexeme<'source>,
-        validations: Vec<ValidationError>,
+        validations: Vec<LexicalError>,
     ) -> Self {
         Token::Invalid {
             kind,
@@ -145,7 +132,7 @@ impl<'source> Token<'source> {
     }
 
     /// The list of validation errors for this token.
-    pub fn validations(&self) -> &[ValidationError] {
+    pub fn validations(&self) -> &[LexicalError] {
         match self {
             Self::Valid { attachment, .. } => &[],
             Self::Invalid { validations, .. } => validations.as_slice()
@@ -153,7 +140,7 @@ impl<'source> Token<'source> {
     }
 
     /// The list of validation errors for this token.
-    pub fn take_validations(&mut self) -> Vec<ValidationError> {
+    pub fn take_validations(&mut self) -> Vec<LexicalError> {
         match self {
             Self::Valid { attachment, .. } => vec![],
             Self::Invalid { validations, .. } => validations.drain(..).collect()
