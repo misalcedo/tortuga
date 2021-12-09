@@ -1,4 +1,4 @@
-//! Parses numeric literals into a suntax tree node.
+//! Parses numeric literals into a syntax tree node.
 
 use std::fmt;
 
@@ -11,20 +11,20 @@ pub const DECIMAL_RADIX: u32 = 10;
 /// Represents an number with both an integer and fractional portion.
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
 pub struct Number {
-    sign: Sign,
+    sign: Option<Sign>,
     integer: u128,
     fraction: Fraction,
 }
 
 impl From<Number> for f64 {
     fn from(number: Number) -> Self {
-        f64::from(number.sign) * ((number.integer as f64) + f64::from(number.fraction))
+        f64::from(number.sign.unwrap_or_default()) * ((number.integer as f64) + f64::from(number.fraction))
     }
 }
 
 impl Number {
     /// Creates a number with the given sign.
-    pub fn new(sign: Sign, integer: u128, fraction: Fraction) -> Self {
+    pub fn new(sign: Option<Sign>, integer: u128, fraction: Fraction) -> Self {
         Number {
             sign,
             integer,
@@ -34,9 +34,9 @@ impl Number {
 
     /// Creates a integer number with the given sign.
     #[cfg(test)]
-    pub fn new_integer(sign: Sign, integer: u128) -> Self {
+    pub fn new_integer(integer: u128) -> Self {
         Number {
-            sign,
+            sign: None,
             integer,
             fraction: Fraction::default(),
         }
@@ -44,7 +44,7 @@ impl Number {
 
     /// Sets the sign of this number.
     pub fn set_sign(&mut self, sign: Sign) {
-        self.sign = sign;
+        self.sign = Some(sign);
     }
 }
 
@@ -140,7 +140,44 @@ mod tests {
     fn default_is_zero() {
         assert_eq!(
             Number::default(),
-            Number::new(Sign::Positive, 0, Fraction::new(0, 1))
+            Number::new(None, 0, Fraction::new(0, 1))
+        );
+    }
+
+    #[test]
+    fn set_sign_positive() {
+        let mut number = Number::default();
+
+        number.set_sign(Sign::Positive);
+
+        assert_eq!(
+            number,
+            Number::new(Some(Sign::Positive), 0, Fraction::new(0, 1))
+        );
+    }
+
+    #[test]
+    fn set_sign_negative() {
+        let mut number = Number::default();
+
+        number.set_sign(Sign::Negative);
+
+        assert_eq!(
+            number,
+            Number::new(Some(Sign::Negative), 0, Fraction::new(0, 1))
+        );
+    }
+
+    #[test]
+    fn set_sign_override() {
+        let mut number = Number::default();
+
+        number.set_sign(Sign::Negative);
+        number.set_sign(Sign::Positive);
+
+        assert_eq!(
+            number,
+            Number::new(Some(Sign::Positive), 0, Fraction::new(0, 1))
         );
     }
 }

@@ -1,7 +1,7 @@
 use crate::errors::LexicalError;
 use crate::grammar::Operator;
 use crate::location::Location;
-use crate::number::{Fraction, Number, Sign};
+use crate::number::Number;
 use std::fmt;
 
 /// A combination of a `Location` and an excerpt from the source code representing the lexeme.

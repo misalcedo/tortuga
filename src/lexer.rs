@@ -1,4 +1,4 @@
-//! The lexical anaylzer of a potentially infinite stream characters
+//! The lexical analyzer of a potentially infinite stream characters
 //! that is provided by a source code scanner.
 //! The lexer produces lexical tokens.
 
@@ -33,7 +33,7 @@ fn scan_digits<'source>(scanner: &mut Scanner<'source>, radix: u32) -> Option<&'
 }
 
 /// Scans a `Sign` (positive or negative).
-fn scan_sign<'source>(scanner: &mut Scanner<'source>) -> Option<Sign> {
+fn scan_sign(scanner: &mut Scanner) -> Option<Sign> {
     match scanner.next_if(|c| c == '+' || c == '-') {
         Some('+') => Some(Sign::Positive),
         Some('-') => Some(Sign::Negative),
@@ -50,21 +50,17 @@ fn scan_sign<'source>(scanner: &mut Scanner<'source>) -> Option<Sign> {
 /// - 1.25
 /// - 0
 /// - 2#0.
-/// - 16#-FFFFFF
+/// - 16#-FF
 fn scan_number<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
     let start = *scanner.start();
     let mut errors = Vec::new();
-    let mut sign = scan_sign(scanner);
+    let mut sign = None;
     let mut radix_lexeme = None;
     let mut integer_lexeme = scan_digits(scanner, DECIMAL_RADIX);
     let mut fraction_lexeme = None;
     
     if scanner.next_if_eq('#').is_some() {
-        if sign.is_some() {
-            errors.push(LexicalError::SignBeforeRadix)
-        }
-
-        sign = scan_sign(scanner).or(sign);
+        sign = scan_sign(scanner);
         radix_lexeme = integer_lexeme;
         integer_lexeme = scan_digits(scanner, MAX_RADIX);
     }
@@ -120,7 +116,7 @@ fn scan_number<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
         None => Fraction::default()
     };
 
-    let number = Number::new(sign.unwrap_or_default(), integer, fraction);
+    let number = Number::new(sign, integer, fraction);
 
     Token::new(Attachment::Number(number), scanner.lexeme_from(&start), errors)
 }
@@ -162,6 +158,8 @@ impl<'scanner, 'source> Lexer<'scanner, 'source> {
     /// The next lexical token in the source code.
     fn next_token(&mut self) -> Option<Token<'source>> {
         match self.scanner.peek()? {
+            '+' => self.new_short_token(Operator::Add),
+            '-' => self.new_short_token(Operator::Subtract),
             '*' => self.new_short_token(Operator::Multiply),
             '/' => self.new_short_token(Operator::Divide),
             '^' => self.new_short_token(Operator::Exponent),
@@ -179,7 +177,7 @@ impl<'scanner, 'source> Lexer<'scanner, 'source> {
             '{' => self.new_short_token(Kind::LeftBrace),
             '}' => self.new_short_token(Kind::RightBrace),
             c if c.is_alphabetic() => Some(scan_identifier(self.scanner)),
-            c if c.is_ascii_digit() || c == '.' || c == '+' || c == '-' => Some(scan_number(&mut self.scanner)),
+            c if c.is_ascii_digit() || c == '.' => Some(scan_number(&mut self.scanner)),
             _ => {
                 while self.scanner.next_if(|c| !c.is_ascii_punctuation() && !c.is_alphanumeric()).is_some() {}
 
@@ -218,8 +216,15 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Token::new_valid(
-                Attachment::Number(Number::new_integer(Sign::Positive, 1)),
-                Lexeme::new("1", Location::default()),
+                Attachment::Operator(Operator::Add),
+                Lexeme::new("+", Location::default()),
+            ))
+        );
+        assert_eq!(
+            lexer.next(),
+            Some(Token::new_valid(
+                Attachment::Number(Number::new(None, 1, Fraction::default())),
+                Lexeme::new("1", Location::new(1, 2, 1)),
             ))
         );
     }
@@ -232,7 +237,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Token::new_valid(
-                Attachment::Number(Number::new(Sign::Negative, 3, Fraction::new(1, 4))),
+                Attachment::Number(Number::new(Some(Sign::Negative), 3, Fraction::new(1, 4))),
                 Lexeme::new("2#-011.01", Location::default()),
             ))
         );
@@ -246,7 +251,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Token::new_valid(
-                Attachment::Number(Number::new_integer(Sign::Positive, 16777215)),
+                Attachment::Number(Number::new_integer(16777215)),
                 Lexeme::new("16#FFFFFF", Location::default()),
             ))
         );
@@ -386,7 +391,7 @@ mod tests {
 
         assert_eq!(
             lexer.next(),
-            Some(Token::new_valid(Attachment::Number(Number::new_integer(Sign::Positive, 1)), Lexeme::new("1", Location::default())))
+            Some(Token::new_valid(Attachment::Number(Number::new_integer(1)), Lexeme::new("1", Location::default())))
         );
         assert_eq!(
             lexer.next(),
@@ -421,7 +426,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Token::new_valid(
-                Attachment::Number(Number::new_integer(Sign::Positive, 1)),
+                Attachment::Number(Number::new_integer(1)),
                 Lexeme::new("1", Location::new(1, 5, 4)),
             ))
         );
@@ -431,13 +436,13 @@ mod tests {
 
     #[test]
     fn lex_expression_math() {
-        let mut scanner = "1 + 1".into();
+        let mut scanner = "1+1".into();
         let mut lexer = Lexer::new(&mut scanner);
 
         assert_eq!(
             lexer.next(),
             Some(Token::new_valid(
-                Attachment::Number(Number::new_integer(Sign::Positive, 1)),
+                Attachment::Number(Number::new_integer(1)),
                 Lexeme::new("1", Location::default()),
             ))
         );
@@ -445,16 +450,16 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Token::new_valid(
-                Kind::Equals.into(),
-                Lexeme::new("=", Location::new(1, 3, 2)),
+                Attachment::Operator(Operator::Add),
+                Lexeme::new("+", Location::new(1, 2, 1)),
             ))
         );
 
         assert_eq!(
             lexer.next(),
             Some(Token::new_valid(
-                Attachment::Number(Number::new_integer(Sign::Positive, 1)),
-                Lexeme::new("1", Location::new(1, 5, 4)),
+                Attachment::Number(Number::new_integer(1)),
+                Lexeme::new("1", Location::new(1, 3, 2)),
             ))
         );
 

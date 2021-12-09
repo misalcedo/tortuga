@@ -1,6 +1,6 @@
 use crate::grammar::ComparisonOperator;
 use crate::location::Location;
-use crate::token::{Kind, LexicalToken, Token};
+use crate::token::Kind;
 use std::fmt;
 use thiserror::Error;
 
@@ -68,8 +68,6 @@ impl RuntimeError {
 /// An error that occurred during lexical analysis while validating a lexem.
 #[derive(Debug, Error, PartialEq)]
 pub enum LexicalError {
-    #[error("The sign of a numeric literal must be placed after the radix.")]
-    SignBeforeRadix,
     #[error("Expected a digit (e.g. 0-9, a-z, A-Z) but none was found.")]
     ExpectedDigits,
     #[error("Numeric literal has more than 1 decimal point.")]
