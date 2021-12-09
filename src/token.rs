@@ -53,6 +53,12 @@ impl From<&Attachment> for Kind {
     }
 }
 
+impl From<Attachment> for Kind {
+    fn from(attachment: Attachment) -> Self {
+        (&attachment).into()
+    }
+}
+
 impl From<Operator> for Attachment {
     fn from(operator: Operator) -> Self {
         Attachment::Operator(operator)
@@ -111,7 +117,7 @@ impl<'source> ValidToken<'source> {
 pub struct InvalidToken<'source> {
     kind: Option<Kind>,
     lexeme: Lexeme<'source>,
-    validations: Vec<LexicalError>,
+    errors: Vec<LexicalError>,
 }
 
 impl<'source> LexicalToken<'source> for InvalidToken<'source> {
@@ -123,12 +129,12 @@ impl<'source> LexicalToken<'source> for InvalidToken<'source> {
 impl<'source> InvalidToken<'source> {
     /// The list of lexical errors for this token.
     pub fn errors(&self) -> &[LexicalError] {
-        self.validations.as_slice()
+        self.errors.as_slice()
     }
 
     /// The list of lexical errors for this token.
     pub fn take_errors(&mut self) -> Vec<LexicalError> {
-        self.validations.drain(..).collect()
+        self.errors.drain(..).collect()
     }
 
     /// The kind of token that was identified during lexical analysis.
@@ -148,6 +154,25 @@ pub enum Token<'source> {
 }
 
 impl<'source> Token<'source> {
+    /// Creates a new `Token` with potential lexical errors.
+    pub fn new(
+        attachment: Attachment,
+        lexeme: Lexeme<'source>,
+        errors: Vec<LexicalError>
+    ) -> Self {
+        if errors.is_empty() {
+            Token::Valid(ValidToken {
+                attachment, lexeme
+            })
+        } else {
+            Token::Invalid(InvalidToken {
+                kind: Some(attachment.into()),
+                lexeme,
+                errors,
+            })
+        }
+    }
+
     /// Creates a valid `Token` with no lexical errors.
     pub fn new_valid(
         attachment: Attachment,
@@ -162,12 +187,12 @@ impl<'source> Token<'source> {
     pub fn new_invalid(
         kind: Option<Kind>,
         lexeme: Lexeme<'source>,
-        validations: Vec<LexicalError>,
+        errors: Vec<LexicalError>,
     ) -> Self {
         Token::Invalid(InvalidToken {
             kind,
             lexeme,
-            validations,
+            errors,
         })
     }
 }

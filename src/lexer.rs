@@ -107,11 +107,7 @@ fn scan_number<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
 
     let number = Number::new(Sign::Positive, integer, fraction);
 
-    if errors.is_empty() {
-        Token::new_valid(Attachment::Number(number), scanner.lexeme_from(&start))
-    } else {
-        Token::new_invalid(Some(Kind::Number), scanner.lexeme_from(&start), errors)
-    }
+    Token::new(Attachment::Number(number), scanner.lexeme_from(&start), errors)
 }
 
 /// Scans either an identifier or a number with a radix.
@@ -129,11 +125,7 @@ fn scan_identifier<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
         errors.push(LexicalError::TerminalUnderscore);
     }
 
-    if errors.is_empty() {
-        Token::new_valid(Attachment::Empty(Kind::Identifier), lexeme)
-    } else {
-        Token::new_invalid(Some(Kind::Identifier), lexeme, errors)
-    }
+    Token::new(Attachment::Empty(Kind::Identifier), lexeme, errors)
 }
 
 impl<'scanner, 'source> Lexer<'scanner, 'source> {
