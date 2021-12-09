@@ -60,7 +60,8 @@ fn scan_number<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
     let mut fraction_lexeme = None;
     
     if scanner.next_if_eq('#').is_some() {
-        sign = scan_sign(scanner);
+        sign.insert(scan_sign(scanner).unwrap_or_default());
+
         radix_lexeme = integer_lexeme;
         integer_lexeme = scan_digits(scanner, MAX_RADIX);
     }
@@ -247,11 +248,14 @@ mod tests {
     fn lex_hex_number() {
         let mut scanner = "16#FFFFFF".into();
         let mut lexer = Lexer::new(&mut scanner);
+        let mut number = Number::new_integer(16777215);
 
+        number.set_sign(Sign::default());
+        
         assert_eq!(
             lexer.next(),
             Some(Token::new_valid(
-                Attachment::Number(Number::new_integer(16777215)),
+                Attachment::Number(number),
                 Lexeme::new("16#FFFFFF", Location::default()),
             ))
         );
