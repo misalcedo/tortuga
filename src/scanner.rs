@@ -146,6 +146,7 @@ impl<'source> Scanner<'source> {
     }
 
     /// The start location of the current lexeme being scanned.
+    /// Used to scan multi-part tokens (e.g., numeric literals), so the lexeme covers the entire token.
     pub fn start(&self) -> &Location {
         &self.start
     }

@@ -68,18 +68,14 @@ impl RuntimeError {
 /// An error that occurred during lexical analysis while validating a lexem.
 #[derive(Debug, Error, PartialEq)]
 pub enum LexicalError {
+    #[error("The sign of a numeric literal must be placed after the radix.")]
+    SignBeforeRadix,
     #[error("Expected a digit (e.g. 0-9, a-z, A-Z) but none was found.")]
     ExpectedDigits,
     #[error("Numeric literal has more than 1 decimal point.")]
     DuplicateDecimal,
-    #[error("Text reference is missing the closing quote.")]
-    MissingClosingQuote,
-    #[error("Found a blank (empty or only non-visible characters) text reference.")]
-    BlankTextReference,
     #[error("An identifier was found ending with an underscore .")]
     TerminalUnderscore,
-    #[error("Unable to parse the numeric literal.")]
-    InvalidNumber,
     #[error(
         "Radix of {0} is too large; maximum supported is {}.",
         crate::number::MAX_RADIX
