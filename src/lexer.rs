@@ -3,7 +3,7 @@
 //! The lexer produces lexical tokens.
 
 use crate::errors::LexicalError;
-use crate::grammar::{Operator, ComparisonOperator};
+use crate::grammar::Operator;
 use crate::number::{Fraction, Number, Sign, DECIMAL_RADIX, MAX_RADIX};
 use crate::scanner::Scanner;
 use crate::token::{Attachment, Kind, Token};
@@ -46,17 +46,11 @@ fn scan_number<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
     let start = *scanner.start();
     let mut errors = Vec::new();
     let mut radix_lexeme = None;
-    let mut sign = Sign::Positive;
     let mut integer_lexeme = scan_digits(scanner, DECIMAL_RADIX);
     let mut fraction_lexeme = None;
 
     if scanner.next_if_eq('#').is_some() {
         radix_lexeme = integer_lexeme;
-        sign = match scanner.next_if(|c| c == '+' || c == '-') {
-            Some('-') => Sign::Negative,
-            _ => Sign::Positive,
-        };
-
         integer_lexeme = scan_digits(scanner, MAX_RADIX);
     }
 
@@ -111,11 +105,7 @@ fn scan_number<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
         None => Fraction::default()
     };
 
-    let number = Number::new(
-        sign,
-        integer,
-        fraction
-    );
+    let number = Number::new(Sign::Positive, integer, fraction);
 
     if errors.is_empty() {
         Token::new_valid(Attachment::Number(number), scanner.lexeme_from(&start))
@@ -231,14 +221,14 @@ mod tests {
 
     #[test]
     fn lex_binary_number() {
-        let mut scanner = "2#-011.01".into();
+        let mut scanner = "2#011.01".into();
         let mut lexer = Lexer::new(&mut scanner);
 
         assert_eq!(
             lexer.next(),
             Some(Token::new_valid(
                 Attachment::Number(Number::new(Sign::Positive, 3, Fraction::new(1, 4))),
-                Lexeme::new("2#-011.01", Location::default()),
+                Lexeme::new("2#011.01", Location::default()),
             ))
         );
     }

@@ -1,6 +1,6 @@
 use crate::grammar::ComparisonOperator;
 use crate::location::Location;
-use crate::token::{Kind, Token};
+use crate::token::{Kind, LexicalToken, Token};
 use std::fmt;
 use thiserror::Error;
 
@@ -97,13 +97,20 @@ pub enum LexicalError {
     UnexpectedCharacter,
 }
 
+/// A syntactal error that occurs when no grammar rule matches a sequence of lexical tokens.
+#[derive(Error, Debug)]
+pub enum SyntaxError {
+}
+
 /// An error that occurred while parsing a stream of tokens.
 #[derive(Error, Debug)]
 pub enum ParseError {
-    #[error("Found one or more lexical errors while scanning {kind} token '{lexeme}' on {location}: {errors}")]
+    #[error("Unknown.")]
+    Unknown,
+    #[error("Found one or more lexical errors while scanning {kind:?} token '{lexeme}' on {location}: {errors}")]
     Lexical {
         location: Location,
-        kind: Kind,
+        kind: Option<Kind>,
         lexeme: String,
         errors: MultipleErrors<LexicalError>,
     },
@@ -124,40 +131,6 @@ pub enum ParseError {
     InvalidComparator(Location, Kinds),
     #[error("One or more syntax errors found while parsing the source code. {0}")]
     MultipleErrors(MultipleErrors<ParseError>),
-}
-
-impl ParseError {
-    /// Creates an error for mismatched token kinds.
-    pub fn mismatched_kind(expected: &[Kind], token: Option<&Token<'_>>) -> Self {
-        match token {
-            Some(token) => Self::Syntax {
-                location: *token.start(),
-                expected: Kinds(expected.to_vec()),
-                actual: token.kind(),
-                lexeme: token.lexeme().to_string(),
-            },
-            None => Self::EndOfFile(Kinds(expected.to_vec())),
-        }
-    }
-
-    /// Creates an error for mismatched token kinds.
-    pub fn multiple_errors(errors: Vec<ParseError>) -> Self {
-        ParseError::MultipleErrors(MultipleErrors(errors))
-    }
-
-    /// Creates an error for mismatched token kinds.
-    pub fn validate(mut token: Token<'_>) -> Result<Token<'_>, Self> {
-        if token.validations().is_empty() {
-            Ok(token)
-        } else {
-            Err(Self::Lexical {
-                location: token.start(),
-                kind: token.kind(),
-                lexeme: token.lexeme().to_string(),
-                errors: MultipleErrors(token.take_validations()),
-            })
-        }
-    }
 }
 
 /// Wrapper struct to define Display trait.
@@ -189,6 +162,12 @@ impl fmt::Display for Kinds {
 /// Wrapper struct to define Display trait.
 #[derive(Debug)]
 pub struct MultipleErrors<E: std::error::Error>(Vec<E>);
+
+impl<E: std::error::Error> From<Vec<E>> for MultipleErrors<E> {
+    fn from(errors: Vec<E>) -> Self {
+        MultipleErrors(errors)
+    }
+}
 
 impl<E> fmt::Display for MultipleErrors<E>
 where

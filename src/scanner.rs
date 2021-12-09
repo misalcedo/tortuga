@@ -132,11 +132,12 @@ impl<'source> Scanner<'source> {
 
     /// Gets the lexeme starting at this `Scanner`'s start `Location` (inclusive) until this `Scanner`'s end `Location` (exclusive).
     pub fn lexeme(&mut self) -> Lexeme<'source> {
-        let substring = self.source.lexeme(&self.start, &self.end);
+        let start = self.start;
+        let substring = self.source.lexeme(&start, &self.end);
 
         self.step_forward();
 
-        Lexeme::new(substring, self.start)
+        Lexeme::new(substring, start)
     }
 
     /// Gets the lexeme starting at the given `Location` (inclusive) until this `Scanner`'s end `Location` (exclusive).
@@ -162,7 +163,7 @@ mod tests {
         scanner = Scanner::continue_from(scanner.consume().unwrap(), "bc");
 
         assert_eq!(scanner.next(), Some('b'));
-        assert_eq!(scanner.lexeme(), "b");
+        assert_eq!(scanner.lexeme(), Lexeme::new("b", Location::new(1, 2, 0)));
     }
 
     #[test]
@@ -260,7 +261,7 @@ mod tests {
         scanner.step_forward();
         scanner.next_if_eq('b');
 
-        assert_eq!(scanner.lexeme(), "b");
+        assert_eq!(scanner.lexeme(), Lexeme::new("b", Location::new(1, 2, 1)));
     }
 
     #[test]
@@ -280,14 +281,14 @@ mod tests {
         let second = scanner.lexeme();
         let third = scanner.lexeme();
 
-        assert_eq!(first, "ab");
-        assert_eq!(second, "c");
-        assert_eq!(third, "");
+        assert_eq!(first, Lexeme::new("ab", Location::new(1, 1, 0)));
+        assert_eq!(second, Lexeme::new("c", Location::new(1, 3, 2)));
+        assert_eq!(third, Lexeme::new("", Location::new(1, 4, 3)));
     }
 
     #[test]
     fn lexeme_when_empty() {
-        assert_eq!(Scanner::from("abc").lexeme(), "");
+        assert_eq!(Scanner::from("abc").lexeme(), Lexeme::new("", Location::default()));
     }
 
     #[test]

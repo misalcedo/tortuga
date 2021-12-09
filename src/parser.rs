@@ -6,8 +6,7 @@ use crate::grammar::{
     Operator, Program, Variable,
 };
 use crate::number::{Number, Sign};
-use crate::token::{Kind, Token};
-use std::convert::TryFrom;
+use crate::token::{Attachment, Kind, LexicalToken, Token, ValidToken};
 use std::iter::{IntoIterator, Iterator, Peekable};
 
 const BLOCK_END_TOKEN_KINDS: [Kind; 1] = [Kind::RightBracket];
@@ -52,7 +51,7 @@ where
         match errors.len() {
             0 => Ok(Program::new(expressions)),
             1 => Err(errors.pop().unwrap()),
-            _ => Err(ParseError::multiple_errors(errors)),
+            _ => Err(ParseError::MultipleErrors(errors.into())),
         }
     }
 
@@ -190,10 +189,7 @@ where
                 let token = self.next_kind(&[kind])?;
                 Err(ParseError::NoMatchingGrammar(token.start(), token.kind()))
             }
-            None => Err(ParseError::mismatched_kind(
-                &[Kind::LeftParenthesis, Kind::Plus, Kind::Minus, Kind::Number],
-                None,
-            )),
+            None => Err(ParseError::Unknown),
         }
     }
 
@@ -213,50 +209,47 @@ where
         let sign = match self
             .next_if_kind(&[Kind::Plus, Kind::Minus])?
             .as_ref()
-            .map(Token::kind)
+            .map(ValidToken::kind)
         {
             Some(Kind::Minus) => Sign::Negative,
             _ => Sign::Positive,
         };
 
         let token = self.next_kind(&[Kind::Number])?;
-        let mut number = Number::try_from(token.lexeme())?;
+        
+        if let Attachment::Number(mut number) = token.attachment() {
+            number.set_sign(sign);
 
-        number.set_sign(sign);
-
-        Ok(number)
+            Ok(number.clone())
+        } else {
+            Err(ParseError::Unknown)
+        }
     }
 
     /// Parses an identifier token as a variable.
     fn parse_variable(&mut self) -> Result<Variable, ParseError> {
         let token = self.next_kind(&[Kind::Identifier])?;
 
-        Ok(Variable::new(token.lexeme()))
+        Ok(Variable::new(token.source()))
     }
 
     /// Gets the next token if it matches the expected kind or returns an error.
-    fn next_kind(&mut self, expected: &[Kind]) -> Result<Token<'source>, ParseError> {
-        self.next_if_kind(expected)?
-            .ok_or_else(|| ParseError::mismatched_kind(expected, self.tokens.peek()))
+    fn next_kind(&mut self, expected: &[Kind]) -> Result<ValidToken<'source>, ParseError> {
+        Err(ParseError::Unknown)
     }
 
     /// Gets the next token only if it has one of the given kind.
-    fn next_if_kind(&mut self, expected: &[Kind]) -> Result<Option<Token<'source>>, ParseError> {
-        self.tokens
-            .next_if(|token| token.kind().filter(|k| expected.contains(k)).is_some())
-            .map(ParseError::validate)
-            .transpose()
+    fn next_if_kind(&mut self, expected: &[Kind]) -> Result<Option<ValidToken<'source>>, ParseError> {
+        Ok(None)
     }
 
     /// Peeks the next token's kind.
     fn peek_kind(&mut self) -> Option<Kind> {
-        self.tokens.peek().map(|token| token.kind()).flatten()
+        None
     }
 
     /// Tests if the next token's kind matches one of the expected ones.
     fn next_matches_kind(&mut self, expected: &[Kind]) -> bool {
-        self.peek_kind()
-            .map(|kind| expected.contains(&kind))
-            .unwrap_or(false)
+        false
     }
 }
