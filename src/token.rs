@@ -3,6 +3,7 @@ use crate::grammar::Operator;
 use crate::location::Location;
 use crate::number::Number;
 use std::fmt;
+use std::mem::swap;
 
 /// A combination of a `Location` and an excerpt from the source code representing the lexeme.
 #[derive(Debug, PartialEq)]
@@ -108,6 +109,15 @@ impl<'source> ValidToken<'source> {
     /// The attached data extracted during lexical analysis.
     pub fn attachment(&self) -> &Attachment {
         &self.attachment
+    }
+
+    /// The attached data extracted during lexical analysis.
+    pub fn take_attachment(&mut self) -> Attachment {
+        let mut attachment = Attachment::Empty((&self.attachment).into());
+
+        std::mem::swap(&mut self.attachment, &mut attachment);
+
+        attachment
     }
 
     /// The kind of token that was identified during lexical analysis.

@@ -186,12 +186,12 @@ fn parse_number<'source, I: Iterator<Item = Token<'source>>>(
         _ => Sign::Positive,
     };
 
-    let token = tokens.next_kind(&[Kind::Number])?;
+    let mut token = tokens.next_kind(&[Kind::Number])?;
 
-    if let Attachment::Number(mut number) = token.attachment() {
+    if let Attachment::Number(mut number) = token.take_attachment() {
         number.set_sign(sign);
 
-        Ok(number.clone())
+        Ok(number)
     } else {
         Err(SyntaxError::NoMatchingRule(token, vec![Kind::Number]))
     }

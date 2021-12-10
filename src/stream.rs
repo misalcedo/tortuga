@@ -66,15 +66,22 @@ impl<'source, I: Iterator<Item = Token<'source>>> TokenStream<'source, I> {
     }
 
     /// Gets the next `Token` only if it has the given kind. Otherwise, returns an empty `Option`.
-    /// Returns an error if there are not more `Token`s in the stream.
+    /// Returns an error if an `InvaliToken` is next in the stream.
+    /// Returns an empty `Option` if the stream is empty.
     pub fn next_if_kind(
         &mut self,
         expected: &[Kind],
     ) -> Result<Option<ValidToken<'source>>, SyntaxError<'source>> {
-        if expected.contains(&self.peek_kind()?) {
-            self.next()
-        } else {
-            Ok(None)
+        match self.next()? {
+            Some(token) => {
+                if expected.contains(&token.kind()) {
+                    Ok(Some(token))
+                } else {
+                    self.peeked.insert(token);
+                    Ok(None)
+                }
+            }
+            None => Ok(None),
         }
     }
 
@@ -89,7 +96,10 @@ impl<'source, I: Iterator<Item = Token<'source>>> TokenStream<'source, I> {
 
     /// Tests if the next token's kind matches one of the expected ones.
     pub fn next_matches_kind(&mut self, expected: &[Kind]) -> bool {
-        false
+        match self.peek() {
+            Ok(Some(token)) => expected.contains(&token.kind()),
+            _ => false,
+        }
     }
 
     /// Tests whether the `Token` stream has any more tokens without consuming any.
@@ -119,6 +129,246 @@ mod tests {
     #[test]
     fn next_with_tokens() {
         let mut stream = TokenStream::from(new_tokens());
+
+        assert_eq!(
+            stream.next(),
+            Ok(Some(ValidToken::new(
+                Attachment::Number(Number::new_integer(1)),
+                Lexeme::new("1", Location::default())
+            )))
+        );
+    }
+
+    #[test]
+    fn is_empty_when_empty() {
+        let mut stream = TokenStream::from(vec![]);
+
+        assert!(stream.is_empty());
+    }
+
+    #[test]
+    fn is_empty_with_tokens() {
+        let mut stream = TokenStream::from(new_tokens());
+
+        assert!(!stream.is_empty());
+    }
+
+    #[test]
+    fn next_matches_kind_when_expected_empty() {
+        let mut stream = TokenStream::from(new_tokens());
+
+        assert!(!stream.next_matches_kind(&[]));
+    }
+
+    #[test]
+    fn next_matches_kind_when_empty() {
+        let mut stream = TokenStream::from(vec![]);
+
+        assert!(!stream.next_matches_kind(&[Kind::Number]));
+    }
+
+    #[test]
+    fn next_matches_kind_with_tokens() {
+        let mut stream = TokenStream::from(new_tokens());
+
+        assert!(stream.next_matches_kind(&[Kind::Number]));
+    }
+
+    #[test]
+    fn next_matches_kind_with_tokens_peeked() {
+        let mut stream = TokenStream::from(new_tokens());
+
+        stream.peek().unwrap();
+
+        assert!(stream.next_matches_kind(&[Kind::Number]));
+    }
+
+    #[test]
+    fn next_if_kind_when_expected_empty() {
+        let mut stream = TokenStream::from(new_tokens());
+
+        assert_eq!(stream.next_if_kind(&[]), Ok(None));
+    }
+
+    #[test]
+    fn next_if_kind_when_empty() {
+        let mut stream = TokenStream::from(vec![]);
+
+        assert_eq!(stream.next_if_kind(&[Kind::Number]), Ok(None));
+    }
+
+    #[test]
+    fn next_if_kind_with_tokens() {
+        let mut stream = TokenStream::from(new_tokens());
+
+        assert_eq!(
+            stream.next_if_kind(&[Kind::Number]),
+            Ok(Some(ValidToken::new(
+                Attachment::Number(Number::new_integer(1)),
+                Lexeme::new("1", Location::default())
+            )))
+        );
+    }
+
+    #[test]
+    fn next_if_kind_with_tokens_peeked() {
+        let mut stream = TokenStream::from(new_tokens());
+
+        stream.peek().unwrap();
+
+        assert_eq!(
+            stream.next_if_kind(&[Kind::Number]),
+            Ok(Some(ValidToken::new(
+                Attachment::Number(Number::new_integer(1)),
+                Lexeme::new("1", Location::default())
+            )))
+        );
+    }
+
+    #[test]
+    fn next_kind_when_expected_empty() {
+        let mut stream = TokenStream::from(new_tokens());
+
+        assert_eq!(
+            stream.next_kind(&[]),
+            Err(SyntaxError::NoMatchingRule(
+                ValidToken::new(
+                    Attachment::Number(Number::new_integer(1)),
+                    Lexeme::new("1", Location::default())
+                ),
+                vec![]
+            ))
+        );
+    }
+
+    #[test]
+    fn next_kind_when_empty() {
+        let mut stream = TokenStream::from(vec![]);
+
+        assert_eq!(
+            stream.next_kind(&[]),
+            Err(SyntaxError::IncompleteRule(vec![]))
+        );
+    }
+
+    #[test]
+    fn next_kind_with_tokens() {
+        let mut stream = TokenStream::from(new_tokens());
+
+        assert_eq!(
+            stream.next_kind(&[Kind::Number]),
+            Ok(ValidToken::new(
+                Attachment::Number(Number::new_integer(1)),
+                Lexeme::new("1", Location::default())
+            ))
+        );
+    }
+
+    #[test]
+    fn next_kind_with_tokens_peeked() {
+        let mut stream = TokenStream::from(new_tokens());
+
+        stream.peek().unwrap();
+
+        assert_eq!(
+            stream.next_kind(&[Kind::Number]),
+            Ok(ValidToken::new(
+                Attachment::Number(Number::new_integer(1)),
+                Lexeme::new("1", Location::default())
+            ))
+        );
+    }
+
+    #[test]
+    fn peek_empty() {
+        let mut stream = TokenStream::from(vec![]);
+
+        assert_eq!(stream.peek(), Ok(None));
+    }
+
+    #[test]
+    fn peek_with_tokens() {
+        let mut stream = TokenStream::from(new_tokens());
+
+        assert_eq!(
+            stream.peek(),
+            Ok(Some(&ValidToken::new(
+                Attachment::Number(Number::new_integer(1)),
+                Lexeme::new("1", Location::default())
+            )))
+        );
+    }
+
+    #[test]
+    fn peek_then_next() {
+        let mut stream = TokenStream::from(new_tokens());
+
+        stream.next().unwrap();
+        stream.peek().unwrap();
+
+        assert_eq!(
+            stream.next(),
+            Ok(Some(ValidToken::new(
+                Attachment::Operator(Operator::Add),
+                Lexeme::new("+", Location::new(1, 2, 1))
+            )))
+        );
+    }
+
+    #[test]
+    fn peek_multiple() {
+        let mut stream = TokenStream::from(new_tokens());
+
+        stream.peek().unwrap();
+        stream.peek().unwrap();
+
+        assert_eq!(
+            stream.next(),
+            Ok(Some(ValidToken::new(
+                Attachment::Number(Number::new_integer(1)),
+                Lexeme::new("1", Location::default())
+            )))
+        );
+    }
+
+    #[test]
+    fn peek_kind_empty() {
+        let mut stream = TokenStream::from(vec![]);
+
+        assert_eq!(
+            stream.peek_kind(),
+            Err(SyntaxError::IncompleteRule(Vec::new()))
+        );
+    }
+
+    #[test]
+    fn peek_kind_with_tokens() {
+        let mut stream = TokenStream::from(new_tokens());
+
+        assert_eq!(stream.peek_kind(), Ok(Kind::Number));
+    }
+
+    #[test]
+    fn peek_kind_then_next() {
+        let mut stream = TokenStream::from(new_tokens());
+
+        stream.next().unwrap();
+        stream.peek_kind().unwrap();
+
+        assert_eq!(
+            stream.next(),
+            Ok(Some(ValidToken::new(
+                Attachment::Operator(Operator::Add),
+                Lexeme::new("+", Location::new(1, 2, 1))
+            )))
+        );
+    }
+
+    #[test]
+    fn peek_kind_multiple() {
+        let mut stream = TokenStream::from(new_tokens());
+
+        assert_eq!(stream.peek_kind(), stream.peek_kind());
 
         assert_eq!(
             stream.next(),
