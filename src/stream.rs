@@ -12,15 +12,20 @@ pub struct TokenStream<'source, I: Iterator<Item = Token<'source>>> {
     peeked: Option<ValidToken<'source>>,
 }
 
-impl<'source, I: Iterator<Item = Token<'source>>> TokenStream<'source, I> {
-    /// Creates a new instance of a `TokenStream`.
-    pub fn new(tokens: I) -> Self {
+impl<'source, I, II> From<II> for TokenStream<'source, I>
+where
+    I: Iterator<Item = Token<'source>>,
+    II: IntoIterator<IntoIter = I, Item = Token<'source>>,
+{
+    fn from(tokens: II) -> Self {
         TokenStream {
-            tokens,
+            tokens: tokens.into_iter(),
             peeked: None,
         }
     }
+}
 
+impl<'source, I: Iterator<Item = Token<'source>>> TokenStream<'source, I> {
     fn peek(&mut self) -> Result<Option<&ValidToken<'source>>, SyntaxError<'source>> {
         self.peeked = match self.peeked.take() {
             Some(token) => Some(token),
@@ -93,5 +98,51 @@ impl<'source, I: Iterator<Item = Token<'source>>> TokenStream<'source, I> {
             Ok(None) => true,
             _ => false,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::grammar::Operator;
+    use crate::location::Location;
+    use crate::number::Number;
+    use crate::token::{Attachment, Lexeme};
+
+    #[test]
+    fn next_empty() {
+        let mut stream = TokenStream::from(vec![]);
+
+        assert_eq!(stream.next(), Ok(None));
+    }
+
+    #[test]
+    fn next_with_tokens() {
+        let mut stream = TokenStream::from(new_tokens());
+
+        assert_eq!(
+            stream.next(),
+            Ok(Some(ValidToken::new(
+                Attachment::Number(Number::new_integer(1)),
+                Lexeme::new("1", Location::default())
+            )))
+        );
+    }
+
+    fn new_tokens() -> Vec<Token<'static>> {
+        vec![
+            Token::new_valid(
+                Attachment::Number(Number::new_integer(1)),
+                Lexeme::new("1", Location::default()),
+            ),
+            Token::new_valid(
+                Attachment::Operator(Operator::Add),
+                Lexeme::new("+", Location::new(1, 2, 1)),
+            ),
+            Token::new_valid(
+                Attachment::Number(Number::new_integer(1)),
+                Lexeme::new("1", Location::new(1, 3, 2)),
+            ),
+        ]
     }
 }

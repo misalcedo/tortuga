@@ -23,7 +23,7 @@ pub enum TortugaError {
 }
 
 /// An error that occurred while interpreting a Tortuga expression.
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum RuntimeError {
     #[error("A block must have at least one expression.")]
     EmptyBlock,
@@ -94,7 +94,7 @@ pub enum LexicalError {
 }
 
 /// A syntactal error that occurs when no grammar rule matches a sequence of lexical tokens.
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum SyntaxError<'source> {
     #[error("Reached the end of the source code while parsing a grammar rule.")]
     IncompleteRule(Vec<Kind>),
@@ -107,7 +107,7 @@ pub enum SyntaxError<'source> {
 }
 
 /// An error that occurred while parsing a stream of tokens.
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum ParseError {
     #[error("Expected a token, but reached the end of the file.")]
     EndOfFile,

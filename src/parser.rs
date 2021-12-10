@@ -228,7 +228,7 @@ impl<'source, I: Iterator<Item = Token<'source>>> Parser<'source, I> {
     /// Creates a new `Parser`.
     pub fn new<T: IntoIterator<IntoIter = I>>(tokens: T) -> Parser<'source, I> {
         Parser {
-            tokens: TokenStream::new(tokens.into_iter()),
+            tokens: TokenStream::from(tokens.into_iter()),
         }
     }
 

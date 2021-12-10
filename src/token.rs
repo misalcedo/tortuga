@@ -99,6 +99,12 @@ impl<'source> LexicalToken<'source> for ValidToken<'source> {
 }
 
 impl<'source> ValidToken<'source> {
+    /// Creates a new instance of a `ValidToken`.
+    #[cfg(test)]
+    pub fn new(attachment: Attachment, lexeme: Lexeme<'source>) -> Self {
+        ValidToken { attachment, lexeme }
+    }
+
     /// The attached data extracted during lexical analysis.
     pub fn attachment(&self) -> &Attachment {
         &self.attachment
@@ -125,6 +131,16 @@ impl<'source> LexicalToken<'source> for InvalidToken<'source> {
 }
 
 impl<'source> InvalidToken<'source> {
+    /// Creates a new instance of a `InvalidToken`.
+    #[cfg(test)]
+    pub fn new(kind: Option<Kind>, lexeme: Lexeme<'source>, errors: Vec<LexicalError>) -> Self {
+        InvalidToken {
+            kind,
+            lexeme,
+            errors,
+        }
+    }
+
     /// The list of lexical errors for this token.
     pub fn errors(&self) -> &[LexicalError] {
         self.errors.as_slice()
