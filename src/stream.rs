@@ -114,10 +114,11 @@ impl<'source, I: Iterator<Item = Token<'source>>> TokenStream<'source, I> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::errors::LexicalError;
     use crate::grammar::Operator;
     use crate::location::Location;
     use crate::number::Number;
-    use crate::token::{Attachment, Lexeme};
+    use crate::token::{Attachment, InvalidToken, Lexeme};
 
     #[test]
     fn next_empty() {
@@ -377,6 +378,118 @@ mod tests {
                 Lexeme::new("1", Location::default())
             )))
         );
+    }
+
+    #[test]
+    fn next_invalid() {
+        let mut stream = TokenStream::from(vec![Token::new_invalid(
+            Some(Kind::Number),
+            Lexeme::new("1", Location::default()),
+            vec![LexicalError::DuplicateDecimal],
+        )]);
+
+        assert_eq!(
+            stream.next(),
+            Err(SyntaxError::InvalidToken(InvalidToken::new(
+                Some(Kind::Number),
+                Lexeme::new("1", Location::default()),
+                vec![LexicalError::DuplicateDecimal]
+            )))
+        )
+    }
+
+    #[test]
+    fn peek_invalid() {
+        let mut stream = TokenStream::from(vec![Token::new_invalid(
+            Some(Kind::Number),
+            Lexeme::new("1", Location::default()),
+            vec![LexicalError::DuplicateDecimal],
+        )]);
+
+        assert_eq!(
+            stream.peek(),
+            Err(SyntaxError::InvalidToken(InvalidToken::new(
+                Some(Kind::Number),
+                Lexeme::new("1", Location::default()),
+                vec![LexicalError::DuplicateDecimal]
+            )))
+        )
+    }
+
+    #[test]
+    fn next_if_kind_invalid() {
+        let mut stream = TokenStream::from(vec![Token::new_invalid(
+            Some(Kind::Number),
+            Lexeme::new("1", Location::default()),
+            vec![LexicalError::DuplicateDecimal],
+        )]);
+
+        assert_eq!(
+            stream.next_if_kind(&[]),
+            Err(SyntaxError::InvalidToken(InvalidToken::new(
+                Some(Kind::Number),
+                Lexeme::new("1", Location::default()),
+                vec![LexicalError::DuplicateDecimal]
+            )))
+        )
+    }
+
+    #[test]
+    fn next_kind_invalid() {
+        let mut stream = TokenStream::from(vec![Token::new_invalid(
+            Some(Kind::Number),
+            Lexeme::new("1", Location::default()),
+            vec![LexicalError::DuplicateDecimal],
+        )]);
+
+        assert_eq!(
+            stream.next_kind(&[]),
+            Err(SyntaxError::InvalidToken(InvalidToken::new(
+                Some(Kind::Number),
+                Lexeme::new("1", Location::default()),
+                vec![LexicalError::DuplicateDecimal]
+            )))
+        )
+    }
+
+    #[test]
+    fn peek_kind_invalid() {
+        let mut stream = TokenStream::from(vec![Token::new_invalid(
+            Some(Kind::Number),
+            Lexeme::new("1", Location::default()),
+            vec![LexicalError::DuplicateDecimal],
+        )]);
+
+        assert_eq!(
+            stream.peek_kind(),
+            Err(SyntaxError::InvalidToken(InvalidToken::new(
+                Some(Kind::Number),
+                Lexeme::new("1", Location::default()),
+                vec![LexicalError::DuplicateDecimal]
+            )))
+        )
+    }
+
+    #[test]
+    fn next_matches_kind_invalid() {
+        let mut stream = TokenStream::from(vec![Token::new_invalid(
+            Some(Kind::Number),
+            Lexeme::new("1", Location::default()),
+            vec![LexicalError::DuplicateDecimal],
+        )]);
+
+        assert_eq!(stream.next_matches_kind(&[]), false)
+    }
+
+    #[test]
+    fn is_empty_invalid() {
+        let mut stream = TokenStream::from(vec![Token::new_invalid(
+            Some(Kind::Number),
+            Lexeme::new("1", Location::default()),
+            vec![LexicalError::DuplicateDecimal],
+        )]);
+
+        assert_eq!(stream.is_empty(), false)
     }
 
     fn new_tokens() -> Vec<Token<'static>> {
