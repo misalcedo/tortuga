@@ -43,6 +43,11 @@ impl Number {
         }
     }
 
+    /// Test whether this `Number` has a sign explicitly set.
+    pub fn has_sign(&self) -> bool {
+        self.sign.is_some()
+    }
+
     /// Sets the sign of this number.
     pub fn set_sign(&mut self, sign: Sign) {
         self.sign = Some(sign);

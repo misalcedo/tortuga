@@ -182,14 +182,21 @@ fn parse_number<'source, I: Iterator<Item = Token<'source>>>(
         .as_ref()
         .map(ValidToken::kind)
     {
-        Some(Kind::Minus) => Sign::Negative,
-        _ => Sign::Positive,
+        Some(Kind::Minus) => Some(Sign::Negative),
+        Some(Kind::Plus) => Some(Sign::Positive),
+        _ => None,
     };
 
     let mut token = tokens.next_kind(&[Kind::Number])?;
 
+    if let Attachment::Number(number) = token.attachment() {
+        if number.has_sign() && sign.is_some() {
+            return Err(SyntaxError::NoMatchingRule(token, vec![]));
+        }
+    }
+
     if let Attachment::Number(mut number) = token.take_attachment() {
-        number.set_sign(sign);
+        number.set_sign(sign.unwrap_or_default());
 
         Ok(number)
     } else {
@@ -252,7 +259,7 @@ impl<'source, I: Iterator<Item = Token<'source>>> Parser<'source, I> {
         }
 
         if errors.is_empty() {
-            Ok(Program::new(expressions))
+            Ok(Program::from(expressions))
         } else {
             for error in errors {
                 error!("{}", error);
@@ -279,5 +286,107 @@ impl<'source, I: Iterator<Item = Token<'source>>> Parser<'source, I> {
                 ),
             };
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::location::Location;
+    use crate::number::Number;
+    use crate::token::{Attachment, Lexeme};
+
+    #[test]
+    fn parse_number_double_sign() {
+        let parser = Parser::new(vec![
+            Token::new_valid(
+                Attachment::Operator(Operator::Add),
+                Lexeme::new("-", Location::default()),
+            ),
+            Token::new_valid(
+                Attachment::Number(Number::new_integer(1)),
+                Lexeme::new("2#+01", Location::new(1, 2, 1)),
+            ),
+        ]);
+
+        assert_eq!(parser.parse(), Err(ParseError::MultipleErrors));
+    }
+
+    #[test]
+    fn parse_number_badly_signed() {
+        let parser = Parser::new(vec![
+            Token::new_valid(
+                Attachment::Operator(Operator::Add),
+                Lexeme::new("-", Location::default()),
+            ),
+            Token::new_valid(
+                Attachment::Number(Number::new_integer(1)),
+                Lexeme::new("1", Location::new(1, 2, 1)),
+            ),
+        ]);
+
+        assert_eq!(parser.parse(), Err(ParseError::MultipleErrors));
+    }
+
+    #[test]
+    fn parse_radix_number_badly_signed() {
+        let mut number = Number::new_integer(1);
+        let parser = Parser::new(vec![
+            Token::new_valid(
+                Attachment::Operator(Operator::Add),
+                Lexeme::new("-", Location::default()),
+            ),
+            Token::new_valid(
+                Attachment::Number(Number::new_integer(1)),
+                Lexeme::new("2#01", Location::new(1, 2, 1)),
+            ),
+        ]);
+
+        number.set_sign(Sign::Negative);
+
+        assert_eq!(parser.parse(), Err(ParseError::MultipleErrors));
+    }
+
+    #[test]
+    fn parse_radix_number_signed() {
+        let mut parser = Parser::new(vec![Token::new_valid(
+            Attachment::Number(Number::new_integer(1)),
+            Lexeme::new("2#+01", Location::default()),
+        )]);
+
+        assert_eq!(
+            parser.parse(),
+            Ok(vec![Expression::Number(Number::new_integer(1))].into())
+        );
+    }
+
+    #[test]
+    fn parse_radix_number_unsigned() {
+        let parser = Parser::new(vec![Token::new_valid(
+            Attachment::Number(Number::new_integer(1)),
+            Lexeme::new("2#01", Location::default()),
+        )]);
+
+        assert_eq!(
+            parser.parse().unwrap(),
+            Program::from(vec![Expression::Number(Number::new_integer(1))])
+        );
+    }
+
+    fn new_tokens() -> Vec<Token<'static>> {
+        vec![
+            Token::new_valid(
+                Attachment::Empty(Kind::Identifier),
+                Lexeme::new("x", Location::default()),
+            ),
+            Token::new_valid(
+                Attachment::Operator(Operator::Add),
+                Lexeme::new("=", Location::new(1, 2, 1)),
+            ),
+            Token::new_valid(
+                Attachment::Number(Number::new_integer(1)),
+                Lexeme::new("2#-01", Location::new(1, 3, 2)),
+            ),
+        ]
     }
 }

@@ -4,17 +4,18 @@ use crate::number::Number;
 use std::fmt;
 
 /// A list of zero or more expressions in the tortuga grammar.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Program {
     expressions: Vec<Expression>,
 }
 
-impl Program {
-    /// Creates a new instance of a program.
-    pub fn new(expressions: Vec<Expression>) -> Self {
+impl From<Vec<Expression>> for Program {
+    fn from(expressions: Vec<Expression>) -> Self {
         Program { expressions }
     }
+}
 
+impl Program {
     pub fn expressions(&self) -> &[Expression] {
         self.expressions.as_slice()
     }
@@ -27,7 +28,7 @@ impl fmt::Display for Program {
 }
 
 /// A list of zero or more expressions in the tortuga grammar that defines a lexical scope.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Block {
     expressions: Vec<Expression>,
 }
@@ -50,7 +51,7 @@ impl fmt::Display for Block {
 }
 
 /// An expression in the tortuga grammar.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Expression {
     Grouping(Grouping),
     Number(Number),
@@ -110,7 +111,7 @@ impl From<Block> for Expression {
 }
 
 /// Groups an expression to change the order of precedence.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Grouping {
     expression: Box<Expression>,
 }
@@ -135,7 +136,7 @@ impl fmt::Display for Grouping {
 }
 
 /// An operator that takes 2 arguments.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct BinaryOperation {
     left: Box<Expression>,
     operator: Operator,
@@ -192,7 +193,7 @@ impl fmt::Display for Operator {
 }
 
 /// An operation that compares 2 arguments relative to each other.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ComparisonOperation {
     left: Box<Expression>,
     comparator: ComparisonOperator,
@@ -282,7 +283,7 @@ impl fmt::Display for ComparisonOperator {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Variable {
     name: String,
 }

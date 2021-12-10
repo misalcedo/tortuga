@@ -115,7 +115,7 @@ impl<'source> ValidToken<'source> {
     pub fn take_attachment(&mut self) -> Attachment {
         let mut attachment = Attachment::Empty((&self.attachment).into());
 
-        std::mem::swap(&mut self.attachment, &mut attachment);
+        swap(&mut self.attachment, &mut attachment);
 
         attachment
     }
