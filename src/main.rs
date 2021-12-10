@@ -8,6 +8,7 @@ mod number;
 mod parser;
 mod prompt;
 mod scanner;
+mod stream;
 mod token;
 
 use clap::{App, Arg, ArgMatches, SubCommand};
