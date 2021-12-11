@@ -149,7 +149,7 @@ impl<'source> fmt::Display for InvalidToken<'source> {
             write!(f, "{}) {}", index + 1, error)?;
             
             if iterator.peek().is_some() {
-                write!(f, ", ")?;
+                write!(f, " ")?;
             }
         }
 
