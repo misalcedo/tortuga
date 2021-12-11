@@ -1,8 +1,8 @@
 //! Scans a source file for valid characters.
 //! The scanner produces a finite stream of characters, ignoring comments and blank space.
 
-use crate::location::{LexemeSource, Location};
-use crate::token::Lexeme;
+use crate::compile::location::{LexemeSource, Location};
+use crate::compile::token::Lexeme;
 use std::iter::Peekable;
 use std::str::Chars;
 

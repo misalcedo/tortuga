@@ -1,6 +1,6 @@
-use crate::errors::LexicalError;
-use crate::location::Location;
-use crate::number::Number;
+use crate::compile::errors::LexicalError;
+use crate::compile::location::Location;
+use crate::grammar::Number;
 use std::fmt;
 use std::mem::swap;
 

@@ -2,10 +2,10 @@
 //! that is provided by a source code scanner.
 //! The lexer produces lexical tokens.
 
-use crate::errors::LexicalError;
-use crate::number::{Fraction, Number, Sign, DECIMAL_RADIX, MAX_RADIX};
-use crate::scanner::Scanner;
-use crate::token::{Attachment, Kind, Token};
+use crate::compile::errors::LexicalError;
+use crate::compile::scanner::Scanner;
+use crate::compile::token::{Attachment, Kind, Token};
+use crate::grammar::{Fraction, Number, Sign, DECIMAL_RADIX, MAX_RADIX};
 
 /// Performs Lexical Analysis for the tortuga language.
 #[derive(Debug)]
@@ -211,8 +211,8 @@ impl<'scanner, 'source> Iterator for Lexer<'scanner, 'source> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::location::Location;
-    use crate::token::Lexeme;
+    use crate::compile::location::Location;
+    use crate::compile::token::Lexeme;
 
     #[test]
     fn lex_number() {

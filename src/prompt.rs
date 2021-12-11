@@ -1,9 +1,7 @@
 //! Terminal prompt reading and printing with editing and history.
 
-use crate::errors::{ParseError, TortugaError};
-use crate::lexer::Lexer;
-use crate::parser::Parser;
-use crate::scanner::Scanner;
+use crate::errors::TortugaError;
+use crate::compile::{parse, ParseError};
 use rustyline::completion::Completer;
 use rustyline::config::Config;
 use rustyline::highlight::Highlighter;
@@ -69,11 +67,7 @@ impl Validator for PromptHelper {
             return Ok(ValidationResult::Valid(None));
         }
 
-        let mut scanner = Scanner::from(ctx.input());
-        let lexer = Lexer::new(&mut scanner);
-        let parser = Parser::new(lexer);
-
-        match parser.parse() {
+        match parse(ctx.input()) {
             Ok(_) => Ok(ValidationResult::Valid(None)),
             Err(ParseError::EndOfFile) => Ok(ValidationResult::Incomplete),
             Err(error) => Ok(ValidationResult::Invalid(Some(format!(

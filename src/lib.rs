@@ -1,38 +1,26 @@
 //! Public interface of the tortuga compiler.
 
 pub mod about;
+mod compile;
 mod errors;
-mod grammar;
+pub mod grammar;
 mod interpret;
-mod lexer;
-mod location;
-mod number;
-mod parser;
 mod prompt;
-mod scanner;
-mod stream;
-mod token;
 
 pub use about::*;
+pub use compile::parse;
 pub use errors::TortugaError;
+use compile::{Lexer, Location, Parser, Scanner};
 use interpret::Interpreter;
-use lexer::Lexer;
-use location::Location;
-use parser::Parser;
 use prompt::Prompt;
-use scanner::Scanner;
 use std::io::Write;
 use tracing::error;
 
 /// Runs a given string as a source file.
 pub fn run(code: &str) -> Result<(), TortugaError> {
-    let mut scanner = Scanner::from(code);
-    let lexer = Lexer::new(&mut scanner);
-    let parser = Parser::new(lexer);
-
     let mut interpreter = Interpreter::default();
 
-    match parser.parse() {
+    match parse(code) {
         Ok(program) => interpreter.interpret(&program),
         Err(error) => error!("{}", error),
     }

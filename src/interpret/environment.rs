@@ -3,8 +3,8 @@
 //!
 //! See <https://en.wikipedia.org/wiki/Constraint_programming>
 
-use crate::errors::RuntimeError;
 use crate::grammar::ComparisonOperator;
+use crate::interpret::errors::RuntimeError;
 use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::HashMap;
 

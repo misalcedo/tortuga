@@ -1,6 +1,8 @@
 //! The Syntax Tree for the tortuga grammar.
 
-use crate::number::Number;
+mod number;
+
+pub use number::{Fraction, Number, Sign, MAX_RADIX, DECIMAL_RADIX};
 use std::fmt;
 
 /// A list of zero or more expressions in the tortuga grammar.

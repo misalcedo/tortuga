@@ -24,7 +24,7 @@ struct PromptCommand;
 #[derive(Parser)]
 /// Compile and run a file.
 struct RunCommand {
-    filename: String
+    filename: String,
 }
 
 #[derive(Subcommand)]
@@ -66,7 +66,7 @@ fn run_subcommand(arguments: Arguments) -> Result<(), TortugaError> {
         Commands::Run(command) => {
             let source = fs::read_to_string(command.filename)?;
             tortuga::run(source.as_str())
-        },
-        Commands::Prompt(_) => tortuga::run_prompt()
+        }
+        Commands::Prompt(_) => tortuga::run_prompt(),
     }
 }
