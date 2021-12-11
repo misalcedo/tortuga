@@ -1,4 +1,4 @@
-use clap::{App, Arg, ArgMatches, SubCommand};
+use clap::{App, Arg, ArgMatches};
 use std::fs;
 use std::path::Path;
 use tortuga::TortugaError;
@@ -34,17 +34,17 @@ fn parse_arguments<'matches>() -> ArgMatches {
         .author(tortuga::AUTHORS)
         .about(tortuga::DESCRIPTION)
         .arg(
-            Arg::with_name("verbosity")
+            Arg::new("verbosity")
                 .long("verbose")
                 .short('v')
-                .multiple(true)
+                .multiple_occurrences(true)
                 .help("Sets the level of verbosity."),
         )
         .subcommand(
-            SubCommand::with_name("run")
+            App::new("run")
                 .about("Runs the specified input file.")
                 .arg(
-                    Arg::with_name("input")
+                    Arg::new("input")
                         .value_name("FILE")
                         .required(true)
                         .help("The input file to execute.")
