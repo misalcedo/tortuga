@@ -16,7 +16,6 @@ struct PromptHelper;
 
 /// The prompt used to communicate with a user.
 pub struct Prompt {
-    line: u128,
     editor: Editor<PromptHelper>,
 }
 
@@ -32,14 +31,12 @@ impl Prompt {
 
         editor.set_helper(Some(PromptHelper));
 
-        Prompt { line: 0, editor }
+        Prompt { editor }
     }
 
     /// Read input from the user via a terminal prompt.
-    pub fn prompt(&mut self) -> Result<Option<String>, TortugaError> {
-        self.line += 1;
-
-        let prompt = format!("{:03}> ", self.line);
+    pub fn prompt(&mut self, line: usize) -> Result<Option<String>, TortugaError> {
+        let prompt = format!("{:03}> ", line);
 
         match self.editor.readline(prompt.as_str()) {
             Ok(line) => Ok(Some(line)),

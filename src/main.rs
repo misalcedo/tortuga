@@ -113,7 +113,7 @@ fn run_prompt(_matches: ArgMatches<'_>) -> Result<(), TortugaError> {
     println!("{} {}\n", APP_NAME, about::VERSION);
 
     loop {
-        match user.prompt()? {
+        match user.prompt(start.line())? {
             None => return Ok(()),
             Some(line) if line.trim().is_empty() => continue,
             Some(line) => {

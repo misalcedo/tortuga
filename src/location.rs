@@ -62,6 +62,11 @@ impl Location {
             offset: 0,
         }
     }
+
+    /// Gets the current line of this `Location`.
+    pub fn line(&self) -> usize {
+        self.line
+    }
 }
 
 impl Default for Location {
