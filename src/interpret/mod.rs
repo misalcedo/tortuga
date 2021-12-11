@@ -36,7 +36,7 @@ impl Interpreter {
             }
         }
 
-        self.environment.insert(environment);
+        self.environment = Some(environment);
     }
 
     fn interpret_block(
@@ -52,7 +52,7 @@ impl Interpreter {
             let result = self.interpret_expression(expression, &mut block_environment)?;
 
             if iterator.peek().is_none() {
-                value.insert(result);
+                value = Some(result);
             }
         }
 

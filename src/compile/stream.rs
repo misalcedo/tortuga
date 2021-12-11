@@ -78,7 +78,7 @@ impl<'source, I: Iterator<Item = Token<'source>>> TokenStream<'source, I> {
                 if expected.contains(&token.kind()) {
                     Ok(Some(token))
                 } else {
-                    self.peeked.insert(token);
+                    self.peeked = Some(token);
                     Ok(None)
                 }
             }

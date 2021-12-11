@@ -60,8 +60,7 @@ fn scan_number<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
     let mut fraction_lexeme = None;
 
     if scanner.next_if_eq('#').is_some() {
-        sign.insert(scan_sign(scanner).unwrap_or_default());
-
+        sign = Some(scan_sign(scanner).unwrap_or_default());
         radix_lexeme = integer_lexeme;
         integer_lexeme = scan_digits(scanner, MAX_RADIX);
     }
