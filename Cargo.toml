@@ -11,6 +11,7 @@ documentation = "https://docs.rs/tortuga"
 
 [[bin]]
 name = "tortuga"
+path = "bin/main.rs"
 required-features = ["cli"]
 
 [profile.release]
