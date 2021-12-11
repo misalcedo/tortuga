@@ -1,30 +1,9 @@
-mod about;
-mod errors;
-mod grammar;
-mod interpret;
-mod lexer;
-mod location;
-mod number;
-mod parser;
-mod prompt;
-mod scanner;
-mod stream;
-mod token;
-
 use clap::{App, Arg, ArgMatches, SubCommand};
-use errors::TortugaError;
-use interpret::Interpreter;
-use lexer::Lexer;
-use location::Location;
-use parser::Parser;
-use prompt::Prompt;
-use scanner::Scanner;
 use std::fs;
 use std::path::Path;
-use tracing::{error, subscriber::set_global_default, Level};
+use tortuga::TortugaError;
+use tracing::{subscriber::set_global_default, Level};
 use tracing_log::LogTracer;
-
-const APP_NAME: &str = env!("CARGO_BIN_NAME");
 
 fn main() -> Result<(), TortugaError> {
     let matches = parse_arguments();
@@ -50,10 +29,10 @@ fn set_verbosity(matches: &ArgMatches) -> Result<(), TortugaError> {
 }
 
 fn parse_arguments<'matches>() -> ArgMatches<'matches> {
-    App::new(APP_NAME)
-        .version(about::VERSION)
-        .author(about::AUTHORS)
-        .about(about::DESCRIPTION)
+    App::new(tortuga::PROGRAM)
+        .version(tortuga::VERSION)
+        .author(tortuga::AUTHORS)
+        .about(tortuga::DESCRIPTION)
         .arg(
             Arg::with_name("verbosity")
                 .long("verbose")
@@ -84,50 +63,8 @@ fn run_subcommand(matches: ArgMatches<'_>) -> Result<(), TortugaError> {
             .expect("Missing required field INPUT.");
         let source = fs::read_to_string(input)?;
 
-        run(source.as_str())
+        tortuga::run(source.as_str())
     } else {
-        run_prompt(matches)
-    }
-}
-
-fn run(code: &str) -> Result<(), TortugaError> {
-    let mut scanner = Scanner::from(code);
-    let lexer = Lexer::new(&mut scanner);
-    let parser = Parser::new(lexer);
-
-    let mut interpreter = Interpreter::default();
-
-    match parser.parse() {
-        Ok(program) => interpreter.interpret(&program),
-        Err(error) => error!("{}", error),
-    }
-
-    Ok(())
-}
-
-fn run_prompt(_matches: ArgMatches<'_>) -> Result<(), TortugaError> {
-    let mut user = Prompt::new();
-    let mut start = Location::default();
-    let mut interpreter = Interpreter::default();
-
-    println!("{} {}\n", APP_NAME, about::VERSION);
-
-    loop {
-        match user.prompt(start.line())? {
-            None => return Ok(()),
-            Some(line) if line.trim().is_empty() => continue,
-            Some(line) => {
-                let mut scanner = Scanner::continue_from(start, line.as_str());
-                let lexer = Lexer::new(&mut scanner);
-                let parser = Parser::new(lexer);
-
-                match parser.parse() {
-                    Ok(program) => interpreter.interpret(&program),
-                    Err(error) => error!("{}", error),
-                };
-
-                start = scanner.consume().unwrap_or_default();
-            }
-        }
+        tortuga::run_prompt()
     }
 }
