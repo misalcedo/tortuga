@@ -5,11 +5,12 @@
 
 use crate::compile::errors::SyntaxError;
 use crate::compile::token::{Kind, Token, ValidToken};
+use std::iter::Peekable;
 
 /// A stream of `Token`s to be consumed by the `Parser`.
 #[derive(Debug)]
 pub struct TokenStream<'source, I: Iterator<Item = Token<'source>>> {
-    tokens: I,
+    tokens: Peekable<I>,
     peeked: Option<ValidToken<'source>>,
 }
 
@@ -20,7 +21,7 @@ where
 {
     fn from(tokens: II) -> Self {
         TokenStream {
-            tokens: tokens.into_iter(),
+            tokens: tokens.into_iter().peekable(),
             peeked: None,
         }
     }
@@ -96,18 +97,19 @@ impl<'source, I: Iterator<Item = Token<'source>>> TokenStream<'source, I> {
 
     /// Tests if the next token's kind matches one of the expected ones.
     pub fn next_matches_kind(&mut self, expected: &[Kind]) -> bool {
-        match self.peek() {
-            Ok(Some(token)) => expected.contains(&token.kind()),
+        if let Some(ref token) = self.peeked {
+            return expected.contains(&token.kind());
+        }
+
+        match self.tokens.peek() {
+            Some(Token::Valid(token)) => expected.contains(&token.kind()),
             _ => false,
         }
     }
 
     /// Tests whether the `Token` stream has any more tokens without consuming any.
     pub fn is_empty(&mut self) -> bool {
-        match self.peek() {
-            Ok(None) => true,
-            _ => false,
-        }
+        self.peeked.is_none() && self.tokens.peek().is_none()
     }
 }
 
@@ -149,6 +151,15 @@ mod tests {
     #[test]
     fn is_empty_with_tokens() {
         let mut stream = TokenStream::from(new_tokens());
+
+        assert!(!stream.is_empty());
+    }
+
+    #[test]
+    fn is_empty_with_tokens_peeked() {
+        let mut stream = TokenStream::from(new_tokens());
+
+        stream.peek().unwrap();
 
         assert!(!stream.is_empty());
     }
