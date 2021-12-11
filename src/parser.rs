@@ -279,7 +279,8 @@ impl<'source, I: Iterator<Item = Token<'source>>> Parser<'source, I> {
             }
 
             match self.tokens.next() {
-                Ok(token) => debug!("Skipped token during token mode: {:?}.", token?),
+                Ok(Some(token)) => debug!("Skipped token during token mode: {:?}.", token),
+                Ok(None) => return None,
                 Err(error) => debug!(
                     "Skipping an error encountered while skipping tokens during panic mode: {}",
                     error
@@ -295,6 +296,7 @@ mod tests {
     use crate::location::Location;
     use crate::number::Number;
     use crate::token::{Attachment, Lexeme};
+    use test_log::test;
 
     #[test]
     fn parse_number_double_sign() {
@@ -349,7 +351,7 @@ mod tests {
 
     #[test]
     fn parse_radix_number_signed() {
-        let mut parser = Parser::new(vec![Token::new_valid(
+        let parser = Parser::new(vec![Token::new_valid(
             Attachment::Number(Number::new_integer(1)),
             Lexeme::new("2#+01", Location::default()),
         )]);
@@ -370,6 +372,22 @@ mod tests {
         assert_eq!(
             parser.parse().unwrap(),
             Program::from(vec![Expression::Number(Number::new_integer(1))])
+        );
+    }
+
+    #[test]
+    fn parse_equals_expression() {
+        let parser = Parser::new(new_tokens());
+
+        assert_eq!(
+            parser.parse().unwrap(),
+            Program::from(vec![Expression::ComparisonOperation(
+                ComparisonOperation::new(
+                    Expression::Variable(Variable::new("x")),
+                    ComparisonOperator::EqualTo,
+                    Expression::Number(Number::new_integer(1))
+                )
+            )])
         );
     }
 

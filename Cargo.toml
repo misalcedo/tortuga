@@ -13,7 +13,10 @@ documentation = "https://docs.rs/tortuga"
 lto = true
 
 [dev-dependencies]
-criterion = "0.3"
+test-log = { version = "0.2.8", features = ["trace"] }
+env_logger = "0.9"
+tracing = {version = "0.1", default-features = false}
+tracing-subscriber = {version = "0.3", default-features = false, features = ["env-filter", "fmt"]}
 
 [dependencies]
 clap = "2.33"
