@@ -86,12 +86,11 @@ impl<'source, I: Iterator<Item = Token<'source>>> TokenStream<'source, I> {
         }
     }
 
-    /// Peeks the next `Token`'s `Kind`.
-    /// Returns an error if there are no more `Token`s in the stream.
-    pub fn peek_kind(&mut self) -> Result<Kind, SyntaxError<'source>> {
+    /// Peeks the next `Token`'s `Kind`, if one is present.
+    pub fn peek_kind(&mut self) -> Result<Option<Kind>, SyntaxError<'source>> {
         match self.peek()? {
-            Some(token) => Ok(token.kind()),
-            None => Err(SyntaxError::IncompleteRule(Vec::new())),
+            Some(token) => Ok(Some(token.kind())),
+            None => Ok(None),
         }
     }
 
@@ -336,17 +335,14 @@ mod tests {
     fn peek_kind_empty() {
         let mut stream = TokenStream::from(vec![]);
 
-        assert_eq!(
-            stream.peek_kind(),
-            Err(SyntaxError::IncompleteRule(Vec::new()))
-        );
+        assert_eq!(stream.peek_kind(), Ok(None));
     }
 
     #[test]
     fn peek_kind_with_tokens() {
         let mut stream = TokenStream::from(new_tokens());
 
-        assert_eq!(stream.peek_kind(), Ok(Kind::Number));
+        assert_eq!(stream.peek_kind(), Ok(Some(Kind::Number)));
     }
 
     #[test]

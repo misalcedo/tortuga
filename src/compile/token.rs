@@ -141,13 +141,19 @@ impl<'source> fmt::Display for InvalidToken<'source> {
             .map(Kind::to_string)
             .unwrap_or_else(|| "Indeterminate".to_string());
 
-        write!(f, "{} token '{}' on {} with one or more lexical errors: ", kind, self.source(), self.start())?;
+        write!(
+            f,
+            "{} token '{}' on {} with one or more lexical errors: ",
+            kind,
+            self.source(),
+            self.start()
+        )?;
 
         let mut iterator = self.errors().iter().enumerate().peekable();
 
         while let Some((index, error)) = iterator.next() {
             write!(f, "{}) {}", index + 1, error)?;
-            
+
             if iterator.peek().is_some() {
                 write!(f, " ")?;
             }

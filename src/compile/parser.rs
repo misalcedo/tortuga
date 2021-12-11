@@ -27,9 +27,10 @@ const PRIMARY_TOKEN_KINDS: [Kind; 5] = [
 fn parse_expression<'source, I: Iterator<Item = Token<'source>>>(
     tokens: &mut TokenStream<'source, I>,
 ) -> Result<Expression, SyntaxError<'source>> {
-    match tokens.peek_kind()? {
-        Kind::LeftBracket => Ok(parse_block(tokens)?.into()),
-        _ => parse_comparison(tokens),
+    if tokens.next_matches_kind(&[Kind::LeftBracket]) {
+        Ok(parse_block(tokens)?.into())
+    } else {
+        parse_comparison(tokens)
     }
 }
 
@@ -161,16 +162,19 @@ fn parse_primary<'source, I: Iterator<Item = Token<'source>>>(
     tokens: &mut TokenStream<'source, I>,
 ) -> Result<Expression, SyntaxError<'source>> {
     match tokens.peek_kind()? {
-        Kind::LeftParenthesis => parse_grouping(tokens).map(Expression::Grouping),
-        Kind::Plus | Kind::Minus | Kind::Number => parse_number(tokens).map(Expression::Number),
-        Kind::Identifier => parse_variable(tokens).map(Expression::Variable),
-        _ => match tokens.next()? {
+        Some(Kind::LeftParenthesis) => parse_grouping(tokens).map(Expression::Grouping),
+        Some(Kind::Plus | Kind::Minus | Kind::Number) => {
+            parse_number(tokens).map(Expression::Number)
+        }
+        Some(Kind::Identifier) => parse_variable(tokens).map(Expression::Variable),
+        Some(_) => match tokens.next()? {
             Some(token) => Err(SyntaxError::NoMatchingRule(
                 token,
                 PRIMARY_TOKEN_KINDS.to_vec(),
             )),
             None => Err(SyntaxError::IncompleteRule(PRIMARY_TOKEN_KINDS.to_vec())),
         },
+        None => Err(SyntaxError::IncompleteRule(PRIMARY_TOKEN_KINDS.to_vec())),
     }
 }
 
@@ -192,6 +196,7 @@ fn parse_number<'source, I: Iterator<Item = Token<'source>>>(
 
     if let Attachment::Number(number) = token.attachment() {
         if number.has_sign() && sign.is_some() {
+            debug!("Double signed.");
             return Err(SyntaxError::NoMatchingRule(token, vec![]));
         }
     }
@@ -247,7 +252,6 @@ impl<'source, I: Iterator<Item = Token<'source>>> Parser<'source, I> {
 
         while !self.tokens.is_empty() {
             match parse_expression(&mut self.tokens) {
-                Err(SyntaxError::IncompleteRule(..)) => return Err(ParseError::EndOfFile),
                 Err(error) => {
                     errors.push(error);
                     self.synchronize()
@@ -262,11 +266,15 @@ impl<'source, I: Iterator<Item = Token<'source>>> Parser<'source, I> {
         if errors.is_empty() {
             Ok(Program::from(expressions))
         } else {
-            for error in errors {
+            for error in errors.as_slice() {
                 error!("{}", error);
             }
 
-            Err(ParseError::MultipleErrors)
+            if let Some(SyntaxError::IncompleteRule(..)) = errors.last() {
+                Err(ParseError::EndOfFile)
+            } else {
+                Err(ParseError::MultipleErrors)
+            }
         }
     }
 
