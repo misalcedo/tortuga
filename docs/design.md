@@ -23,19 +23,10 @@ The grammar for tortuga is defined using the following rules:
 ```
 program -> declaration* EOF;
 
-declaration -> recordDefinition | funtionDefinition | procedureDefinition | patternApplication | expression;
+declaration -> functionDefinition | expression;
 
 functionDefinition -> IDENTIFIER parameters "=" expression;
-procedureDefinition -> IDENTIFIER "!" parameters "=" procedureBody;
-patternApplication -> pattern "=" expression | expression "=" pattern;
 parameters = "(" (pattern ("," pattern)*)? ")";
-
-pattern -> rangePattern | equalityPattern | comparisonPattern | recordDefinitionPattern | recordPattern | IDENTIFIER;
-rangePattern -> number | number "<"? "..." ">"? number;
-equalityPattern -> number | record;
-comparisonPattern -> IDENTIFIER comparisonOperator number | number comparisonOperator IDENTIFIER;
-recordDefinitionPattern -> "$" IDENTIFIER;
-recordPattern -> "{" (pattern ("," pattern)*)? "}";
 
 procedureBody = statement | "[" statement* "]";
 statement = expression | sendMessage;
