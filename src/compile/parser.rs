@@ -365,6 +365,13 @@ mod tests {
     }
 
     #[test]
+    fn parse_radix_number_invalid() {
+        let parser = Parser::new(lex_tokens("2#FF"));
+
+        assert_eq!(parser.parse(), Err(ParseError::MultipleErrors));
+    }
+
+    #[test]
     fn parse_equals_expression() {
         let parser = Parser::new(lex_tokens("x=2#-01"));
 
