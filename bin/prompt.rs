@@ -1,6 +1,5 @@
 //! Terminal prompt reading and printing with editing and history.
 
-use tortuga::{about, Interpreter, TortugaError, parse, ParseError, Lexer, Location, Parser, Scanner};
 use rustyline::completion::Completer;
 use rustyline::config::Config;
 use rustyline::highlight::Highlighter;
@@ -9,6 +8,9 @@ use rustyline::line_buffer::LineBuffer;
 use rustyline::validate::{ValidationContext, ValidationResult, Validator};
 use rustyline::{error::ReadlineError, Editor, Helper};
 use std::io::Write;
+use tortuga::{
+    about, parse, Interpreter, Lexer, Location, ParseError, Parser, Scanner, TortugaError,
+};
 use tracing::error;
 
 struct PromptHelper;

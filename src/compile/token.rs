@@ -80,6 +80,18 @@ pub struct ValidToken<'source> {
     attachment: Attachment,
 }
 
+impl<'source> fmt::Display for ValidToken<'source> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} token '{}' on {}",
+            self.kind(),
+            self.source(),
+            self.start()
+        )
+    }
+}
+
 impl<'source> LexicalToken<'source> for ValidToken<'source> {
     fn lexeme(&self) -> &Lexeme<'source> {
         &self.lexeme
@@ -119,6 +131,18 @@ pub struct InvalidToken<'source> {
     kind: Option<Kind>,
     lexeme: Lexeme<'source>,
     errors: Vec<LexicalError>,
+}
+
+impl<'source> fmt::Display for InvalidToken<'source> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let kind = self
+            .kind()
+            .as_ref()
+            .map(Kind::to_string)
+            .unwrap_or_else(|| "Indeterminate".to_string());
+
+        write!(f, "{} token '{}' on {}", kind, self.source(), self.start())
+    }
 }
 
 impl<'source> LexicalToken<'source> for InvalidToken<'source> {
@@ -162,6 +186,15 @@ impl<'source> InvalidToken<'source> {
 pub enum Token<'source> {
     Valid(ValidToken<'source>),
     Invalid(InvalidToken<'source>),
+}
+
+impl<'source> fmt::Display for Token<'source> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Token::Valid(token) => token.fmt(f),
+            Token::Invalid(token) => token.fmt(f),
+        }
+    }
 }
 
 impl<'source> Token<'source> {
