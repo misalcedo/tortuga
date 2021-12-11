@@ -96,12 +96,12 @@ pub enum LexicalError {
 /// A syntactal error that occurs when no grammar rule matches a sequence of lexical tokens.
 #[derive(Error, Debug, PartialEq)]
 pub enum SyntaxError<'source> {
-    #[error("Reached the end of the source code while parsing a grammar rule.")]
+    #[error("Reached the end of the source code while parsing a grammar rule (expected {0:?}).")]
     IncompleteRule(Vec<Kind>),
-    #[error("No grammar rule found to match the next lexical token.")]
+    #[error("No grammar rule found to match the next lexical token: {0:?}.")]
     NoMatchingRule(ValidToken<'source>, Vec<Kind>),
     #[error(
-        "Encountered a token with one or more lexical errors while that matches a grammar rule."
+        "Encountered a token with one or more lexical errors while that matches a grammar rule: {0:?}."
     )]
     InvalidToken(InvalidToken<'source>),
 }
