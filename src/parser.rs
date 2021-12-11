@@ -395,9 +395,6 @@ mod tests {
 
         let actual = parser.parse().unwrap();
 
-        println!("{}", actual.expressions()[0]);
-        println!("{}", expected.expressions()[0]);
-
         assert_eq!(actual, expected);
     }
 
