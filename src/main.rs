@@ -28,7 +28,7 @@ fn set_verbosity(matches: &ArgMatches) -> Result<(), TortugaError> {
     Ok(set_global_default(collector)?)
 }
 
-fn parse_arguments<'matches>() -> ArgMatches<'matches> {
+fn parse_arguments<'matches>() -> ArgMatches {
     App::new(tortuga::PROGRAM)
         .version(tortuga::VERSION)
         .author(tortuga::AUTHORS)
@@ -36,7 +36,7 @@ fn parse_arguments<'matches>() -> ArgMatches<'matches> {
         .arg(
             Arg::with_name("verbosity")
                 .long("verbose")
-                .short("v")
+                .short('v')
                 .multiple(true)
                 .help("Sets the level of verbosity."),
         )
@@ -55,7 +55,7 @@ fn parse_arguments<'matches>() -> ArgMatches<'matches> {
         .get_matches()
 }
 
-fn run_subcommand(matches: ArgMatches<'_>) -> Result<(), TortugaError> {
+fn run_subcommand(matches: ArgMatches) -> Result<(), TortugaError> {
     if let Some(matches) = matches.subcommand_matches("run") {
         let input = matches
             .value_of("input")

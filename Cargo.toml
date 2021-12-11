@@ -19,7 +19,7 @@ tracing = {version = "0.1", default-features = false}
 tracing-subscriber = {version = "0.3", default-features = false, features = ["env-filter", "fmt"]}
 
 [dependencies]
-clap = "2.34"
+clap = "3.0.0-rc.4"
 log = "0.4"
 rustyline = "9"
 thiserror = "1.0"
