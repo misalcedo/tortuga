@@ -39,9 +39,7 @@ pub enum SyntaxError<'source> {
     IncompleteRule(Vec<Kind>),
     #[error("No grammar rule found to match the {0}. Expected a token with one of following types: {1:?}.")]
     NoMatchingRule(ValidToken<'source>, Vec<Kind>),
-    #[error(
-        "Encountered {0} with one or more lexical errors while parsing a grammar rule."
-    )]
+    #[error("Encountered {0} with one or more lexical errors while parsing a grammar rule.")]
     InvalidToken(InvalidToken<'source>),
 }
 
