@@ -17,6 +17,13 @@ use std::io::Write;
 use tracing::error;
 
 /// Runs a given string as a source file.
+/// 
+/// # Examples
+/// ```rust
+/// use tortuga::run;
+/// 
+/// run("2#10^2").unwrap();
+/// ```
 pub fn run(code: &str) -> Result<(), TortugaError> {
     let mut interpreter = Interpreter::default();
 
