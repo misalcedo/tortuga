@@ -143,7 +143,7 @@ impl<'source> fmt::Display for InvalidToken<'source> {
 
         write!(
             f,
-            "{} token '{}' on {} with one or more lexical errors: ",
+            "{} token '{}' on {}, with one or more lexical errors: ",
             kind,
             self.source(),
             self.start()
