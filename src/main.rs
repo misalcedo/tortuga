@@ -1,20 +1,52 @@
-use clap::{App, Arg, ArgMatches};
 use std::fs;
-use std::path::Path;
 use tortuga::TortugaError;
 use tracing::{subscriber::set_global_default, Level};
 use tracing_log::LogTracer;
 
-fn main() -> Result<(), TortugaError> {
-    let matches = parse_arguments();
+use clap::{AppSettings, Parser, Subcommand};
 
-    set_verbosity(&matches)?;
-
-    run_subcommand(matches)
+#[derive(Parser)]
+#[clap(author, version, about)]
+#[clap(global_setting(AppSettings::PropagateVersion))]
+#[clap(global_setting(AppSettings::UseLongFormatForHelpSubcommand))]
+struct Options {
+    #[clap(short, long, parse(from_occurrences))]
+    verbose: usize,
+    #[clap(subcommand)]
+    command: Option<Commands>,
 }
 
-fn set_verbosity(matches: &ArgMatches) -> Result<(), TortugaError> {
-    let level = match matches.occurrences_of("verbosity") {
+#[derive(Parser)]
+/// Run an interactive prompt to interpret source code in a read-evalue-print loop.
+struct PromptCommand;
+
+#[derive(Parser)]
+/// Compile and run a file.
+struct RunCommand {
+    filename: String
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    Prompt(PromptCommand),
+    Run(RunCommand),
+}
+
+impl Default for Commands {
+    fn default() -> Self {
+        Commands::Prompt(PromptCommand)
+    }
+}
+
+fn main() -> Result<(), TortugaError> {
+    let options = Options::parse();
+
+    set_verbosity(options.verbose)?;
+    run_subcommand(options)
+}
+
+fn set_verbosity(occurrences: usize) -> Result<(), TortugaError> {
+    let level = match occurrences {
         0 => Level::WARN,
         1 => Level::INFO,
         2 => Level::DEBUG,
@@ -28,43 +60,12 @@ fn set_verbosity(matches: &ArgMatches) -> Result<(), TortugaError> {
     Ok(set_global_default(collector)?)
 }
 
-fn parse_arguments<'matches>() -> ArgMatches {
-    App::new(tortuga::PROGRAM)
-        .version(tortuga::VERSION)
-        .author(tortuga::AUTHORS)
-        .about(tortuga::DESCRIPTION)
-        .arg(
-            Arg::new("verbosity")
-                .long("verbose")
-                .short('v')
-                .multiple_occurrences(true)
-                .help("Sets the level of verbosity."),
-        )
-        .subcommand(
-            App::new("run")
-                .about("Runs the specified input file.")
-                .arg(
-                    Arg::new("input")
-                        .value_name("FILE")
-                        .required(true)
-                        .help("The input file to execute.")
-                        .takes_value(true)
-                        .index(1),
-                ),
-        )
-        .get_matches()
-}
-
-fn run_subcommand(matches: ArgMatches) -> Result<(), TortugaError> {
-    if let Some(matches) = matches.subcommand_matches("run") {
-        let input = matches
-            .value_of("input")
-            .map(Path::new)
-            .expect("Missing required field INPUT.");
-        let source = fs::read_to_string(input)?;
-
-        tortuga::run(source.as_str())
-    } else {
-        tortuga::run_prompt()
+fn run_subcommand(options: Options) -> Result<(), TortugaError> {
+    match options.command.unwrap_or_default() {
+        Commands::Run(command) => {
+            let source = fs::read_to_string(command.filename)?;
+            tortuga::run(source.as_str())
+        },
+        Commands::Prompt(_) => tortuga::run_prompt()
     }
 }

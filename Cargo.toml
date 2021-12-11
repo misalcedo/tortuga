@@ -19,7 +19,8 @@ tracing = {version = "0.1", default-features = false}
 tracing-subscriber = {version = "0.3", default-features = false, features = ["env-filter", "fmt"]}
 
 [dependencies]
-clap = "3.0.0-rc.4"
+clap = { version = "3.0.0-rc.4", features = ["derive"] }
+proc-macro2 = "1.0.33"
 log = "0.4"
 rustyline = "9"
 thiserror = "1.0"
