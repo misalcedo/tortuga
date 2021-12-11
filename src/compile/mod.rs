@@ -8,7 +8,7 @@ mod scanner;
 mod stream;
 mod token;
 
-pub use errors::{LexicalError, SyntaxError, ParseError};
+pub use errors::{LexicalError, ParseError, SyntaxError};
 pub use lexer::Lexer;
 pub use location::Location;
 pub use parser::Parser;
@@ -16,12 +16,12 @@ pub use scanner::Scanner;
 pub use token::{InvalidToken, Kind, ValidToken};
 
 /// Parses a given string into an abstract syntax tree.
-/// 
+///
 /// # Examples
 /// ```rust
 /// use tortuga::parse;
 /// use tortuga::grammar::*;
-/// 
+///
 /// assert_eq!(
 ///     parse("x=1").unwrap(),
 ///     Program::from(vec![

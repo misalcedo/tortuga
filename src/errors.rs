@@ -14,5 +14,5 @@ pub enum TortugaError {
     #[error("A runtime error occurred while interpreting the source code. {0}")]
     Runtime(#[from] crate::interpret::RuntimeError),
     #[error("Encountered an error prompting the user for input. {0}")]
-    PromptError(#[from] rustyline::error::ReadlineError),
+    PromptError(#[from] Box<dyn std::error::Error>),
 }

@@ -1,7 +1,3 @@
-mod prompt;
-
-pub use prompt::run_prompt;
-
 use std::fs;
 use tortuga::TortugaError;
 use tracing::{subscriber::set_global_default, Level};
@@ -71,6 +67,6 @@ fn run_subcommand(arguments: Arguments) -> Result<(), TortugaError> {
             let source = fs::read_to_string(command.filename)?;
             tortuga::run(source.as_str())
         }
-        Commands::Prompt(_) => run_prompt(),
+        Commands::Prompt(_) => tortuga::run_prompt(),
     }
 }

@@ -2,7 +2,7 @@
 
 mod number;
 
-pub use number::{Fraction, Number, Sign, MAX_RADIX, DECIMAL_RADIX};
+pub use number::{Fraction, Number, Sign, DECIMAL_RADIX, MAX_RADIX};
 use std::fmt;
 
 /// A list of zero or more expressions in the tortuga grammar.

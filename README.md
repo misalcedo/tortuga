@@ -39,12 +39,18 @@ The guest is an instance of a WebAssembly module with access to the Application 
 For design goals, non-goals, grammar, and more see [docs/Design.md](https://github.com/misalcedo/tortuga/blob/main/docs/design.md).
 
 # Usage
-
+## Command-Line
 To run the system locally, perform the following steps:
 
 1. Run `cargo install tortuga`.
 1. Run `tortuga` to start the interpreter.
 1. Type in some code, such as `10 - 011.01#2 = 6.75`.
+
+## Embedded
+To embed the language in Rust, add `tortuga` as a dependency in your `Cargo.toml`:
+```toml
+tortuga = "0.4"
+```
 
 # Endianness
 While the system sends all numbers in network byte order (i.e., big endian), WebAssembly uses little-endian for its numbers. Therefore, the system will handle mapping the integers between the types of endianness. See <https://tools.ietf.org/html/draft-newman-network-byte-order-01>

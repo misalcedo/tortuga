@@ -3,8 +3,10 @@
 mod environment;
 mod errors;
 
-use crate::grammar::*;
+use crate::compile::parse;
+use crate::errors::TortugaError;
 use crate::grammar::Number;
+use crate::grammar::*;
 use environment::Environment;
 pub use errors::RuntimeError;
 use std::convert::TryFrom;
@@ -261,4 +263,23 @@ impl<'source> TryFrom<Value> for bool {
             Value::Variable(name) => Err(RuntimeError::UndefinedVariableUsed(name)),
         }
     }
+}
+
+/// Runs a given string as a source file.
+///
+/// # Examples
+/// ```rust
+/// use tortuga::run;
+///
+/// run("2#10^2").unwrap();
+/// ```
+pub fn run(code: &str) -> Result<(), TortugaError> {
+    let mut interpreter = Interpreter::default();
+
+    match parse(code) {
+        Ok(program) => interpreter.interpret(&program),
+        Err(error) => error!("{}", error),
+    }
+
+    Ok(())
 }

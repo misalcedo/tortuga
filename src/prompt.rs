@@ -1,7 +1,6 @@
 //! Terminal prompt reading and printing with editing and history.
 
-use crate::errors::TortugaError;
-use crate::compile::{parse, ParseError};
+use tortuga::{about, Interpreter, TortugaError, parse, ParseError, Lexer, Location, Parser, Scanner};
 use rustyline::completion::Completer;
 use rustyline::config::Config;
 use rustyline::highlight::Highlighter;
@@ -9,6 +8,8 @@ use rustyline::hint::Hinter;
 use rustyline::line_buffer::LineBuffer;
 use rustyline::validate::{ValidationContext, ValidationResult, Validator};
 use rustyline::{error::ReadlineError, Editor, Helper};
+use std::io::Write;
+use tracing::error;
 
 struct PromptHelper;
 
@@ -40,7 +41,7 @@ impl Prompt {
             Ok(line) => Ok(Some(line)),
             Err(ReadlineError::Interrupted) => Ok(None),
             Err(ReadlineError::Eof) => Ok(None),
-            Err(error) => Err(TortugaError::PromptError(error)),
+            Err(error) => Err(TortugaError::PromptError(Box::new(error))),
         }
     }
 }
@@ -74,6 +75,34 @@ impl Validator for PromptHelper {
                 "\t{}",
                 error.to_string()
             )))),
+        }
+    }
+}
+
+/// Runs the read-evaluate-print loop.
+pub fn run_prompt() -> Result<(), TortugaError> {
+    let mut user = Prompt::new();
+    let mut start = Location::default();
+    let mut interpreter = Interpreter::default();
+
+    writeln!(std::io::stdout(), "{} {}\n", about::PROGRAM, about::VERSION)?;
+
+    loop {
+        match user.prompt(start.line())? {
+            None => return Ok(()),
+            Some(line) if line.trim().is_empty() => continue,
+            Some(line) => {
+                let mut scanner = Scanner::continue_from(start, line.as_str());
+                let lexer = Lexer::new(&mut scanner);
+                let parser = Parser::new(lexer);
+
+                match parser.parse() {
+                    Ok(program) => interpreter.interpret(&program),
+                    Err(error) => error!("{}", error),
+                };
+
+                start = scanner.consume().unwrap_or_default();
+            }
         }
     }
 }
