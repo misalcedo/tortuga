@@ -12,8 +12,6 @@ pub enum TortugaError {
     Tracing(#[from] tracing::dispatcher::SetGlobalDefaultError),
     #[error("Unable to set log tracing redirection.")]
     Logging(#[from] tracing_log::log_tracer::SetLoggerError),
-    #[error("Unable to walk the input directory.")]
-    Walk(#[from] walkdir::Error),
     #[error("Unable to remove the input path from the file name.")]
     InvalidPath(#[from] std::path::StripPrefixError),
     #[error("A runtime error occurred while interpreting the source code. {0}")]

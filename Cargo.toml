@@ -19,12 +19,10 @@ tracing = {version = "0.1", default-features = false}
 tracing-subscriber = {version = "0.3", default-features = false, features = ["env-filter", "fmt"]}
 
 [dependencies]
-clap = "2.33"
+clap = "2.34"
 log = "0.4"
-nom = "7"
 rustyline = "9"
 thiserror = "1.0"
 tracing = "0.1"
 tracing-log = "0.1"
 tracing-subscriber = { version = "0.3", features = ["parking_lot"] }
-walkdir = "2.3"
