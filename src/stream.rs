@@ -7,6 +7,7 @@ use crate::errors::SyntaxError;
 use crate::token::{Kind, Token, ValidToken};
 
 /// A stream of `Token`s to be consumed by the `Parser`.
+#[derive(Debug)]
 pub struct TokenStream<'source, I: Iterator<Item = Token<'source>>> {
     tokens: I,
     peeked: Option<ValidToken<'source>>,
@@ -26,7 +27,7 @@ where
 }
 
 impl<'source, I: Iterator<Item = Token<'source>>> TokenStream<'source, I> {
-    fn peek(&mut self) -> Result<Option<&ValidToken<'source>>, SyntaxError<'source>> {
+    pub fn peek(&mut self) -> Result<Option<&ValidToken<'source>>, SyntaxError<'source>> {
         self.peeked = match self.peeked.take() {
             Some(token) => Some(token),
             None => self.next()?,
@@ -86,7 +87,7 @@ impl<'source, I: Iterator<Item = Token<'source>>> TokenStream<'source, I> {
     }
 
     /// Peeks the next `Token`'s `Kind`.
-    /// Returns an error if there are not more `Token`s in the stream.
+    /// Returns an error if there are no more `Token`s in the stream.
     pub fn peek_kind(&mut self) -> Result<Kind, SyntaxError<'source>> {
         match self.peek()? {
             Some(token) => Ok(token.kind()),
@@ -115,7 +116,6 @@ impl<'source, I: Iterator<Item = Token<'source>>> TokenStream<'source, I> {
 mod tests {
     use super::*;
     use crate::errors::LexicalError;
-    use crate::grammar::Operator;
     use crate::location::Location;
     use crate::number::Number;
     use crate::token::{Attachment, InvalidToken, Lexeme};
@@ -310,7 +310,7 @@ mod tests {
         assert_eq!(
             stream.next(),
             Ok(Some(ValidToken::new(
-                Attachment::Operator(Operator::Add),
+                Kind::Plus.into(),
                 Lexeme::new("+", Location::new(1, 2, 1))
             )))
         );
@@ -359,7 +359,7 @@ mod tests {
         assert_eq!(
             stream.next(),
             Ok(Some(ValidToken::new(
-                Attachment::Operator(Operator::Add),
+                Kind::Plus.into(),
                 Lexeme::new("+", Location::new(1, 2, 1))
             )))
         );
@@ -498,10 +498,7 @@ mod tests {
                 Attachment::Number(Number::new_integer(1)),
                 Lexeme::new("1", Location::default()),
             ),
-            Token::new_valid(
-                Attachment::Operator(Operator::Add),
-                Lexeme::new("+", Location::new(1, 2, 1)),
-            ),
+            Token::new_valid(Kind::Plus.into(), Lexeme::new("+", Location::new(1, 2, 1))),
             Token::new_valid(
                 Attachment::Number(Number::new_integer(1)),
                 Lexeme::new("1", Location::new(1, 3, 2)),

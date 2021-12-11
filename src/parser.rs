@@ -160,16 +160,17 @@ fn parse_operator<'source, I: Iterator<Item = Token<'source>>>(
 fn parse_primary<'source, I: Iterator<Item = Token<'source>>>(
     tokens: &mut TokenStream<'source, I>,
 ) -> Result<Expression, SyntaxError<'source>> {
-    let token = tokens.next_kind(&PRIMARY_TOKEN_KINDS)?;
-
-    match token.kind() {
+    match tokens.peek_kind()? {
         Kind::LeftParenthesis => parse_grouping(tokens).map(Expression::Grouping),
         Kind::Plus | Kind::Minus | Kind::Number => parse_number(tokens).map(Expression::Number),
         Kind::Identifier => parse_variable(tokens).map(Expression::Variable),
-        _ => Err(SyntaxError::NoMatchingRule(
-            token,
-            PRIMARY_TOKEN_KINDS.to_vec(),
-        )),
+        _ => match tokens.next()? {
+            Some(token) => Err(SyntaxError::NoMatchingRule(
+                token,
+                PRIMARY_TOKEN_KINDS.to_vec(),
+            )),
+            None => Err(SyntaxError::IncompleteRule(PRIMARY_TOKEN_KINDS.to_vec())),
+        },
     }
 }
 
@@ -196,7 +197,7 @@ fn parse_number<'source, I: Iterator<Item = Token<'source>>>(
     }
 
     if let Attachment::Number(mut number) = token.take_attachment() {
-        number.set_sign(sign.unwrap_or_default());
+        sign.map(|s| number.set_sign(s));
 
         Ok(number)
     } else {
@@ -272,6 +273,10 @@ impl<'source, I: Iterator<Item = Token<'source>>> Parser<'source, I> {
     /// Unwinds this parser's recursive descent into the grammar rules upon encountering an error parsing a rule.
     /// Some tokens may be skipped in order to allow the parser to identify additional errors in the source code.
     fn synchronize(&mut self) -> Option<Expression> {
+        if self.tokens.is_empty() {
+            return None;
+        }
+
         loop {
             match parse_expression(&mut self.tokens) {
                 Ok(expression) => return Some(expression),
@@ -293,91 +298,67 @@ impl<'source, I: Iterator<Item = Token<'source>>> Parser<'source, I> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::location::Location;
+    use crate::lexer::Lexer;
     use crate::number::Number;
-    use crate::token::{Attachment, Lexeme};
     use test_log::test;
 
     #[test]
     fn parse_number_double_sign() {
-        let parser = Parser::new(vec![
-            Token::new_valid(
-                Attachment::Operator(Operator::Add),
-                Lexeme::new("-", Location::default()),
-            ),
-            Token::new_valid(
-                Attachment::Number(Number::new_integer(1)),
-                Lexeme::new("2#+01", Location::new(1, 2, 1)),
-            ),
-        ]);
+        let parser = Parser::new(lex_tokens("-2#+01"));
 
         assert_eq!(parser.parse(), Err(ParseError::MultipleErrors));
     }
 
     #[test]
-    fn parse_number_badly_signed() {
-        let parser = Parser::new(vec![
-            Token::new_valid(
-                Attachment::Operator(Operator::Add),
-                Lexeme::new("-", Location::default()),
-            ),
-            Token::new_valid(
-                Attachment::Number(Number::new_integer(1)),
-                Lexeme::new("1", Location::new(1, 2, 1)),
-            ),
-        ]);
+    fn parse_signed_number() {
+        let parser = Parser::new(lex_tokens("-1"));
 
-        assert_eq!(parser.parse(), Err(ParseError::MultipleErrors));
+        assert_eq!(
+            parser.parse().unwrap(),
+            Program::from(vec![Expression::Number(Number::new_signed_integer(
+                Sign::Negative,
+                1
+            ))])
+        );
     }
 
     #[test]
     fn parse_radix_number_badly_signed() {
-        let mut number = Number::new_integer(1);
-        let parser = Parser::new(vec![
-            Token::new_valid(
-                Attachment::Operator(Operator::Add),
-                Lexeme::new("-", Location::default()),
-            ),
-            Token::new_valid(
-                Attachment::Number(Number::new_integer(1)),
-                Lexeme::new("2#01", Location::new(1, 2, 1)),
-            ),
-        ]);
-
-        number.set_sign(Sign::Negative);
+        let parser = Parser::new(lex_tokens("-2#01"));
 
         assert_eq!(parser.parse(), Err(ParseError::MultipleErrors));
     }
 
     #[test]
     fn parse_radix_number_signed() {
-        let parser = Parser::new(vec![Token::new_valid(
-            Attachment::Number(Number::new_integer(1)),
-            Lexeme::new("2#+01", Location::default()),
-        )]);
+        let parser = Parser::new(lex_tokens("2#+01"));
 
         assert_eq!(
             parser.parse(),
-            Ok(vec![Expression::Number(Number::new_integer(1))].into())
+            Ok(vec![Expression::Number(Number::new_signed_integer(
+                Sign::Positive,
+                1
+            ))]
+            .into())
         );
     }
 
     #[test]
     fn parse_radix_number_unsigned() {
-        let parser = Parser::new(vec![Token::new_valid(
-            Attachment::Number(Number::new_integer(1)),
-            Lexeme::new("2#01", Location::default()),
-        )]);
+        let parser = Parser::new(lex_tokens("2#01"));
 
         assert_eq!(
             parser.parse().unwrap(),
-            Program::from(vec![Expression::Number(Number::new_integer(1))])
+            Program::from(vec![Expression::Number(Number::new_signed_integer(
+                Sign::Positive,
+                1
+            ))])
         );
     }
 
     #[test]
     fn parse_equals_expression() {
-        let parser = Parser::new(new_tokens());
+        let parser = Parser::new(lex_tokens("x=2#-01"));
 
         assert_eq!(
             parser.parse().unwrap(),
@@ -385,26 +366,42 @@ mod tests {
                 ComparisonOperation::new(
                     Expression::Variable(Variable::new("x")),
                     ComparisonOperator::EqualTo,
-                    Expression::Number(Number::new_integer(1))
+                    Expression::Number(Number::new_signed_integer(Sign::Negative, 1))
                 )
             )])
         );
     }
 
-    fn new_tokens() -> Vec<Token<'static>> {
-        vec![
-            Token::new_valid(
-                Attachment::Empty(Kind::Identifier),
-                Lexeme::new("x", Location::default()),
-            ),
-            Token::new_valid(
-                Attachment::Operator(Operator::Add),
-                Lexeme::new("=", Location::new(1, 2, 1)),
-            ),
-            Token::new_valid(
-                Attachment::Number(Number::new_integer(1)),
-                Lexeme::new("2#-01", Location::new(1, 3, 2)),
-            ),
-        ]
+    #[test]
+    fn parse_math_expression() {
+        let parser = Parser::new(lex_tokens("(2^3+5-10)*3/9"));
+        let exponent = BinaryOperation::new(
+            Number::new_integer(2).into(),
+            Operator::Exponent,
+            Number::new_integer(3).into(),
+        )
+        .into();
+        let add =
+            BinaryOperation::new(exponent, Operator::Add, Number::new_integer(5).into()).into();
+        let subtract =
+            BinaryOperation::new(add, Operator::Subtract, Number::new_integer(10).into()).into();
+        let grouping = Grouping::new(subtract).into();
+        let multiply =
+            BinaryOperation::new(grouping, Operator::Multiply, Number::new_integer(3).into())
+                .into();
+        let divide =
+            BinaryOperation::new(multiply, Operator::Divide, Number::new_integer(9).into()).into();
+        let expected = Program::from(vec![divide]);
+
+        let actual = parser.parse().unwrap();
+
+        println!("{}", actual.expressions()[0]);
+        println!("{}", expected.expressions()[0]);
+
+        assert_eq!(actual, expected);
+    }
+
+    fn lex_tokens<'source>(source: &'source str) -> Vec<Token<'source>> {
+        Lexer::new(&mut source.into()).collect()
     }
 }

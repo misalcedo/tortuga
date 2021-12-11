@@ -3,12 +3,12 @@
 //! The lexer produces lexical tokens.
 
 use crate::errors::LexicalError;
-use crate::grammar::Operator;
 use crate::number::{Fraction, Number, Sign, DECIMAL_RADIX, MAX_RADIX};
 use crate::scanner::Scanner;
 use crate::token::{Attachment, Kind, Token};
 
 /// Performs Lexical Analysis for the tortuga language.
+#[derive(Debug)]
 pub struct Lexer<'scanner, 'source>
 where
     'source: 'scanner,
@@ -160,11 +160,11 @@ impl<'scanner, 'source> Lexer<'scanner, 'source> {
     /// The next lexical token in the source code.
     fn next_token(&mut self) -> Option<Token<'source>> {
         match self.scanner.peek()? {
-            '+' => self.new_short_token(Operator::Add),
-            '-' => self.new_short_token(Operator::Subtract),
-            '*' => self.new_short_token(Operator::Multiply),
-            '/' => self.new_short_token(Operator::Divide),
-            '^' => self.new_short_token(Operator::Exponent),
+            '+' => self.new_short_token(Kind::Plus),
+            '-' => self.new_short_token(Kind::Minus),
+            '*' => self.new_short_token(Kind::Star),
+            '/' => self.new_short_token(Kind::ForwardSlash),
+            '^' => self.new_short_token(Kind::Caret),
             '=' => self.new_short_token(Kind::Equals),
             '<' => self.new_short_token(Kind::LessThan),
             '>' => self.new_short_token(Kind::GreaterThan),
@@ -222,7 +222,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Token::new_valid(
-                Attachment::Operator(Operator::Add),
+                Kind::Plus.into(),
                 Lexeme::new("+", Location::default()),
             ))
         );
@@ -465,7 +465,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Token::new_valid(
-                Attachment::Operator(Operator::Add),
+                Kind::Plus.into(),
                 Lexeme::new("+", Location::new(1, 2, 1)),
             ))
         );

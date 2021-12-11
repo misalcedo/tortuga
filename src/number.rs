@@ -33,11 +33,21 @@ impl Number {
         }
     }
 
-    /// Creates a integer number with the given sign.
+    /// Creates a integer number with no sign.
     #[cfg(test)]
     pub fn new_integer(integer: u128) -> Self {
         Number {
             sign: None,
+            integer,
+            fraction: Fraction::default(),
+        }
+    }
+
+    /// Creates a signed integer number.
+    #[cfg(test)]
+    pub fn new_signed_integer(sign: Sign, integer: u128) -> Self {
+        Number {
+            sign: Some(sign),
             integer,
             fraction: Fraction::default(),
         }

@@ -1,5 +1,4 @@
 use crate::errors::LexicalError;
-use crate::grammar::Operator;
 use crate::location::Location;
 use crate::number::Number;
 use std::fmt;
@@ -34,7 +33,6 @@ impl<'source> Lexeme<'source> {
 #[derive(Debug, PartialEq)]
 pub enum Attachment {
     Number(Number),
-    Operator(Operator),
     Empty(Kind),
 }
 
@@ -42,11 +40,6 @@ impl From<&Attachment> for Kind {
     fn from(attachment: &Attachment) -> Self {
         match attachment {
             Attachment::Number(..) => Kind::Number,
-            Attachment::Operator(Operator::Add) => Kind::Plus,
-            Attachment::Operator(Operator::Subtract) => Kind::Plus,
-            Attachment::Operator(Operator::Multiply) => Kind::Minus,
-            Attachment::Operator(Operator::Divide) => Kind::ForwardSlash,
-            Attachment::Operator(Operator::Exponent) => Kind::Caret,
             Attachment::Empty(kind) => *kind,
         }
     }
@@ -55,12 +48,6 @@ impl From<&Attachment> for Kind {
 impl From<Attachment> for Kind {
     fn from(attachment: Attachment) -> Self {
         (&attachment).into()
-    }
-}
-
-impl From<Operator> for Attachment {
-    fn from(operator: Operator) -> Self {
-        Attachment::Operator(operator)
     }
 }
 
