@@ -9,8 +9,9 @@ use clap::{AppSettings, Parser, Subcommand};
 #[clap(author, version, about)]
 #[clap(global_setting(AppSettings::PropagateVersion))]
 #[clap(global_setting(AppSettings::UseLongFormatForHelpSubcommand))]
-struct Options {
+struct Arguments {
     #[clap(short, long, parse(from_occurrences))]
+    /// Make the subcommand more talkative.
     verbose: usize,
     #[clap(subcommand)]
     command: Option<Commands>,
@@ -39,10 +40,10 @@ impl Default for Commands {
 }
 
 fn main() -> Result<(), TortugaError> {
-    let options = Options::parse();
+    let arguments = Arguments::parse();
 
-    set_verbosity(options.verbose)?;
-    run_subcommand(options)
+    set_verbosity(arguments.verbose)?;
+    run_subcommand(arguments)
 }
 
 fn set_verbosity(occurrences: usize) -> Result<(), TortugaError> {
@@ -60,8 +61,8 @@ fn set_verbosity(occurrences: usize) -> Result<(), TortugaError> {
     Ok(set_global_default(collector)?)
 }
 
-fn run_subcommand(options: Options) -> Result<(), TortugaError> {
-    match options.command.unwrap_or_default() {
+fn run_subcommand(arguments: Arguments) -> Result<(), TortugaError> {
+    match arguments.command.unwrap_or_default() {
         Commands::Run(command) => {
             let source = fs::read_to_string(command.filename)?;
             tortuga::run(source.as_str())
