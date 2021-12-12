@@ -372,6 +372,23 @@ mod tests {
     }
 
     #[test]
+    fn parse_block_when_empty() {
+        let parser = Parser::new(lex_tokens("[]"));
+
+        assert_eq!(parser.parse(), Err(ParseError::MultipleErrors));
+    }
+
+    #[test]
+    fn parse_block() {
+        let parser = Parser::new(lex_tokens("[2]"));
+
+        assert_eq!(
+            parser.parse().unwrap(),
+            Program::from(vec![Block::new(vec![Number::new_integer(2).into()]).into()])
+        );
+    }
+
+    #[test]
     fn parse_equals_expression() {
         let parser = Parser::new(lex_tokens("x=2#-01"));
 

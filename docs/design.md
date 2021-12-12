@@ -28,10 +28,6 @@ declaration -> functionDefinition | expression;
 functionDefinition -> IDENTIFIER parameters "=" expression;
 parameters = "(" (pattern ("," pattern)*)? ")";
 
-procedureBody = statement | "[" statement* "]";
-statement = expression | sendMessage;
-sendMessage = primary "|" IDENTIFIER;
-
 expression -> block | comparison;
 block -> "[" comparison+ "]";
 comparison -> term ( comparisonOperator term )*;
