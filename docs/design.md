@@ -21,53 +21,56 @@ The following are a set of design decisions for Tortuga roughly separated into c
 The syntactic grammar of `Tortuga` is used to parse a linear sequence of tokens into a nested syntax tree structure. The root of the grammar matches an entire `Tortuga` program (or a single entry in the interpreter).
 
 ```ebnf
-program → block* EOF;
+program → declaration* EOF;
 ```
 
 ## Declarations
 A `program` is a series of `declaration`s, which are the expressions that bind function declarations, perform arithmatic operations, etc.
 
 ```ebnf
-functionDefinition  → IDENTIFIER "(" parameters? ")" "=" block ;
+declaration → assignment | comparison ;
 
-block               → declaration | "[" declaration declaration+ "]" ;
-declaration         → functionDefinition | expression ;
+assignment  → function "=" block ;
+block       → expression | "[" assignment+ "]" ;
+
+comparison  → expression ( comparator expression )* ;
 ```
 
 ## Expression
 Expressions produce values. `Tortuga` has a number of binary operators with different levels of precedence. Some grammars for languages do not directly encode the precedence relationships and specify that elsewhere. Here, we use a separate rule for each precedence level to make it explicit.
 
 ```ebnf
-expression → mod ;
+expression → modulo ;
 
-mod -> term ( "%" term )* ;
-term → factor ( sign factor )* ;
-factor → exponent ( ( "*" | "/" ) exponent )* ;
-exponent → primary ( "^" primary )* ;
+modulo     → term ( "%" term )* ;
+term       → factor ( sign factor )* ;
+factor     → exponent ( ( "*" | "/" ) exponent )* ;
+exponent   → primary ( "^" primary )* ;
 
-primary → IDENTIFIER | number | "(" expression ")" | functionCall ;
-functionCall → IDENTIFIER "(" arguments? ")" ;
+primary    → number | variable | "(" expression ")" ;
+call       → IDENTIFIER ( "(" arguments ")" )? ;
+number     → sign? NUMBER | NUMBER_WITH_RADIX ;
 ```
 
 ## Pattern Rules
 The grammar allows pattern-matching in function definitions instead of having built-in control flow.
 
 ```ebnf
-pattern    → IDENTIFIER | comparison;
-comparison → expression ( comparisonOperator expression )* ;
+pattern    → "_" | function | domain;
+
+function   → IDENTIFIER ( "(" parameters ")" )? ;
+domain     → ( number comparator )? IDENTIFIER ( comparator number )?
 ```
 
 ## Utility Rules
 To keep the above rules a little cleaner, some of the grammar is split out into a few reused helper rules.
 
 ```ebnf
-arguments          → expression ( "," expression )* ;
-parameters         → pattern ( "," pattern )* ;
+arguments  → expression ( "," expression )* ;
+parameters → pattern ( "," pattern )* ;
 
-number             → sign? NUMBER | NUMBER_WITH_RADIX ;
-
-sign               → "+" | "-" ;
-comparisonOperator → "<" | ">" | "=" | "<>" | "<=" | ">=" ;
+sign       → "+" | "-" ;
+comparator → "<" | ">" | "=" | "<>" | "<=" | ">=" ;
 ```
 
 # Lexical Grammar
