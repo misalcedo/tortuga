@@ -24,21 +24,13 @@ The syntactic grammar of `Tortuga` is used to parse a linear sequence of tokens 
 program → declaration* EOF ;
 ```
 
-## Declarations
-A `program` is a series of `declaration`s, which are the expressions that bind function declarations, perform arithmatic operations, etc.
-
-```ebnf
-declaration → assignment ;
-
-assignment  → ( function "=")* block ;
-block       → expression | "[" assignment+ "]" ;
-```
-
 ## Expression
-Expressions produce values. `Tortuga` has a number of binary operators with different levels of precedence. Some grammars for languages do not directly encode the precedence relationships and specify that elsewhere. Here, we use a separate rule for each precedence level to make it explicit.
+A program is a series of expressions. Expressions produce values. `Tortuga` has a number of binary operators with different levels of precedence. Some grammars for languages do not directly encode the precedence relationships and specify that elsewhere. Here, we use a separate rule for each precedence level to make it explicit.
 
 ```ebnf
-expression → modulo ;
+expression → modulo | assignment ;
+assignment → function "=" block ;
+block      → modulo | "[" assignment+ "]" ;
 
 modulo     → term ( "%" term )* ;
 term       → factor ( sign factor )* ;
