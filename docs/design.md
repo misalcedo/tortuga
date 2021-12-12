@@ -21,19 +21,17 @@ The following are a set of design decisions for Tortuga roughly separated into c
 The syntactic grammar of `Tortuga` is used to parse a linear sequence of tokens into a nested syntax tree structure. The root of the grammar matches an entire `Tortuga` program (or a single entry in the interpreter).
 
 ```ebnf
-program → declaration* EOF;
+program → declaration* EOF ;
 ```
 
 ## Declarations
 A `program` is a series of `declaration`s, which are the expressions that bind function declarations, perform arithmatic operations, etc.
 
 ```ebnf
-declaration → assignment | comparison ;
+declaration → assignment ;
 
-assignment  → function "=" block ;
+assignment  → ( function "=")* block ;
 block       → expression | "[" assignment+ "]" ;
-
-comparison  → expression ( comparator expression )* ;
 ```
 
 ## Expression
@@ -53,13 +51,13 @@ number     → sign? NUMBER | NUMBER_WITH_RADIX ;
 ```
 
 ## Pattern Rules
-The grammar allows pattern-matching in function definitions instead of having built-in control flow.
+The grammar allows pattern-matching in function definitions instead of having built-in control flow. These rules define the allowed types of patterns.
 
 ```ebnf
-pattern    → "_" | function | domain;
-
-function   → IDENTIFIER ( "(" parameters ")" )? ;
-domain     → ( number comparator )? IDENTIFIER ( comparator number )?
+pattern  → function | range | identity ;
+function → name ( "(" parameters ")" )? ;
+range    → ( expression lesser )? name ( greater expression )? ;
+identity → expression | name equality expression | expression equality name ; 
 ```
 
 ## Utility Rules
@@ -69,8 +67,11 @@ To keep the above rules a little cleaner, some of the grammar is split out into 
 arguments  → expression ( "," expression )* ;
 parameters → pattern ( "," pattern )* ;
 
-sign       → "+" | "-" ;
-comparator → "<" | ">" | "=" | "<>" | "<=" | ">=" ;
+name     → "_" | IDENTIFIER ;
+sign     → "+" | "-" ;
+equality → "=" | "<>" ;
+lesser   → "<" | "<=" ;
+greater  → ">" | ">=" ;
 ```
 
 # Lexical Grammar
