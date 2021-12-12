@@ -13,6 +13,11 @@ pub enum LexicalError {
     #[error("An identifier was found ending with an underscore .")]
     TerminalUnderscore,
     #[error(
+        "Radix of 0 is not supported; radix must be between 1 through {} (inclusive).",
+        crate::grammar::MAX_RADIX
+    )]
+    ZeroRadix,
+    #[error(
         "Radix of {0} is too large; maximum supported is {}.",
         crate::grammar::MAX_RADIX
     )]

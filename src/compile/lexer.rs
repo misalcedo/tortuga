@@ -66,6 +66,10 @@ fn scan_number<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
     }
 
     let radix = match radix_lexeme.map(|r| r.parse::<u32>()) {
+        Some(Ok(0)) => {
+            errors.push(LexicalError::ZeroRadix);
+            DECIMAL_RADIX
+        } 
         Some(Ok(value)) if value > MAX_RADIX => {
             errors.push(LexicalError::RadixTooLarge(value));
             MAX_RADIX
@@ -291,6 +295,21 @@ mod tests {
                 Some(Kind::Number),
                 Lexeme::new("1.2.", Location::default()),
                 vec![LexicalError::DuplicateDecimal]
+            ))
+        );
+    }
+
+    #[test]
+    fn lex_number_radix_zero() {
+        let mut scanner = "0#1.".into();
+        let mut lexer = Lexer::new(&mut scanner);
+
+        assert_eq!(
+            lexer.next(),
+            Some(Token::new_invalid(
+                Some(Kind::Number),
+                Lexeme::new("0#1.", Location::default()),
+                vec![LexicalError::ZeroRadix]
             ))
         );
     }
