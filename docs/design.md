@@ -17,30 +17,60 @@ The following are a set of design decisions for Tortuga roughly separated into c
 - Low-level (i.e., systems) programming.
 - Object-Oriented Programming.
 
-# Grammar
-The grammar for tortuga is defined using the following rules:
+# Syntax Grammar
+The syntactic grammar of `Tortuga` is used to parse a linear sequence of tokens into a nested syntax tree structure. The root of the grammar matches an entire `Tortuga` program (or a single entry in the interpreter).
 
+```ebnf
+program → declaration* EOF;
 ```
-program -> declaration* EOF;
 
-declaration -> functionDefinition | expression;
+## Declarations
+A `program` is a series of `declaration`s, which are the expressions that bind function declarations, perform arithmatic operations, etc.
 
-functionDefinition -> IDENTIFIER parameters "=" expression;
-parameters = "(" (pattern ("," pattern)*)? ")";
+```ebnf
+declaration → functionDefinition | expression ;
 
-expression -> block | comparison;
-block -> "[" comparison+ "]";
-comparison -> term ( comparisonOperator term )*;
-term -> factor ( ( "+" | "-" ) factor )*;
-factor -> exponent ( ( "*" | "/" ) exponent )*;
-exponent -> primary ( "^" primary )*;
-primary -> number | record | IDENTIFIER | "(" expression ")";
+functionDefinition → IDENTIFIER "(" parameters? ")" "=" block ;
+```
 
-number -> sign? NUMBER;
-record -> "{" (primary ("," primary)*)? "}";
+## Expression
+Expressions produce values. `Tortuga` has a number of binary operators with different levels of precedence. Some grammars for languages do not directly encode the precedence relationships and specify that elsewhere. Here, we use a separate rule for each precedence level to make it explicit.
 
-comparisonOperator = "<" | ">" | "=" | "<" ">" | "<" "=" | ">" "=" | "<" "=" ">";
-sign -> "+" | "-";
+```ebnf
+block → expression | "[" expression expression+ "]" ;
+expression → comparison ;
+
+comparison → term ( comparisonOperator term )* ;
+term → factor ( ( "+" | "-" ) factor )* ;
+factor → exponent ( ( "*" | "/" ) exponent )* ;
+exponent → primary ( "^" primary )* ;
+primary → number | record | IDENTIFIER | "(" expression ")" ;
+```
+
+## Utility Rules
+To keep the above rules a little cleaner, some of the grammar is split out into a few reused helper rules.
+
+```ebnf
+parameters → (pattern ( "," pattern )*)? ;
+arguments → expression ( "," expression )* ;
+
+number → sign? NUMBER | RADIX ;
+record → "{" ( primary ( "," primary )* )? "}" ;
+
+comparisonOperator → "<" | ">" | "=" | "<>" | "<=" | ">=" | "<=>" ;
+sign → "+" | "-" ;
+```
+# Lexical Grammar
+The lexical grammar is used by the scanner to group characters into tokens. Where the syntax is [context free](https://en.wikipedia.org/wiki/Context-free_grammar), the lexical grammar is [regular](https://en.wikipedia.org/wiki/Regular_grammar) -- note that there are no recursive rules.
+
+```ebnf
+NUMBER         → DIGIT+ ( "." DIGIT+ )? ;
+RADIX          → DIGIT+ "#" ( "+" | "-" )? ALPHA_DIGIT+ ;
+IDENTIFIER     → TODO ;
+
+ALPHA_DIGIT    → ALPHA | DIGIT ;
+ALPHA          → "a" ... "z" | "A" ... "Z" ;
+DIGIT          → "0" ... "9" ;
 ```
 
 ### Notes
