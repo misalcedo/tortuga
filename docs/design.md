@@ -74,9 +74,9 @@ comparisonOperator → "<" | ">" | "=" | "<>" | "<=" | ">=" ;
 The lexical grammar is used during lexical analysis to group characters into tokens. Where the syntax is [context free](https://en.wikipedia.org/wiki/Context-free_grammar), the lexical grammar is [regular](https://en.wikipedia.org/wiki/Regular_grammar) -- note that there are no recursive rules.
 
 ```ebnf
-NUMBER                  → DIGIT+ ( "." DIGIT+ )? ;
-NUMBER_WITH_RADIX       → DIGIT+ "#" ( "+" | "-" )? ALPHA_DIGIT+ ;
-IDENTIFIER              → \{alphabetic} ( \{alphanumeric}* | ( "_" | \{alphanumeric} )+  \{alphanumeric}* ) ;
+NUMBER                  → DECIMAL ;
+NUMBER_WITH_RADIX       → DIGIT+ "#" ( "+" | "-" )? BASE36 ;
+IDENTIFIER              → \{alphabetic} ( ( "_" | \{alphanumeric} )*  \{alphanumeric} )? ;
 
 BASE36                  → DIGIT36+ ( "." DIGIT36* )? | "." DIGIT36+ ;
 DECIMAL                 → DIGIT+ ( "." DIGIT* )? | "." DIGIT+ ;
