@@ -41,10 +41,11 @@ block → expression | "[" expression expression+ "]" ;
 expression → comparison ;
 
 comparison → term ( comparisonOperator term )* ;
-term → factor ( ( "+" | "-" ) factor )* ;
+term → factor ( sign factor )* ;
 factor → exponent ( ( "*" | "/" ) exponent )* ;
 exponent → primary ( "^" primary )* ;
-primary → number | record | IDENTIFIER | "(" expression ")" ;
+call → IDENTIFIER "(" arguments ")" ;
+primary → number | IDENTIFIER | "(" expression ")" ;
 ```
 
 ## Utility Rules
@@ -54,21 +55,22 @@ To keep the above rules a little cleaner, some of the grammar is split out into 
 parameters → (pattern ( "," pattern )*)? ;
 arguments → expression ( "," expression )* ;
 
-number → sign? NUMBER | RADIX ;
-record → "{" ( primary ( "," primary )* )? "}" ;
+number → sign? NUMBER | NUMBER36 ;
 
 comparisonOperator → "<" | ">" | "=" | "<>" | "<=" | ">=" | "<=>" ;
 sign → "+" | "-" ;
 ```
 # Lexical Grammar
-The lexical grammar is used by the scanner to group characters into tokens. Where the syntax is [context free](https://en.wikipedia.org/wiki/Context-free_grammar), the lexical grammar is [regular](https://en.wikipedia.org/wiki/Regular_grammar) -- note that there are no recursive rules.
+The lexical grammar is used during lexical analysis to group characters into tokens. Where the syntax is [context free](https://en.wikipedia.org/wiki/Context-free_grammar), the lexical grammar is [regular](https://en.wikipedia.org/wiki/Regular_grammar) -- note that there are no recursive rules.
 
 ```ebnf
 NUMBER         → DIGIT+ ( "." DIGIT+ )? ;
-RADIX          → DIGIT+ "#" ( "+" | "-" )? ALPHA_DIGIT+ ;
-IDENTIFIER     → TODO ;
+NUMBER36       → DIGIT+ "#" ( "+" | "-" )? ALPHA_DIGIT+ ;
+IDENTIFIER     → \{alphabetic} ( \{alphanumeric}* | ( "_" | \{alphanumeric} )+  \{alphanumeric}* ) ;
 
-ALPHA_DIGIT    → ALPHA | DIGIT ;
+BASE36         → DIGIT36+ ( "." DIGIT36* )? | "." DIGIT36+ ;
+DECIMAL        → DIGIT+ ( "." DIGIT* )? | "." DIGIT+ ;
+DIGIT36        → ALPHA | DIGIT ;
 ALPHA          → "a" ... "z" | "A" ... "Z" ;
 DIGIT          → "0" ... "9" ;
 ```
