@@ -27,6 +27,7 @@ radix      = _{ ASCII_DIGIT+ ~ "#" ~ SIGN? ~ base36 }
 base36     = _{ ASCII_ALPHANUMERIC+ ~ ( "." ~ ASCII_ALPHANUMERIC* )? | ( "." ~ ASCII_ALPHANUMERIC+ ) }
 decimal    = _{ ASCII_DIGIT+ ~ ( "." ~ ASCII_DIGIT* )? | ( "." ~ ASCII_DIGIT+ ) }
 
+WHITESPACE = { SPACE_SEPARATOR | NEWLINE }
 SIGN       = _{ "+" | "-" }
 PRODUCT    = _{ "*" | "/" }
 LESSER     = _{ "<" | "<=" }
