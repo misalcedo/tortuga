@@ -22,7 +22,7 @@ power      → primary ( "^" primary )* ;
 
 primary    → number | call | "(" expression ")" ;
 call       → IDENTIFIER ( "(" arguments ")" )? ;
-number     → sign? NUMBER | NUMBER_WITH_RADIX ;
+number     → ( sign? NUMBER ) | NUMBER_WITH_RADIX ;
 ```
 
 ## Pattern Rules
