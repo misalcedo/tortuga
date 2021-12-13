@@ -2,18 +2,17 @@
 
 mod errors;
 mod lexer;
-mod location;
 mod parser;
 mod scanner;
 mod stream;
 mod token;
 
-pub use errors::{LexicalError, ParseError, SyntaxError};
+pub use errors::*;
 pub use lexer::Lexer;
-pub use location::Location;
 pub use parser::Parser;
 pub use scanner::Scanner;
-pub use token::{InvalidToken, Kind, ValidToken};
+pub use stream::TokenStream;
+pub use token::*;
 
 /// Parses a given string into an abstract syntax tree.
 ///

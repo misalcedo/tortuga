@@ -1,6 +1,6 @@
 //! Compiler errors.
 
-use crate::compile::token::{InvalidToken, Kind, ValidToken};
+use crate::compile::{InvalidToken, Kind, ValidToken};
 use thiserror::Error;
 
 /// An error that occurred during lexical analysis while validating a lexem.

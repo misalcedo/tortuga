@@ -1,8 +1,8 @@
 //! Parser from a stream of tokens into a syntax tree for the Tortuga language.
 
-use crate::compile::errors::{ParseError, SyntaxError};
-use crate::compile::stream::TokenStream;
-use crate::compile::token::{Attachment, Kind, LexicalToken, Token, ValidToken};
+use crate::compile::{
+    Attachment, Kind, LexicalToken, ParseError, SyntaxError, Token, TokenStream, ValidToken,
+};
 use crate::grammar::{
     BinaryOperation, Block, ComparisonOperation, ComparisonOperator, Expression, Grouping,
     Operator, Program, Variable,
@@ -306,7 +306,7 @@ impl<'source, I: Iterator<Item = Token<'source>>> Parser<'source, I> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::compile::lexer::Lexer;
+    use crate::compile::Lexer;
     use crate::grammar::Number;
     use test_log::test;
 

@@ -3,8 +3,7 @@
 //! Also, transforms the infallible iterator into a fallible one.
 //! That allows the parser to treat `InvalidToken`s as errors.
 
-use crate::compile::errors::SyntaxError;
-use crate::compile::token::{Kind, Token, ValidToken};
+use crate::compile::{Kind, SyntaxError, Token, ValidToken};
 use std::iter::Peekable;
 
 /// A stream of `Token`s to be consumed by the `Parser`.
@@ -116,9 +115,7 @@ impl<'source, I: Iterator<Item = Token<'source>>> TokenStream<'source, I> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::compile::errors::LexicalError;
-    use crate::compile::location::Location;
-    use crate::compile::token::{Attachment, InvalidToken, Lexeme};
+    use crate::compile::{Attachment, InvalidToken, Lexeme, LexicalError, Location};
     use crate::grammar::Number;
 
     #[test]
