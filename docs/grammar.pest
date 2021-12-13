@@ -6,7 +6,7 @@ block      = { expression | ( "[" ~ expression ~ expression+ ~ "]" ) }
 
 modulo     = { sum ~ ( "%" ~ sum )* }
 sum        = { product ~ ( SIGN ~ product )* }
-product    = { power ~ ( ( PRODUCT ) ~ power )* }
+product    = { power ~ ( PRODUCT ~ power )* }
 power      = { primary ~ ( "^" ~ primary )* }
 
 primary    = { number | "(" ~ expression ~ ")" }
