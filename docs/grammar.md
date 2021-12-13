@@ -15,10 +15,10 @@ expression → modulo | assignment ;
 assignment → function "=" block ;
 block      → expression | "[" expression expression+ "]" ;
 
-modulo     → term ( "%" term )* ;
-term       → factor ( sign factor )* ;
-factor     → exponent ( ( "*" | "/" ) exponent )* ;
-exponent   → primary ( "^" primary )* ;
+modulo     → sum ( "%" sum )* ;
+sum        → product ( sign product )* ;
+product    → power ( ( "*" | "/" ) power )* ;
+power      → primary ( "^" primary )* ;
 
 primary    → number | call | "(" expression ")" ;
 call       → IDENTIFIER ( "(" arguments ")" )? ;

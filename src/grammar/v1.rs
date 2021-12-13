@@ -11,22 +11,22 @@ pub enum Expression {
     Assignment(Box<Assignment>),
 }
 
-/// modulo     → term ( "%" term )* ;
+/// modulo     → Sum ( "%" Sum )* ;
 pub struct Modulo {
-    first: Term,
-    rest: Vec<Term>,
+    first: Sum,
+    rest: Vec<Sum>,
 }
 
-/// term       → factor ( sign factor )* ;
-pub struct Term {
-    first: Factor,
-    rest: Vec<(Sign, Factor)>,
+/// sum       → product ( sign product )* ;
+pub struct Sum {
+    first: Product,
+    rest: Vec<(Sign, Product)>,
 }
 
-/// factor     → exponent ( ( "*" | "/" ) exponent )* ;
-pub struct Factor {
-    first: Exponent,
-    rest: Vec<(FactorOperation, Exponent)>,
+/// product     → power ( ( "*" | "/" ) power )* ;
+pub struct Product {
+    first: Power,
+    rest: Vec<(FactorOperation, Power)>,
 }
 
 pub enum FactorOperation {
@@ -34,8 +34,8 @@ pub enum FactorOperation {
     Divide,
 }
 
-/// exponent   → primary ( "^" primary )* ;
-pub struct Exponent {
+/// power   → primary ( "^" primary )* ;
+pub struct Power {
     first: Primary,
     rest: Vec<Primary>,
 }
