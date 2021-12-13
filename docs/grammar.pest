@@ -10,8 +10,8 @@ product    = { power ~ ( ( PRODUCT ) ~ power )* }
 power      = { primary ~ ( "^" ~ primary )* }
 
 primary    = { number | "(" ~ expression ~ ")" }
-call       = { identifier ~ ( "(" ~ arguments ~ ")" )? }
-number     = { (SIGN? ~ decimal) | radix }
+call       = { IDENTIFIER ~ ( "(" ~ arguments ~ ")" )? }
+number     = { (SIGN? ~ DECIMAL) | RADIX }
 
 arguments  = { expression ~ ( "," ~ expression )* }
 parameters = { pattern ~ ( "," ~ pattern )* }
@@ -21,11 +21,11 @@ function   = { name ~ ( "(" ~ parameters ~ ")" )? }
 range      = { ( expression ~ LESSER )? ~ name ~ ( GREATER ~ expression )? }
 identity   = { expression | ( name ~ EQUALITY ~ expression ) | ( expression ~ EQUALITY ~ name ) }
 
-name       = { "_" | identifier }
-identifier = _{ LETTER ~ ( ( "_" | LETTER | NUMBER )*  ~ ( LETTER | NUMBER ) )? }
-radix      = _{ ASCII_DIGIT+ ~ "#" ~ SIGN? ~ base36 }
-base36     = _{ ASCII_ALPHANUMERIC+ ~ ( "." ~ ASCII_ALPHANUMERIC* )? | ( "." ~ ASCII_ALPHANUMERIC+ ) }
-decimal    = _{ ASCII_DIGIT+ ~ ( "." ~ ASCII_DIGIT* )? | ( "." ~ ASCII_DIGIT+ ) }
+name       = { "_" | IDENTIFIER }
+IDENTIFIER = _{ LETTER ~ ( ( "_" | LETTER | NUMBER )*  ~ ( LETTER | NUMBER ) )? }
+RADIX      = _{ ASCII_DIGIT+ ~ "#" ~ SIGN? ~ BASE36 }
+BASE36     = _{ ASCII_ALPHANUMERIC+ ~ ( "." ~ ASCII_ALPHANUMERIC* )? | ( "." ~ ASCII_ALPHANUMERIC+ ) }
+DECIMAL    = _{ ASCII_DIGIT+ ~ ( "." ~ ASCII_DIGIT* )? | ( "." ~ ASCII_DIGIT+ ) }
 
 WHITESPACE = { SPACE_SEPARATOR | NEWLINE }
 SIGN       = _{ "+" | "-" }
