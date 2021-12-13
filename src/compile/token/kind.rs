@@ -29,11 +29,12 @@ pub enum Kind {
 
     // Punctuation
     Comma,
+    Underscore,
 
     // Literals
     Identifier,
-    Underscore,
     Number,
+    NumberWithRadix,
 }
 
 impl fmt::Display for Kind {

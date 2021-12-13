@@ -9,6 +9,7 @@ use crate::grammar::Number;
 #[derive(Debug, PartialEq)]
 pub enum Attachment {
     Number(Number),
+    NumberWithRadix(u32, Number),
     Empty(Kind),
 }
 
@@ -16,6 +17,7 @@ impl From<&Attachment> for Kind {
     fn from(attachment: &Attachment) -> Self {
         match attachment {
             Attachment::Number(..) => Kind::Number,
+            Attachment::NumberWithRadix(..) => Kind::NumberWithRadix,
             Attachment::Empty(kind) => *kind,
         }
     }
