@@ -31,7 +31,7 @@ impl Interpreter {
                 Ok(Value::Variable(variable)) => {
                     error!("{}", RuntimeError::UndefinedVariableUsed(variable))
                 }
-                Ok(value) => println!("{}", value),
+                Ok(value) => println!("=> {}", value),
                 Err(error) => error!("{}", error),
             }
         }

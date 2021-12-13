@@ -35,9 +35,9 @@ use crate::grammar::Program;
 /// );
 /// ```
 pub fn parse(source: &str) -> Result<Program, ParseError> {
-    let mut scanner = Scanner::from(source);
-    let lexer = Lexer::new(&mut scanner);
-    let parser = Parser::new(lexer);
+    let scanner = Scanner::from(source);
+    let lexer = Lexer::from(scanner);
+    let parser = Parser::from(lexer);
 
     parser.parse()
 }

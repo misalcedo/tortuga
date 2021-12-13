@@ -9,7 +9,7 @@ use crate::grammar::{
 };
 use crate::grammar::{Number, Sign};
 use std::iter::{IntoIterator, Iterator};
-use tracing::{debug, error};
+use tracing::{debug, info};
 
 const BLOCK_END_TOKEN_KINDS: [Kind; 1] = [Kind::RightBracket];
 const COMPARISON_TOKEN_KINDS: [Kind; 3] = [Kind::LessThan, Kind::GreaterThan, Kind::Equals];
@@ -237,14 +237,19 @@ pub struct Parser<'source, I: Iterator<Item = Token<'source>>> {
     tokens: TokenStream<'source, I>,
 }
 
-impl<'source, I: Iterator<Item = Token<'source>>> Parser<'source, I> {
-    /// Creates a new `Parser`.
-    pub fn new<T: IntoIterator<IntoIter = I>>(tokens: T) -> Parser<'source, I> {
+impl<'source, I, II> From<II> for Parser<'source, I>
+where
+    I: Iterator<Item = Token<'source>>,
+    II: IntoIterator<IntoIter = I>,
+{
+    fn from(tokens: II) -> Parser<'source, I> {
         Parser {
             tokens: TokenStream::from(tokens.into_iter()),
         }
     }
+}
 
+impl<'source, I: Iterator<Item = Token<'source>>> Parser<'source, I> {
     /// Parses the stream of tokens into a syntax tree.
     pub fn parse(mut self) -> Result<Program, ParseError> {
         let mut errors: Vec<SyntaxError> = Vec::new();
@@ -267,7 +272,7 @@ impl<'source, I: Iterator<Item = Token<'source>>> Parser<'source, I> {
             Ok(Program::from(expressions))
         } else {
             for error in errors.as_slice() {
-                error!("{}", error);
+                info!("{}", error);
             }
 
             if let Some(SyntaxError::IncompleteRule(..)) = errors.last() {
@@ -312,14 +317,14 @@ mod tests {
 
     #[test]
     fn parse_number_double_sign() {
-        let parser = Parser::new(lex_tokens("-2#+01"));
+        let parser = Parser::from(lex_tokens("-2#+01"));
 
         assert_eq!(parser.parse(), Err(ParseError::MultipleErrors));
     }
 
     #[test]
     fn parse_signed_number() {
-        let parser = Parser::new(lex_tokens("-1"));
+        let parser = Parser::from(lex_tokens("-1"));
 
         assert_eq!(
             parser.parse().unwrap(),
@@ -332,14 +337,14 @@ mod tests {
 
     #[test]
     fn parse_radix_number_badly_signed() {
-        let parser = Parser::new(lex_tokens("-2#01"));
+        let parser = Parser::from(lex_tokens("-2#01"));
 
         assert_eq!(parser.parse(), Err(ParseError::MultipleErrors));
     }
 
     #[test]
     fn parse_radix_number_signed() {
-        let parser = Parser::new(lex_tokens("2#+01"));
+        let parser = Parser::from(lex_tokens("2#+01"));
 
         assert_eq!(
             parser.parse(),
@@ -353,7 +358,7 @@ mod tests {
 
     #[test]
     fn parse_radix_number_unsigned() {
-        let parser = Parser::new(lex_tokens("2#01"));
+        let parser = Parser::from(lex_tokens("2#01"));
 
         assert_eq!(
             parser.parse().unwrap(),
@@ -366,21 +371,21 @@ mod tests {
 
     #[test]
     fn parse_radix_number_invalid() {
-        let parser = Parser::new(lex_tokens("2#FF"));
+        let parser = Parser::from(lex_tokens("2#FF"));
 
         assert_eq!(parser.parse(), Err(ParseError::MultipleErrors));
     }
 
     #[test]
     fn parse_block_when_empty() {
-        let parser = Parser::new(lex_tokens("[]"));
+        let parser = Parser::from(lex_tokens("[]"));
 
         assert_eq!(parser.parse(), Err(ParseError::MultipleErrors));
     }
 
     #[test]
     fn parse_block() {
-        let parser = Parser::new(lex_tokens("[2]"));
+        let parser = Parser::from(lex_tokens("[2]"));
 
         assert_eq!(
             parser.parse().unwrap(),
@@ -390,7 +395,7 @@ mod tests {
 
     #[test]
     fn parse_equals_expression() {
-        let parser = Parser::new(lex_tokens("x=2#-01"));
+        let parser = Parser::from(lex_tokens("x=2#-01"));
 
         assert_eq!(
             parser.parse().unwrap(),
@@ -406,7 +411,7 @@ mod tests {
 
     #[test]
     fn parse_math_expression() {
-        let parser = Parser::new(lex_tokens("(2^3+5-10)*3/9"));
+        let parser = Parser::from(lex_tokens("(2^3+5-10)*3/9"));
         let exponent = BinaryOperation::new(
             Number::new_integer(2).into(),
             Operator::Exponent,
@@ -431,6 +436,6 @@ mod tests {
     }
 
     fn lex_tokens<'source>(source: &'source str) -> Vec<Token<'source>> {
-        Lexer::new(&mut source.into()).collect()
+        Lexer::from(source).collect()
     }
 }

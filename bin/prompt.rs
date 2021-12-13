@@ -7,22 +7,19 @@ use rustyline::hint::Hinter;
 use rustyline::line_buffer::LineBuffer;
 use rustyline::validate::{ValidationContext, ValidationResult, Validator};
 use rustyline::{error::ReadlineError, Editor, Helper};
-use std::io::Write;
-use tortuga::{
-    about, parse, Interpreter, Lexer, Location, ParseError, Parser, Scanner, TortugaError,
-};
+use tortuga::{about, parse, Interpreter, Lexer, ParseError, Parser, TortugaError};
 use tracing::error;
 
 struct PromptHelper;
 
 /// The prompt used to communicate with a user.
 pub struct Prompt {
+    line: usize,
     editor: Editor<PromptHelper>,
 }
 
-impl Prompt {
-    /// Create an instance of a `Prompt`.
-    pub fn new() -> Self {
+impl Default for Prompt {
+    fn default() -> Self {
         let config = Config::builder()
             .auto_add_history(true)
             .tab_stop(2)
@@ -32,15 +29,20 @@ impl Prompt {
 
         editor.set_helper(Some(PromptHelper));
 
-        Prompt { editor }
+        Prompt { line: 1, editor }
     }
+}
 
+impl Prompt {
     /// Read input from the user via a terminal prompt.
-    pub fn prompt(&mut self, line: usize) -> Result<Option<String>, TortugaError> {
-        let prompt = format!("{:03}> ", line);
+    pub fn prompt(&mut self) -> Result<Option<String>, TortugaError> {
+        let prompt = format!("{}:{:03}> ", about::PROGRAM, self.line);
 
         match self.editor.readline(prompt.as_str()) {
-            Ok(line) => Ok(Some(line)),
+            Ok(input) => {
+                self.line += input.trim().lines().count();
+                Ok(Some(input))
+            }
             Err(ReadlineError::Interrupted) => Ok(None),
             Err(ReadlineError::Eof) => Ok(None),
             Err(error) => Err(TortugaError::PromptError(Box::new(error))),
@@ -83,27 +85,21 @@ impl Validator for PromptHelper {
 
 /// Runs the read-evaluate-print loop.
 pub fn run_prompt() -> Result<(), TortugaError> {
-    let mut user = Prompt::new();
-    let mut start = Location::default();
+    let mut user = Prompt::default();
     let mut interpreter = Interpreter::default();
 
-    writeln!(std::io::stdout(), "{} {}\n", about::PROGRAM, about::VERSION)?;
-
     loop {
-        match user.prompt(start.line())? {
+        match user.prompt()? {
             None => return Ok(()),
-            Some(line) if line.trim().is_empty() => continue,
-            Some(line) => {
-                let mut scanner = Scanner::continue_from(start, line.as_str());
-                let lexer = Lexer::new(&mut scanner);
-                let parser = Parser::new(lexer);
+            Some(input) if input.trim().is_empty() => continue,
+            Some(input) => {
+                let lexer = Lexer::from(input.as_str());
+                let parser = Parser::from(lexer);
 
                 match parser.parse() {
                     Ok(program) => interpreter.interpret(&program),
                     Err(error) => error!("{}", error),
                 };
-
-                start = scanner.consume().unwrap_or_default();
             }
         }
     }

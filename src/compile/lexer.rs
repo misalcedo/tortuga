@@ -7,11 +7,8 @@ use crate::grammar::{Fraction, Number, Sign, DECIMAL_RADIX, MAX_RADIX};
 
 /// Performs Lexical Analysis for the tortuga language.
 #[derive(Debug)]
-pub struct Lexer<'scanner, 'source>
-where
-    'source: 'scanner,
-{
-    scanner: &'scanner mut Scanner<'source>,
+pub struct Lexer<'source> {
+    scanner: Scanner<'source>,
 }
 
 /// Scans for digits in the given radix.
@@ -145,12 +142,15 @@ fn scan_identifier<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
     Token::new(Attachment::Empty(Kind::Identifier), lexeme, errors)
 }
 
-impl<'scanner, 'source> Lexer<'scanner, 'source> {
-    /// Creates a new `Lexer` for the given source code.
-    pub fn new(scanner: &'scanner mut Scanner<'source>) -> Lexer<'scanner, 'source> {
-        Lexer { scanner }
+impl<'source, I: Into<Scanner<'source>>> From<I> for Lexer<'source> {
+    fn from(scanner: I) -> Lexer<'source> {
+        Lexer {
+            scanner: scanner.into(),
+        }
     }
+}
 
+impl<'source> Lexer<'source> {
     /// Creates a new token for single character lexemes.
     fn new_short_token<T: Into<Attachment>>(&mut self, attachment: T) -> Option<Token<'source>> {
         self.scanner.next();
@@ -180,7 +180,7 @@ impl<'scanner, 'source> Lexer<'scanner, 'source> {
             '{' => self.new_short_token(Kind::LeftBrace),
             '}' => self.new_short_token(Kind::RightBrace),
             ',' => self.new_short_token(Kind::Comma),
-            c if c.is_alphabetic() => Some(scan_identifier(self.scanner)),
+            c if c.is_alphabetic() => Some(scan_identifier(&mut self.scanner)),
             c if c.is_ascii_digit() || c == '.' => Some(scan_number(&mut self.scanner)),
             _ => {
                 while self
@@ -200,7 +200,7 @@ impl<'scanner, 'source> Lexer<'scanner, 'source> {
 }
 
 // Implement `Iterator` of `Token`s for `Scanner`.
-impl<'scanner, 'source> Iterator for Lexer<'scanner, 'source> {
+impl<'source> Iterator for Lexer<'source> {
     // We can refer to this type using Self::Item
     type Item = Token<'source>;
 
@@ -217,8 +217,7 @@ mod tests {
 
     #[test]
     fn lex_number() {
-        let mut scanner = "+1".into();
-        let mut lexer = Lexer::new(&mut scanner);
+        let mut lexer = Lexer::from("+1");
 
         assert_eq!(
             lexer.next(),
@@ -238,8 +237,7 @@ mod tests {
 
     #[test]
     fn lex_binary_number() {
-        let mut scanner = "2#-011.01".into();
-        let mut lexer = Lexer::new(&mut scanner);
+        let mut lexer = Lexer::from("2#-011.01");
 
         assert_eq!(
             lexer.next(),
@@ -252,8 +250,7 @@ mod tests {
 
     #[test]
     fn lex_hex_number() {
-        let mut scanner = "16#FFFFFF".into();
-        let mut lexer = Lexer::new(&mut scanner);
+        let mut lexer = Lexer::from("16#FFFFFF");
         let mut number = Number::new_integer(16777215);
 
         number.set_sign(Sign::default());
@@ -269,8 +266,7 @@ mod tests {
 
     #[test]
     fn lex_empty_number() {
-        let mut scanner = ".".into();
-        let mut lexer = Lexer::new(&mut scanner);
+        let mut lexer = Lexer::from(".");
 
         assert_eq!(
             lexer.next(),
@@ -284,8 +280,7 @@ mod tests {
 
     #[test]
     fn lex_number_trailing_dot() {
-        let mut scanner = "1.2.".into();
-        let mut lexer = Lexer::new(&mut scanner);
+        let mut lexer = Lexer::from("1.2.");
 
         assert_eq!(
             lexer.next(),
@@ -299,8 +294,7 @@ mod tests {
 
     #[test]
     fn lex_number_radix_zero() {
-        let mut scanner = "0#1.".into();
-        let mut lexer = Lexer::new(&mut scanner);
+        let mut lexer = Lexer::from("0#1.");
 
         assert_eq!(
             lexer.next(),
@@ -314,8 +308,7 @@ mod tests {
 
     #[test]
     fn lex_number_radix_too_large() {
-        let mut scanner = "256#1.".into();
-        let mut lexer = Lexer::new(&mut scanner);
+        let mut lexer = Lexer::from("256#1.");
 
         assert_eq!(
             lexer.next(),
@@ -329,8 +322,7 @@ mod tests {
 
     #[test]
     fn lex_number_invalid_radix() {
-        let mut scanner = "222222222222222222222222222222222222222222#1.".into();
-        let mut lexer = Lexer::new(&mut scanner);
+        let mut lexer = Lexer::from("222222222222222222222222222222222222222222#1.");
 
         assert_eq!(
             lexer.next(),
@@ -351,8 +343,7 @@ mod tests {
 
     #[test]
     fn lex_number_invalid_integer() {
-        let mut scanner = "10#FF".into();
-        let mut lexer = Lexer::new(&mut scanner);
+        let mut lexer = Lexer::from("10#FF");
 
         assert_eq!(
             lexer.next(),
@@ -368,8 +359,7 @@ mod tests {
 
     #[test]
     fn lex_number_invalid_fraction() {
-        let mut scanner = ".FF".into();
-        let mut lexer = Lexer::new(&mut scanner);
+        let mut lexer = Lexer::from(".FF");
 
         assert_eq!(
             lexer.next(),
@@ -385,8 +375,7 @@ mod tests {
 
     #[test]
     fn lex_invalid_identifier() {
-        let mut scanner = "x_".into();
-        let mut lexer = Lexer::new(&mut scanner);
+        let mut lexer = Lexer::from("x_");
 
         assert_eq!(
             lexer.next(),
@@ -400,8 +389,7 @@ mod tests {
 
     #[test]
     fn lex_identifier() {
-        let mut scanner = "x_1".into();
-        let mut lexer = Lexer::new(&mut scanner);
+        let mut lexer = Lexer::from("x_1");
 
         assert_eq!(
             lexer.next(),
@@ -414,8 +402,7 @@ mod tests {
 
     #[test]
     fn lex_expression_with_no_space() {
-        let mut scanner = "1x".into();
-        let mut lexer = Lexer::new(&mut scanner);
+        let mut lexer = Lexer::from("1x");
 
         assert_eq!(
             lexer.next(),
@@ -435,8 +422,7 @@ mod tests {
 
     #[test]
     fn lex_expression_simple() {
-        let mut scanner = "x = 1".into();
-        let mut lexer = Lexer::new(&mut scanner);
+        let mut lexer = Lexer::from("x = 1");
 
         assert_eq!(
             lexer.next(),
@@ -467,8 +453,7 @@ mod tests {
 
     #[test]
     fn lex_expression_math() {
-        let mut scanner = "1+1".into();
-        let mut lexer = Lexer::new(&mut scanner);
+        let mut lexer = Lexer::from("1+1");
 
         assert_eq!(
             lexer.next(),
