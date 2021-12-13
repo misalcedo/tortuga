@@ -81,7 +81,7 @@ pub struct Block {
 /// function → name ( "(" parameters ")" )? ;
 pub struct Function {
     name: Name,
-    parameters: Option<Parameters>
+    parameters: Option<Box<Parameters>>
 }
 
 /// name     → "_" | IDENTIFIER ;
@@ -103,7 +103,7 @@ pub struct Parameters {
 
 /// pattern  → function | range | identity ;
 pub enum Pattern {
-    Function(Box<Function>),
+    Function(Function),
     Range(Range),
     Identity(Identity)
 }
