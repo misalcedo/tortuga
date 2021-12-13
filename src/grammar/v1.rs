@@ -7,13 +7,14 @@ pub struct Program {
 
 /// expression → modulo | assignment ;
 pub enum Expression {
-    Modulo(Modulo),
-    Assignment(Assignment)
+    Modulo(Box<Modulo>),
+    Assignment(Box<Assignment>)
 }
 
 /// modulo     → term ( "%" term )* ;
 pub struct Modulo {
-
+    first: Term,
+    rest: Vec<Term>
 }
 
 /// term       → factor ( sign factor )* ;
@@ -43,7 +44,7 @@ pub struct Exponent {
 pub enum Primary {
     Number(Number),
     Call(Call),
-    Grouping(Box<Expression>)
+    Grouping(Expression)
 }
 
 /// call       → IDENTIFIER ( "(" arguments ")" )? ;
@@ -72,7 +73,7 @@ pub struct Assignment {
 
 /// block      → expression | "[" expression expression+ "]" ;
 pub struct Block {
-    first: Box<Expression>,
+    first: Expression,
     rest: Vec<Expression>
 }
 
@@ -115,12 +116,12 @@ pub struct Range {
 }
 
 pub struct CompareLeft {
-    expression: Box<Expression>,
+    expression: Expression,
     comparison: Lesser
 }
 
 pub struct CompareRight {
-    expression: Box<Expression>,
+    expression: Expression,
     comparison: Greater,
 }
 
@@ -145,7 +146,7 @@ pub enum Greater {
 /// expression | name equality expression | expression equality name
 pub struct Identity {
     name: Option<Identifier>,
-    expression: Box<Expression>,
+    expression: Expression,
     equality: Equality,
 }
 
