@@ -17,11 +17,11 @@ arguments  = { expression ~ ( "," ~ expression )* }
 parameters = { pattern ~ ( "," ~ pattern )* }
 
 pattern    = { function | range | identity }
-function   = { name ~ ( "(" ~ parameters ~ ")" )? }
-range      = { ( expression ~ LESSER )? ~ name ~ ( GREATER ~ expression )? }
-identity   = { expression | ( name ~ EQUALITY ~ expression ) | ( expression ~ EQUALITY ~ name ) }
+function   = { NAME ~ ( "(" ~ parameters ~ ")" )? }
+range      = { ( expression ~ LESSER )? ~ NAME ~ ( GREATER ~ expression )? }
+identity   = { expression | ( NAME ~ EQUALITY ~ expression ) | ( expression ~ EQUALITY ~ NAME ) }
 
-name       = { "_" | IDENTIFIER }
+NAME       = _{ "_" | IDENTIFIER }
 IDENTIFIER = _{ LETTER ~ ( ( "_" | LETTER | NUMBER )*  ~ ( LETTER | NUMBER ) )? }
 RADIX      = _{ ASCII_DIGIT+ ~ "#" ~ SIGN? ~ BASE36 }
 BASE36     = _{ ASCII_ALPHANUMERIC+ ~ ( "." ~ ASCII_ALPHANUMERIC* )? | ( "." ~ ASCII_ALPHANUMERIC+ ) }
