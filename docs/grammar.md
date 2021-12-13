@@ -13,14 +13,14 @@ A program is a series of expressions. Expressions produce values. `Tortuga` has 
 ```ebnf
 expression → modulo | assignment ;
 assignment → function "=" block ;
-block      → expression | "[" expression expression+ "]" ;
+block      → expression | ( "[" expression expression+ "]" ) ;
 
 modulo     → sum ( "%" sum )* ;
 sum        → product ( sign product )* ;
 product    → power ( ( "*" | "/" ) power )* ;
 power      → primary ( "^" primary )* ;
 
-primary    → number | call | "(" expression ")" ;
+primary    → number | call | ( "(" expression ")" ) ;
 call       → IDENTIFIER ( "(" arguments ")" )? ;
 number     → ( sign? NUMBER ) | NUMBER_WITH_RADIX ;
 ```
