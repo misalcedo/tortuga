@@ -1,10 +1,10 @@
-This is the conmplete Extended Backus Normal Form (eBNF) grammar definition for Tortuga.
+This is the complete Extended Backus Normal Form (eBNF) grammar definition for Tortuga.
 
 # Syntax Grammar
 The syntactic grammar of `Tortuga` is used to parse a linear sequence of tokens into a nested syntax tree structure. The root of the grammar matches an entire `Tortuga` program (or a single entry in the interpreter).
 
 ```ebnf
-program → declaration* EOF ;
+program → expression* EOF ;
 ```
 
 ## Expression
@@ -13,14 +13,14 @@ A program is a series of expressions. Expressions produce values. `Tortuga` has 
 ```ebnf
 expression → modulo | assignment ;
 assignment → function "=" block ;
-block      → modulo | "[" assignment+ "]" ;
+block      → expression | "[" expression expression+ "]" ;
 
 modulo     → term ( "%" term )* ;
 term       → factor ( sign factor )* ;
 factor     → exponent ( ( "*" | "/" ) exponent )* ;
 exponent   → primary ( "^" primary )* ;
 
-primary    → number | variable | "(" expression ")" ;
+primary    → number | call | "(" expression ")" ;
 call       → IDENTIFIER ( "(" arguments ")" )? ;
 number     → sign? NUMBER | NUMBER_WITH_RADIX ;
 ```
