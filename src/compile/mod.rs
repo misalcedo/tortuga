@@ -10,8 +10,8 @@ mod token;
 pub use errors::*;
 pub use lexer::Lexer;
 pub use parser::Parser;
-pub use scanner::Scanner;
-pub use stream::TokenStream;
+pub(crate) use scanner::Scanner;
+pub(crate) use stream::TokenStream;
 pub use token::*;
 
 use crate::grammar::Program;
@@ -35,8 +35,7 @@ use crate::grammar::Program;
 /// );
 /// ```
 pub fn parse(source: &str) -> Result<Program, ParseError> {
-    let scanner = Scanner::from(source);
-    let lexer = Lexer::from(scanner);
+    let lexer = Lexer::from(source);
     let parser = Parser::from(lexer);
 
     parser.parse()

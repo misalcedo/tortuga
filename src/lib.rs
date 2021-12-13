@@ -7,7 +7,7 @@ pub mod grammar;
 mod interpret;
 
 pub use about::*;
-pub use compile::{parse, Lexer, LexicalError, Location, ParseError, Parser, Scanner};
+pub use compile::{parse, Lexer, LexicalError, Location, ParseError, Parser};
 pub use errors::TortugaError;
 
 pub use interpret::{run, Interpreter};
