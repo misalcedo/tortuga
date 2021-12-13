@@ -13,6 +13,7 @@ use tracing::{debug, info};
 
 const BLOCK_END_TOKEN_KINDS: [Kind; 1] = [Kind::RightBracket];
 const COMPARISON_TOKEN_KINDS: [Kind; 3] = [Kind::LessThan, Kind::GreaterThan, Kind::Equals];
+const MODULO_TOKEN_KINDS: [Kind; 1] = [Kind::Percent];
 const TERM_TOKEN_KINDS: [Kind; 2] = [Kind::Plus, Kind::Minus];
 const FACTOR_TOKEN_KINDS: [Kind; 2] = [Kind::Star, Kind::ForwardSlash];
 const EXPONENT_TOKEN_KINDS: [Kind; 1] = [Kind::Caret];
@@ -54,11 +55,11 @@ fn parse_block<'source, I: Iterator<Item = Token<'source>>>(
 fn parse_comparison<'source, I: Iterator<Item = Token<'source>>>(
     tokens: &mut TokenStream<'source, I>,
 ) -> Result<Expression, SyntaxError<'source>> {
-    let mut expression = parse_term(tokens)?;
+    let mut expression = parse_modulo(tokens)?;
 
     while tokens.next_matches_kind(&COMPARISON_TOKEN_KINDS) {
         let operator = parse_comparison_operator(tokens)?;
-        let right = parse_term(tokens)?;
+        let right = parse_modulo(tokens)?;
 
         expression = ComparisonOperation::new(expression, operator, right).into();
     }
@@ -90,6 +91,22 @@ fn parse_comparison_operator<'source, I: Iterator<Item = Token<'source>>>(
             COMPARISON_TOKEN_KINDS.to_vec(),
         )),
     }
+}
+
+/// Parse a modulo grammar rule.
+fn parse_modulo<'source, I: Iterator<Item = Token<'source>>>(
+    tokens: &mut TokenStream<'source, I>,
+) -> Result<Expression, SyntaxError<'source>> {
+    let mut expression = parse_term(tokens)?;
+
+    while tokens.next_matches_kind(&MODULO_TOKEN_KINDS) {
+        let operator = parse_operator(tokens, &MODULO_TOKEN_KINDS)?;
+        let right = parse_term(tokens)?;
+
+        expression = BinaryOperation::new(expression, operator, right).into();
+    }
+
+    Ok(expression)
 }
 
 /// Parse a term grammar rule (i.e., add and subtract).
@@ -153,6 +170,7 @@ fn parse_operator<'source, I: Iterator<Item = Token<'source>>>(
         Kind::Star => Ok(Operator::Multiply),
         Kind::ForwardSlash => Ok(Operator::Divide),
         Kind::Caret => Ok(Operator::Exponent),
+        Kind::Percent => Ok(Operator::Modulo),
         _ => Err(SyntaxError::NoMatchingRule(token, expected.to_vec())),
     }
 }

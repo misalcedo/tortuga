@@ -118,6 +118,7 @@ impl Interpreter {
             Operator::Multiply => Ok(Value::Number(left * right)),
             Operator::Divide => Ok(Value::Number(left / right)),
             Operator::Exponent => Ok(Value::Number(left.powf(right))),
+            Operator::Modulo => Ok(Value::Number(left % right)),
         }
     }
 

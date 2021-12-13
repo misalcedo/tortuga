@@ -180,6 +180,7 @@ pub enum Operator {
     Divide,
     Add,
     Subtract,
+    Modulo,
 }
 
 impl fmt::Display for Operator {
@@ -190,6 +191,7 @@ impl fmt::Display for Operator {
             Self::Divide => write!(f, "/"),
             Self::Add => write!(f, "+"),
             Self::Subtract => write!(f, "-"),
+            Self::Modulo => write!(f, "%"),
         }
     }
 }
