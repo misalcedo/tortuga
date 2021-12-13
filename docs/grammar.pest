@@ -16,10 +16,10 @@ number     = { RADIX | (SUM? ~ DECIMAL) }
 arguments  = { expression ~ ( "," ~ expression )* }
 parameters = { pattern ~ ( "," ~ pattern )* }
 
-pattern    = { function | range | identity }
+pattern    = { range | function | identity }
 function   = { NAME ~ ( "(" ~ parameters ~ ")" )? }
-range      = { ( expression ~ LESSER )? ~ NAME ~ ( GREATER ~ expression )? }
-identity   = { expression | ( NAME ~ EQUALITY ~ expression ) | ( expression ~ EQUALITY ~ NAME ) }
+range      = { ( expression ~ GREATER )? ~ NAME ~ ( LESSER ~ expression )? }
+identity   = { number | ( NAME ~ EQUALITY ~ expression ) | ( expression ~ EQUALITY ~ NAME ) }
 
 NAME       = _{ "_" | IDENTIFIER }
 
@@ -31,8 +31,8 @@ BASE36     = _{ ASCII_ALPHANUMERIC+ ~ ( "." ~ ASCII_ALPHANUMERIC* )? | ( "." ~ A
 
 SUM        = _{ "+" | "-" }
 PRODUCT    = _{ "*" | "/" }
-LESSER     = _{ "<" | "<=" }
-GREATER    = _{ ">" | ">=" }
+LESSER     = _{ "<=" | "<" }
+GREATER    = _{ ">=" | ">" }
 EQUALITY   = _{ "=" | "<>" }
 
 WHITESPACE = _{ SPACE_SEPARATOR | NEWLINE }
