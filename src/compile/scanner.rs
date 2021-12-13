@@ -40,27 +40,6 @@ impl<'source> From<&'source str> for Scanner<'source> {
 }
 
 impl<'source> Scanner<'source> {
-    /// Creates a new `Scanner` to scan the given source code starting at the given location.
-    /// The location is not used to skip content in the source, but can be used to scan a chunked source across multiple scanners.
-    pub fn continue_from(start: Location, source: &'source str) -> Self {
-        Scanner {
-            source,
-            start: start.continuation(),
-            end: start.continuation(),
-            cursor: source.chars().peekable(),
-        }
-    }
-
-    /// If the current `Scanner` has not fully scanned the source, returns None.
-    /// Otherwise, returns the end `Location` of this `Scanner`.
-    pub fn consume(mut self) -> Option<Location> {
-        if self.cursor.peek().is_some() {
-            return None;
-        }
-
-        Some(self.end)
-    }
-
     /// Skips comments until the end of the current line.
     fn skip_comment(&mut self) {
         while let Some(c) = self.cursor.next_if(|c| c != &'\n') {
@@ -154,22 +133,6 @@ impl<'source> Scanner<'source> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn continue_with_consumed() {
-        let mut scanner = Scanner::from("a");
-
-        scanner.next();
-        scanner = Scanner::continue_from(scanner.consume().unwrap(), "bc");
-
-        assert_eq!(scanner.next(), Some('b'));
-        assert_eq!(scanner.lexeme(), Lexeme::new("b", Location::new(1, 2, 0)));
-    }
-
-    #[test]
-    fn continue_with_unfinished() {
-        assert_eq!(Scanner::from("a").consume(), None);
-    }
 
     #[test]
     fn peek_empty() {

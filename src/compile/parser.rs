@@ -8,7 +8,7 @@ use crate::grammar::{
     Operator, Program, Variable,
 };
 use crate::grammar::{Number, Sign};
-use std::iter::{IntoIterator, Iterator};
+use std::iter::Iterator;
 use tracing::{debug, info};
 
 const BLOCK_END_TOKEN_KINDS: [Kind; 1] = [Kind::RightBracket];
@@ -202,7 +202,9 @@ fn parse_number<'source, I: Iterator<Item = Token<'source>>>(
     }
 
     if let Attachment::Number(mut number) = token.take_attachment() {
-        sign.map(|s| number.set_sign(s));
+        if let Some(s) = sign {
+            number.set_sign(s);
+        }
 
         Ok(number)
     } else {
@@ -237,14 +239,14 @@ pub struct Parser<'source, I: Iterator<Item = Token<'source>>> {
     tokens: TokenStream<'source, I>,
 }
 
-impl<'source, I, II> From<II> for Parser<'source, I>
+impl<'source, I, IT> From<IT> for Parser<'source, I>
 where
     I: Iterator<Item = Token<'source>>,
-    II: IntoIterator<IntoIter = I>,
+    IT: Into<TokenStream<'source, I>>,
 {
-    fn from(tokens: II) -> Parser<'source, I> {
+    fn from(tokens: IT) -> Parser<'source, I> {
         Parser {
-            tokens: TokenStream::from(tokens.into_iter()),
+            tokens: tokens.into(),
         }
     }
 }
@@ -259,8 +261,10 @@ impl<'source, I: Iterator<Item = Token<'source>>> Parser<'source, I> {
             match parse_expression(&mut self.tokens) {
                 Err(error) => {
                     errors.push(error);
-                    self.synchronize()
-                        .map(|expression| expressions.push(expression));
+
+                    if let Some(expression) = self.synchronize() {
+                        expressions.push(expression);
+                    }
                 }
                 Ok(expression) => {
                     expressions.push(expression);
