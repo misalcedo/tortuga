@@ -14,6 +14,8 @@ pub use scanner::Scanner;
 pub use stream::TokenStream;
 pub use token::*;
 
+use crate::grammar::Program;
+
 /// Parses a given string into an abstract syntax tree.
 ///
 /// # Examples
@@ -32,7 +34,7 @@ pub use token::*;
 ///     ])
 /// );
 /// ```
-pub fn parse(source: &str) -> Result<crate::grammar::Program, ParseError> {
+pub fn parse(source: &str) -> Result<Program, ParseError> {
     let mut scanner = Scanner::from(source);
     let lexer = Lexer::new(&mut scanner);
     let parser = Parser::new(lexer);
