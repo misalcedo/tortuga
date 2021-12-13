@@ -12,10 +12,13 @@ pub enum Kind {
     Star,
     Percent,
     Equals,
+    NotEquals,
     Plus,
     Minus,
     LessThan,
+    LessThanOrEqualTo,
     GreaterThan,
+    GreaterThanOrEqualTo,
     Caret,
     Tilde,
     LeftBrace,
@@ -23,6 +26,9 @@ pub enum Kind {
     LeftBracket,
     RightBracket,
     Pipe,
+
+    // Punctuation
+    Comma,
 
     // Literals
     Identifier,

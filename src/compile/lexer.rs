@@ -179,6 +179,7 @@ impl<'scanner, 'source> Lexer<'scanner, 'source> {
             ']' => self.new_short_token(Kind::RightBracket),
             '{' => self.new_short_token(Kind::LeftBrace),
             '}' => self.new_short_token(Kind::RightBrace),
+            ',' => self.new_short_token(Kind::Comma),
             c if c.is_alphabetic() => Some(scan_identifier(self.scanner)),
             c if c.is_ascii_digit() || c == '.' => Some(scan_number(&mut self.scanner)),
             _ => {
