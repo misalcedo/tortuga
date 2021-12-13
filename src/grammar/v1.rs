@@ -2,122 +2,120 @@
 
 /// program → expression* EOF ;
 pub struct Program {
-    expressions: Vec<Expression>
+    expressions: Vec<Expression>,
 }
 
 /// expression → modulo | assignment ;
 pub enum Expression {
     Modulo(Box<Modulo>),
-    Assignment(Box<Assignment>)
+    Assignment(Box<Assignment>),
 }
 
 /// modulo     → term ( "%" term )* ;
 pub struct Modulo {
     first: Term,
-    rest: Vec<Term>
+    rest: Vec<Term>,
 }
 
 /// term       → factor ( sign factor )* ;
 pub struct Term {
     first: Factor,
-    rest: Vec<(Sign, Factor)>
+    rest: Vec<(Sign, Factor)>,
 }
 
 /// factor     → exponent ( ( "*" | "/" ) exponent )* ;
 pub struct Factor {
     first: Exponent,
-    rest: Vec<(FactorOperation, Exponent)>
+    rest: Vec<(FactorOperation, Exponent)>,
 }
 
 pub enum FactorOperation {
     Multiply,
-    Divide
+    Divide,
 }
 
 /// exponent   → primary ( "^" primary )* ;
 pub struct Exponent {
     first: Primary,
-    rest: Vec<Primary>
+    rest: Vec<Primary>,
 }
 
 /// primary    → number | call | "(" expression ")" ;
 pub enum Primary {
     Number(Number),
     Call(Call),
-    Grouping(Expression)
+    Grouping(Expression),
 }
 
 /// call       → IDENTIFIER ( "(" arguments ")" )? ;
 pub struct Call {
     identifier: Identifier,
-    arguments: Option<Arguments>
+    arguments: Option<Arguments>,
 }
 
 /// number     → sign? NUMBER | NUMBER_WITH_RADIX ;
 pub enum Number {
     Radix(String),
-    Decimal(Sign, Decimal)
+    Decimal(Sign, Decimal),
 }
 
 /// number     → sign? NUMBER | NUMBER_WITH_RADIX ;
 /// DECIMAL                 → DIGIT+ ( "." DIGIT* )? | "." DIGIT+ ;
 pub struct Decimal {
-    value: String
+    value: String,
 }
 
 /// assignment → function "=" block ;
 pub struct Assignment {
     function: Function,
-    block: Block
+    block: Block,
 }
 
 /// block      → expression | "[" expression expression+ "]" ;
 pub struct Block {
     first: Expression,
-    rest: Vec<Expression>
+    rest: Vec<Expression>,
 }
-
 
 /// function → name ( "(" parameters ")" )? ;
 pub struct Function {
     name: Name,
-    parameters: Option<Box<Parameters>>
+    parameters: Option<Box<Parameters>>,
 }
 
 /// name     → "_" | IDENTIFIER ;
 pub struct Name {
-    identifier: Option<Identifier>
+    identifier: Option<Identifier>,
 }
-
 
 /// IDENTIFIER              → \{alphabetic} ( ( "_" | \{alphanumeric} )*  \{alphanumeric} )? ;
 pub struct Identifier {
-    value: String
+    value: String,
 }
 
 /// parameters → pattern ( "," pattern )* ;
 pub struct Parameters {
     first: Pattern,
-    rest: Vec<Pattern>
+    rest: Vec<Pattern>,
 }
 
 /// pattern  → function | range | identity ;
 pub enum Pattern {
     Function(Function),
     Range(Range),
-    Identity(Identity)
+    Identity(Identity),
 }
 
 /// range    → ( expression lesser )? name ( greater expression )? ;
 pub struct Range {
     left: Option<CompareLeft>,
     name: Identifier,
-    right: Option<CompareRight>
+    right: Option<CompareRight>,
 }
 
 pub struct CompareLeft {
     expression: Expression,
-    comparison: Lesser
+    comparison: Lesser,
 }
 
 pub struct CompareRight {
@@ -128,7 +126,7 @@ pub struct CompareRight {
 /// sign     → "+" | "-" ;
 pub enum Sign {
     Plus,
-    Minus
+    Minus,
 }
 
 /// lesser   → "<" | "<=" ;
@@ -153,11 +151,11 @@ pub struct Identity {
 /// equality → "=" | "<>" ;
 pub enum Equality {
     EqualTo,
-    NotEqualTo
+    NotEqualTo,
 }
 
 /// arguments  → expression ( "," expression )* ;
 pub struct Arguments {
     first: Expression,
-    rest: Vec<Expression>
-} 
+    rest: Vec<Expression>,
+}
