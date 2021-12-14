@@ -2,29 +2,45 @@
 
 use crate::CommandLineError;
 use pest::Parser;
+use pest::iterators::Pair;
 
 #[derive(pest_derive::Parser)]
-#[grammar = "../bin/grammar.pest"]
+#[grammar = "../docs/grammar.pest"]
 pub struct TortugaParser;
 
 ///
 pub fn validate_file(source: &str) -> Result<(), CommandLineError> {
     let pairs = TortugaParser::parse(Rule::Program, source)?;
+    let roots = pairs.into_iter().rev().collect::<Vec<Pair<Rule>>>();
+    let root_peers = roots.len();
 
-    // Because ident_list is silent, the iterator will contain idents
-    for pair in pairs {
-        // A pair is a combination of the rule which matched and a span of input
-        println!("Rule:    {:?}", pair.as_rule());
-        println!("Span:    {:?}", pair.as_span());
-        println!("Text:    {}", pair.as_str());
+    let mut stack = Vec::new();
 
-        // A pair can be converted to an iterator of the tokens which make it up:
-        for inner_pair in pair.into_inner() {
-            match inner_pair.as_rule() {
-                Rule::IDENTIFIER => println!("Letter:  {}", inner_pair.as_str()),
-                Rule::Number => println!("Digit:   {}", inner_pair.as_str()),
-                _ => (),
-            };
+    for pair in roots {
+        stack.push((0, root_peers, pair));
+    }
+
+    while let Some((depth, peers, pair)) = stack.pop() {
+        let rule = pair.as_rule();
+        let text = pair.as_str().trim();
+        let children = pair.into_inner().into_iter().rev().collect::<Vec<Pair<Rule>>>();
+        let children_peers = children.len();
+
+        let mut children_depth = depth;
+
+        if depth == 0 || peers > 1 {
+            children_depth += 1;
+            print!("{0:>1$} ", "-", (depth * 2) + 1);
+        }
+
+        match children.len() {
+            0 => println!("{:?}: {}", rule, text),
+            1 => print!("{:?} → ", rule),
+            _ => println!("{:?}", rule)
+        }
+
+        for inner_pair in children {
+            stack.push((children_depth, children_peers, inner_pair));
         }
     }
 
