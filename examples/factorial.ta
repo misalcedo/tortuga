@@ -1,0 +1,6 @@
+factorial(n <= 1) = 1
+factorial(n > 1) = n * factorial(n - 1)
+
+factorial(1)
+factorital(3)
+factorial(9)

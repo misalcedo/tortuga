@@ -1,8 +1,13 @@
-2 + 2#101.1 ; hello
+2 + 2#-101.1 ; hello
 
 x = y(x, y) = [
   i = x^2 + y^2
   i^2
 ]
 
-x(z <= 2, y) = y + 1
+x(1, 2)
+
+exp(base, exponent) = base ^ exponent
+sqrt(n) = exp(n, .5)
+
+sqrt(25) = 5
