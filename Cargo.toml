@@ -25,7 +25,8 @@ tracing-subscriber = { version = "0.3", default-features = false, features = ["e
 
 [features]
 default = ["cli"]
-cli = ["clap", "pest", "pest_derive", "rustyline"]
+cli = ["clap", "peg", "rustyline"]
+peg = ["pest", "pest_derive"]
 
 [dependencies]
 clap = { version = "3.0.0-rc.4", features = ["derive"], optional = true }

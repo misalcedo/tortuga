@@ -3,6 +3,8 @@
 mod errors;
 mod lexer;
 mod parser;
+#[cfg(feature = "peg")]
+pub mod peg;
 mod scanner;
 mod stream;
 mod token;

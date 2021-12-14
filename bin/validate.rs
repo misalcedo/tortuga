@@ -1,17 +1,16 @@
 //! Uses a PEG grammar to validate a source file.
 
 use crate::CommandLineError;
+
 use pest::Parser;
 use pest::iterators::Pair;
+use tortuga::peg::{self, Rule};
 use std::io::{stdout, Write};
 
-#[derive(pest_derive::Parser)]
-#[grammar = "../docs/grammar.pest"]
-pub struct TortugaParser;
-
-///
+/// Validates a file parses with the [PEG](https://pest.rs/book/grammars/peg.html) grammar.
+/// Pretty prints the matching grammar rules.
 pub fn validate_file(source: &str) -> Result<(), CommandLineError> {
-    let pairs = TortugaParser::parse(Rule::Program, source)?;
+    let pairs = peg::Parser::parse(Rule::Program, source)?;
     let roots = pairs.into_iter().rev().collect::<Vec<Pair<Rule>>>();
     let root_peers = roots.len();
 
