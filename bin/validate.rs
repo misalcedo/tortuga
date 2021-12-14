@@ -2,10 +2,10 @@
 
 use crate::CommandLineError;
 
-use pest::Parser;
 use pest::iterators::Pair;
-use tortuga::peg::{self, Rule};
+use pest::Parser;
 use std::io::{stdout, Write};
+use tortuga::peg::{self, Rule};
 
 /// Validates a file parses with the [PEG](https://pest.rs/book/grammars/peg.html) grammar.
 /// Pretty prints the matching grammar rules.
@@ -23,7 +23,11 @@ pub fn validate_file(source: &str) -> Result<(), CommandLineError> {
     while let Some((depth, peers, pair)) = stack.pop() {
         let rule = pair.as_rule();
         let text = pair.as_str().trim();
-        let children = pair.into_inner().into_iter().rev().collect::<Vec<Pair<Rule>>>();
+        let children = pair
+            .into_inner()
+            .into_iter()
+            .rev()
+            .collect::<Vec<Pair<Rule>>>();
         let children_peers = children.len();
 
         let mut children_depth = depth;

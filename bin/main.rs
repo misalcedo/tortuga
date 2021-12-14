@@ -58,7 +58,7 @@ fn main() {
     match execute() {
         Err(CommandLineError::IO(error)) if error.kind() == BrokenPipe => (),
         Err(error) => eprintln!("{}", error),
-        Ok(_) => ()
+        Ok(_) => (),
     }
 }
 

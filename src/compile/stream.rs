@@ -3,8 +3,9 @@
 //! Also, transforms the infallible iterator into a fallible one.
 //! That allows the parser to treat `InvalidToken`s as errors.
 
-use crate::compile::{Kind, SyntaxError, Token, ValidToken};
+use crate::compile::{Kind, Lexer, SyntaxError, Token, ValidToken};
 use std::iter::Peekable;
+use std::vec::IntoIter;
 
 /// A stream of `Token`s to be consumed by the `Parser`.
 #[derive(Debug)]
@@ -13,14 +14,22 @@ pub struct TokenStream<'source, I: Iterator<Item = Token<'source>>> {
     peeked: Option<ValidToken<'source>>,
 }
 
-impl<'source, I, II> From<II> for TokenStream<'source, I>
-where
-    I: Iterator<Item = Token<'source>>,
-    II: IntoIterator<IntoIter = I, Item = Token<'source>>,
-{
-    fn from(tokens: II) -> Self {
+impl<'source> From<Vec<Token<'source>>> for TokenStream<'source, IntoIter<Token<'source>>> {
+    fn from(tokens: Vec<Token<'source>>) -> Self {
         TokenStream {
             tokens: tokens.into_iter().peekable(),
+            peeked: None,
+        }
+    }
+}
+
+impl<'source, I> From<I> for TokenStream<'source, Lexer<'source>>
+where
+    I: Into<Lexer<'source>>,
+{
+    fn from(tokens: I) -> Self {
+        TokenStream {
+            tokens: tokens.into().peekable(),
             peeked: None,
         }
     }

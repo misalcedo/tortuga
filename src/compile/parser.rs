@@ -441,7 +441,7 @@ mod tests {
 
     #[test]
     fn parse_math_expression() {
-        let parser = Parser::from(lex_tokens("(2^3+5-10)*3/9"));
+        let parser = Parser::from("(2^3+5-10)*3/9");
         let exponent = BinaryOperation::new(
             Number::new_integer(2).into(),
             Operator::Exponent,
