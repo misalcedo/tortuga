@@ -53,11 +53,6 @@ impl Number {
         }
     }
 
-    /// Test whether this `Number` has a sign explicitly set.
-    pub fn has_sign(&self) -> bool {
-        self.sign.is_some()
-    }
-
     /// Sets the sign of this number.
     pub fn set_sign(&mut self, sign: Sign) {
         self.sign = Some(sign);
@@ -135,6 +130,16 @@ impl Default for Fraction {
 impl From<Fraction> for f64 {
     fn from(fraction: Fraction) -> Self {
         (fraction.numerator as f64) / (fraction.denominator as f64)
+    }
+}
+
+impl From<Fraction> for Number {
+    fn from(fraction: Fraction) -> Self {
+        Number {
+            sign: None,
+            integer: 0,
+            fraction,
+        }
     }
 }
 

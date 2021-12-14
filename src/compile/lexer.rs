@@ -22,15 +22,15 @@ fn scan_inequality<'source>(scanner: &mut Scanner<'source>) -> Option<Token<'sou
             } else {
                 Kind::LessThan
             }
-        },
+        }
         '>' => {
             if scanner.next_if_eq('=').is_some() {
                 Kind::GreaterThanOrEqualTo
             } else {
                 Kind::GreaterThan
             }
-        },
-        _ => None?
+        }
+        _ => None?,
     };
 
     Some(Token::new_valid(kind.into(), scanner.lexeme()))
@@ -78,9 +78,11 @@ fn scan_number<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
     let mut radix_lexeme = None;
     let mut integer_lexeme = scan_digits(scanner, DECIMAL_RADIX);
     let mut fraction_lexeme = None;
+    let mut has_radix = false;
 
     if scanner.next_if_eq('#').is_some() {
-        sign = Some(scan_sign(scanner).unwrap_or_default());
+        has_radix = true;
+        sign = scan_sign(scanner);
         radix_lexeme = integer_lexeme;
         integer_lexeme = scan_digits(scanner, MAX_RADIX);
     }
@@ -88,7 +90,7 @@ fn scan_number<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
     let radix = match radix_lexeme.map(|r| r.parse::<u32>()) {
         Some(Ok(0)) => {
             errors.push(LexicalError::ZeroRadix);
-            DECIMAL_RADIX
+            MAX_RADIX
         }
         Some(Ok(value)) if value > MAX_RADIX => {
             errors.push(LexicalError::RadixTooLarge(value));
@@ -99,6 +101,10 @@ fn scan_number<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
             DECIMAL_RADIX
         }
         Some(Ok(value)) => value,
+        None if has_radix => {
+            errors.push(LexicalError::MissingRadix);
+            MAX_RADIX
+        }
         None => DECIMAL_RADIX,
     };
 
@@ -141,12 +147,13 @@ fn scan_number<'source>(scanner: &mut Scanner<'source>) -> Token<'source> {
     };
 
     let number = Number::new(sign, integer, fraction);
+    let attachment = if radix_lexeme.is_some() {
+        Attachment::NumberWithRadix(number)
+    } else {
+        Attachment::Number(number)
+    };
 
-    Token::new(
-        Attachment::Number(number),
-        scanner.lexeme_from(&start),
-        errors,
-    )
+    Token::new(attachment, scanner.lexeme_from(&start), errors)
 }
 
 /// Scans either an identifier or a number with a radix.
@@ -305,7 +312,11 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Token::new_valid(
-                Attachment::Number(Number::new(Some(Sign::Negative), 3, Fraction::new(1, 4))),
+                Attachment::NumberWithRadix(Number::new(
+                    Some(Sign::Negative),
+                    3,
+                    Fraction::new(1, 4)
+                )),
                 Lexeme::new("2#-011.01", Location::default()),
             ))
         );
@@ -314,14 +325,11 @@ mod tests {
     #[test]
     fn lex_hex_number() {
         let mut lexer = Lexer::from("16#FFFFFF");
-        let mut number = Number::new_integer(16777215);
-
-        number.set_sign(Sign::default());
 
         assert_eq!(
             lexer.next(),
             Some(Token::new_valid(
-                Attachment::Number(number),
+                Attachment::NumberWithRadix(Number::new_integer(16777215)),
                 Lexeme::new("16#FFFFFF", Location::default()),
             ))
         );
@@ -362,7 +370,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Token::new_invalid(
-                Some(Kind::Number),
+                Some(Kind::NumberWithRadix),
                 Lexeme::new("0#1.", Location::default()),
                 vec![LexicalError::ZeroRadix]
             ))
@@ -376,7 +384,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Token::new_invalid(
-                Some(Kind::Number),
+                Some(Kind::NumberWithRadix),
                 Lexeme::new("256#1.", Location::default()),
                 vec![LexicalError::RadixTooLarge(256)]
             ))
@@ -390,7 +398,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Token::new_invalid(
-                Some(Kind::Number),
+                Some(Kind::NumberWithRadix),
                 Lexeme::new(
                     "222222222222222222222222222222222222222222#1.",
                     Location::default()
@@ -411,7 +419,7 @@ mod tests {
         assert_eq!(
             lexer.next(),
             Some(Token::new_invalid(
-                Some(Kind::Number),
+                Some(Kind::NumberWithRadix),
                 Lexeme::new("10#FF", Location::default()),
                 vec![LexicalError::InvalidInteger(
                     u128::from_str_radix("FF", DECIMAL_RADIX).unwrap_err()

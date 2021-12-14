@@ -7,7 +7,7 @@ use pest::Parser;
 #[grammar = "../bin/grammar.pest"]
 pub struct TortugaParser;
 
-/// 
+///
 pub fn validate_file(source: &str) -> Result<(), CommandLineError> {
     let pairs = TortugaParser::parse(Rule::Program, source)?;
 
@@ -23,7 +23,7 @@ pub fn validate_file(source: &str) -> Result<(), CommandLineError> {
             match inner_pair.as_rule() {
                 Rule::IDENTIFIER => println!("Letter:  {}", inner_pair.as_str()),
                 Rule::Number => println!("Digit:   {}", inner_pair.as_str()),
-                _ => ()
+                _ => (),
             };
         }
     }

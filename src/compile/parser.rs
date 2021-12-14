@@ -1,8 +1,6 @@
 //! Parser from a stream of tokens into a syntax tree for the Tortuga language.
 
-use crate::compile::{
-    Attachment, Kind, LexicalToken, ParseError, SyntaxError, Token, TokenStream, ValidToken,
-};
+use crate::compile::{Attachment, Kind, LexicalToken, ParseError, SyntaxError, Token, TokenStream};
 use crate::grammar::{
     BinaryOperation, Block, ComparisonOperation, ComparisonOperator, Expression, Grouping,
     Operator, Program, Variable,
@@ -17,11 +15,12 @@ const MODULO_TOKEN_KINDS: [Kind; 1] = [Kind::Percent];
 const TERM_TOKEN_KINDS: [Kind; 2] = [Kind::Plus, Kind::Minus];
 const FACTOR_TOKEN_KINDS: [Kind; 2] = [Kind::Star, Kind::ForwardSlash];
 const EXPONENT_TOKEN_KINDS: [Kind; 1] = [Kind::Caret];
-const PRIMARY_TOKEN_KINDS: [Kind; 5] = [
+const PRIMARY_TOKEN_KINDS: [Kind; 6] = [
     Kind::LeftParenthesis,
     Kind::Plus,
     Kind::Minus,
     Kind::Number,
+    Kind::NumberWithRadix,
     Kind::Identifier,
 ];
 
@@ -184,6 +183,7 @@ fn parse_primary<'source, I: Iterator<Item = Token<'source>>>(
         Some(Kind::Plus | Kind::Minus | Kind::Number) => {
             parse_number(tokens).map(Expression::Number)
         }
+        Some(Kind::NumberWithRadix) => parse_number_with_radix(tokens).map(Expression::Number),
         Some(Kind::Identifier) => parse_variable(tokens).map(Expression::Variable),
         Some(_) => match tokens.next()? {
             Some(token) => Err(SyntaxError::NoMatchingRule(
@@ -200,24 +200,19 @@ fn parse_primary<'source, I: Iterator<Item = Token<'source>>>(
 fn parse_number<'source, I: Iterator<Item = Token<'source>>>(
     tokens: &mut TokenStream<'source, I>,
 ) -> Result<Number, SyntaxError<'source>> {
-    let sign = match tokens
-        .next_if_kind(&[Kind::Plus, Kind::Minus])?
-        .as_ref()
-        .map(ValidToken::kind)
-    {
-        Some(Kind::Minus) => Some(Sign::Negative),
-        Some(Kind::Plus) => Some(Sign::Positive),
-        _ => None,
+    let sign = match tokens.next_if_kind(&[Kind::Plus, Kind::Minus])? {
+        Some(token) if token.kind() == Kind::Minus => Some(Sign::Negative),
+        Some(token) if token.kind() == Kind::Plus => Some(Sign::Positive),
+        Some(token) => {
+            return Err(SyntaxError::NoMatchingRule(
+                token,
+                vec![Kind::Plus, Kind::Minus],
+            ))
+        }
+        None => None,
     };
 
     let mut token = tokens.next_kind(&[Kind::Number])?;
-
-    if let Attachment::Number(number) = token.attachment() {
-        if number.has_sign() && sign.is_some() {
-            debug!("Double signed.");
-            return Err(SyntaxError::NoMatchingRule(token, vec![]));
-        }
-    }
 
     if let Attachment::Number(mut number) = token.take_attachment() {
         if let Some(s) = sign {
@@ -227,6 +222,22 @@ fn parse_number<'source, I: Iterator<Item = Token<'source>>>(
         Ok(number)
     } else {
         Err(SyntaxError::NoMatchingRule(token, vec![Kind::Number]))
+    }
+}
+
+/// Parse a number literal with a radix.
+fn parse_number_with_radix<'source, I: Iterator<Item = Token<'source>>>(
+    tokens: &mut TokenStream<'source, I>,
+) -> Result<Number, SyntaxError<'source>> {
+    let mut token = tokens.next_kind(&[Kind::NumberWithRadix])?;
+
+    if let Attachment::NumberWithRadix(number) = token.take_attachment() {
+        Ok(number)
+    } else {
+        Err(SyntaxError::NoMatchingRule(
+            token,
+            vec![Kind::NumberWithRadix],
+        ))
     }
 }
 
@@ -384,10 +395,7 @@ mod tests {
 
         assert_eq!(
             parser.parse().unwrap(),
-            Program::from(vec![Expression::Number(Number::new_signed_integer(
-                Sign::Positive,
-                1
-            ))])
+            Program::from(vec![Expression::Number(Number::new_integer(1))])
         );
     }
 

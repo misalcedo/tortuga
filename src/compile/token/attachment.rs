@@ -9,7 +9,7 @@ use crate::grammar::Number;
 #[derive(Debug, PartialEq)]
 pub enum Attachment {
     Number(Number),
-    NumberWithRadix(u32, Number),
+    NumberWithRadix(Number),
     Empty(Kind),
 }
 

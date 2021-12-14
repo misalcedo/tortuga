@@ -44,7 +44,7 @@ struct ValidateCommand {
 enum Commands {
     Prompt(PromptCommand),
     Run(RunCommand),
-    Validate(ValidateCommand)
+    Validate(ValidateCommand),
 }
 
 impl Default for Commands {
@@ -80,12 +80,12 @@ fn run_subcommand(arguments: Arguments) -> Result<(), CommandLineError> {
         Commands::Prompt(_) => run_prompt(),
         Commands::Run(command) => {
             let source = fs::read_to_string(command.filename)?;
-            
+
             Ok(tortuga::run(source.as_str()))
-        },
+        }
         Commands::Validate(command) => {
             let source = fs::read_to_string(command.filename)?;
-            
+
             validate_file(source.as_str())
         }
     }

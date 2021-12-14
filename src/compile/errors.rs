@@ -18,6 +18,11 @@ pub enum LexicalError {
     )]
     ZeroRadix,
     #[error(
+        "Radix not defined; radix must be between 1 through {} (inclusive).",
+        crate::grammar::MAX_RADIX
+    )]
+    MissingRadix,
+    #[error(
         "Radix of {0} is too large; maximum supported is {}.",
         crate::grammar::MAX_RADIX
     )]
