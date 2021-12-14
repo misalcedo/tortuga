@@ -1,39 +1,42 @@
 Program    = { SOI ~ Expression* ~ EOI }
 
-Expression = { Assignment | Modulo }
-Assignment = { Function ~ "=" ~ Block }
-Block      = { Expression | ( "[" ~ Expression ~ Expression+ ~ "]" ) }
+Expression = { Inequality }
+Inequality = _{ Equality ~ ( INEQUALITY ~ Equality )* }
+Equality   = _{ Arithmetic ~ ( EQUALITY ~ Block )? }
+Block      = { Equality | ( "[" ~ Equality ~ Equality+ ~ "]" ) }
 
-Modulo     = { Sum ~ ( "%" ~ Sum )* }
-Sum        = { Product ~ ( SUM ~ Product )* }
-Product    = { Power ~ ( PRODUCT ~ Power )* }
-Power      = { Primary ~ ( "^" ~ Primary )* }
+Arithmetic = { Modulo }
+Modulo     = _{ Sum ~ ( MODULO ~ Sum )* }
+Sum        = _{ Product ~ ( SUM ~ Product )* }
+Product    = _{ Power ~ ( PRODUCT ~ Power )* }
+Power      = _{ Primary ~ ( POWER ~ Primary )* }
 
-Primary    = { Number | Call | "(" ~ Expression ~ ")" }
+Primary    = _{ Number | Call | Grouping }
+Number     = @{ RADIX | (SUM? ~ DECIMAL) }
 Call       = { IDENTIFIER ~ ( "(" ~ Arguments ~ ")" )? }
-Number     = { RADIX | (SUM? ~ DECIMAL) }
+Grouping   = { "(" ~ Expression ~ ")" }
 
 Arguments  = { Expression ~ ( "," ~ Expression )* }
 Parameters = { Pattern ~ ( "," ~ Pattern )* }
 
-Pattern    = { Range | Function | Identity }
-Function   = { NAME ~ ( "(" ~ Parameters ~ ")" )? }
-Range      = { ( Expression ~ GREATER )? ~ NAME ~ ( LESSER ~ Expression )? }
-Identity   = { Number | ( NAME ~ EQUALITY ~ Expression ) | ( Expression ~ EQUALITY ~ NAME ) }
+Pattern    = { Range | Function }
+Function   = { IDENTIFIER ~ ( "(" ~ Parameters ~ ")" )? }
+Range      = { ( Expression ~ INEQUALITY )? ~ IDENTIFIER ~ ( INEQUALITY ~ Expression )? }
 
-NAME       = _{ "_" | IDENTIFIER }
+IDENTIFIER = @{ ( ANONYMOUS ~ !( LETTER | NUMBER ) ) | ( !(NUMBER | ANONYMOUS) ~ CHARACTER+ ~ !ANONYMOUS ) }
+CHARACTER  = _{ ( ANONYMOUS ~ &( LETTER | NUMBER ) ) | LETTER | NUMBER }
+ANONYMOUS  = _{ "_" }
 
-IDENTIFIER = @{ LETTER ~ ( ( "_" | LETTER | NUMBER )*  ~ ( LETTER | NUMBER ) )? }
-RADIX      = @{ ASCII_DIGIT+ ~ "#" ~ SUM? ~ BASE36 }
-DECIMAL    = @{ ASCII_DIGIT+ ~ ( "." ~ ASCII_DIGIT* )? | ( "." ~ ASCII_DIGIT+ ) }
-
+RADIX      = @{ ( "i" | ASCII_DIGIT+ ) ~ "#" ~ SUM? ~ BASE36 }
+DECIMAL    = @{ (ASCII_DIGIT+ ~ ( "." ~ ASCII_DIGIT* )? | ( "." ~ ASCII_DIGIT+ ) ) ~ !IDENTIFIER }
 BASE36     = _{ ASCII_ALPHANUMERIC+ ~ ( "." ~ ASCII_ALPHANUMERIC* )? | ( "." ~ ASCII_ALPHANUMERIC+ ) }
 
+MODULO     = { "%" }
 SUM        = { "+" | "-" }
 PRODUCT    = { "*" | "/" }
-LESSER     = { "<=" | "<" }
-GREATER    = { ">=" | ">" }
-EQUALITY   = { "=" | "<>" }
+POWER      = { "^" }
+INEQUALITY = { "<>" | "<=" | ">=" | "<" | ">" }
+EQUALITY   = { "=" }
 
 WHITESPACE = _{ SPACE_SEPARATOR | NEWLINE }
 COMMENT    = _{ ";" ~ (!NEWLINE ~ ANY)* }
