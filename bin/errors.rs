@@ -3,7 +3,7 @@ use thiserror::Error;
 /// An error that occurred while executing the Command-Line interface.
 #[derive(Error, Debug)]
 pub enum CommandLineError {
-    #[error("An IO error occurred.")]
+    #[error(transparent)]
     IO(#[from] std::io::Error),
     #[error("Unable to set global default tracing collector.")]
     Tracing(#[from] tracing::dispatcher::SetGlobalDefaultError),

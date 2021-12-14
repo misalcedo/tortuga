@@ -29,11 +29,11 @@ DECIMAL    = @{ ASCII_DIGIT+ ~ ( "." ~ ASCII_DIGIT* )? | ( "." ~ ASCII_DIGIT+ ) 
 
 BASE36     = _{ ASCII_ALPHANUMERIC+ ~ ( "." ~ ASCII_ALPHANUMERIC* )? | ( "." ~ ASCII_ALPHANUMERIC+ ) }
 
-SUM        = _{ "+" | "-" }
-PRODUCT    = _{ "*" | "/" }
-LESSER     = _{ "<=" | "<" }
-GREATER    = _{ ">=" | ">" }
-EQUALITY   = _{ "=" | "<>" }
+SUM        = { "+" | "-" }
+PRODUCT    = { "*" | "/" }
+LESSER     = { "<=" | "<" }
+GREATER    = { ">=" | ">" }
+EQUALITY   = { "=" | "<>" }
 
 WHITESPACE = _{ SPACE_SEPARATOR | NEWLINE }
 COMMENT    = _{ ";" ~ (!NEWLINE ~ ANY)* }
