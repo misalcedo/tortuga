@@ -3,6 +3,7 @@
 use crate::CommandLineError;
 use pest::Parser;
 use pest::iterators::Pair;
+use std::io::{stdout, Write};
 
 #[derive(pest_derive::Parser)]
 #[grammar = "../docs/grammar.pest"]
@@ -30,13 +31,13 @@ pub fn validate_file(source: &str) -> Result<(), CommandLineError> {
 
         if depth == 0 || peers > 1 {
             children_depth += 1;
-            print!("{0:>1$} ", "-", (depth * 2) + 1);
+            write!(stdout(), "{0:>1$} ", "-", (depth * 2) + 1)?;
         }
 
         match children.len() {
-            0 => println!("{:?}: {}", rule, text),
-            1 => print!("{:?} → ", rule),
-            _ => println!("{:?}", rule)
+            0 => writeln!(stdout(), "{:?}: {}", rule, text)?,
+            1 => write!(stdout(), "{:?} → ", rule)?,
+            _ => writeln!(stdout(), "{:?}", rule)?
         }
 
         for inner_pair in children {

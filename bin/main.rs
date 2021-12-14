@@ -7,6 +7,7 @@ use prompt::run_prompt;
 use validate::validate_file;
 
 use std::fs;
+use std::io::ErrorKind::BrokenPipe;
 use tracing::{subscriber::set_global_default, Level};
 use tracing_log::LogTracer;
 
@@ -53,7 +54,15 @@ impl Default for Commands {
     }
 }
 
-fn main() -> Result<(), CommandLineError> {
+fn main() {
+    match execute() {
+        Err(CommandLineError::IO(error)) if error.kind() == BrokenPipe => (),
+        Err(error) => eprintln!("{}", error),
+        Ok(_) => ()
+    }
+}
+
+fn execute() -> Result<(), CommandLineError> {
     let arguments = Arguments::parse();
 
     set_verbosity(arguments.verbose)?;
