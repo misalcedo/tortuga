@@ -11,6 +11,31 @@ pub struct Lexer<'source> {
     scanner: Scanner<'source>,
 }
 
+/// Scans a `Sign` (positive or negative).
+fn scan_inequality<'source>(scanner: &mut Scanner<'source>) -> Option<Token<'source>> {
+    let kind = match scanner.next_if(|c| c == '<' || c == '>')? {
+        '<' => {
+            if scanner.next_if_eq('=').is_some() {
+                Kind::LessThanOrEqualTo
+            } else if scanner.next_if_eq('>').is_some() {
+                Kind::NotEquals
+            } else {
+                Kind::LessThan
+            }
+        },
+        '>' => {
+            if scanner.next_if_eq('=').is_some() {
+                Kind::GreaterThanOrEqualTo
+            } else {
+                Kind::GreaterThan
+            }
+        },
+        _ => None?
+    };
+
+    Some(Token::new_valid(kind.into(), scanner.lexeme()))
+}
+
 /// Scans for digits in the given radix.
 /// Skips any prefixing tokens scanned prior to the digits.
 fn scan_digits<'source>(scanner: &mut Scanner<'source>, radix: u32) -> Option<&'source str> {
@@ -167,8 +192,6 @@ impl<'source> Lexer<'source> {
             '/' => self.new_short_token(Kind::ForwardSlash),
             '^' => self.new_short_token(Kind::Caret),
             '=' => self.new_short_token(Kind::Equals),
-            '<' => self.new_short_token(Kind::LessThan),
-            '>' => self.new_short_token(Kind::GreaterThan),
             '~' => self.new_short_token(Kind::Tilde),
             '|' => self.new_short_token(Kind::Pipe),
             '%' => self.new_short_token(Kind::Percent),
@@ -180,6 +203,7 @@ impl<'source> Lexer<'source> {
             '{' => self.new_short_token(Kind::LeftBrace),
             '}' => self.new_short_token(Kind::RightBrace),
             ',' => self.new_short_token(Kind::Comma),
+            '<' | '>' => scan_inequality(&mut self.scanner),
             c if c.is_alphabetic() => Some(scan_identifier(&mut self.scanner)),
             c if c.is_ascii_digit() || c == '.' => Some(scan_number(&mut self.scanner)),
             _ => {
@@ -231,6 +255,45 @@ mod tests {
             Some(Token::new_valid(
                 Attachment::Number(Number::new(None, 1, Fraction::default())),
                 Lexeme::new("1", Location::new(1, 2, 1)),
+            ))
+        );
+    }
+
+    #[test]
+    fn lex_inequality() {
+        assert_eq!(
+            Lexer::from("<").next(),
+            Some(Token::new_valid(
+                Kind::LessThan.into(),
+                Lexeme::new("<", Location::default()),
+            ))
+        );
+        assert_eq!(
+            Lexer::from("<=").next(),
+            Some(Token::new_valid(
+                Kind::LessThanOrEqualTo.into(),
+                Lexeme::new("<=", Location::default()),
+            ))
+        );
+        assert_eq!(
+            Lexer::from("<>").next(),
+            Some(Token::new_valid(
+                Kind::NotEquals.into(),
+                Lexeme::new("<>", Location::default()),
+            ))
+        );
+        assert_eq!(
+            Lexer::from(">").next(),
+            Some(Token::new_valid(
+                Kind::GreaterThan.into(),
+                Lexeme::new(">", Location::default()),
+            ))
+        );
+        assert_eq!(
+            Lexer::from(">=").next(),
+            Some(Token::new_valid(
+                Kind::GreaterThanOrEqualTo.into(),
+                Lexeme::new(">=", Location::default()),
             ))
         );
     }
