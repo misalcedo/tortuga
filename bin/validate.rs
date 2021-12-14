@@ -36,7 +36,7 @@ pub fn validate_file(source: &str) -> Result<(), CommandLineError> {
         write!(stdout(), " {:?}", rule)?;
 
         match children.len() {
-            0 => writeln!(stdout(), ": {}", text)?,
+            0 => writeln!(stdout(), ": \"{}\"", text)?,
             1 => write!(stdout(), " →")?,
             _ => {
                 children_depth += 2;
