@@ -3,7 +3,7 @@
 mod environment;
 mod errors;
 
-use crate::compile::parse;
+use crate::compile::Parser;
 use crate::grammar::Number;
 use crate::grammar::*;
 use environment::Environment;
@@ -276,7 +276,7 @@ impl<'source> TryFrom<Value> for bool {
 pub fn run(code: &str) {
     let mut interpreter = Interpreter::default();
 
-    match parse(code) {
+    match Parser::from(code).parse() {
         Ok(program) => interpreter.interpret(&program),
         Err(error) => error!("{}", error),
     }

@@ -6,7 +6,7 @@ pub mod grammar;
 mod interpret;
 
 pub use about::*;
-pub use compile::{parse, Lexer, LexicalError, Location, ParseError, Parser};
+pub use compile::{Lexer, LexicalError, Location, ParseError, Parser};
 
 #[cfg(feature = "peg")]
 pub use compile::peg;

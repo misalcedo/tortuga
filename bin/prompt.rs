@@ -8,7 +8,7 @@ use rustyline::hint::Hinter;
 use rustyline::line_buffer::LineBuffer;
 use rustyline::validate::{ValidationContext, ValidationResult, Validator};
 use rustyline::{error::ReadlineError, Editor, Helper};
-use tortuga::{about, parse, Interpreter, Lexer, ParseError, Parser};
+use tortuga::{about, Interpreter, ParseError, Parser};
 use tracing::error;
 
 struct PromptHelper;
@@ -73,7 +73,7 @@ impl Validator for PromptHelper {
             return Ok(ValidationResult::Valid(None));
         }
 
-        match parse(ctx.input()) {
+        match Parser::from(ctx.input()).parse() {
             Ok(_) => Ok(ValidationResult::Valid(None)),
             Err(ParseError::EndOfFile) => Ok(ValidationResult::Incomplete),
             Err(error) => Ok(ValidationResult::Invalid(Some(format!(
@@ -94,10 +94,7 @@ pub fn run_prompt() -> Result<(), CommandLineError> {
             None => return Ok(()),
             Some(input) if input.trim().is_empty() => continue,
             Some(input) => {
-                let lexer = Lexer::from(input.as_str());
-                let parser = Parser::from(lexer);
-
-                match parser.parse() {
+                match Parser::from(input.as_str()).parse() {
                     Ok(program) => interpreter.interpret(&program),
                     Err(error) => error!("{}", error),
                 };
