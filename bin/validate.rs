@@ -18,7 +18,7 @@ pub fn validate_file(source: &str) -> Result<(), CommandLineError> {
     let mut stack = Vec::new();
 
     for pair in roots {
-        stack.push((0, root_peers, pair));
+        stack.push((1, root_peers, pair));
     }
 
     while let Some((depth, peers, pair)) = stack.pop() {
@@ -30,14 +30,18 @@ pub fn validate_file(source: &str) -> Result<(), CommandLineError> {
         let mut children_depth = depth;
 
         if depth == 0 || peers > 1 {
-            children_depth += 1;
-            write!(stdout(), "{0:>1$} ", "-", (depth * 2) + 1)?;
+            write!(stdout(), "{0:>1$} ", "-", depth)?;
         }
 
+        write!(stdout(), " {:?}", rule)?;
+
         match children.len() {
-            0 => writeln!(stdout(), "{:?}: {}", rule, text)?,
-            1 => write!(stdout(), "{:?} → ", rule)?,
-            _ => writeln!(stdout(), "{:?}", rule)?
+            0 => writeln!(stdout(), ": {}", text)?,
+            1 => write!(stdout(), " →")?,
+            _ => {
+                children_depth += 2;
+                writeln!(stdout(), "")?
+            }
         }
 
         for inner_pair in children {
