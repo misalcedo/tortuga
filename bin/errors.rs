@@ -1,8 +1,8 @@
 use thiserror::Error;
 
-/// An error that occurred while interacting with Tortuga.
+/// An error that occurred while executing the Command-Line interface.
 #[derive(Error, Debug)]
-pub enum TortugaError {
+pub enum CommandLineError {
     #[error("An IO error occurred.")]
     IO(#[from] std::io::Error),
     #[error("Unable to set global default tracing collector.")]
@@ -11,8 +11,8 @@ pub enum TortugaError {
     Logging(#[from] tracing_log::log_tracer::SetLoggerError),
     #[error("Unable to remove the input path from the file name.")]
     InvalidPath(#[from] std::path::StripPrefixError),
-    #[error("A runtime error occurred while interpreting the source code. {0}")]
-    Runtime(#[from] crate::interpret::RuntimeError),
     #[error("Encountered an error prompting the user for input. {0}")]
-    PromptError(#[from] Box<dyn std::error::Error>),
+    PromptError(#[from] rustyline::error::ReadlineError),
+    #[error(transparent)]
+    ValidationError(#[from] pest::error::Error<crate::validate::Rule>)
 }

@@ -15,14 +15,14 @@ For design goals, non-goals, grammar, and more see [docs/Design.md](https://gith
 ## Command-Line
 To run the system locally, perform the following steps:
 
-1. Run `cargo install tortuga --features cli`.
+1. Run `cargo install tortuga`.
 1. Run `tortuga` to start the interpreter.
 1. Type in some code, such as `10 - 011.01#2 = 6.75`.
 
 ## Embedded
 To embed the language in Rust, add `tortuga` as a dependency in your `Cargo.toml`:
 ```toml
-tortuga = "0.4"
+tortuga = { version = "0.4", default-features = false }
 ```
 
 # Testing
@@ -30,7 +30,7 @@ tortuga = "0.4"
 To test the command-line interface, instal the crate locally from the root of the repository with:
 
 ```bash
-cargo install tortuga --path ./ --features cli
+cargo install tortuga --path ./
 ```
 
 ## Cargo Tests

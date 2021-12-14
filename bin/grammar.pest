@@ -1,0 +1,39 @@
+Program    = { SOI ~ Expression* ~ EOI }
+
+Expression = { Assignment | Modulo }
+Assignment = { Function ~ "=" ~ Block }
+Block      = { Expression | ( "[" ~ Expression ~ Expression+ ~ "]" ) }
+
+Modulo     = { Sum ~ ( "%" ~ Sum )* }
+Sum        = { Product ~ ( SUM ~ Product )* }
+Product    = { Power ~ ( PRODUCT ~ Power )* }
+Power      = { Primary ~ ( "^" ~ Primary )* }
+
+Primary    = { Number | Call | "(" ~ Expression ~ ")" }
+Call       = { IDENTIFIER ~ ( "(" ~ Arguments ~ ")" )? }
+Number     = { RADIX | (SUM? ~ DECIMAL) }
+
+Arguments  = { Expression ~ ( "," ~ Expression )* }
+Parameters = { Pattern ~ ( "," ~ Pattern )* }
+
+Pattern    = { Range | Function | Identity }
+Function   = { NAME ~ ( "(" ~ Parameters ~ ")" )? }
+Range      = { ( Expression ~ GREATER )? ~ NAME ~ ( LESSER ~ Expression )? }
+Identity   = { Number | ( NAME ~ EQUALITY ~ Expression ) | ( Expression ~ EQUALITY ~ NAME ) }
+
+NAME       = _{ "_" | IDENTIFIER }
+
+IDENTIFIER = @{ LETTER ~ ( ( "_" | LETTER | NUMBER )*  ~ ( LETTER | NUMBER ) )? }
+RADIX      = @{ ASCII_DIGIT+ ~ "#" ~ SUM? ~ BASE36 }
+DECIMAL    = @{ ASCII_DIGIT+ ~ ( "." ~ ASCII_DIGIT* )? | ( "." ~ ASCII_DIGIT+ ) }
+
+BASE36     = _{ ASCII_ALPHANUMERIC+ ~ ( "." ~ ASCII_ALPHANUMERIC* )? | ( "." ~ ASCII_ALPHANUMERIC+ ) }
+
+SUM        = _{ "+" | "-" }
+PRODUCT    = _{ "*" | "/" }
+LESSER     = _{ "<=" | "<" }
+GREATER    = _{ ">=" | ">" }
+EQUALITY   = _{ "=" | "<>" }
+
+WHITESPACE = _{ SPACE_SEPARATOR | NEWLINE }
+COMMENT    = _{ ";" ~ (!NEWLINE ~ ANY)* }

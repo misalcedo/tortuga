@@ -4,7 +4,6 @@ mod environment;
 mod errors;
 
 use crate::compile::parse;
-use crate::errors::TortugaError;
 use crate::grammar::Number;
 use crate::grammar::*;
 use environment::Environment;
@@ -272,15 +271,13 @@ impl<'source> TryFrom<Value> for bool {
 /// ```rust
 /// use tortuga::run;
 ///
-/// run("2#10^2").unwrap();
+/// run("2#10^2");
 /// ```
-pub fn run(code: &str) -> Result<(), TortugaError> {
+pub fn run(code: &str) {
     let mut interpreter = Interpreter::default();
 
     match parse(code) {
         Ok(program) => interpreter.interpret(&program),
         Err(error) => error!("{}", error),
     }
-
-    Ok(())
 }

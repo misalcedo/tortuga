@@ -1,5 +1,6 @@
 //! Terminal prompt reading and printing with editing and history.
 
+use crate::CommandLineError;
 use rustyline::completion::Completer;
 use rustyline::config::Config;
 use rustyline::highlight::Highlighter;
@@ -7,7 +8,7 @@ use rustyline::hint::Hinter;
 use rustyline::line_buffer::LineBuffer;
 use rustyline::validate::{ValidationContext, ValidationResult, Validator};
 use rustyline::{error::ReadlineError, Editor, Helper};
-use tortuga::{about, parse, Interpreter, Lexer, ParseError, Parser, TortugaError};
+use tortuga::{about, parse, Interpreter, Lexer, ParseError, Parser};
 use tracing::error;
 
 struct PromptHelper;
@@ -35,7 +36,7 @@ impl Default for Prompt {
 
 impl Prompt {
     /// Read input from the user via a terminal prompt.
-    pub fn prompt(&mut self) -> Result<Option<String>, TortugaError> {
+    pub fn prompt(&mut self) -> Result<Option<String>, CommandLineError> {
         let prompt = format!("{}:{:03}> ", about::PROGRAM, self.line);
 
         match self.editor.readline(prompt.as_str()) {
@@ -45,7 +46,7 @@ impl Prompt {
             }
             Err(ReadlineError::Interrupted) => Ok(None),
             Err(ReadlineError::Eof) => Ok(None),
-            Err(error) => Err(TortugaError::PromptError(Box::new(error))),
+            Err(error) => Err(CommandLineError::PromptError(error)),
         }
     }
 }
@@ -84,7 +85,7 @@ impl Validator for PromptHelper {
 }
 
 /// Runs the read-evaluate-print loop.
-pub fn run_prompt() -> Result<(), TortugaError> {
+pub fn run_prompt() -> Result<(), CommandLineError> {
     let mut user = Prompt::default();
     let mut interpreter = Interpreter::default();
 

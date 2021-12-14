@@ -1,9 +1,12 @@
+mod errors;
 mod prompt;
+mod validate;
 
-pub use prompt::run_prompt;
+pub use errors::CommandLineError;
+use prompt::run_prompt;
+use validate::validate_file;
 
 use std::fs;
-use tortuga::TortugaError;
 use tracing::{subscriber::set_global_default, Level};
 use tracing_log::LogTracer;
 
@@ -31,10 +34,17 @@ struct RunCommand {
     filename: String,
 }
 
+#[derive(Parser)]
+/// Validates a file is well-formed by parsing the contents and printing the syntax tree.
+struct ValidateCommand {
+    filename: String,
+}
+
 #[derive(Subcommand)]
 enum Commands {
     Prompt(PromptCommand),
     Run(RunCommand),
+    Validate(ValidateCommand)
 }
 
 impl Default for Commands {
@@ -43,14 +53,14 @@ impl Default for Commands {
     }
 }
 
-fn main() -> Result<(), TortugaError> {
+fn main() -> Result<(), CommandLineError> {
     let arguments = Arguments::parse();
 
     set_verbosity(arguments.verbose)?;
     run_subcommand(arguments)
 }
 
-fn set_verbosity(occurrences: usize) -> Result<(), TortugaError> {
+fn set_verbosity(occurrences: usize) -> Result<(), CommandLineError> {
     let level = match occurrences {
         0 => Level::WARN,
         1 => Level::INFO,
@@ -65,12 +75,18 @@ fn set_verbosity(occurrences: usize) -> Result<(), TortugaError> {
     Ok(set_global_default(collector)?)
 }
 
-fn run_subcommand(arguments: Arguments) -> Result<(), TortugaError> {
+fn run_subcommand(arguments: Arguments) -> Result<(), CommandLineError> {
     match arguments.command.unwrap_or_default() {
+        Commands::Prompt(_) => run_prompt(),
         Commands::Run(command) => {
             let source = fs::read_to_string(command.filename)?;
-            tortuga::run(source.as_str())
+            
+            Ok(tortuga::run(source.as_str()))
+        },
+        Commands::Validate(command) => {
+            let source = fs::read_to_string(command.filename)?;
+            
+            validate_file(source.as_str())
         }
-        Commands::Prompt(_) => run_prompt(),
     }
 }
