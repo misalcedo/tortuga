@@ -67,75 +67,85 @@ pub enum ParseError {
 #[cfg(test)]
 mod tests {
     use super::pretty_print;
+    use crate::Parser;
     use std::io::sink;
+
+    fn validate(source: &str, predicate: fn(&Result<(), ()>) -> bool) {
+        let peg_result = predicate(&pretty_print(source, sink()).map_err(|_| ()));
+        let parser_result = predicate(&Parser::default().parse(source).map(|_| ()).map_err(|_| ()));
+
+        assert_eq!(peg_result, parser_result,"PEG-Generated and hand-written parser (respectively) do not agree on the validity of the given source: '{}'.", source);
+    }
 
     #[test]
     fn parse_valid_radix_numbers() {
-        assert!(pretty_print("36#Z.Z", sink()).is_ok());
-        assert!(pretty_print("16#FFFFFF", sink()).is_ok());
-        assert!(pretty_print("2#011001", sink()).is_ok());
-        assert!(pretty_print("2#+011.101", sink()).is_ok());
-        assert!(pretty_print("8#-777", sink()).is_ok());
-        assert!(pretty_print("5#4.2", sink()).is_ok());
-        assert!(pretty_print("3#.2", sink()).is_ok());
-        assert!(pretty_print("1#0.", sink()).is_ok());
+        validate("36#Z.Z", Result::is_ok);
+
+        validate("36#Z.Z", Result::is_ok);
+        validate("16#FFFFFF", Result::is_ok);
+        validate("2#011001", Result::is_ok);
+        validate("2#+011.101", Result::is_ok);
+        validate("8#-777", Result::is_ok);
+        validate("5#4.2", Result::is_ok);
+        validate("3#.2", Result::is_ok);
+        validate("1#0.", Result::is_ok);
     }
 
     #[test]
     fn parse_invalid_radix_numbers() {
-        assert!(pretty_print("7#0.2.5", sink()).is_err());
-        assert!(pretty_print("256#Hello", sink()).is_err());
-        assert!(pretty_print("0#Hello", sink()).is_err());
-        assert!(pretty_print("002#11", sink()).is_err());
-        assert!(pretty_print("FF#1", sink()).is_err());
-        assert!(pretty_print("+FF#2", sink()).is_err());
-        assert!(pretty_print("-FF#4", sink()).is_err());
+        validate("7#0.2.5", Result::is_err);
+        validate("256#Hello", Result::is_err);
+        validate("0#Hello", Result::is_err);
+        validate("002#11", Result::is_err);
+        validate("FF#1", Result::is_err);
+        validate("+FF#2", Result::is_err);
+        validate("-FF#4", Result::is_err);
     }
 
     #[test]
     fn parse_valid_numbers() {
-        assert!(pretty_print("42", sink()).is_ok());
-        assert!(pretty_print("0", sink()).is_ok());
-        assert!(pretty_print("-5", sink()).is_ok());
-        assert!(pretty_print(".5", sink()).is_ok());
-        assert!(pretty_print("1.5", sink()).is_ok());
-        assert!(pretty_print("+1.2", sink()).is_ok());
-        assert!(pretty_print("-1.", sink()).is_ok());
-        assert!(pretty_print("+0.2", sink()).is_ok());
-        assert!(pretty_print("+1.0", sink()).is_ok());
-        assert!(pretty_print("-0.1", sink()).is_ok());
-        assert!(pretty_print("-2.0", sink()).is_ok());
-        assert!(pretty_print("0.0", sink()).is_ok());
-        assert!(pretty_print("0.", sink()).is_ok());
-        assert!(pretty_print(".0", sink()).is_ok());
+        validate("42", Result::is_ok);
+        validate("0", Result::is_ok);
+        validate("-5", Result::is_ok);
+        validate(".5", Result::is_ok);
+        validate("1.5", Result::is_ok);
+        validate("+1.2", Result::is_ok);
+        validate("-1.", Result::is_ok);
+        validate("+0.2", Result::is_ok);
+        validate("+1.0", Result::is_ok);
+        validate("-0.1", Result::is_ok);
+        validate("-2.0", Result::is_ok);
+        validate("0.0", Result::is_ok);
+        validate("0.", Result::is_ok);
+        validate(".0", Result::is_ok);
     }
 
     #[test]
     fn parse_invalid_numbers() {
-        assert!(pretty_print("0.2.5", sink()).is_err());
-        assert!(pretty_print(".2.5", sink()).is_err());
-        assert!(pretty_print("2.5.", sink()).is_err());
-        assert!(pretty_print("1 . 2", sink()).is_err());
-        assert!(pretty_print("+0", sink()).is_err());
-        assert!(pretty_print("-0", sink()).is_err());
-        assert!(pretty_print("+0.0", sink()).is_err());
-        assert!(pretty_print("-0.0", sink()).is_err());
+        validate("0.2.5", Result::is_err);
+        validate(".2.5", Result::is_err);
+        validate("2.5.", Result::is_err);
+        validate("1 . 2", Result::is_err);
+        validate("+0", Result::is_err);
+        validate("-0", Result::is_err);
+        validate("+0.0", Result::is_err);
+        validate("-0.0", Result::is_err);
     }
 
     #[test]
     fn parse_valid_identifiers() {
-        assert!(pretty_print("x2", sink()).is_ok());
-        assert!(pretty_print("x_2", sink()).is_ok());
-        assert!(pretty_print("x___2", sink()).is_ok());
-        assert!(pretty_print("xx", sink()).is_ok());
+        validate("x2", Result::is_ok);
+        validate("x_2", Result::is_ok);
+        validate("x___2", Result::is_ok);
+        validate("xx", Result::is_ok);
     }
 
     #[test]
     fn parse_invalid_identifiers() {
-        assert!(pretty_print("2x", sink()).is_err());
-        assert!(pretty_print("_x", sink()).is_err());
-        assert!(pretty_print("x_", sink()).is_err());
-        assert!(pretty_print("x__", sink()).is_err());
-        assert!(pretty_print("2_xx", sink()).is_err());
+        validate("2x", Result::is_err);
+        validate("_x", Result::is_err);
+        validate("x_", Result::is_err);
+        validate("x__", Result::is_err);
+        validate("2_xx", Result::is_err);
     }
 }
