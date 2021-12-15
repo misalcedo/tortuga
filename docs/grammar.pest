@@ -23,8 +23,8 @@ Pattern    = { Range | Function }
 Function   = { IDENTIFIER ~ ( "(" ~ Parameters ~ ")" )? }
 Range      = { ( Expression ~ INEQUALITY )? ~ IDENTIFIER ~ ( INEQUALITY ~ Expression )? }
 
-IDENTIFIER = @{ ( ANONYMOUS ~ !( LETTER | NUMBER ) ) | ( !(NUMBER | ANONYMOUS) ~ CHARACTER+ ~ !ANONYMOUS ) }
-CHARACTER  = _{ ( ANONYMOUS ~ &( LETTER | NUMBER ) ) | LETTER | NUMBER }
+IDENTIFIER = { ( ANONYMOUS ~ !( LETTER | NUMBER ) ) | ( !(NUMBER | ANONYMOUS) ~ CHARACTER+ ~ !ANONYMOUS ) }
+CHARACTER  = _{ ANONYMOUS | LETTER | NUMBER }
 ANONYMOUS  = _{ "_" }
 
 RADIX      = @{ ( "i" | ASCII_DIGIT+ ) ~ "#" ~ SUM? ~ BASE36 }
