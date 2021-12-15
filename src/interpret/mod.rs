@@ -276,7 +276,7 @@ impl<'source> TryFrom<Value> for bool {
 pub fn run(code: &str) {
     let mut interpreter = Interpreter::default();
 
-    match Parser::from(code).parse() {
+    match Parser::default().parse(code) {
         Ok(program) => interpreter.interpret(&program),
         Err(error) => error!("{}", error),
     }

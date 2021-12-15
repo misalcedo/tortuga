@@ -264,34 +264,31 @@ fn parse_grouping<'source, I: Iterator<Item = Token<'source>>>(
 }
 
 /// A recursive descent parser for a stream of tokens into a syntax tree for the Tortuga language.
-pub struct Parser<'source, I: Iterator<Item = Token<'source>>> {
-    tokens: TokenStream<'source, I>,
-}
+pub struct Parser;
 
-impl<'source, I, IT> From<IT> for Parser<'source, I>
-where
-    I: Iterator<Item = Token<'source>>,
-    IT: Into<TokenStream<'source, I>>,
-{
-    fn from(tokens: IT) -> Parser<'source, I> {
-        Parser {
-            tokens: tokens.into(),
-        }
+impl Default for Parser {
+    fn default() -> Self {
+        Parser
     }
 }
 
-impl<'source, I: Iterator<Item = Token<'source>>> Parser<'source, I> {
+impl Parser {
     /// Parses the stream of tokens into a syntax tree.
-    pub fn parse(mut self) -> Result<Program, ParseError> {
+    pub fn parse<'source, I, IT>(&self, tokens: IT) -> Result<Program, ParseError> 
+    where
+    I: Iterator<Item = Token<'source>>,
+    IT: Into<TokenStream<'source, I>>,
+{
+        let mut tokens = tokens.into();
         let mut errors: Vec<SyntaxError> = Vec::new();
         let mut expressions = Vec::new();
 
-        while !self.tokens.is_empty() {
-            match parse_expression(&mut self.tokens) {
+        while !tokens.is_empty() {
+            match parse_expression(&mut tokens) {
                 Err(error) => {
                     errors.push(error);
 
-                    if let Some(expression) = self.synchronize() {
+                    if let Some(expression) = Self::synchronize(&mut tokens) {
                         expressions.push(expression);
                     }
                 }
@@ -318,18 +315,18 @@ impl<'source, I: Iterator<Item = Token<'source>>> Parser<'source, I> {
 
     /// Unwinds this parser's recursive descent into the grammar rules upon encountering an error parsing a rule.
     /// Some tokens may be skipped in order to allow the parser to identify additional errors in the source code.
-    fn synchronize(&mut self) -> Option<Expression> {
-        if self.tokens.is_empty() {
+    fn synchronize<'source, I: Iterator<Item = Token<'source>>>(tokens: &mut TokenStream<'source, I>) -> Option<Expression> {
+        if tokens.is_empty() {
             return None;
         }
 
         loop {
-            match parse_expression(&mut self.tokens) {
+            match parse_expression(tokens) {
                 Ok(expression) => return Some(expression),
                 Err(error) => debug!("Skipping an error encountered while parsing an expression during panic mode: {}", error)
             }
 
-            match self.tokens.next() {
+            match tokens.next() {
                 Ok(Some(token)) => debug!("Skipped token during token mode: {:?}.", token),
                 Ok(None) => return None,
                 Err(error) => debug!(
@@ -350,17 +347,17 @@ mod tests {
 
     #[test]
     fn parse_number_double_sign() {
-        let parser = Parser::from(lex_tokens("-2#+01"));
+        let parser = Parser::default();
 
-        assert_eq!(parser.parse(), Err(ParseError::MultipleErrors));
+        assert_eq!(parser.parse("-2#+01"), Err(ParseError::MultipleErrors));
     }
 
     #[test]
     fn parse_signed_number() {
-        let parser = Parser::from(lex_tokens("-1"));
+        let parser = Parser::default();
 
         assert_eq!(
-            parser.parse().unwrap(),
+            parser.parse("-1").unwrap(),
             Program::from(vec![Expression::Number(Number::new_signed_integer(
                 Sign::Negative,
                 1
@@ -370,17 +367,17 @@ mod tests {
 
     #[test]
     fn parse_radix_number_badly_signed() {
-        let parser = Parser::from(lex_tokens("-2#01"));
+        let parser = Parser::default();
 
-        assert_eq!(parser.parse(), Err(ParseError::MultipleErrors));
+        assert_eq!(parser.parse("-2#01"), Err(ParseError::MultipleErrors));
     }
 
     #[test]
     fn parse_radix_number_signed() {
-        let parser = Parser::from(lex_tokens("2#+01"));
+        let parser = Parser::default();
 
         assert_eq!(
-            parser.parse(),
+            parser.parse("2#+01"),
             Ok(vec![Expression::Number(Number::new_signed_integer(
                 Sign::Positive,
                 1
@@ -391,44 +388,44 @@ mod tests {
 
     #[test]
     fn parse_radix_number_unsigned() {
-        let parser = Parser::from(lex_tokens("2#01"));
+        let parser = Parser::default();
 
         assert_eq!(
-            parser.parse().unwrap(),
+            parser.parse("2#01").unwrap(),
             Program::from(vec![Expression::Number(Number::new_integer(1))])
         );
     }
 
     #[test]
     fn parse_radix_number_invalid() {
-        let parser = Parser::from(lex_tokens("2#FF"));
+        let parser = Parser::default();
 
-        assert_eq!(parser.parse(), Err(ParseError::MultipleErrors));
+        assert_eq!(parser.parse("2#FF"), Err(ParseError::MultipleErrors));
     }
 
     #[test]
     fn parse_block_when_empty() {
-        let parser = Parser::from(lex_tokens("[]"));
+        let parser = Parser::default();
 
-        assert_eq!(parser.parse(), Err(ParseError::MultipleErrors));
+        assert_eq!(parser.parse("[]"), Err(ParseError::MultipleErrors));
     }
 
     #[test]
     fn parse_block() {
-        let parser = Parser::from(lex_tokens("[2]"));
+        let parser = Parser::default();
 
         assert_eq!(
-            parser.parse().unwrap(),
+            parser.parse("[2]").unwrap(),
             Program::from(vec![Block::new(vec![Number::new_integer(2).into()]).into()])
         );
     }
 
     #[test]
     fn parse_equals_expression() {
-        let parser = Parser::from(lex_tokens("x=2#-01"));
+        let parser = Parser::default();
 
         assert_eq!(
-            parser.parse().unwrap(),
+            parser.parse("x=2#-01").unwrap(),
             Program::from(vec![Expression::ComparisonOperation(
                 ComparisonOperation::new(
                     Expression::Variable(Variable::new("x")),
@@ -441,7 +438,7 @@ mod tests {
 
     #[test]
     fn parse_math_expression() {
-        let parser = Parser::from("(2^3+5-10)*3/9");
+        let parser = Parser::default();
         let exponent = BinaryOperation::new(
             Number::new_integer(2).into(),
             Operator::Exponent,
@@ -460,7 +457,7 @@ mod tests {
             BinaryOperation::new(multiply, Operator::Divide, Number::new_integer(9).into()).into();
         let expected = Program::from(vec![divide]);
 
-        let actual = parser.parse().unwrap();
+        let actual = parser.parse("(2^3+5-10)*3/9").unwrap();
 
         assert_eq!(actual, expected);
     }

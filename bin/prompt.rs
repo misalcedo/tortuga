@@ -73,7 +73,7 @@ impl Validator for PromptHelper {
             return Ok(ValidationResult::Valid(None));
         }
 
-        match Parser::from(ctx.input()).parse() {
+        match Parser::default().parse(ctx.input()) {
             Ok(_) => Ok(ValidationResult::Valid(None)),
             Err(ParseError::EndOfFile) => Ok(ValidationResult::Incomplete),
             Err(error) => Ok(ValidationResult::Invalid(Some(format!(
@@ -94,7 +94,7 @@ pub fn run_prompt() -> Result<(), CommandLineError> {
             None => return Ok(()),
             Some(input) if input.trim().is_empty() => continue,
             Some(input) => {
-                match Parser::from(input.as_str()).parse() {
+                match Parser::default().parse(input.as_str()) {
                     Ok(program) => interpreter.interpret(&program),
                     Err(error) => error!("{}", error),
                 };
