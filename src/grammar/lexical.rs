@@ -1,4 +1,4 @@
-//! The lexical grammar rules.
+//! The lexical grammar rules for Tortuga.
 
 pub enum Sign {
     Positive,
@@ -56,9 +56,9 @@ pub enum Radix<'a> {
     Real(Integer<'a>)
 }
 
-// Latin for any root (including `i` for imaginary).
-pub struct SiRadix<'a> {
-    radix: &'a str,
+// Latin for "any root", including `i` for imaginary).
+pub struct QuisRadix<'a> {
+    radix: Radix<'a>,
     sign: Sign,
     number: Number<'a>
 }
@@ -69,4 +69,3 @@ pub enum Identifier<'a> {
     Anonymous,
     Name(Name<'a>)
 }
-

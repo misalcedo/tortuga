@@ -1,4 +1,4 @@
-//! The complete grammar definition for Tortuga.
+//! The Abstract Syntax Tree (AST) of the complete grammar definition for Tortuga.
 
 /// program → expression* EOF ;
 pub struct Program {

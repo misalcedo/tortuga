@@ -12,7 +12,7 @@ Product    = { Power ~ ( PRODUCT ~ Power )* }
 Power      = { Primary ~ ( POWER ~ Primary )* }
 
 Primary    = _{ Number | Call | Grouping }
-Number     = { SIRADIX | (SIGN? ~ DECIMAL) }
+Number     = { QUISRADIX | (SIGN? ~ DECIMAL) }
 Call       = { IDENTIFIER ~ ( "(" ~ Arguments ~ ")" )? }
 Grouping   = { "(" ~ Expression ~ ")" }
 
@@ -27,7 +27,7 @@ IDENTIFIER = { ( ANONYMOUS ~ !( LETTER | NUMBER ) ) | ( !(NUMBER | ANONYMOUS) ~ 
 CHARACTER  = _{ ANONYMOUS | LETTER | NUMBER }
 ANONYMOUS  = _{ "_" }
 
-SIRADIX    = ${ RADIX ~ "#" ~ SIGN? ~ BASE36 }
+QUISRADIX  = ${ RADIX ~ "#" ~ SIGN? ~ BASE36 }
 RADIX      = @{ "i" | ASCII_DIGIT+ }
 DECIMAL    = @{ (ASCII_DIGIT+ ~ ( "." ~ ASCII_DIGIT* )? | ( "." ~ ASCII_DIGIT+ ) ) ~ !IDENTIFIER }
 BASE36     = @{ ASCII_ALPHANUMERIC+ ~ ( "." ~ ASCII_ALPHANUMERIC* )? | ( "." ~ ASCII_ALPHANUMERIC+ ) }
