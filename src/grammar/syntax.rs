@@ -11,6 +11,10 @@ pub enum Expression {
     Assignment(Box<Assignment>),
 }
 
+pub struct Inequality {
+    equality: Equality
+}
+
 /// modulo     → Sum ( "%" Sum )* ;
 pub struct Modulo {
     first: Sum,

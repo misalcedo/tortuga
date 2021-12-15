@@ -1,7 +1,8 @@
 //! The Syntax Tree for the tortuga grammar.
 
+mod lexical;
 mod number;
-mod v1;
+mod syntax;
 
 pub use number::{Fraction, Number, Sign, DECIMAL_RADIX, MAX_RADIX};
 use std::fmt;
