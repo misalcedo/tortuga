@@ -4,6 +4,7 @@ pub mod about;
 mod compile;
 pub mod grammar;
 mod interpret;
+mod compiler;
 
 pub use about::*;
 pub use compile::{Lexer, LexicalError, Location, ParseError, Parser};
