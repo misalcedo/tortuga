@@ -92,7 +92,6 @@ pub fn run_prompt() -> Result<(), CommandLineError> {
 
     println!("{} {}", about::PROGRAM.green(), about::VERSION);
     println!("{}", about::AUTHORS);
-    println!("{}", about::DESCRIPTION);
     println!("{}", "Press Ctrl-C to exit.".yellow().bold());
     println!("");
 
