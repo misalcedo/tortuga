@@ -37,10 +37,10 @@ impl Lexeme {
     /// ## Panic
     /// Panics when the given input is shorter than the offset plus length of this `Lexeme`.
     pub fn extract_from<'a>(&self, input: &'a str) -> &'a str {
-        let offset = self.start.offset();
-        let end = offset + self.length;
+        let start = self.start.offset();
+        let end = self.end.offset();
 
-        &input[offset..end]
+        &input[start..end]
     }
 }
 
