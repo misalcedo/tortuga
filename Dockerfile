@@ -7,4 +7,4 @@ RUN cargo install --path .
 FROM scratch
 COPY --from=builder /usr/local/cargo/bin/tortuga /usr/local/bin/tortuga
 
-CMD ["tortuga"]
+ENTRYPOINT ["tortuga"]
