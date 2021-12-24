@@ -2,6 +2,7 @@
 
 pub mod about;
 mod compile;
+mod compiler;
 pub mod grammar;
 mod interpret;
 

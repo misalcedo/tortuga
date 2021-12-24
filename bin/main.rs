@@ -41,10 +41,17 @@ struct ValidateCommand {
     filename: String,
 }
 
+#[derive(Parser)]
+/// Performs lexical analysis on a file and prints the annotated token sequence.
+struct ScanCommand {
+    filename: String,
+}
+
 #[derive(Subcommand)]
 enum Commands {
     Prompt(PromptCommand),
     Run(RunCommand),
+    Scan(ScanCommand),
     Validate(ValidateCommand),
 }
 
@@ -96,6 +103,14 @@ fn run_subcommand(arguments: Arguments) -> Result<(), CommandLineError> {
             let source = fs::read_to_string(command.filename)?;
 
             validate_file(source.as_str())
+        }
+        Commands::Scan(command) => {
+            let source = fs::read_to_string(command.filename)?;
+            let tokens: Vec<tortuga::Token<'_>> = tortuga::Lexer::from(source).collect();
+
+            for token in tokens {
+                println!("{}", token);
+            }
         }
     }
 }
