@@ -1,10 +1,10 @@
-name: Build
+name: Docker
 
 on: [push]
 
 jobs:
-  build:
-    name: Build
+  docker:
+    name: Build Docker Image
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
