@@ -91,7 +91,6 @@ pub fn run_prompt() -> Result<(), CommandLineError> {
     let mut interpreter = Interpreter::default();
 
     println!("{} {}", about::PROGRAM.green(), about::VERSION);
-    println!("{}", about::AUTHORS);
     println!("{}", "Press Ctrl-C to exit.".yellow().bold());
     println!("");
 
