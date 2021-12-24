@@ -25,6 +25,12 @@ To embed the language in Rust, add `tortuga` as a dependency in your `Cargo.toml
 tortuga = { version = "0.4", default-features = false }
 ```
 
+## Docker
+To test the language in a container, run the `ghcr.io/misalcedo/tortuga` image:
+```bash
+docker run -it --rm ghcr.io/misalcedo/tortuga
+```
+
 # Testing
 ## Local Install
 To test the command-line interface, instal the crate locally from the root of the repository with:
