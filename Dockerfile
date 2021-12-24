@@ -1,9 +1,10 @@
-FROM rust as builder
+FROM rust:alpine as builder
 WORKDIR /usr/src/app
+RUN apk add libc-dev
 COPY . .
 RUN cargo install --path .
 
-FROM rust
+FROM scratch
 COPY --from=builder /usr/local/cargo/bin/tortuga /usr/local/bin/tortuga
 
 CMD ["tortuga"]
