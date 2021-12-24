@@ -1,6 +1,7 @@
 //! Terminal prompt reading and printing with editing and history.
 
 use crate::CommandLineError;
+use colored::*;
 use rustyline::completion::Completer;
 use rustyline::config::Config;
 use rustyline::highlight::Highlighter;
@@ -37,7 +38,7 @@ impl Default for Prompt {
 impl Prompt {
     /// Read input from the user via a terminal prompt.
     pub fn prompt(&mut self) -> Result<Option<String>, CommandLineError> {
-        let prompt = format!("{}:{:03}> ", about::PROGRAM, self.line);
+        let prompt = format!("{}:{}> ", about::PROGRAM.green(), format!("{:03}", self.line).blue());
 
         match self.editor.readline(prompt.as_str()) {
             Ok(input) => {
@@ -88,6 +89,12 @@ impl Validator for PromptHelper {
 pub fn run_prompt() -> Result<(), CommandLineError> {
     let mut user = Prompt::default();
     let mut interpreter = Interpreter::default();
+
+    println!("{} {}", about::PROGRAM.green(), about::VERSION);
+    println!("{}", about::AUTHORS);
+    println!("{}", about::DESCRIPTION);
+    println!("{}", "Press Ctrl-C to exit.".yellow().bold());
+    println!("");
 
     loop {
         match user.prompt()? {
