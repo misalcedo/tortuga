@@ -1,10 +1,10 @@
 //! Scans a source file for valid characters.
 //! The Input produces a finite stream of characters, ignoring comments and blank space.
 
-use crate::compile::{Lexeme, LexemeSource, Location};
+use crate::compiler::{Lexeme, Location};
 use std::str::Chars;
 
-/// Tortuga <Input> is interpreted as a sequence of Unicode code points encoded in UTF-8.
+/// Tortuga `Input` is interpreted as a sequence of Unicode code points encoded in UTF-8.
 #[derive(Clone, Debug)]
 pub struct Input<'source> {
     source: &'source str,

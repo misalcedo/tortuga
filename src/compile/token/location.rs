@@ -28,6 +28,7 @@ impl fmt::Display for Location {
 
 impl Location {
     /// Creates a new instance of a `Location` with the given values.
+    #[cfg(test)]
     pub fn new(line: usize, column: usize, offset: usize) -> Self {
         Location {
             line,
@@ -35,26 +36,36 @@ impl Location {
             offset,
         }
     }
-
-    /// Move this location based on the given character `c`.
-    pub fn increment(&mut self, c: char) {
-        match c {
-            '\n' => self.next_line(),
-            _ => self.add_column(c),
-        }
-    }
-
     /// Moves this `Location` to the next line, first column.
-    fn next_line(&mut self) {
+    pub fn next_line(&mut self) {
         self.line += 1;
         self.column = 1;
         self.offset += '\n'.len_utf8();
     }
 
     /// Adds a single column to this `Location`.
-    fn add_column(&mut self, c: char) {
+    pub fn add_column<T: Borrow<char>>(&mut self, character: T) {
         self.column += 1;
-        self.offset += c.len_utf8();
+        self.offset += character.borrow().len_utf8();
+    }
+
+    /// Adds a single offset, without incrementing the column, to this `Location`.
+    pub fn add_offset<T: Borrow<char>>(&mut self, character: T) {
+        self.offset += character.borrow().len_utf8();
+    }
+
+    /// Returns the a `Location` with an offset of 0, but the same line and column.
+    pub fn continuation(&self) -> Location {
+        Location {
+            line: self.line,
+            column: self.column,
+            offset: 0,
+        }
+    }
+
+    /// Gets the current line of this `Location`.
+    pub fn line(&self) -> usize {
+        self.line
     }
 }
 
@@ -75,6 +86,26 @@ mod tests {
     #[test]
     fn default_location() {
         assert_eq!(Location::default(), Location::new(1, 1, 0));
+    }
+
+    #[test]
+    fn add_offset_to_location_when_ascii() {
+        let mut location = Location::default();
+        let c = 'a';
+
+        location.add_offset(c);
+
+        assert_eq!(location, Location::new(1, 1, c.len_utf8()));
+    }
+
+    #[test]
+    fn add_offset_to_location_when_multi_byte() {
+        let mut location = Location::default();
+        let c = '〞';
+
+        location.add_offset(c);
+
+        assert_eq!(location, Location::new(1, 1, c.len_utf8()));
     }
 
     #[test]
