@@ -8,13 +8,13 @@ use crate::compiler::Location;
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Lexeme {
     start: Location,
-    length: usize,
+    end: Location,
 }
 
 impl Lexeme {
-    /// Creates a new instance of a `Lexeme` with the given `Location` and length in bytes.
-    pub fn new(start: Location, length: usize) -> Self {
-        Lexeme { start, length }
+    /// Creates a new instance of a `Lexeme` with the given start and end `Location`s.
+    pub fn new(start: Location, end: Location) -> Self {
+        Lexeme { start, end }
     }
 
     /// The start `Location` of this `Lexeme`.
@@ -44,27 +44,29 @@ impl Lexeme {
     }
 }
 
-/// A source for lexemes.
-pub trait LexemeSource {
-    fn lexeme(&self, lexeme: &Lexeme) -> &Self;
-}
-
-impl LexemeSource for str {
-    fn lexeme(&self, lexeme: &Lexeme) -> &Self {
-        lexeme.extract_from(self)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn index_source() {
-        let lexeme = Lexeme::new(Location::new(1, 1, 7), 5);
+        let start = Location::new(1, 1, 7);
+        let end = Location::new(1, 1, 12);
+        let lexeme = Lexeme::new(start, end);
         let input = "Hello, World!";
 
+        assert_eq!(lexeme.len(), 12);
+        assert_eq!(lexeme.is_empty(), false);
         assert_eq!(lexeme.extract_from(input), "World");
-        assert_eq!(input.lexeme(&lexeme), "World");
+    }
+
+    #[test]
+    fn empty() {
+        let lexeme = Lexeme::new(Location::default(), Location::default());
+        let input = "Hello, World!";
+
+        assert_eq!(lexeme.len(), 0);
+        assert_eq!(lexeme.is_empty(), true);
+        assert_eq!(lexeme.extract_from(input), "");
     }
 }

@@ -1,13 +1,4 @@
 use std::fmt;
-use std::ops::Sub;
-
-impl Sub<Location> for Location {
-    type Output = usize;
-
-    fn sub(self, rhs: Location) -> Self::Output {
-        self.offset - rhs.offset
-    }
-}
 
 /// The line and column of the start of a lexeme.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -128,19 +119,5 @@ mod tests {
             location,
             Location::new(2, 2, (2 * c.len_utf8()) + '\n'.len_utf8())
         );
-    }
-
-    #[test]
-    fn subtract_locations() {
-        let mut start = Location::default();
-        let mut end = Location::default();
-
-        end.increment('a');
-        end.increment('b');
-        end.increment('c');
-
-        assert_eq!(end - start, end.offset());
-        assert_eq!(end.offset(), 3);
-        assert_eq!(start - end, -3);
     }
 }
