@@ -46,7 +46,7 @@ impl<A: Any> Token<A> {
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub enum TokenKind {
-    Number(Token<()>),
+    Number(Token<f64>),
     Identifier(Token<()>),
 
     // Punctuation
