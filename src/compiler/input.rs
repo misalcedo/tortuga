@@ -1,29 +1,20 @@
-//! Scans a source file for valid characters.
-//! The Input produces a finite stream of characters, ignoring comments and blank space.
+//! Tortuga `Input` is interpreted as a sequence of Unicode code points encoded in UTF-8.
 
 use crate::compiler::{Lexeme, Location};
 use std::str::Chars;
 
-/// Tortuga `Input` is interpreted as a sequence of Unicode code points encoded in UTF-8.
+/// Iterates input with 1 Unicode code point of lookahead.
 #[derive(Clone, Debug)]
-pub struct Input<'source> {
-    source: &'source str,
+pub struct Input<I: Iterator<Item = char>> {
     start: Location,
     end: Location,
     peeked: Option<char>,
-    characters: Chars<'source>,
+    characters: I,
 }
 
-impl Default for Input<'_> {
-    fn default() -> Self {
-        Input::from("")
-    }
-}
-
-impl<'source> From<&'source str> for Input<'source> {
-    fn from(source: &'source str) -> Self {
+impl From<&str> for Input<Chars<'_>> {
+    fn from(source: &str) -> Self {
         Input {
-            source,
             start: Location::default(),
             end: Location::default(),
             peeked: None,
@@ -32,71 +23,83 @@ impl<'source> From<&'source str> for Input<'source> {
     }
 }
 
-impl<'source> Input<'source> {
+impl<I: Iterator<Item = char>> Iterator for Input<I> {
+    type Item = char;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let c = if self.peeked.is_none() {
+            self.characters.next()
+        } else {
+            self.peeked.take()
+        };
+
+        self.end.advance(c?);
+
+        c
+    }
+}
+
+impl<I: Iterator<Item = char>> Input<I> {
     /// Set this `Input`s start `Location` equal to its end.
     /// Resets the next lexeme to start at the current end `Location`.
     pub fn step_forward(&mut self) {
         self.start = self.end;
     }
 
-    /// Gets the next character in the source.
-    /// Skips comments, blank space, and new lines.
-    pub fn next(&mut self) -> Option<char> {
-        let mut c = self.peeked.or_else(|| self.characters.next())?;
+    /// Lookahead by 1 Unicode code point without advancing the `Location` of the current `Lexeme`.
+    pub fn peek(&mut self) -> Option<char> {
+        if self.peeked.is_none() {
+            self.peeked = self.characters.next();
+        }
 
-        self.end.increment(c);
-
-        let c = self.characters.next()?;
-
-        self.end.add_column(c);
-
-        Some(c)
+        self.peeked
     }
 
-    /// Returns the next character only if the next one equals the expected value.
+    /// If the next character is equal to the `expected` value, advance the `Location` of the current `Lexeme`.
+    /// Otherwise, the current `Location` is unchanged.
     pub fn next_if_eq(&mut self, expected: char) -> Option<char> {
-        let c = self.characters.next_if_eq(&expected)?;
+        let c = self.peek()?;
 
-        self.end.add_column(c);
+        if c == expected {
+            self.end.advance(c);
+            self.peeked.take()
+        } else {
+            None
+        }
+    }
 
-        Some(c)
+    /// Unless the next character is equal to the `avoid` value, advance the `Location` of the current `Lexeme`.
+    /// Otherwise, the current `Location` is unchanged.
+    pub fn next_unless_eq(&mut self, expected: char) -> Option<char> {
+        let c = self.peek()?;
+
+        if c == expected {
+            None
+        } else {
+            self.end.advance(c);
+            self.peeked.take()
+        }
     }
 
     /// Returns the next character only if the next one matches the given predicate.
     pub fn next_if(&mut self, predicate: impl FnOnce(char) -> bool) -> Option<char> {
-        let c = self.characters.next_if(|c| predicate(*c))?;
+        let c = self.peek()?;
 
-        self.end.add_column(c);
-
-        Some(c)
-    }
-
-    /// Peeks at the next character in the source.
-    /// Skips any unnecessary characters before peeking.
-    pub fn peek(&mut self) -> Option<char> {
-        self.skip();
-        self.characters.peek().copied()
+        if predicate(c) {
+            self.end.advance(c);
+            self.peeked.take()
+        } else {
+            None
+        }
     }
 
     /// Gets the lexeme starting at this `Input`'s start `Location` (inclusive) until this `Input`'s end `Location` (exclusive).
-    pub fn lexeme(&mut self) -> Lexeme<'source> {
+    pub fn lexeme(&mut self) -> Lexeme {
         let start = self.start;
-        let substring = self.source.lexeme(&start, &self.end);
 
-        self.step_forward();
+        self.start = self.end;
 
-        Lexeme::new(substring, start)
-    }
-
-    /// Gets the lexeme starting at the given `Location` (inclusive) until this `Input`'s end `Location` (exclusive).
-    pub fn lexeme_from(&mut self, start: &Location) -> Lexeme<'source> {
-        Lexeme::new(self.source.lexeme(start, &self.end), *start)
-    }
-
-    /// The start location of the current lexeme being scanned.
-    /// Used to scan multi-part tokens (e.g., numeric literals), so the lexeme covers the entire token.
-    pub fn start(&self) -> &Location {
-        &self.start
+        Lexeme::new(start, self.end)
     }
 }
 

@@ -35,8 +35,8 @@ impl Location {
         self.offset
     }
 
-    /// Move this `Location` based on the given character `c`.
-    pub fn increment(&mut self, c: char) {
+    /// Advance this `Location` based on the given character `c`.
+    pub fn advance(&mut self, c: char) {
         match c {
             '\n' => self.next_line(),
             _ => self.add_column(c),
@@ -77,21 +77,21 @@ mod tests {
     }
 
     #[test]
-    fn increment_location_when_ascii() {
+    fn advance_location_when_ascii() {
         let mut location = Location::default();
         let c = 'a';
 
-        location.increment(c);
+        location.advance(c);
 
         assert_eq!(location, Location::new(1, 2, c.len_utf8()));
     }
 
     #[test]
-    fn increment_location_when_multi_byte() {
+    fn advance_location_when_multi_byte() {
         let mut location = Location::default();
         let c = '〞';
 
-        location.increment(c);
+        location.advance(c);
 
         assert_eq!(location, Location::new(1, 2, c.len_utf8()));
     }
@@ -101,7 +101,7 @@ mod tests {
         let mut location = Location::default();
         let c = '\n';
 
-        location.increment(c);
+        location.advance(c);
 
         assert_eq!(location, Location::new(2, 1, c.len_utf8()));
     }
@@ -111,9 +111,9 @@ mod tests {
         let mut location = Location::default();
         let c = '〞';
 
-        location.increment(c);
-        location.increment('\n');
-        location.increment(c);
+        location.advance(c);
+        location.advance('\n');
+        location.advance(c);
 
         assert_eq!(
             location,
