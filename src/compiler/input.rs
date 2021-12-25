@@ -1,5 +1,6 @@
 //! Tortuga `Input` is interpreted as a sequence of Unicode code points encoded in UTF-8.
 
+use crate::compiler::unicode::UnicodeProperties;
 use crate::compiler::{Lexeme, Location};
 use std::str::Chars;
 
@@ -89,10 +90,19 @@ impl<I: Iterator<Item = char>> Input<I> {
 
     /// Skips any blank space characters except '\n'.
     /// Returns true if any characters were skipped, false otherwise.
+    ///
+    /// Tortuga is a "free-form" language,
+    /// meaning that all forms of whitespace serve only to separate tokens in the grammar,
+    /// and have no semantic significance.
+    ///
+    /// A Tortuga program has identical meaning if each whitespace element is replaced with any other legal whitespace element,
+    /// such as a single space character.
+    ///
+    /// See <https://util.unicode.org/UnicodeJsps/list-unicodeset.jsp?a=%5B%3APattern_White_Space%3A%5D&abb=on&g=&i=>
     pub fn skip_blank_space(&mut self) -> bool {
         let start = self.end;
 
-        while self.next_if(|c| c != '\n' && c.is_whitespace()).is_some() {}
+        while self.next_if(|c| c.is_pattern_white_space()).is_some() {}
 
         start < self.end
     }
@@ -131,7 +141,6 @@ mod tests {
         let mut input = Input::from(";hello\r\n\t abc");
 
         while input.next_unless_eq('\n').is_some() {}
-        input.next();
         input.skip_blank_space();
 
         assert_eq!(input.peek(), Some('a'));

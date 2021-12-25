@@ -1,5 +1,5 @@
 //! A lexeme is an excerpt of text from the source code to be compiled.
-//! Lexeme's in the tortuga compiler also contain their `Location` information.
+//! Lexeme's in the tortuga compiler are denoted by their start and end `Location`s.
 
 use crate::compiler::Location;
 

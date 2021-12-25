@@ -1,3 +1,7 @@
+//! A `Location` in source code is both a line and column pair, as well as an offset.
+//! The offset is used within the compiler itself.
+//! The line and column are used as debugging information.   
+
 use std::fmt;
 use std::ops::Add;
 
