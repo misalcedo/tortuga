@@ -12,8 +12,8 @@ pub struct Input<I: Iterator<Item = char>> {
     characters: I,
 }
 
-impl From<&str> for Input<Chars<'_>> {
-    fn from(source: &str) -> Self {
+impl<'a> From<&'a str> for Input<Chars<'a>> {
+    fn from(source: &'a str) -> Self {
         Input {
             start: Location::default(),
             end: Location::default(),

@@ -106,11 +106,12 @@ fn run_subcommand(arguments: Arguments) -> Result<(), CommandLineError> {
         }
         Commands::Scan(command) => {
             let source = fs::read_to_string(command.filename)?;
-            let tokens: Vec<tortuga::Token<'_>> = tortuga::Lexer::from(source).collect();
 
-            for token in tokens {
+            for token in tortuga::Lexer::from(source.as_str()) {
                 println!("{}", token);
             }
+
+            Ok(())
         }
     }
 }

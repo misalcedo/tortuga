@@ -24,12 +24,12 @@ impl Lexeme {
 
     /// The length in bytes of this `Lexeme`.
     pub fn len(&self) -> usize {
-        self.length
+        self.end.offset() - self.start.offset()
     }
 
     /// Tests whether this `Lexeme` has a length of 0.
     pub fn is_empty(&self) -> bool {
-        self.length == 0
+        self.len() == 0
     }
 
     /// Extracts this `Lexeme` from the given input.
