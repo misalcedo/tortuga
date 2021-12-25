@@ -11,6 +11,15 @@ pub struct Lexeme {
     end: Location,
 }
 
+impl<L: Into<Location>> From<L> for Lexeme {
+    fn from(end: L) -> Self {
+        Lexeme {
+            start: Location::default(),
+            end: end.into(),
+        }
+    }
+}
+
 impl Lexeme {
     /// Creates a new instance of a `Lexeme` with the given start and end `Location`s.
     pub fn new<S: Into<Location>, E: Into<Location>>(start: S, end: E) -> Self {
