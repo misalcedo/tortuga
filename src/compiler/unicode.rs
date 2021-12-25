@@ -13,9 +13,26 @@ pub trait UnicodeProperties {
 impl UnicodeProperties for char {
     fn is_pattern_white_space(&self) -> bool {
         match self {
-            '\u{0009}' | '\u{000A}' | '\u{000B}' | '\u{000C}' | '\u{000D}' | '\u{0020}'
-            | '\u{0085}' | '\u{200E}' | '\u{200F}' | '\u{2028}' | '\u{2029}' => true,
+            '\u{0009}'
+            | '\u{000A}'..='\u{000D}'
+            | '\u{0020}'
+            | '\u{0085}'
+            | '\u{200E}'
+            | '\u{200F}'
+            | '\u{2028}'
+            | '\u{2029}' => true,
             _ => false,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pattern_white_space() {
+        assert!('\u{000B}'.is_pattern_white_space());
+        assert!(!'a'.is_pattern_white_space());
     }
 }
