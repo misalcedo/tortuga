@@ -4,7 +4,7 @@ use crate::compiler::Lexeme;
 use std::any::{Any, TypeId};
 
 /// A lexical token is a pair of a `Lexeme` and an generic attribute `T`.
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Token<A: Any> {
     lexeme: Lexeme,
     attribute: A,
@@ -44,7 +44,7 @@ impl<A: Any> Token<A> {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum TokenKind {
     Number(Token<f64>),
     Identifier(Token<()>),

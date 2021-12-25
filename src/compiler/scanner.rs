@@ -4,7 +4,7 @@ use crate::compiler::{Input, Token, TokenKind};
 use std::str::Chars;
 
 /// A lexical analyzer with 1 character of lookahead.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Lexer<'a> {
     source: &'a str,
     input: Input<Chars<'a>>,
