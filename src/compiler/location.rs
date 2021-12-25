@@ -1,4 +1,5 @@
 use std::fmt;
+use std::ops::Add;
 
 /// The line and column of the start of a lexeme.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -6,6 +7,24 @@ pub struct Location {
     offset: usize,
     line: usize,
     column: usize,
+}
+
+impl Add<&str> for Location {
+    type Output = Location;
+
+    fn add(mut self, rhs: &str) -> Self::Output {
+        for c in rhs.chars() {
+            self.advance(c);
+        }
+
+        self
+    }
+}
+
+impl From<&str> for Location {
+    fn from(s: &str) -> Self {
+        Location::default() + s
+    }
 }
 
 impl fmt::Display for Location {
@@ -119,5 +138,14 @@ mod tests {
             location,
             Location::new(2, 2, (2 * c.len_utf8()) + '\n'.len_utf8())
         );
+    }
+
+    #[test]
+    fn add_string() {
+        let text = "abc\n123";
+        let location = Location::new(2, 4, 7);
+
+        assert_eq!(Location::default() + text, location);
+        assert_eq!(location, text.into());
     }
 }

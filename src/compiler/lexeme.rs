@@ -13,8 +13,11 @@ pub struct Lexeme {
 
 impl Lexeme {
     /// Creates a new instance of a `Lexeme` with the given start and end `Location`s.
-    pub fn new(start: Location, end: Location) -> Self {
-        Lexeme { start, end }
+    pub fn new<S: Into<Location>, E: Into<Location>>(start: S, end: E) -> Self {
+        Lexeme {
+            start: start.into(),
+            end: end.into(),
+        }
     }
 
     /// The start `Location` of this `Lexeme`.
@@ -50,14 +53,15 @@ mod tests {
 
     #[test]
     fn index_source() {
-        let start = Location::new(1, 1, 7);
-        let end = Location::new(1, 1, 12);
+        let start = Location::new(1, 8, 7);
+        let end = Location::new(1, 13, 12);
         let lexeme = Lexeme::new(start, end);
         let input = "Hello, World!";
 
-        assert_eq!(lexeme.len(), 12);
+        assert_eq!(lexeme.len(), 5);
         assert_eq!(lexeme.is_empty(), false);
         assert_eq!(lexeme.extract_from(input), "World");
+        assert_eq!(lexeme, Lexeme::new("Hello, ", "Hello, World"));
     }
 
     #[test]

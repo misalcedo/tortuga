@@ -40,12 +40,6 @@ impl<I: Iterator<Item = char>> Iterator for Input<I> {
 }
 
 impl<I: Iterator<Item = char>> Input<I> {
-    /// Set this `Input`s start `Location` equal to its end.
-    /// Resets the next lexeme to start at the current end `Location`.
-    pub fn step_forward(&mut self) {
-        self.start = self.end;
-    }
-
     /// Lookahead by 1 Unicode code point without advancing the `Location` of the current `Lexeme`.
     pub fn peek(&mut self) -> Option<char> {
         if self.peeked.is_none() {
@@ -93,13 +87,28 @@ impl<I: Iterator<Item = char>> Input<I> {
         }
     }
 
-    /// Gets the lexeme starting at this `Input`'s start `Location` (inclusive) until this `Input`'s end `Location` (exclusive).
-    pub fn lexeme(&mut self) -> Lexeme {
+    /// Skips any blank space characters except '\n'.
+    /// Returns true if any characters were skipped, false otherwise.
+    pub fn skip_blank_space(&mut self) -> bool {
+        let start = self.end;
+
+        while self.next_if(|c| c != '\n' && c.is_whitespace()).is_some() {}
+
+        start < self.end
+    }
+
+    /// Advances the `Input` to start a new `Lexeme` and returns the scanned `Lexeme`.
+    pub fn advance(&mut self) -> Lexeme {
         let start = self.start;
 
         self.start = self.end;
 
         Lexeme::new(start, self.end)
+    }
+
+    /// Gets the lexeme starting at this `Input`'s start `Location` (inclusive) until this `Input`'s end `Location` (exclusive).
+    pub fn peek_lexeme(&mut self) -> Lexeme {
+        Lexeme::new(self.start, self.end)
     }
 }
 
@@ -119,7 +128,13 @@ mod tests {
 
     #[test]
     fn peek_when_skipping() {
-        assert_eq!(Input::from(";hello\r\n\t abc").peek(), Some('a'));
+        let mut input = Input::from(";hello\r\n\t abc");
+
+        while input.next_unless_eq('\n').is_some() {}
+        input.next();
+        input.skip_blank_space();
+
+        assert_eq!(input.peek(), Some('a'));
     }
 
     #[test]
@@ -161,27 +176,20 @@ mod tests {
     }
 
     #[test]
-    fn start_when_scanned() {
-        let mut Input = Input::from("abc");
-
-        Input.next();
-
-        assert_eq!(*Input.start(), Location::default());
-    }
-
-    #[test]
-    fn start_when_default() {
-        assert_eq!(Input::from("abc").start(), &Location::default());
-    }
-
-    #[test]
     fn next_when_skipping() {
-        assert_eq!(Input::from("\t abc").next(), Some('a'));
+        let mut input = Input::from("\t abc");
+
+        assert!(input.skip_blank_space());
+        assert_eq!(input.next(), Some('a'));
     }
 
     #[test]
-    fn next_when_skipping_until_end() {
-        assert_eq!(Input::from("; abc").next(), None);
+    fn next_when_skipping_until_end_of_line() {
+        let mut input = Input::from("; abc");
+
+        while input.next_unless_eq('\n').is_some() {}
+
+        assert_eq!(input.next(), None);
     }
 
     #[test]
@@ -190,48 +198,44 @@ mod tests {
     }
 
     #[test]
-    fn step_forward() {
-        let mut Input = Input::from("abc");
+    fn advance() {
+        let mut input = Input::from("abc");
 
-        Input.next();
-        Input.step_forward();
-        Input.next_if_eq('b');
+        input.next();
+        input.advance();
+        input.next_if_eq('b');
 
-        assert_eq!(Input.lexeme(), Lexeme::new("b", Location::new(1, 2, 1)));
+        let actual = input.peek_lexeme();
+        let expected = Lexeme::new(Location::default() + "a", Location::default() + "ab");
+
+        assert_eq!(actual, expected);
+        assert_eq!(input.advance(), expected);
     }
 
     #[test]
     fn lexeme() {
-        let mut Input = Input::from("abc");
+        let mut input = Input::from("abc");
 
-        Input.next();
-        Input.next_if_eq('b');
+        input.next();
+        input.next_if_eq('b');
 
-        let start = *Input.start();
-        let first = Input.lexeme();
+        let first = input.advance();
 
-        assert_ne!(start, *Input.start());
+        input.next_if(|c| c.is_ascii_alphabetic());
 
-        Input.next_if(|c| c.is_ascii_alphabetic());
+        let second = input.advance();
+        let third = input.advance();
 
-        let second = Input.lexeme();
-        let third = Input.lexeme();
-
-        assert_eq!(first, Lexeme::new("ab", Location::new(1, 1, 0)));
-        assert_eq!(second, Lexeme::new("c", Location::new(1, 3, 2)));
-        assert_eq!(third, Lexeme::new("", Location::new(1, 4, 3)));
+        assert_eq!(first, Lexeme::new(Location::default(), "ab"));
+        assert_eq!(second, Lexeme::new("ab", "abc"));
+        assert_eq!(third, Lexeme::new("abc", "abc"));
     }
 
     #[test]
     fn lexeme_when_empty() {
         assert_eq!(
-            Input::from("abc").lexeme(),
-            Lexeme::new("", Location::default())
+            Input::from("abc").advance(),
+            Lexeme::new(Location::default(), Location::default())
         );
-    }
-
-    #[test]
-    fn default_Input() {
-        assert_eq!(Input::default(), Input::from(""))
     }
 }
