@@ -38,7 +38,11 @@ impl Default for Prompt {
 impl Prompt {
     /// Read input from the user via a terminal prompt.
     pub fn prompt(&mut self) -> Result<Option<String>, CommandLineError> {
-        let prompt = format!("{}:{}> ", about::PROGRAM.green(), format!("{:03}", self.line).blue());
+        let prompt = format!(
+            "{}:{}> ",
+            about::PROGRAM.green(),
+            format!("{:03}", self.line).blue()
+        );
 
         match self.editor.readline(prompt.as_str()) {
             Ok(input) => {

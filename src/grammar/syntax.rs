@@ -12,7 +12,7 @@ pub enum Expression {
 }
 
 pub struct Inequality {
-    equality: Equality
+    equality: Equality,
 }
 
 /// modulo     → Sum ( "%" Sum )* ;

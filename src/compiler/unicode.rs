@@ -1,5 +1,7 @@
 //! Character extensions to query for Unicode properties useful for the Tortuga compiler.
 
+use unicode_xid::UnicodeXID;
+
 /// Character extension to test for Unicode properties.
 ///
 /// See <https://unicode.org/reports/tr44/#Properties>
@@ -8,6 +10,16 @@ pub trait UnicodeProperties {
     ///
     /// See <https://util.unicode.org/UnicodeJsps/list-unicodeset.jsp?a=%5B%3APattern_White_Space%3A%5D&g=&i=>
     fn is_pattern_white_space(&self) -> bool;
+
+    /// Tests whether this is a Unicode character with the `XID_Start` property.
+    ///
+    /// See <https://util.unicode.org/UnicodeJsps/list-unicodeset.jsp?a=%5B%3AXID_Start%3A%5D%0D%0A%0D%0A%0D%0A&abb=on&g=&i=>
+    fn is_xid_start(&self) -> bool;
+
+    /// Tests whether this is a Unicode character with the `XID_Continue` property.
+    ///
+    /// See <https://util.unicode.org/UnicodeJsps/list-unicodeset.jsp?a=%5B%3AXID_Continue%3A%5D%0D%0A%0D%0A%0D%0A&abb=on&g=&i=>
+    fn is_xid_continue(&self) -> bool;
 }
 
 impl UnicodeProperties for char {
@@ -24,6 +36,14 @@ impl UnicodeProperties for char {
             _ => false,
         }
     }
+
+    fn is_xid_start(&self) -> bool {
+        UnicodeXID::is_xid_start(*self)
+    }
+
+    fn is_xid_continue(&self) -> bool {
+        UnicodeXID::is_xid_continue(*self)
+    }
 }
 
 #[cfg(test)]
@@ -34,5 +54,17 @@ mod tests {
     fn pattern_white_space() {
         assert!('\u{000B}'.is_pattern_white_space());
         assert!(!'a'.is_pattern_white_space());
+    }
+
+    #[test]
+    fn xid_start() {
+        assert!('\u{00F6}'.is_xid_start());
+        assert!(!'1'.is_xid_start());
+    }
+
+    #[test]
+    fn xid_continue() {
+        assert!('_'.is_xid_continue());
+        assert!(!'\n'.is_xid_continue());
     }
 }

@@ -41,3 +41,4 @@ thiserror = "1.0"
 tracing = "0.1"
 tracing-log = "0.1"
 tracing-subscriber = { version = "0.3", features = ["parking_lot"] }
+unicode-xid = "0.2"

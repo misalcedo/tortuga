@@ -2,7 +2,7 @@
 
 pub enum Sign {
     Positive,
-    Negative
+    Negative,
 }
 
 impl Default for Sign {
@@ -13,12 +13,12 @@ impl Default for Sign {
 
 pub enum Sum {
     Add,
-    Subtract
+    Subtract,
 }
 
 pub enum Product {
     Multiply,
-    Divide
+    Divide,
 }
 
 pub struct Modulo;
@@ -30,7 +30,7 @@ pub enum Inequality {
     LessThanOrEqualTo,
     GreaterThanOrEqualTo,
     LessThan,
-    GreaterThan
+    GreaterThan,
 }
 
 pub struct Equality;
@@ -44,7 +44,7 @@ pub struct Real<'a>(Integer<'a>, Fraction<'a>);
 pub enum Number<'a> {
     Integer(Integer<'a>),
     Fraction(Fraction<'a>),
-    Real(Real<'a>)
+    Real(Real<'a>),
 }
 
 pub struct Decimal<'a> {
@@ -53,19 +53,19 @@ pub struct Decimal<'a> {
 
 pub enum Radix<'a> {
     Imaginary,
-    Real(Integer<'a>)
+    Real(Integer<'a>),
 }
 
 // Latin for "any root", including `i` for imaginary).
 pub struct QuisRadix<'a> {
     radix: Radix<'a>,
     sign: Sign,
-    number: Number<'a>
+    number: Number<'a>,
 }
 
 pub struct Name<'a>(&'a str);
 
 pub enum Identifier<'a> {
     Anonymous,
-    Name(Name<'a>)
+    Name(Name<'a>),
 }

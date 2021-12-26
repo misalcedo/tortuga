@@ -274,11 +274,11 @@ impl Default for Parser {
 
 impl Parser {
     /// Parses the stream of tokens into a syntax tree.
-    pub fn parse<'source, I, IT>(&self, tokens: IT) -> Result<Program, ParseError> 
+    pub fn parse<'source, I, IT>(&self, tokens: IT) -> Result<Program, ParseError>
     where
-    I: Iterator<Item = Token<'source>>,
-    IT: Into<TokenStream<'source, I>>,
-{
+        I: Iterator<Item = Token<'source>>,
+        IT: Into<TokenStream<'source, I>>,
+    {
         let mut tokens = tokens.into();
         let mut errors: Vec<SyntaxError> = Vec::new();
         let mut expressions = Vec::new();
@@ -315,7 +315,9 @@ impl Parser {
 
     /// Unwinds this parser's recursive descent into the grammar rules upon encountering an error parsing a rule.
     /// Some tokens may be skipped in order to allow the parser to identify additional errors in the source code.
-    fn synchronize<'source, I: Iterator<Item = Token<'source>>>(tokens: &mut TokenStream<'source, I>) -> Option<Expression> {
+    fn synchronize<'source, I: Iterator<Item = Token<'source>>>(
+        tokens: &mut TokenStream<'source, I>,
+    ) -> Option<Expression> {
         if tokens.is_empty() {
             return None;
         }

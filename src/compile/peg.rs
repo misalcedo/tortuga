@@ -1,8 +1,8 @@
 //! Uses a PEG grammar to validate a source file.
 
-use std::io::Write;
 use pest::iterators::Pair;
 use pest::Parser;
+use std::io::Write;
 
 #[derive(pest_derive::Parser)]
 #[grammar = "../docs/grammar.pest"]
@@ -61,7 +61,7 @@ pub enum ParseError {
     #[error(transparent)]
     IO(#[from] std::io::Error),
     #[error(transparent)]
-    Validation(#[from] pest::error::Error<Rule>)
+    Validation(#[from] pest::error::Error<Rule>),
 }
 
 #[cfg(test)]

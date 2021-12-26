@@ -84,6 +84,10 @@ pub enum Kind {
     GreaterThan,
     /// >=
     GreaterThanOrEqualTo,
+    /// ,
+    Comma,
+    /// _
+    Underscore,
 
     // Delimiters
     LeftParenthesis,
