@@ -8,4 +8,4 @@ mod unicode;
 pub use input::Input;
 pub use lexeme::Lexeme;
 pub use location::Location;
-pub use token::{Token, TokenKind};
+pub use token::Token;
