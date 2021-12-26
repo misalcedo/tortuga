@@ -104,6 +104,8 @@ impl<I: Iterator<Item = char>> Input<I> {
 
         while self.next_if(|c| c.is_pattern_white_space()).is_some() {}
 
+        self.start = self.end;
+
         start < self.end
     }
 

@@ -1,6 +1,7 @@
 //! Performs lexical analysis on Tortuga input and produces a sequence of `Token`s.
 
 use crate::compiler::errors::lexical::ErrorKind;
+use crate::compiler::unicode::UnicodeProperties;
 use crate::compiler::{Input, Kind, LexicalError, Token};
 use std::str::Chars;
 
@@ -24,6 +25,8 @@ impl<'a> Iterator for Scanner<'a> {
     type Item = Result<Token, LexicalError>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        self.input.skip_blank_space();
+
         let token = match self.input.peek()? {
             '+' => Token::new(self.input.consume(), Kind::Plus),
             '-' => Token::new(self.input.consume(), Kind::Minus),
@@ -43,15 +46,30 @@ impl<'a> Iterator for Scanner<'a> {
             ',' => Token::new(self.input.consume(), Kind::Comma),
             '<' => self.scan_less_than(),
             '>' => self.scan_greater_than(),
-            _ => {
-                return Some(Err(LexicalError::new(
-                    self.input.consume(),
-                    ErrorKind::Invalid,
-                )))
-            }
+            _ => return self.scan_invalid(),
         };
 
         Some(Ok(token))
+    }
+}
+
+impl<'a> Scanner<'a> {
+    fn scan_invalid(&mut self) -> Option<Result<Token, LexicalError>> {
+        while self
+            .input
+            .next_if(|c| {
+                !c.is_ascii_punctuation()
+                    && !c.is_ascii_digit()
+                    && !c.is_xid_start()
+                    && !c.is_pattern_white_space()
+            })
+            .is_some()
+        {}
+
+        Some(Err(LexicalError::new(
+            self.input.advance(),
+            ErrorKind::Invalid,
+        )))
     }
 }
 
@@ -124,5 +142,29 @@ mod tests {
         validate(Kind::RightBrace);
         validate(Kind::LeftBracket);
         validate(Kind::RightBracket);
+    }
+
+    #[test]
+    fn skips_invalid_characters() {
+        let input = "\u{0E01EF}\u{0E01EF}\u{0E01EF}\u{0E01EF} +";
+        let mut scanner: Scanner<'_> = input.into();
+
+        let bad = Location::from(&input[..input.len() - 2]);
+
+        assert_eq!(
+            scanner.next(),
+            Some(Err(LexicalError::new(
+                Lexeme::new(Location::default(), bad),
+                ErrorKind::Invalid
+            )))
+        );
+
+        assert_eq!(
+            scanner.next(),
+            Some(Ok(Token::new(
+                Lexeme::new(&input[..input.len() - 1], input),
+                Kind::Plus
+            )))
+        );
     }
 }
