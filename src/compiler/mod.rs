@@ -12,4 +12,4 @@ pub use errors::{LexicalError, SyntacticalError};
 pub use input::Input;
 pub use lexeme::Lexeme;
 pub use location::Location;
-pub use token::Token;
+pub use token::{Kind, Token};

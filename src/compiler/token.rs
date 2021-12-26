@@ -2,13 +2,18 @@
 
 use crate::compiler::Lexeme;
 use crate::runtime::Number;
-use std::convert::{TryFrom, TryInto};
 
 /// A lexical token is a pair of a `Lexeme` and a `Kind`.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Token {
     lexeme: Lexeme,
     kind: Kind,
+}
+
+/// Extra information derived from the text during lexical analysis.
+pub trait Attribute {
+    /// Get the attribute from the given `Kind` if present, else `None`.
+    fn attribute_from(kind: &Kind) -> Option<&Self>;
 }
 
 impl Token {
@@ -33,8 +38,8 @@ impl Token {
     /// Extra information derived from the text during lexical analysis.
     /// If an attribute `A` can be be extracted from this `Token`'s `Kind`, returns the attribute.
     /// Otherwise, returns `None`.
-    pub fn attribute<A: TryFrom<Kind>>(&self) -> Option<A> {
-        self.kind.try_into().ok()
+    pub fn attribute<A: Attribute>(&self) -> Option<&A> {
+        A::attribute_from(&self.kind)
     }
 }
 
@@ -49,8 +54,7 @@ pub enum Anonymity {
 /// Rust does not support
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Kind {
-    DecimalNumber(Number),
-    NumberWithBase(Number),
+    Number(Number),
     Identifier(Anonymity),
 
     // Punctuation
@@ -90,24 +94,20 @@ pub enum Kind {
     RightBracket,
 }
 
-impl TryFrom<Kind> for Anonymity {
-    type Error = ();
-
-    fn try_from(value: Kind) -> Result<Self, Self::Error> {
+impl Attribute for Anonymity {
+    fn attribute_from(value: &Kind) -> Option<&Self> {
         match value {
-            Kind::Identifier(anonymity) => Ok(anonymity),
-            _ => Err(()),
+            Kind::Identifier(anonymity) => Some(anonymity),
+            _ => None,
         }
     }
 }
 
-impl TryFrom<Kind> for Number {
-    type Error = ();
-
-    fn try_from(value: Kind) -> Result<Self, Self::Error> {
+impl Attribute for Number {
+    fn attribute_from(value: &Kind) -> Option<&Self> {
         match value {
-            Kind::DecimalNumber(number) | Kind::NumberWithBase(number) => Ok(number),
-            _ => Err(()),
+            Kind::Number(number) => Some(number),
+            _ => None,
         }
     }
 }
@@ -122,12 +122,12 @@ mod tests {
         let lexeme = "ab";
         let attribute = 200;
         let number = attribute.into();
-        let kind = Kind::DecimalNumber(number);
+        let kind = Kind::Number(number);
         let token = Token::new(lexeme, kind);
 
         assert_eq!(token.lexeme(), &Lexeme::new(Location::default(), lexeme));
         assert_eq!(token.kind(), &kind);
-        assert_eq!(token.attribute::<Number>(), Some(number));
+        assert_eq!(token.attribute::<Number>(), Some(&number));
         assert_eq!(token.attribute::<Anonymity>(), None);
     }
 }
