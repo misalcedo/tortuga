@@ -46,30 +46,11 @@ impl<'a> Iterator for Scanner<'a> {
             ',' => Token::new(self.input.advance(), Kind::Comma),
             '<' => self.scan_less_than(),
             '>' => self.scan_greater_than(),
+            s if s.is_xid_start() => self.scan_identifier(),
             _ => return self.scan_invalid(),
         };
 
         Some(Ok(token))
-    }
-}
-
-impl<'a> Scanner<'a> {
-    fn scan_invalid(&mut self) -> Option<Result<Token, LexicalError>> {
-        while self
-            .input
-            .next_if(|c| {
-                !c.is_ascii_punctuation()
-                    && !c.is_ascii_digit()
-                    && !c.is_xid_start()
-                    && !c.is_pattern_white_space()
-            })
-            .is_some()
-        {}
-
-        Some(Err(LexicalError::new(
-            self.input.advance(),
-            ErrorKind::Invalid,
-        )))
     }
 }
 
@@ -94,6 +75,29 @@ impl<'a> Scanner<'a> {
         };
 
         Token::new(self.input.advance(), kind)
+    }
+
+    fn scan_identifier(&mut self) -> Token {
+        while self.input.next_if(|c| c.is_xid_continue()).is_some() {}
+        Token::new(self.input.advance(), Kind::Identifier)
+    }
+
+    fn scan_invalid(&mut self) -> Option<Result<Token, LexicalError>> {
+        while self
+            .input
+            .next_if(|c| {
+                !c.is_ascii_punctuation()
+                    && !c.is_ascii_digit()
+                    && !c.is_xid_start()
+                    && !c.is_pattern_white_space()
+            })
+            .is_some()
+        {}
+
+        Some(Err(LexicalError::new(
+            self.input.advance(),
+            ErrorKind::Invalid,
+        )))
     }
 }
 
@@ -162,5 +166,29 @@ mod tests {
                 Kind::Plus
             )))
         );
+    }
+
+    fn validate_identifier(identifier: &str) {
+        let mut scanner: Scanner<'_> = identifier.into();
+
+        assert_eq!(
+            scanner.next(),
+            Some(Ok(Token::new(
+                Lexeme::new(Location::default(), identifier),
+                Kind::Identifier
+            )))
+        );
+    }
+
+    #[test]
+    fn scan_identifier() {
+        validate_identifier("x");
+        validate_identifier("x2");
+        validate_identifier("x_2");
+        validate_identifier("x__2");
+        validate_identifier("xx");
+        validate_identifier("x__");
+        validate_identifier("x_y_z");
+        validate_identifier("x_y_z_");
     }
 }

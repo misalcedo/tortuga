@@ -45,19 +45,12 @@ impl Token {
     }
 }
 
-/// Determines whether an identifier is actually persisted in the environment past its first use.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
-pub enum Anonymity {
-    Known,
-    Anonymous,
-}
-
 /// The variants of the `Token`s and their associated attributes.
 /// Rust does not support
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Kind {
     Number(Number),
-    Identifier(Anonymity),
+    Identifier,
 
     // Punctuation
     /// +
@@ -100,15 +93,6 @@ pub enum Kind {
     RightBracket,
 }
 
-impl Attribute for Anonymity {
-    fn attribute_from(value: &Kind) -> Option<&Self> {
-        match value {
-            Kind::Identifier(anonymity) => Some(anonymity),
-            _ => None,
-        }
-    }
-}
-
 impl Attribute for Number {
     fn attribute_from(value: &Kind) -> Option<&Self> {
         match value {
@@ -122,7 +106,7 @@ impl fmt::Display for Kind {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Kind::Number(_) => f.write_str("NUMBER"),
-            Kind::Identifier(_) => f.write_str("IDENTIFIER"),
+            Kind::Identifier => f.write_str("IDENTIFIER"),
             Kind::Plus => f.write_char('+'),
             Kind::Minus => f.write_char('-'),
             Kind::Star => f.write_char('*'),
@@ -164,6 +148,5 @@ mod tests {
         assert_eq!(token.lexeme(), &Lexeme::new(Location::default(), lexeme));
         assert_eq!(token.kind(), &kind);
         assert_eq!(token.attribute::<Number>(), Some(&number));
-        assert_eq!(token.attribute::<Anonymity>(), None);
     }
 }
