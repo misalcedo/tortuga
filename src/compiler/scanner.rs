@@ -1,6 +1,6 @@
 //! Performs lexical analysis on Tortuga input and produces a sequence of `Token`s.
 
-use crate::compiler::{Input, Token};
+use crate::compiler::{Input, LexicalError, Token};
 use std::str::Chars;
 
 /// A lexical analyzer with 1 character of lookahead.
@@ -20,7 +20,7 @@ impl<'a> From<&'a str> for Lexer<'a> {
 }
 
 impl<'a> Iterator for Lexer<'a> {
-    type Item = Token;
+    type Item = Result<Token, LexicalError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         None
