@@ -5,6 +5,7 @@ mod compile;
 mod compiler;
 pub mod grammar;
 mod interpret;
+mod runtime;
 
 pub use about::*;
 pub use compile::{Lexer, LexicalError, Location, ParseError, Parser};
