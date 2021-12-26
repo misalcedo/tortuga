@@ -46,6 +46,7 @@ impl<'a> Iterator for Scanner<'a> {
             ',' => Token::new(self.input.advance(), Kind::Comma),
             '<' => self.scan_less_than(),
             '>' => self.scan_greater_than(),
+            d if d.is_ascii_digit() => self.scan_number(),
             s if s.is_xid_start() => self.scan_identifier(),
             _ => return self.scan_invalid(),
         };
@@ -75,6 +76,11 @@ impl<'a> Scanner<'a> {
         };
 
         Token::new(self.input.advance(), kind)
+    }
+
+    fn scan_number(&mut self) -> Token {
+        while self.input.next_if(|c| c.is_ascii_digit()).is_some() {}
+        Token::new(self.input.advance(), Kind::Number(42.into()))
     }
 
     fn scan_identifier(&mut self) -> Token {
@@ -190,5 +196,35 @@ mod tests {
         validate_identifier("x__");
         validate_identifier("x_y_z");
         validate_identifier("x_y_z_");
+    }
+
+    fn validate_number(number: &str) {
+        let mut scanner: Scanner<'_> = number.into();
+
+        assert_eq!(
+            scanner.next(),
+            Some(Ok(Token::new(
+                Lexeme::new(Location::default(), number),
+                Kind::Number(42.into())
+            )))
+        );
+    }
+
+    #[test]
+    fn scan_number() {
+        validate_number("0");
+        validate_number("2");
+        validate_number("21");
+        validate_number("100");
+    }
+
+    #[test]
+    fn scan_invalid_number() {
+        todo!("0008 is not valid.")
+    }
+
+    #[test]
+    fn scan_edge_cases() {
+        todo!("2x is number then identifier.")
     }
 }
