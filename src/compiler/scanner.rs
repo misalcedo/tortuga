@@ -27,23 +27,23 @@ impl<'a> Iterator for Scanner<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         self.input.skip_blank_space();
 
-        let token = match self.input.peek()? {
-            '+' => Token::new(self.input.consume(), Kind::Plus),
-            '-' => Token::new(self.input.consume(), Kind::Minus),
-            '*' => Token::new(self.input.consume(), Kind::Star),
-            '/' => Token::new(self.input.consume(), Kind::Slash),
-            '^' => Token::new(self.input.consume(), Kind::Caret),
-            '=' => Token::new(self.input.consume(), Kind::Equal),
-            '~' => Token::new(self.input.consume(), Kind::Tilde),
-            '%' => Token::new(self.input.consume(), Kind::Percent),
-            '_' => Token::new(self.input.consume(), Kind::Underscore),
-            '(' => Token::new(self.input.consume(), Kind::LeftParenthesis),
-            ')' => Token::new(self.input.consume(), Kind::RightParenthesis),
-            '[' => Token::new(self.input.consume(), Kind::LeftBracket),
-            ']' => Token::new(self.input.consume(), Kind::RightBracket),
-            '{' => Token::new(self.input.consume(), Kind::LeftBrace),
-            '}' => Token::new(self.input.consume(), Kind::RightBrace),
-            ',' => Token::new(self.input.consume(), Kind::Comma),
+        let token = match self.input.next()? {
+            '+' => Token::new(self.input.advance(), Kind::Plus),
+            '-' => Token::new(self.input.advance(), Kind::Minus),
+            '*' => Token::new(self.input.advance(), Kind::Star),
+            '/' => Token::new(self.input.advance(), Kind::Slash),
+            '^' => Token::new(self.input.advance(), Kind::Caret),
+            '=' => Token::new(self.input.advance(), Kind::Equal),
+            '~' => Token::new(self.input.advance(), Kind::Tilde),
+            '%' => Token::new(self.input.advance(), Kind::Percent),
+            '_' => Token::new(self.input.advance(), Kind::Underscore),
+            '(' => Token::new(self.input.advance(), Kind::LeftParenthesis),
+            ')' => Token::new(self.input.advance(), Kind::RightParenthesis),
+            '[' => Token::new(self.input.advance(), Kind::LeftBracket),
+            ']' => Token::new(self.input.advance(), Kind::RightBracket),
+            '{' => Token::new(self.input.advance(), Kind::LeftBrace),
+            '}' => Token::new(self.input.advance(), Kind::RightBrace),
+            ',' => Token::new(self.input.advance(), Kind::Comma),
             '<' => self.scan_less_than(),
             '>' => self.scan_greater_than(),
             _ => return self.scan_invalid(),
@@ -75,8 +75,6 @@ impl<'a> Scanner<'a> {
 
 impl<'a> Scanner<'a> {
     fn scan_less_than(&mut self) -> Token {
-        self.input.next();
-
         let kind = if self.input.next_if_eq('=').is_some() {
             Kind::LessThanOrEqualTo
         } else if self.input.next_if_eq('>').is_some() {
@@ -89,8 +87,6 @@ impl<'a> Scanner<'a> {
     }
 
     fn scan_greater_than(&mut self) -> Token {
-        self.input.next();
-
         let kind = if self.input.next_if_eq('=').is_some() {
             Kind::GreaterThanOrEqualTo
         } else {

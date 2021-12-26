@@ -118,12 +118,6 @@ impl<I: Iterator<Item = char>> Input<I> {
         Lexeme::new(start, self.end)
     }
 
-    /// Consumes the next token and advances the `Input` to start a new `Lexeme` and returns the scanned `Lexeme`.
-    pub fn consume(&mut self) -> Lexeme {
-        self.next();
-        self.advance()
-    }
-
     /// Gets the lexeme starting at this `Input`'s start `Location` (inclusive) until this `Input`'s end `Location` (exclusive).
     pub fn peek_lexeme(&mut self) -> Lexeme {
         Lexeme::new(self.start, self.end)
@@ -227,35 +221,6 @@ mod tests {
 
         assert_eq!(actual, expected);
         assert_eq!(input.advance(), expected);
-    }
-
-    #[test]
-    fn consume() {
-        let mut input_a = Input::from("abc");
-        let mut input_b = input_a.clone();
-
-        input_a.next();
-        let lexeme_a = input_a.advance();
-        let lexeme_b = input_b.consume();
-
-        assert_eq!(lexeme_a, lexeme_b);
-        assert_eq!(input_a.next(), input_b.next());
-    }
-
-    #[test]
-    fn consume_when_peeked() {
-        let mut input_a = Input::from("abc");
-        let mut input_b = input_a.clone();
-
-        input_a.peek();
-        input_a.next();
-        let lexeme_a = input_a.advance();
-
-        input_b.peek();
-        let lexeme_b = input_b.consume();
-
-        assert_eq!(lexeme_a, lexeme_b);
-        assert_eq!(input_a.next(), input_b.next());
     }
 
     #[test]
