@@ -2,6 +2,8 @@
 
 use crate::compiler::Lexeme;
 use crate::runtime::Number;
+use std::fmt;
+use std::fmt::{Formatter, Write};
 
 /// A lexical token is a pair of a `Lexeme` and a `Kind`.
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -112,6 +114,36 @@ impl Attribute for Number {
         match value {
             Kind::Number(number) => Some(number),
             _ => None,
+        }
+    }
+}
+
+impl fmt::Display for Kind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Kind::Number(_) => f.write_str("NUMBER"),
+            Kind::Identifier(_) => f.write_str("IDENTIFIER"),
+            Kind::Plus => f.write_char('+'),
+            Kind::Minus => f.write_char('-'),
+            Kind::Star => f.write_char('*'),
+            Kind::Slash => f.write_char('/'),
+            Kind::Percent => f.write_char('%'),
+            Kind::Caret => f.write_char('^'),
+            Kind::Tilde => f.write_char('~'),
+            Kind::Equal => f.write_char('='),
+            Kind::NotEqual => f.write_str("<>"),
+            Kind::LessThan => f.write_char('<'),
+            Kind::LessThanOrEqualTo => f.write_str("<="),
+            Kind::GreaterThan => f.write_char('>'),
+            Kind::GreaterThanOrEqualTo => f.write_str(">="),
+            Kind::Comma => f.write_char(','),
+            Kind::Underscore => f.write_char('_'),
+            Kind::LeftParenthesis => f.write_char('('),
+            Kind::RightParenthesis => f.write_char(')'),
+            Kind::LeftBrace => f.write_char('{'),
+            Kind::RightBrace => f.write_char('}'),
+            Kind::LeftBracket => f.write_char('['),
+            Kind::RightBracket => f.write_char(']'),
         }
     }
 }

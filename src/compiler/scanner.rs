@@ -41,6 +41,8 @@ impl<'a> Iterator for Scanner<'a> {
             '{' => Token::new(self.input.consume(), Kind::LeftBrace),
             '}' => Token::new(self.input.consume(), Kind::RightBrace),
             ',' => Token::new(self.input.consume(), Kind::Comma),
+            '<' => self.scan_less_than(),
+            '>' => self.scan_greater_than(),
             _ => {
                 return Some(Err(LexicalError::new(
                     self.input.consume(),
@@ -50,5 +52,77 @@ impl<'a> Iterator for Scanner<'a> {
         };
 
         Some(Ok(token))
+    }
+}
+
+impl<'a> Scanner<'a> {
+    fn scan_less_than(&mut self) -> Token {
+        self.input.next();
+
+        let kind = if self.input.next_if_eq('=').is_some() {
+            Kind::LessThanOrEqualTo
+        } else if self.input.next_if_eq('>').is_some() {
+            Kind::NotEqual
+        } else {
+            Kind::LessThan
+        };
+
+        Token::new(self.input.advance(), kind)
+    }
+
+    fn scan_greater_than(&mut self) -> Token {
+        self.input.next();
+
+        let kind = if self.input.next_if_eq('=').is_some() {
+            Kind::GreaterThanOrEqualTo
+        } else {
+            Kind::GreaterThan
+        };
+
+        Token::new(self.input.advance(), kind)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::compiler::{Lexeme, Location};
+
+    fn validate(kind: Kind) {
+        let input = kind.to_string();
+        let mut scanner: Scanner<'_> = input.as_str().into();
+
+        assert_eq!(
+            scanner.next(),
+            Some(Ok(Token::new(
+                Lexeme::new(Location::default(), input.as_str()),
+                kind
+            )))
+        );
+    }
+
+    #[test]
+    fn scan_simple() {
+        validate(Kind::Plus);
+        validate(Kind::Minus);
+        validate(Kind::Star);
+        validate(Kind::Slash);
+        validate(Kind::Percent);
+        validate(Kind::Caret);
+        validate(Kind::Tilde);
+        validate(Kind::Equal);
+        validate(Kind::NotEqual);
+        validate(Kind::LessThan);
+        validate(Kind::LessThanOrEqualTo);
+        validate(Kind::GreaterThan);
+        validate(Kind::GreaterThanOrEqualTo);
+        validate(Kind::Comma);
+        validate(Kind::Underscore);
+        validate(Kind::LeftParenthesis);
+        validate(Kind::RightParenthesis);
+        validate(Kind::LeftBrace);
+        validate(Kind::RightBrace);
+        validate(Kind::LeftBracket);
+        validate(Kind::RightBracket);
     }
 }
