@@ -15,24 +15,47 @@ impl FromStr for Number {
 
     fn from_str(number: &str) -> Result<Self, Self::Err> {
         lazy_static! {
-            static ref NUMBER_REGEX: Regex = Regex::new(r###"^([[:digit:]--0][[:digit:]]*#)?(0?|(?:[[:alnum:]--0][[:alnum:]]*))(?:\.([[:alnum:]]*))?$"###)
+            static ref NUMBER_REGEX: Regex = Regex::new(r###"^(?:([[:digit:]--0][[:digit:]]*)#)?(0?|(?:[[:alnum:]--0][[:alnum:]]*))(?:\.([[:alnum:]]*))?$"###)
                 .expect("Invalid regular expression for NUMBER token.");
         }
 
         let captures = NUMBER_REGEX.captures(number).ok_or(ErrorKind::Number)?;
-        let _radix = captures.get(1).as_ref().map(Match::as_str).unwrap_or("10");
-        let integer = captures
+        println!("NUMBER: {:?}", captures);
+
+        let radix: u32 = captures
+            .get(1)
+            .as_ref()
+            .map(Match::as_str)
+            .unwrap_or("10")
+            .parse()
+            .map_err(|_| ErrorKind::Number)?;
+        let integer_part = captures
             .get(2)
             .as_ref()
             .map(Match::as_str)
             .unwrap_or_default();
-        let fraction = captures
+        let fraction_part = captures
             .get(3)
             .as_ref()
             .map(Match::as_str)
             .unwrap_or_default();
 
-        if integer.is_empty() && fraction.is_empty() {
+        if radix > MAX_RADIX {
+            return Err(ErrorKind::Number);
+        }
+
+        let integer = if integer_part.is_empty() {
+            0
+        } else {
+            i128::from_str_radix(integer_part, radix).map_err(|_| ErrorKind::Number)?
+        };
+        let fraction = if fraction_part.is_empty() {
+            0
+        } else {
+            i128::from_str_radix(fraction_part, radix).map_err(|_| ErrorKind::Number)?
+        };
+
+        if integer_part.is_empty() && fraction_part.is_empty() {
             Err(ErrorKind::Number)
         } else {
             Ok(42.into())
@@ -313,6 +336,18 @@ mod tests {
         validate_number("0.5");
         validate_number("10000.5002");
         validate_number("7.002");
+
+        validate_number("2#0");
+        validate_number("16#F");
+        validate_number("3#21");
+        validate_number("2#100");
+        validate_number("2#.100");
+        validate_number("10#.5");
+        validate_number("12#1.0");
+        validate_number("20#4.5");
+        validate_number("30#0.5");
+        validate_number("36#10000.5002");
+        validate_number("32#7.002");
     }
 
     fn invalidate_number(number: &str) {
@@ -334,6 +369,8 @@ mod tests {
         invalidate_number("20#.");
         invalidate_number("008#1.0");
         invalidate_number("0008");
+        invalidate_number("37#1.0");
+        invalidate_number("2#4.0");
     }
 
     #[test]
