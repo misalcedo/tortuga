@@ -153,11 +153,6 @@ impl<'a> Scanner<'a> {
                     .map(Match::as_str)
                     .unwrap_or_default();
 
-                println!(
-                    "NUMBER: {:?} => {}#{}.{}",
-                    captures, radix, integer, fraction
-                );
-
                 if integer.is_empty() && fraction.is_empty() {
                     self.new_error(ErrorKind::Number)
                 } else {
