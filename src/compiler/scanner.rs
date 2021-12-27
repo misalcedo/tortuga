@@ -3,6 +3,7 @@
 use crate::compiler::errors::lexical::ErrorKind;
 use crate::compiler::unicode::UnicodeProperties;
 use crate::compiler::{Input, Kind, LexicalError, Token};
+use lazy_static::lazy_static;
 use regex::{Match, Regex};
 use std::str::Chars;
 
@@ -65,7 +66,6 @@ impl<'a> Iterator for Scanner<'a> {
     }
 }
 
-const ZERO: char = '0';
 const DECIMAL: u32 = 10;
 const MAX_RADIX: u32 = 36;
 
@@ -114,14 +114,11 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    fn scan_leading_zero(&mut self, first: char, radix: u32) -> bool {
-        first == ZERO && matches!(self.input.next_digit(radix), Some(ZERO))
-    }
-
     fn scan_number(&mut self) -> LexicalResult {
-        let number_regex: Regex =
-            Regex::new(r###"^([[:digit:]--0][[:digit:]]*#)?(0?|(?:[[:alnum:]--0][[:alnum:]]*))(?:\.([[:alnum:]]*))?$"###)
+        lazy_static! {
+            static ref NUMBER_REGEX: Regex = Regex::new(r###"^([[:digit:]--0][[:digit:]]*#)?(0?|(?:[[:alnum:]--0][[:alnum:]]*))(?:\.([[:alnum:]]*))?$"###)
                 .expect("Invalid regular expression for NUMBER token.");
+        }
 
         let mut base = DECIMAL;
 
@@ -138,10 +135,10 @@ impl<'a> Scanner<'a> {
 
         let lexeme = self.input.peek_lexeme();
 
-        match number_regex.captures(lexeme.extract_from(self.source)) {
+        match NUMBER_REGEX.captures(lexeme.extract_from(self.source)) {
             None => self.new_error(ErrorKind::Number),
             Some(captures) => {
-                let radix = captures.get(1).as_ref().map(Match::as_str).unwrap_or("10");
+                let _radix = captures.get(1).as_ref().map(Match::as_str).unwrap_or("10");
                 let integer = captures
                     .get(2)
                     .as_ref()
@@ -401,7 +398,22 @@ mod tests {
         assert_forty_two(input);
     }
 
-    fn scan_edge_cases() {
-        todo!("2x is number then identifier.")
+    #[test]
+    fn scan_identifier_starting_with_number() {
+        let input = "2x";
+        let mut scanner: Scanner<'_> = input.into();
+
+        assert_eq!(
+            scanner.next(),
+            Some(Ok(Token::new(
+                Lexeme::new(Location::default(), "2"),
+                Kind::Number(42.into())
+            )))
+        );
+        assert_eq!(
+            scanner.next(),
+            Some(Ok(Token::new(Lexeme::new("2", input), Kind::Identifier)))
+        );
+        assert_eq!(scanner.next(), None);
     }
 }
