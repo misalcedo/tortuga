@@ -3,11 +3,46 @@
 use crate::compiler::errors::lexical::ErrorKind;
 use crate::compiler::unicode::UnicodeProperties;
 use crate::compiler::{Input, Kind, LexicalError, Token};
+use crate::runtime::Number;
 use lazy_static::lazy_static;
 use regex::{Match, Regex};
-use std::str::Chars;
+use std::str::{Chars, FromStr};
 
 type LexicalResult = Result<Token, LexicalError>;
+
+impl FromStr for Number {
+    type Err = ErrorKind;
+
+    fn from_str(number: &str) -> Result<Self, Self::Err> {
+        lazy_static! {
+            static ref NUMBER_REGEX: Regex = Regex::new(r###"^([[:digit:]--0][[:digit:]]*#)?(0?|(?:[[:alnum:]--0][[:alnum:]]*))(?:\.([[:alnum:]]*))?$"###)
+                .expect("Invalid regular expression for NUMBER token.");
+        }
+
+        match NUMBER_REGEX.captures(number) {
+            None => return Err(ErrorKind::Number),
+            Some(captures) => {
+                let _radix = captures.get(1).as_ref().map(Match::as_str).unwrap_or("10");
+                let integer = captures
+                    .get(2)
+                    .as_ref()
+                    .map(Match::as_str)
+                    .unwrap_or_default();
+                let fraction = captures
+                    .get(3)
+                    .as_ref()
+                    .map(Match::as_str)
+                    .unwrap_or_default();
+
+                if integer.is_empty() && fraction.is_empty() {
+                    Err(ErrorKind::Number)
+                } else {
+                    Ok(42.into())
+                }
+            }
+        }
+    }
+}
 
 /// A lexical analyzer with 1 character of lookahead.
 #[derive(Clone, Debug)]
@@ -115,11 +150,6 @@ impl<'a> Scanner<'a> {
     }
 
     fn scan_number(&mut self) -> LexicalResult {
-        lazy_static! {
-            static ref NUMBER_REGEX: Regex = Regex::new(r###"^([[:digit:]--0][[:digit:]]*#)?(0?|(?:[[:alnum:]--0][[:alnum:]]*))(?:\.([[:alnum:]]*))?$"###)
-                .expect("Invalid regular expression for NUMBER token.");
-        }
-
         let mut base = DECIMAL;
 
         self.scan_digits(base);
@@ -134,28 +164,11 @@ impl<'a> Scanner<'a> {
         }
 
         let lexeme = self.input.peek_lexeme();
+        let number = lexeme.extract_from(self.source);
 
-        match NUMBER_REGEX.captures(lexeme.extract_from(self.source)) {
-            None => self.new_error(ErrorKind::Number),
-            Some(captures) => {
-                let _radix = captures.get(1).as_ref().map(Match::as_str).unwrap_or("10");
-                let integer = captures
-                    .get(2)
-                    .as_ref()
-                    .map(Match::as_str)
-                    .unwrap_or_default();
-                let fraction = captures
-                    .get(3)
-                    .as_ref()
-                    .map(Match::as_str)
-                    .unwrap_or_default();
-
-                if integer.is_empty() && fraction.is_empty() {
-                    self.new_error(ErrorKind::Number)
-                } else {
-                    self.new_token(Kind::Number(42.into()))
-                }
-            }
+        match number.parse::<Number>() {
+            Ok(n) => self.new_token(Kind::Number(n)),
+            Err(kind) => self.new_error(kind),
         }
     }
 
