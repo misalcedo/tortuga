@@ -3,6 +3,7 @@
 use crate::compiler::errors::lexical::ErrorKind;
 use crate::compiler::unicode::UnicodeProperties;
 use crate::compiler::{Input, Kind, LexicalError, Token};
+use regex::{Match, Regex};
 use std::str::Chars;
 
 type LexicalResult = Result<Token, LexicalError>;
@@ -54,7 +55,7 @@ impl<'a> Iterator for Scanner<'a> {
                 '<' => self.scan_less_than(),
                 '>' => self.scan_greater_than(),
                 '.' => self.scan_fractional_number(),
-                d if d.is_ascii_digit() => self.scan_number(d),
+                d if d.is_ascii_digit() => self.scan_number(),
                 s if s.is_xid_start() => self.scan_identifier(),
                 _ => self.scan_invalid(),
             };
@@ -104,9 +105,9 @@ impl<'a> Scanner<'a> {
     }
 
     fn scan_fractional_number(&mut self) -> LexicalResult {
-        let digits = self.scan_digits(DECIMAL);
+        while self.input.next_digit(DECIMAL).is_some() {}
 
-        if digits == 0 {
+        if self.input.peek_lexeme().len() == 1 {
             self.new_error(ErrorKind::Number)
         } else {
             self.new_token(Kind::Number(42.into()))
@@ -117,59 +118,57 @@ impl<'a> Scanner<'a> {
         first == ZERO && matches!(self.input.next_digit(radix), Some(ZERO))
     }
 
-    fn scan_number(&mut self, first: char) -> LexicalResult {
-        let leading_zero = self.scan_leading_zero(first, DECIMAL);
+    fn scan_number(&mut self) -> LexicalResult {
+        let number_regex: Regex =
+            Regex::new(r###"^([[:digit:]--0][[:digit:]]*#)?(0?|(?:[[:alnum:]--0][[:alnum:]]*))(?:\.([[:alnum:]]*))?$"###)
+                .expect("Invalid regular expression for NUMBER token.");
 
-        self.scan_digits(DECIMAL);
+        let mut base = DECIMAL;
 
-        let integer = self.input.peek_lexeme().extract_from(self.source);
+        self.scan_digits(base);
 
         if self.input.next_if_eq('#').is_some() {
-            return self.scan_number_with_base(integer, leading_zero);
+            base = MAX_RADIX;
+            self.scan_digits(base);
         }
 
         if self.input.next_if_eq('.').is_some() {
-            self.scan_digits(DECIMAL);
+            self.scan_digits(base);
         }
 
-        if leading_zero {
-            self.new_error(ErrorKind::Number)
-        } else {
-            self.new_token(Kind::Number(42.into()))
+        let lexeme = self.input.peek_lexeme();
+
+        match number_regex.captures(lexeme.extract_from(self.source)) {
+            None => self.new_error(ErrorKind::Number),
+            Some(captures) => {
+                let radix = captures.get(1).as_ref().map(Match::as_str).unwrap_or("10");
+                let integer = captures
+                    .get(2)
+                    .as_ref()
+                    .map(Match::as_str)
+                    .unwrap_or_default();
+                let fraction = captures
+                    .get(3)
+                    .as_ref()
+                    .map(Match::as_str)
+                    .unwrap_or_default();
+
+                println!(
+                    "NUMBER: {:?} => {}#{}.{}",
+                    captures, radix, integer, fraction
+                );
+
+                if integer.is_empty() && fraction.is_empty() {
+                    self.new_error(ErrorKind::Number)
+                } else {
+                    self.new_token(Kind::Number(42.into()))
+                }
+            }
         }
     }
 
-    fn scan_number_with_base(&mut self, _radix: &str, radix_leading_zero: bool) -> LexicalResult {
-        let mut integer_is_empty = true;
-        let integer_leading_zero = if let Some(first) = self.input.next_digit(MAX_RADIX) {
-            integer_is_empty = false;
-            self.scan_leading_zero(first, MAX_RADIX)
-        } else {
-            false
-        };
-
-        integer_is_empty &= self.scan_digits(MAX_RADIX) == 0;
-        let mut fraction_is_empty = true;
-
-        if self.input.next_if_eq('.').is_some() {
-            fraction_is_empty = self.scan_digits(MAX_RADIX) == 0;
-        }
-
-        if radix_leading_zero || integer_leading_zero || (integer_is_empty && fraction_is_empty) {
-            self.new_error(ErrorKind::Number)
-        } else {
-            self.new_token(Kind::Number(42.into()))
-        }
-    }
-
-    fn scan_digits(&mut self, radix: u32) -> usize {
-        let mut digits = 0;
-
-        while self.input.next_digit(radix).is_some() {
-            digits += 1;
-        }
-
-        digits
+    fn scan_digits(&mut self, radix: u32) {
+        while self.input.next_digit(radix).is_some() {}
     }
 
     fn scan_identifier(&mut self) -> LexicalResult {
@@ -331,9 +330,9 @@ mod tests {
     #[test]
     fn scan_invalid_number() {
         invalidate_number(".");
-        invalidate_number("0008");
         invalidate_number("20#.");
         invalidate_number("008#1.0");
+        invalidate_number("0008");
     }
 
     #[test]
