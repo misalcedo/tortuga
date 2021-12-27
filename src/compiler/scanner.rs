@@ -15,20 +15,22 @@ impl FromStr for Number {
 
     fn from_str(number: &str) -> Result<Self, Self::Err> {
         lazy_static! {
-            static ref NUMBER_REGEX: Regex = Regex::new(r###"^(?:([[:digit:]--0][[:digit:]]*)#)?(0?|(?:[[:alnum:]--0][[:alnum:]]*))(?:\.([[:alnum:]]*))?$"###)
+            static ref NUMBER_REGEX: Regex = Regex::new(r###"^(?:([Ii]|[[:digit:]--0][[:digit:]]*)#)?(0?|(?:[[:alnum:]--0][[:alnum:]]*))(?:\.([[:alnum:]]*))?$"###)
                 .expect("Invalid regular expression for NUMBER token.");
         }
 
         let captures = NUMBER_REGEX.captures(number).ok_or(ErrorKind::Number)?;
         println!("NUMBER: {:?}", captures);
 
-        let radix: u32 = captures
-            .get(1)
-            .as_ref()
-            .map(Match::as_str)
-            .unwrap_or("10")
-            .parse()
-            .map_err(|_| ErrorKind::Number)?;
+        let mut radix_part = captures.get(1).as_ref().map(Match::as_str).unwrap_or("10");
+
+        let imaginary = radix_part == "i" || radix_part == "I";
+
+        if imaginary {
+            radix_part = "10";
+        }
+
+        let radix: u32 = radix_part.parse().map_err(|_| ErrorKind::Number)?;
         let integer_part = captures
             .get(2)
             .as_ref()
@@ -110,12 +112,23 @@ impl<'a> Iterator for Scanner<'a> {
                 '<' => self.scan_less_than(),
                 '>' => self.scan_greater_than(),
                 '.' => self.scan_fractional_number(),
+                'i' | 'I' => self.scan_imaginary_or_identifier(),
                 d if d.is_ascii_digit() => self.scan_number(),
                 s if s.is_xid_start() => self.scan_identifier(),
                 _ => self.scan_invalid(),
             };
 
             return Some(result);
+        }
+    }
+}
+
+impl<'a> Scanner<'a> {
+    fn scan_imaginary_or_identifier(&mut self) -> LexicalResult {
+        if self.input.peek() == Some('#') {
+            self.scan_number()
+        } else {
+            self.scan_identifier()
         }
     }
 }
@@ -307,7 +320,8 @@ mod tests {
         validate_identifier("xx");
         validate_identifier("x__");
         validate_identifier("x_y_z");
-        validate_identifier("x_y_z_");
+        validate_identifier("i");
+        validate_identifier("I");
     }
 
     fn validate_number(number: &str) {
@@ -348,6 +362,18 @@ mod tests {
         validate_number("30#0.5");
         validate_number("36#10000.5002");
         validate_number("32#7.002");
+
+        validate_number("i#0");
+        validate_number("i#2");
+        validate_number("i#21");
+        validate_number("i#100");
+        validate_number("i#.100");
+        validate_number("I#.5");
+        validate_number("i#1.0");
+        validate_number("i#4.5");
+        validate_number("i#0.5");
+        validate_number("i#10000.5002");
+        validate_number("I#7.002");
     }
 
     fn invalidate_number(number: &str) {
@@ -371,6 +397,8 @@ mod tests {
         invalidate_number("0008");
         invalidate_number("37#1.0");
         invalidate_number("2#4.0");
+        invalidate_number("i#");
+        invalidate_number("I#.");
     }
 
     #[test]
