@@ -25,33 +25,39 @@ impl<'a> Iterator for Scanner<'a> {
     type Item = Result<Token, LexicalError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.input.skip_blank_space();
+        loop {
+            self.input.skip_blank_space();
 
-        let token = match self.input.next()? {
-            '+' => Token::new(self.input.advance(), Kind::Plus),
-            '-' => Token::new(self.input.advance(), Kind::Minus),
-            '*' => Token::new(self.input.advance(), Kind::Star),
-            '/' => Token::new(self.input.advance(), Kind::Slash),
-            '^' => Token::new(self.input.advance(), Kind::Caret),
-            '=' => Token::new(self.input.advance(), Kind::Equal),
-            '~' => Token::new(self.input.advance(), Kind::Tilde),
-            '%' => Token::new(self.input.advance(), Kind::Percent),
-            '_' => Token::new(self.input.advance(), Kind::Underscore),
-            '(' => Token::new(self.input.advance(), Kind::LeftParenthesis),
-            ')' => Token::new(self.input.advance(), Kind::RightParenthesis),
-            '[' => Token::new(self.input.advance(), Kind::LeftBracket),
-            ']' => Token::new(self.input.advance(), Kind::RightBracket),
-            '{' => Token::new(self.input.advance(), Kind::LeftBrace),
-            '}' => Token::new(self.input.advance(), Kind::RightBrace),
-            ',' => Token::new(self.input.advance(), Kind::Comma),
-            '<' => self.scan_less_than(),
-            '>' => self.scan_greater_than(),
-            d if d.is_ascii_digit() => self.scan_number(),
-            s if s.is_xid_start() => self.scan_identifier(),
-            _ => return self.scan_invalid(),
-        };
+            let token = match self.input.next()? {
+                '+' => Token::new(self.input.advance(), Kind::Plus),
+                '-' => Token::new(self.input.advance(), Kind::Minus),
+                '*' => Token::new(self.input.advance(), Kind::Star),
+                '/' => Token::new(self.input.advance(), Kind::Slash),
+                '^' => Token::new(self.input.advance(), Kind::Caret),
+                '=' => Token::new(self.input.advance(), Kind::Equal),
+                '~' => Token::new(self.input.advance(), Kind::Tilde),
+                '%' => Token::new(self.input.advance(), Kind::Percent),
+                '_' => Token::new(self.input.advance(), Kind::Underscore),
+                '(' => Token::new(self.input.advance(), Kind::LeftParenthesis),
+                ')' => Token::new(self.input.advance(), Kind::RightParenthesis),
+                '[' => Token::new(self.input.advance(), Kind::LeftBracket),
+                ']' => Token::new(self.input.advance(), Kind::RightBracket),
+                '{' => Token::new(self.input.advance(), Kind::LeftBrace),
+                '}' => Token::new(self.input.advance(), Kind::RightBrace),
+                ',' => Token::new(self.input.advance(), Kind::Comma),
+                ';' => {
+                    while self.input.next_unless_eq('\n').is_some() {}
+                    continue;
+                }
+                '<' => self.scan_less_than(),
+                '>' => self.scan_greater_than(),
+                d if d.is_ascii_digit() => self.scan_number(),
+                s if s.is_xid_start() => self.scan_identifier(),
+                _ => return self.scan_invalid(),
+            };
 
-        Some(Ok(token))
+            return Some(Ok(token));
+        }
     }
 }
 
@@ -123,6 +129,7 @@ mod tests {
                 kind
             )))
         );
+        assert_eq!(scanner.next(), None);
     }
 
     #[test]
@@ -172,6 +179,7 @@ mod tests {
                 Kind::Plus
             )))
         );
+        assert_eq!(scanner.next(), None);
     }
 
     fn validate_identifier(identifier: &str) {
@@ -184,6 +192,7 @@ mod tests {
                 Kind::Identifier
             )))
         );
+        assert_eq!(scanner.next(), None);
     }
 
     #[test]
@@ -208,6 +217,7 @@ mod tests {
                 Kind::Number(42.into())
             )))
         );
+        assert_eq!(scanner.next(), None);
     }
 
     #[test]
@@ -216,6 +226,33 @@ mod tests {
         validate_number("2");
         validate_number("21");
         validate_number("100");
+    }
+
+    #[test]
+    fn skip_comment() {
+        let input = "; hello, world!\n \t42";
+
+        assert_forty_two(input);
+    }
+
+    fn assert_forty_two(input: &str) {
+        let mut scanner: Scanner<'_> = input.into();
+
+        assert_eq!(
+            scanner.next(),
+            Some(Ok(Token::new(
+                Lexeme::new(&input[..input.len() - 2], input),
+                Kind::Number(42.into())
+            )))
+        );
+        assert_eq!(scanner.next(), None);
+    }
+
+    #[test]
+    fn skip_multiple_comments() {
+        let input = "; hello, world!\n \t; foobar\n\n42";
+
+        assert_forty_two(input);
     }
 
     #[test]

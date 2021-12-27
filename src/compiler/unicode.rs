@@ -53,6 +53,7 @@ mod tests {
     #[test]
     fn pattern_white_space() {
         assert!('\u{000B}'.is_pattern_white_space());
+        assert!('\n'.is_pattern_white_space());
         assert!(!'a'.is_pattern_white_space());
     }
 
