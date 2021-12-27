@@ -46,11 +46,12 @@ impl<'a> Iterator for Scanner<'a> {
                 '}' => Token::new(self.input.advance(), Kind::RightBrace),
                 ',' => Token::new(self.input.advance(), Kind::Comma),
                 ';' => {
-                    while self.input.next_unless_eq('\n').is_some() {}
+                    self.skip_comment();
                     continue;
                 }
                 '<' => self.scan_less_than(),
                 '>' => self.scan_greater_than(),
+                '.' => self.scan_number(),
                 d if d.is_ascii_digit() => self.scan_number(),
                 s if s.is_xid_start() => self.scan_identifier(),
                 _ => return self.scan_invalid(),
@@ -62,6 +63,10 @@ impl<'a> Iterator for Scanner<'a> {
 }
 
 impl<'a> Scanner<'a> {
+    fn skip_comment(&mut self) {
+        while self.input.next_unless_eq('\n').is_some() {}
+    }
+
     fn scan_less_than(&mut self) -> Token {
         let kind = if self.input.next_if_eq('=').is_some() {
             Kind::LessThanOrEqualTo
@@ -226,6 +231,8 @@ mod tests {
         validate_number("2");
         validate_number("21");
         validate_number("100");
+        validate_number(".100");
+        validate_number(".5");
     }
 
     #[test]
