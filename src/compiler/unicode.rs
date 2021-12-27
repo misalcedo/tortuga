@@ -22,19 +22,14 @@ pub trait UnicodeProperties {
     fn is_xid_continue(&self) -> bool;
 }
 
+const PATTERN_WHITE_SPACE: [char; 11] = [
+    '\u{0009}', '\u{000A}', '\u{000B}', '\u{000C}', '\u{000D}', '\u{0020}', '\u{0085}', '\u{200E}',
+    '\u{200F}', '\u{2028}', '\u{2029}',
+];
+
 impl UnicodeProperties for char {
     fn is_pattern_white_space(&self) -> bool {
-        match self {
-            '\u{0009}'
-            | '\u{000A}'..='\u{000D}'
-            | '\u{0020}'
-            | '\u{0085}'
-            | '\u{200E}'
-            | '\u{200F}'
-            | '\u{2028}'
-            | '\u{2029}' => true,
-            _ => false,
-        }
+        PATTERN_WHITE_SPACE.binary_search(self).is_ok()
     }
 
     fn is_xid_start(&self) -> bool {
