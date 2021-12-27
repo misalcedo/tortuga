@@ -19,27 +19,23 @@ impl FromStr for Number {
                 .expect("Invalid regular expression for NUMBER token.");
         }
 
-        match NUMBER_REGEX.captures(number) {
-            None => return Err(ErrorKind::Number),
-            Some(captures) => {
-                let _radix = captures.get(1).as_ref().map(Match::as_str).unwrap_or("10");
-                let integer = captures
-                    .get(2)
-                    .as_ref()
-                    .map(Match::as_str)
-                    .unwrap_or_default();
-                let fraction = captures
-                    .get(3)
-                    .as_ref()
-                    .map(Match::as_str)
-                    .unwrap_or_default();
+        let captures = NUMBER_REGEX.captures(number).ok_or(ErrorKind::Number)?;
+        let _radix = captures.get(1).as_ref().map(Match::as_str).unwrap_or("10");
+        let integer = captures
+            .get(2)
+            .as_ref()
+            .map(Match::as_str)
+            .unwrap_or_default();
+        let fraction = captures
+            .get(3)
+            .as_ref()
+            .map(Match::as_str)
+            .unwrap_or_default();
 
-                if integer.is_empty() && fraction.is_empty() {
-                    Err(ErrorKind::Number)
-                } else {
-                    Ok(42.into())
-                }
-            }
+        if integer.is_empty() && fraction.is_empty() {
+            Err(ErrorKind::Number)
+        } else {
+            Ok(42.into())
         }
     }
 }
