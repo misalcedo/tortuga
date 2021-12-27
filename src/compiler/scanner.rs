@@ -105,7 +105,7 @@ impl<'a> Scanner<'a> {
     }
 
     fn scan_fractional_number(&mut self) -> LexicalResult {
-        while self.input.next_digit(DECIMAL).is_some() {}
+        self.scan_digits(DECIMAL);
 
         if self.input.peek_lexeme().len() == 1 {
             self.new_error(ErrorKind::Number)
