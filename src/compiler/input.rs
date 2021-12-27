@@ -65,10 +65,10 @@ impl<I: Iterator<Item = char>> Input<I> {
 
     /// If the next character is an ASCII digit, advance the `Location` of the current `Lexeme`.
     /// Otherwise, the current `Location` is unchanged.
-    pub fn next_ascii_digit(&mut self) -> Option<char> {
+    pub fn next_digit(&mut self, radix: u32) -> Option<char> {
         let c = self.peek()?;
 
-        if c.is_ascii_digit() {
+        if c.is_digit(radix) {
             self.end.advance(c);
             self.peeked.take()
         } else {
@@ -264,17 +264,17 @@ mod tests {
     }
 
     #[test]
-    fn next_ascii_digit_when_true() {
-        assert_eq!(Input::from("1abc").next_ascii_digit(), Some('1'));
+    fn next_digit_when_true() {
+        assert_eq!(Input::from("abc").next_digit(16), Some('a'));
     }
 
     #[test]
-    fn next_ascii_digit_when_false() {
-        assert_eq!(Input::from("abc").next_ascii_digit(), None);
+    fn next_digit_when_false() {
+        assert_eq!(Input::from("abc").next_digit(10), None);
     }
 
     #[test]
-    fn next_ascii_digit_when_empty() {
-        assert_eq!(Input::from("").next_ascii_digit(), None);
+    fn next_digit_when_empty() {
+        assert_eq!(Input::from("").next_digit(10), None);
     }
 }

@@ -65,10 +65,16 @@ impl<'a> Iterator for Scanner<'a> {
 }
 
 const ZERO: char = '0';
+const DECIMAL: u32 = 10;
+const MAX_RADIX: u32 = 36;
 
 impl<'a> Scanner<'a> {
     fn new_token(&mut self, kind: Kind) -> Result<Token, LexicalError> {
         Ok(Token::new(self.input.advance(), kind))
+    }
+
+    fn new_error(&mut self, kind: ErrorKind) -> Result<Token, LexicalError> {
+        Err(LexicalError::new(self.input.advance(), kind))
     }
 
     fn skip_comment(&mut self) {
@@ -98,7 +104,7 @@ impl<'a> Scanner<'a> {
     }
 
     fn scan_fractional_number(&mut self) -> LexicalResult {
-        let digits = self.scan_digits();
+        let digits = self.scan_digits(DECIMAL);
 
         if digits == 0 {
             self.new_error(ErrorKind::Number)
@@ -107,17 +113,23 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    fn new_error(&mut self, kind: ErrorKind) -> Result<Token, LexicalError> {
-        Err(LexicalError::new(self.input.advance(), kind))
+    fn scan_leading_zero(&mut self, first: char, radix: u32) -> bool {
+        first == ZERO && matches!(self.input.next_digit(radix), Some(ZERO))
     }
 
     fn scan_number(&mut self, first: char) -> LexicalResult {
-        let leading_zero = first == ZERO && matches!(self.input.next_ascii_digit(), Some(ZERO));
+        let leading_zero = self.scan_leading_zero(first, DECIMAL);
 
-        self.scan_digits();
+        self.scan_digits(DECIMAL);
+
+        let integer = self.input.peek_lexeme().extract_from(self.source);
+
+        if self.input.next_if_eq('#').is_some() {
+            return self.scan_number_with_base(integer, leading_zero);
+        }
 
         if self.input.next_if_eq('.').is_some() {
-            self.scan_digits();
+            self.scan_digits(DECIMAL);
         }
 
         if leading_zero {
@@ -127,10 +139,33 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    fn scan_digits(&mut self) -> usize {
+    fn scan_number_with_base(&mut self, _radix: &str, radix_leading_zero: bool) -> LexicalResult {
+        let mut integer_is_empty = true;
+        let integer_leading_zero = if let Some(first) = self.input.next_digit(MAX_RADIX) {
+            integer_is_empty = false;
+            self.scan_leading_zero(first, MAX_RADIX)
+        } else {
+            false
+        };
+
+        integer_is_empty &= self.scan_digits(MAX_RADIX) == 0;
+        let mut fraction_is_empty = true;
+
+        if self.input.next_if_eq('.').is_some() {
+            fraction_is_empty = self.scan_digits(MAX_RADIX) == 0;
+        }
+
+        if radix_leading_zero || integer_leading_zero || (integer_is_empty && fraction_is_empty) {
+            self.new_error(ErrorKind::Number)
+        } else {
+            self.new_token(Kind::Number(42.into()))
+        }
+    }
+
+    fn scan_digits(&mut self, radix: u32) -> usize {
         let mut digits = 0;
 
-        while self.input.next_ascii_digit().is_some() {
+        while self.input.next_digit(radix).is_some() {
             digits += 1;
         }
 
@@ -297,6 +332,52 @@ mod tests {
     fn scan_invalid_number() {
         invalidate_number(".");
         invalidate_number("0008");
+        invalidate_number("20#.");
+        invalidate_number("008#1.0");
+    }
+
+    #[test]
+    fn number_without_radix() {
+        let input = "#1.0";
+        let mut scanner: Scanner<'_> = input.into();
+
+        assert_eq!(
+            scanner.next(),
+            Some(Err(LexicalError::new(
+                Lexeme::new(Location::default(), "#"),
+                ErrorKind::Invalid
+            )))
+        );
+        assert_eq!(
+            scanner.next(),
+            Some(Ok(Token::new(
+                Lexeme::new("#", input),
+                Kind::Number(42.into())
+            )))
+        );
+        assert_eq!(scanner.next(), None);
+    }
+
+    #[test]
+    fn empty_number_without_radix() {
+        let input = "#.";
+        let mut scanner: Scanner<'_> = input.into();
+
+        assert_eq!(
+            scanner.next(),
+            Some(Err(LexicalError::new(
+                Lexeme::new(Location::default(), "#"),
+                ErrorKind::Invalid
+            )))
+        );
+        assert_eq!(
+            scanner.next(),
+            Some(Err(LexicalError::new(
+                Lexeme::new("#", input),
+                ErrorKind::Number
+            )))
+        );
+        assert_eq!(scanner.next(), None);
     }
 
     #[test]
