@@ -5,6 +5,8 @@ use crate::compiler::unicode::UnicodeProperties;
 use crate::compiler::{Input, Kind, LexicalError, Token};
 use std::str::Chars;
 
+type LexicalResult = Result<Token, LexicalError>;
+
 /// A lexical analyzer with 1 character of lookahead.
 #[derive(Clone, Debug)]
 pub struct Scanner<'a> {
@@ -22,52 +24,56 @@ impl<'a> From<&'a str> for Scanner<'a> {
 }
 
 impl<'a> Iterator for Scanner<'a> {
-    type Item = Result<Token, LexicalError>;
+    type Item = LexicalResult;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             self.input.skip_blank_space();
 
-            let token = match self.input.next()? {
-                '+' => Token::new(self.input.advance(), Kind::Plus),
-                '-' => Token::new(self.input.advance(), Kind::Minus),
-                '*' => Token::new(self.input.advance(), Kind::Star),
-                '/' => Token::new(self.input.advance(), Kind::Slash),
-                '^' => Token::new(self.input.advance(), Kind::Caret),
-                '=' => Token::new(self.input.advance(), Kind::Equal),
-                '~' => Token::new(self.input.advance(), Kind::Tilde),
-                '%' => Token::new(self.input.advance(), Kind::Percent),
-                '_' => Token::new(self.input.advance(), Kind::Underscore),
-                '(' => Token::new(self.input.advance(), Kind::LeftParenthesis),
-                ')' => Token::new(self.input.advance(), Kind::RightParenthesis),
-                '[' => Token::new(self.input.advance(), Kind::LeftBracket),
-                ']' => Token::new(self.input.advance(), Kind::RightBracket),
-                '{' => Token::new(self.input.advance(), Kind::LeftBrace),
-                '}' => Token::new(self.input.advance(), Kind::RightBrace),
-                ',' => Token::new(self.input.advance(), Kind::Comma),
+            let result = match self.input.next()? {
+                '+' => self.new_token(Kind::Plus),
+                '-' => self.new_token(Kind::Minus),
+                '*' => self.new_token(Kind::Star),
+                '/' => self.new_token(Kind::Slash),
+                '^' => self.new_token(Kind::Caret),
+                '=' => self.new_token(Kind::Equal),
+                '~' => self.new_token(Kind::Tilde),
+                '%' => self.new_token(Kind::Percent),
+                '_' => self.new_token(Kind::Underscore),
+                '(' => self.new_token(Kind::LeftParenthesis),
+                ')' => self.new_token(Kind::RightParenthesis),
+                '[' => self.new_token(Kind::LeftBracket),
+                ']' => self.new_token(Kind::RightBracket),
+                '{' => self.new_token(Kind::LeftBrace),
+                '}' => self.new_token(Kind::RightBrace),
+                ',' => self.new_token(Kind::Comma),
                 ';' => {
                     self.skip_comment();
                     continue;
                 }
                 '<' => self.scan_less_than(),
                 '>' => self.scan_greater_than(),
-                '.' => self.scan_number(),
+                '.' => self.scan_fractional_number(),
                 d if d.is_ascii_digit() => self.scan_number(),
                 s if s.is_xid_start() => self.scan_identifier(),
-                _ => return self.scan_invalid(),
+                _ => self.scan_invalid(),
             };
 
-            return Some(Ok(token));
+            return Some(result);
         }
     }
 }
 
 impl<'a> Scanner<'a> {
+    fn new_token(&mut self, kind: Kind) -> Result<Token, LexicalError> {
+        Ok(Token::new(self.input.advance(), kind))
+    }
+
     fn skip_comment(&mut self) {
         while self.input.next_unless_eq('\n').is_some() {}
     }
 
-    fn scan_less_than(&mut self) -> Token {
+    fn scan_less_than(&mut self) -> LexicalResult {
         let kind = if self.input.next_if_eq('=').is_some() {
             Kind::LessThanOrEqualTo
         } else if self.input.next_if_eq('>').is_some() {
@@ -76,30 +82,59 @@ impl<'a> Scanner<'a> {
             Kind::LessThan
         };
 
-        Token::new(self.input.advance(), kind)
+        Ok(Token::new(self.input.advance(), kind))
     }
 
-    fn scan_greater_than(&mut self) -> Token {
+    fn scan_greater_than(&mut self) -> LexicalResult {
         let kind = if self.input.next_if_eq('=').is_some() {
             Kind::GreaterThanOrEqualTo
         } else {
             Kind::GreaterThan
         };
 
-        Token::new(self.input.advance(), kind)
+        Ok(Token::new(self.input.advance(), kind))
     }
 
-    fn scan_number(&mut self) -> Token {
-        while self.input.next_if(|c| c.is_ascii_digit()).is_some() {}
-        Token::new(self.input.advance(), Kind::Number(42.into()))
+    fn scan_fractional_number(&mut self) -> LexicalResult {
+        let digits = self.scan_digits();
+
+        if digits == 0 {
+            self.new_error(ErrorKind::Number)
+        } else {
+            self.new_token(Kind::Number(42.into()))
+        }
     }
 
-    fn scan_identifier(&mut self) -> Token {
+    fn new_error(&mut self, kind: ErrorKind) -> Result<Token, LexicalError> {
+        Err(LexicalError::new(self.input.advance(), kind))
+    }
+
+    fn scan_number(&mut self) -> LexicalResult {
+        self.scan_digits();
+
+        if self.input.next_if_eq('.').is_some() {
+            self.scan_digits();
+        }
+
+        self.new_token(Kind::Number(42.into()))
+    }
+
+    fn scan_digits(&mut self) -> usize {
+        let mut digits = 0;
+
+        while self.input.next_if(|c| c.is_ascii_digit()).is_some() {
+            digits += 1;
+        }
+
+        digits
+    }
+
+    fn scan_identifier(&mut self) -> LexicalResult {
         while self.input.next_if(|c| c.is_xid_continue()).is_some() {}
-        Token::new(self.input.advance(), Kind::Identifier)
+        self.new_token(Kind::Identifier)
     }
 
-    fn scan_invalid(&mut self) -> Option<Result<Token, LexicalError>> {
+    fn scan_invalid(&mut self) -> LexicalResult {
         while self
             .input
             .next_if(|c| {
@@ -111,10 +146,7 @@ impl<'a> Scanner<'a> {
             .is_some()
         {}
 
-        Some(Err(LexicalError::new(
-            self.input.advance(),
-            ErrorKind::Invalid,
-        )))
+        Err(LexicalError::new(self.input.advance(), ErrorKind::Invalid))
     }
 }
 
@@ -233,6 +265,30 @@ mod tests {
         validate_number("100");
         validate_number(".100");
         validate_number(".5");
+        validate_number("1.0");
+        validate_number("4.5");
+        validate_number("0.5");
+        validate_number("10000.5002");
+        validate_number("7.002");
+    }
+
+    fn invalidate_number(number: &str) {
+        let mut scanner: Scanner<'_> = number.into();
+
+        assert_eq!(
+            scanner.next(),
+            Some(Err(LexicalError::new(
+                Lexeme::new(Location::default(), number),
+                ErrorKind::Number
+            )))
+        );
+        assert_eq!(scanner.next(), None);
+    }
+
+    #[test]
+    fn scan_invalid_number() {
+        invalidate_number(".");
+        invalidate_number("0008");
     }
 
     #[test]
@@ -262,12 +318,6 @@ mod tests {
         assert_forty_two(input);
     }
 
-    #[test]
-    fn scan_invalid_number() {
-        todo!("0008 is not valid.")
-    }
-
-    #[test]
     fn scan_edge_cases() {
         todo!("2x is number then identifier.")
     }
