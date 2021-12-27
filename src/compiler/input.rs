@@ -63,6 +63,19 @@ impl<I: Iterator<Item = char>> Input<I> {
         }
     }
 
+    /// If the next character is an ASCII digit, advance the `Location` of the current `Lexeme`.
+    /// Otherwise, the current `Location` is unchanged.
+    pub fn next_ascii_digit(&mut self) -> Option<char> {
+        let c = self.peek()?;
+
+        if c.is_ascii_digit() {
+            self.end.advance(c);
+            self.peeked.take()
+        } else {
+            None
+        }
+    }
+
     /// Unless the next character is equal to the `avoid` value, advance the `Location` of the current `Lexeme`.
     /// Otherwise, the current `Location` is unchanged.
     pub fn next_unless_eq(&mut self, expected: char) -> Option<char> {
@@ -248,5 +261,20 @@ mod tests {
             Input::from("abc").advance(),
             Lexeme::new(Location::default(), Location::default())
         );
+    }
+
+    #[test]
+    fn next_ascii_digit_when_true() {
+        assert_eq!(Input::from("1abc").next_ascii_digit(), Some('1'));
+    }
+
+    #[test]
+    fn next_ascii_digit_when_false() {
+        assert_eq!(Input::from("abc").next_ascii_digit(), None);
+    }
+
+    #[test]
+    fn next_ascii_digit_when_empty() {
+        assert_eq!(Input::from("").next_ascii_digit(), None);
     }
 }

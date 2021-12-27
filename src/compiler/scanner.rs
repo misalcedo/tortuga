@@ -54,7 +54,7 @@ impl<'a> Iterator for Scanner<'a> {
                 '<' => self.scan_less_than(),
                 '>' => self.scan_greater_than(),
                 '.' => self.scan_fractional_number(),
-                d if d.is_ascii_digit() => self.scan_number(),
+                d if d.is_ascii_digit() => self.scan_number(d),
                 s if s.is_xid_start() => self.scan_identifier(),
                 _ => self.scan_invalid(),
             };
@@ -63,6 +63,8 @@ impl<'a> Iterator for Scanner<'a> {
         }
     }
 }
+
+const ZERO: char = '0';
 
 impl<'a> Scanner<'a> {
     fn new_token(&mut self, kind: Kind) -> Result<Token, LexicalError> {
@@ -109,20 +111,26 @@ impl<'a> Scanner<'a> {
         Err(LexicalError::new(self.input.advance(), kind))
     }
 
-    fn scan_number(&mut self) -> LexicalResult {
+    fn scan_number(&mut self, first: char) -> LexicalResult {
+        let leading_zero = first == ZERO && matches!(self.input.next_ascii_digit(), Some(ZERO));
+
         self.scan_digits();
 
         if self.input.next_if_eq('.').is_some() {
             self.scan_digits();
         }
 
-        self.new_token(Kind::Number(42.into()))
+        if leading_zero {
+            self.new_error(ErrorKind::Number)
+        } else {
+            self.new_token(Kind::Number(42.into()))
+        }
     }
 
     fn scan_digits(&mut self) -> usize {
         let mut digits = 0;
 
-        while self.input.next_if(|c| c.is_ascii_digit()).is_some() {
+        while self.input.next_ascii_digit().is_some() {
             digits += 1;
         }
 
