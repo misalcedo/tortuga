@@ -16,7 +16,6 @@ pub struct LexicalError {
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ErrorKind {
     Number,
-    Identifier,
     Invalid,
 }
 
