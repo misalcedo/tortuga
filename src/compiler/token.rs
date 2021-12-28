@@ -20,10 +20,10 @@ pub trait Attribute {
 
 impl Token {
     /// Creates a new instance of a `Token` with the given `Lexeme` and attribute.
-    pub fn new<L: Into<Lexeme>>(lexeme: L, kind: Kind) -> Self {
+    pub fn new<L: Into<Lexeme>, K: Into<Kind>>(lexeme: L, kind: K) -> Self {
         Token {
             lexeme: lexeme.into(),
-            kind,
+            kind: kind.into(),
         }
     }
 
@@ -91,6 +91,12 @@ pub enum Kind {
     RightBrace,
     LeftBracket,
     RightBracket,
+}
+
+impl<I: Into<Number>> From<I> for Kind {
+    fn from(number: I) -> Self {
+        Kind::Number(number.into())
+    }
 }
 
 impl Attribute for Number {

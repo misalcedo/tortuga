@@ -42,15 +42,18 @@ impl FromStr for Number {
             return Err(ErrorKind::Number);
         }
 
-        let integer = i128::from_str_radix(integer_part.unwrap_or(DEFAULT_NUMBER_PART), radix)
+        let integer = u128::from_str_radix(integer_part.unwrap_or(DEFAULT_NUMBER_PART), radix)
             .map_err(|_| ErrorKind::Number)?;
-        let fraction = i128::from_str_radix(fraction_part.unwrap_or(DEFAULT_NUMBER_PART), radix)
-            .map_err(|_| ErrorKind::Number)?;
+
+        let numerator_part = fraction_part.unwrap_or(DEFAULT_NUMBER_PART);
+        let numerator =
+            u128::from_str_radix(numerator_part, radix).map_err(|_| ErrorKind::Number)?;
+        let fraction = (numerator as f64) / (radix as f64).powf(numerator_part.len() as f64);
 
         if integer_part.is_none() && fraction_part.is_none() {
             Err(ErrorKind::Number)
         } else {
-            Ok(42.into())
+            Ok(Number::from((integer as f64) + fraction))
         }
     }
 }
