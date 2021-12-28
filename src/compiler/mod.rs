@@ -13,4 +13,5 @@ pub use errors::{LexicalError, SyntacticalError};
 pub use input::Input;
 pub use lexeme::Lexeme;
 pub use location::Location;
+pub use scanner::Scanner;
 pub use token::{Kind, Token};

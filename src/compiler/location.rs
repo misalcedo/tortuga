@@ -33,7 +33,7 @@ impl From<&str> for Location {
 
 impl fmt::Display for Location {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Line {}, Column {}", self.line, self.column)
+        write!(f, "{}:{}", self.line, self.column)
     }
 }
 

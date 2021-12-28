@@ -1,5 +1,6 @@
 mod errors;
 mod prompt;
+mod scan;
 mod validate;
 
 pub use errors::CommandLineError;
@@ -11,6 +12,7 @@ use std::io::ErrorKind::BrokenPipe;
 use tracing::{subscriber::set_global_default, Level};
 use tracing_log::LogTracer;
 
+use crate::scan::scan_file;
 use clap::{AppSettings, Parser, Subcommand};
 
 #[derive(Parser)]
@@ -107,11 +109,7 @@ fn run_subcommand(arguments: Arguments) -> Result<(), CommandLineError> {
         Commands::Scan(command) => {
             let source = fs::read_to_string(command.filename)?;
 
-            for token in tortuga::Lexer::from(source.as_str()) {
-                println!("{}", token);
-            }
-
-            Ok(())
+            scan_file(source.as_str())
         }
     }
 }
