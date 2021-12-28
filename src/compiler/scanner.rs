@@ -88,7 +88,7 @@ impl<'a> Scanner<'a> {
             Kind::LessThan
         };
 
-        Ok(Token::new(self.input.advance(), kind))
+        self.new_token(kind)
     }
 
     fn scan_greater_than(&mut self) -> LexicalResult {
@@ -98,7 +98,7 @@ impl<'a> Scanner<'a> {
             Kind::GreaterThan
         };
 
-        Ok(Token::new(self.input.advance(), kind))
+        self.new_token(kind)
     }
 
     fn scan_fractional_number(&mut self) -> LexicalResult {
