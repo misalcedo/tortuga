@@ -9,7 +9,7 @@ pub fn scan_file(source: &str) -> Result<(), CommandLineError> {
     let mut std_out = stdout();
     let mut std_err = stderr();
 
-    for result in Scanner::from(source) {
+    for (index, result) in Scanner::from(source).enumerate() {
         match result {
             Ok(token) => {
                 let kind = token.kind().to_string();
@@ -19,7 +19,8 @@ pub fn scan_file(source: &str) -> Result<(), CommandLineError> {
                 match token.kind() {
                     Kind::Number(number) => writeln!(
                         std_out,
-                        "- [{}] \"{}\" = {} {} {}",
+                        "{}) [{}] \"{}\" = {} {} {}",
+                        index + 1,
                         kind.green().bold(),
                         lexeme.blue(),
                         number.to_string().blue().bold(),
@@ -28,7 +29,8 @@ pub fn scan_file(source: &str) -> Result<(), CommandLineError> {
                     )?,
                     Kind::Identifier => writeln!(
                         std_out,
-                        "- [{}] \"{}\" {} {}",
+                        "{}) [{}] \"{}\" {} {}",
+                        index + 1,
                         kind.green().bold(),
                         lexeme.blue(),
                         "@".yellow().bold(),
@@ -36,14 +38,30 @@ pub fn scan_file(source: &str) -> Result<(), CommandLineError> {
                     )?,
                     _ => writeln!(
                         std_out,
-                        "- [{}] {} {}",
+                        "{}) [{}] {} {}",
+                        index + 1,
                         kind.green().bold(),
                         "@".yellow().bold(),
                         start.red()
                     )?,
                 }
             }
-            Err(error) => writeln!(std_err, "{:?}", error)?,
+            Err(error) => {
+                let kind = error.kind().to_string();
+                let lexeme = error.lexeme().extract_from(source);
+                let start = error.lexeme().start().to_string();
+
+                writeln!(
+                    std_err,
+                    "{}) [{}|{}] \"{}\" {} {}",
+                    index + 1,
+                    "ERROR".red().bold(),
+                    kind.green().bold(),
+                    lexeme.blue(),
+                    "@".yellow().bold(),
+                    start.red()
+                )?
+            }
         }
     }
 

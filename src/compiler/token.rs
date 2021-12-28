@@ -2,8 +2,7 @@
 
 use crate::compiler::Lexeme;
 use crate::runtime::Number;
-use std::fmt;
-use std::fmt::{Formatter, Write};
+use std::fmt::{self, Display, Formatter, Write};
 
 /// A lexical token is a pair of a `Lexeme` and a `Kind`.
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -27,12 +26,12 @@ impl Token {
         }
     }
 
-    /// The actual text the token represents in the input.
+    /// The actual text this `Token` represents in the input.
     pub fn lexeme(&self) -> &Lexeme {
         &self.lexeme
     }
 
-    /// The `Token` variant.
+    /// This `Token`'s variant.
     pub fn kind(&self) -> &Kind {
         &self.kind
     }
@@ -108,7 +107,7 @@ impl Attribute for Number {
     }
 }
 
-impl fmt::Display for Kind {
+impl Display for Kind {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Kind::Number(_) => f.write_str("NUMBER"),
