@@ -9,6 +9,7 @@ use prompt::run_prompt;
 
 use std::fs;
 use std::io::ErrorKind::BrokenPipe;
+use std::io::{stdout, Write};
 use std::path::PathBuf;
 use tracing::{subscriber::set_global_default, Level};
 use tracing_log::LogTracer;
@@ -19,6 +20,8 @@ use clap::{AppSettings, Parser, Subcommand};
 #[derive(Parser)]
 #[clap(author, version, about)]
 #[clap(global_setting(AppSettings::PropagateVersion))]
+#[clap(global_setting(AppSettings::InferLongArgs))]
+#[clap(global_setting(AppSettings::InferSubcommands))]
 #[clap(global_setting(AppSettings::UseLongFormatForHelpSubcommand))]
 struct Arguments {
     #[clap(short, long, parse(from_occurrences))]
@@ -53,12 +56,17 @@ struct ScanCommand {
     filename: PathBuf,
 }
 
+#[derive(Parser)]
+/// Print version information.
+struct VersionCommand {}
+
 #[derive(Subcommand)]
 enum Commands {
     Prompt(PromptCommand),
     Run(RunCommand),
     Scan(ScanCommand),
     Parse(ParseCommand),
+    Version(VersionCommand),
 }
 
 impl Default for Commands {
@@ -116,5 +124,6 @@ fn run_subcommand(arguments: Arguments) -> Result<(), CommandLineError> {
 
             scan_file(source.as_str())
         }
+        Commands::Version(_) => Ok(writeln!(stdout(), "{}", tortuga::about::VERSION)?),
     }
 }

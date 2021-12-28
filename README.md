@@ -47,3 +47,6 @@ While the system sends all numbers in network byte order (i.e., big endian), Web
 
 # Examples
 More concrete examples are pending finalizing the grammar. However, some basic examples can be found in the [/examples](https://github.com/misalcedo/tortuga/tree/main/examples) directory.
+
+# Versioning
+Tortuga adheres to [Semantic Versioning](https://semver.org/). You can use `tortuga version` or `tortuga -V` to determine the version of a Tortuga installation.
