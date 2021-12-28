@@ -1,11 +1,11 @@
 mod errors;
+mod parse;
 mod prompt;
 mod scan;
-mod validate;
 
 pub use errors::CommandLineError;
+use parse::parse_file;
 use prompt::run_prompt;
-use validate::validate_file;
 
 use std::fs;
 use std::io::ErrorKind::BrokenPipe;
@@ -28,24 +28,27 @@ struct Arguments {
 }
 
 #[derive(Parser)]
-/// Run an interactive prompt to interpret source code in a read-evalue-print loop.
+/// Run an interactive prompt to interpret source code in a read-evaluate-print loop.
 struct PromptCommand;
 
 #[derive(Parser)]
 /// Compile and run a file.
 struct RunCommand {
+    /// The path to the file to compile and run immediately.
     filename: String,
 }
 
 #[derive(Parser)]
-/// Validates a file is well-formed by parsing the contents and printing the syntax tree.
-struct ValidateCommand {
+/// Parses a file and prints the syntax tree.
+struct ParseCommand {
+    /// The path to the file to parse into an Abstract Syntax Tree.
     filename: String,
 }
 
 #[derive(Parser)]
 /// Performs lexical analysis on a file and prints the annotated token sequence.
 struct ScanCommand {
+    /// The path to the file to perform lexical analysis on.
     filename: String,
 }
 
@@ -54,7 +57,7 @@ enum Commands {
     Prompt(PromptCommand),
     Run(RunCommand),
     Scan(ScanCommand),
-    Validate(ValidateCommand),
+    Parse(ParseCommand),
 }
 
 impl Default for Commands {
@@ -80,9 +83,10 @@ fn execute() -> Result<(), CommandLineError> {
 
 fn set_verbosity(occurrences: usize) -> Result<(), CommandLineError> {
     let level = match occurrences {
-        0 => Level::WARN,
-        1 => Level::INFO,
-        2 => Level::DEBUG,
+        0 => Level::ERROR,
+        1 => Level::WARN,
+        2 => Level::INFO,
+        3 => Level::DEBUG,
         _ => Level::TRACE,
     };
 
@@ -101,10 +105,10 @@ fn run_subcommand(arguments: Arguments) -> Result<(), CommandLineError> {
 
             Ok(tortuga::run(source.as_str()))
         }
-        Commands::Validate(command) => {
+        Commands::Parse(command) => {
             let source = fs::read_to_string(command.filename)?;
 
-            validate_file(source.as_str())
+            parse_file(source.as_str())
         }
         Commands::Scan(command) => {
             let source = fs::read_to_string(command.filename)?;

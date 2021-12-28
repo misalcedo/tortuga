@@ -7,7 +7,7 @@ use tortuga::compiler::Scanner;
 
 pub fn scan_file(source: &str) -> Result<(), CommandLineError> {
     let mut std_out = stdout();
-    let mut std_err = stdout();
+    let mut std_err = stderr();
 
     for result in Scanner::from(source) {
         match result {

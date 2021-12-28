@@ -14,5 +14,5 @@ pub enum CommandLineError {
     #[error("Encountered an error prompting the user for input. {0}")]
     PromptError(#[from] rustyline::error::ReadlineError),
     #[error(transparent)]
-    ValidationError(#[from] tortuga::peg::ParseError),
+    ParseError(#[from] tortuga::peg::ParseError),
 }
