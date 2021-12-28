@@ -9,6 +9,7 @@ use prompt::run_prompt;
 
 use std::fs;
 use std::io::ErrorKind::BrokenPipe;
+use std::path::PathBuf;
 use tracing::{subscriber::set_global_default, Level};
 use tracing_log::LogTracer;
 
@@ -35,21 +36,21 @@ struct PromptCommand;
 /// Compile and run a file.
 struct RunCommand {
     /// The path to the file to compile and run immediately.
-    filename: String,
+    filename: PathBuf,
 }
 
 #[derive(Parser)]
 /// Parses a file and prints the syntax tree.
 struct ParseCommand {
     /// The path to the file to parse into an Abstract Syntax Tree.
-    filename: String,
+    filename: PathBuf,
 }
 
 #[derive(Parser)]
 /// Performs lexical analysis on a file and prints the annotated token sequence.
 struct ScanCommand {
     /// The path to the file to perform lexical analysis on.
-    filename: String,
+    filename: PathBuf,
 }
 
 #[derive(Subcommand)]
