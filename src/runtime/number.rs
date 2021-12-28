@@ -1,6 +1,7 @@
 //! Representation of numbers within the Tortuga runtime.
 
 use crate::runtime::EpsilonRange;
+use std::fmt;
 use std::ops::{Add, BitXor, Div, Mul, Rem, Sub};
 
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
@@ -10,6 +11,12 @@ impl Number {
     /// The ~ operator in Tortuga. Used to create an `EpsilonRange`.
     pub fn tilde(&self, epsilon: Number) -> EpsilonRange {
         EpsilonRange::new(*self, epsilon)
+    }
+}
+
+impl fmt::Display for Number {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
