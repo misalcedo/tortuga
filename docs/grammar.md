@@ -18,12 +18,12 @@ block      → expression | "[" expression expression+ "]" ;
 
 epsilon    → modulo ( "~" modulo )* ;
 modulo     → sum ( "%" sum )* ;
-sum        → product ( sign product )* ;
+sum        → product ( ( "+" | "-") product )* ;
 product    → power ( ( "*" | "/" ) power )* ;
 power      → primary ( "^" primary )* ;
 
 primary    → number | call | grouping ;
-number     → sign? NUMBER ;
+number     → "-"? NUMBER ;
 call       → IDENTIFIER ( "(" arguments ")" )* ;
 grouping   → "(" expression ")" ;
 ```
@@ -46,7 +46,6 @@ arguments   → expression ( "," expression )* ;
 parameters  → pattern ( "," pattern )* ;
 
 name        → "_" | IDENTIFIER ;
-sign        → "+" | "-" ;
 inequality  → "<" | "<=" | ">" | ">=" ;
 equality    → "=" | "<>" ;
 comparison  → equality | inequality ;
