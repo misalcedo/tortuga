@@ -55,7 +55,7 @@ impl<'a> Iterator for Scanner<'a> {
                 '<' => self.scan_less_than(),
                 '>' => self.scan_greater_than(),
                 '.' => self.scan_fractional_number(),
-                d if d.is_ascii_digit() => self.scan_number(),
+                '0'..='9' => self.scan_number(),
                 s if s.is_xid_start() => self.scan_identifier(),
                 _ => self.scan_invalid(),
             };
@@ -72,6 +72,10 @@ impl<'a> Scanner<'a> {
 
     fn new_error(&mut self, kind: ErrorKind) -> Result<Token, LexicalError> {
         Err(LexicalError::new(self.input.advance(), kind))
+    }
+
+    fn lexeme(&mut self) -> &str {
+        self.input.peek_lexeme().extract_from(self.source)
     }
 
     fn skip_comment(&mut self) {
@@ -101,35 +105,9 @@ impl<'a> Scanner<'a> {
     }
 
     fn scan_fractional_number(&mut self) -> LexicalResult {
-        let digits = self.scan_digits(DECIMAL);
+        self.scan_digits(DECIMAL);
 
-        if digits == 0 {
-            self.new_error(ErrorKind::Number)
-        } else {
-            self.new_token(Kind::Number)
-        }
-    }
-
-    fn scan_number(&mut self) -> LexicalResult {
-        let mut base = DECIMAL;
-
-        let mut integer_digits = self.scan_digits(base) + 1;
-        let mut fraction_digits = 0;
-
-        if self.input.next_if_eq('#').is_some() {
-            base = MAX_RADIX;
-            integer_digits = self.scan_digits(base);
-        }
-
-        if self.input.next_if_eq('.').is_some() {
-            fraction_digits = self.scan_digits(base);
-        }
-
-        if integer_digits == 0 && fraction_digits == 0 {
-            return self.new_error(ErrorKind::Number);
-        }
-
-        let number = self.input.peek_lexeme().extract_from(self.source);
+        let number = self.lexeme();
 
         if NUMBER_REGEX.is_match(number) {
             self.new_token(Kind::Number)
@@ -138,14 +116,31 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    fn scan_digits(&mut self, radix: u32) -> usize {
-        let mut digits = 0;
+    fn scan_number(&mut self) -> LexicalResult {
+        let mut base = DECIMAL;
 
-        while self.input.next_digit(radix).is_some() {
-            digits += 1;
+        self.scan_digits(base);
+
+        if self.input.next_if_eq('#').is_some() {
+            base = MAX_RADIX;
+            self.scan_digits(base);
         }
 
-        digits
+        if self.input.next_if_eq('.').is_some() {
+            self.scan_digits(base);
+        }
+
+        let number = self.lexeme();
+
+        if NUMBER_REGEX.is_match(number) {
+            self.new_token(Kind::Number)
+        } else {
+            self.new_error(ErrorKind::Number)
+        }
+    }
+
+    fn scan_digits(&mut self, radix: u32) {
+        while self.input.next_digit(radix).is_some() {}
     }
 
     fn scan_identifier(&mut self) -> LexicalResult {
@@ -280,10 +275,9 @@ mod tests {
     #[test]
     fn scan_number() {
         validate_number("0");
-        validate_number("2");
+        validate_number("2.");
         validate_number("21");
         validate_number("100");
-        validate_number(".100");
         validate_number(".5");
         validate_number("1.0");
         validate_number("4.5");
@@ -295,7 +289,6 @@ mod tests {
         validate_number("16#F");
         validate_number("3#21");
         validate_number("2#100");
-        validate_number("2#.100");
         validate_number("10#.5");
         validate_number("12#1.0");
         validate_number("20#4.5");
@@ -325,6 +318,10 @@ mod tests {
         invalidate_number("20#.");
         invalidate_number("008#1.0");
         invalidate_number("0008");
+        invalidate_number(".100");
+        invalidate_number("2#.100");
+        invalidate_number("300#1");
+        invalidate_number("7#.0");
     }
 
     #[test]

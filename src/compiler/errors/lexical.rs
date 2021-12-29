@@ -19,7 +19,7 @@ pub enum ErrorKind {
 }
 
 impl LexicalError {
-    /// Creates a new instance of a `LexicalError` with no cascading failures.
+    /// Creates a new instance of a `LexicalError`.
     pub fn new(lexeme: Lexeme, kind: ErrorKind) -> Self {
         LexicalError { lexeme, kind }
     }
