@@ -61,7 +61,6 @@ NUMBER                  → NONZERO DIGIT? "#" ( "0" | NATURAL | REAL | FRACTION
 NATURAL                 → NZ_ALPHANUM ALPHANUM* ( "." "0"? )? ;
 REAL                    → NZ_ALPHANUM ALPHANUM* "." ALPHANUM*? NZ_ALPHANUM ;
 FRACTION                → "0"? "." ALPHANUM*? NZ_ALPHANUM ;
-                
 
 NZ_ALPHANUM             → NZ_DIGIT | ALPHA ;                
 ALPHANUM                → DIGIT | ALPHA ;
