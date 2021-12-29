@@ -11,7 +11,12 @@ program → expression* EOF ;
 A program is a series of expressions. Expressions produce values. `Tortuga` has a number of binary operators with different levels of precedence. Some grammars for languages do not directly encode the precedence relationships and specify that elsewhere. Here, we use a separate rule for each precedence level to make it explicit.
 
 ```ebnf
-expression → epsilon ;
+expression → inequality ;
+
+inequality → equality ( comparison equality )* ;
+equality   → epislon | ( bind "=" block ) | ( block "=" bind ) ;
+bind       → name ( "(" parameters ")" )? ;
+block      → equality | ( "[" equality equality+ "]" ) ;
 
 epsilon    → modulo ( "~" modulo )* ;
 modulo     → sum ( "%" sum )* ;
@@ -19,9 +24,10 @@ sum        → product ( sign product )* ;
 product    → power ( ( "*" | "/" ) power )* ;
 power      → call ( "^" call )* ;
 
-call       → IDENTIFIER ( "(" arguments ")" )? ;
-primary    → number | "_" | IDENTIFIER ;
-number     → ( sign? NUMBER ) ;
+call       → primary | ( name ( "(" arguments ")" )? ) ;
+primary    → number | grouping ;
+number     → sign? NUMBER ;
+grouping   → "(" equality ")" ;
 ```
 
 ## Pattern Rules
@@ -35,17 +41,16 @@ identity → expression | name equality expression | expression equality name ;
 ```
 
 ## Utility Rules
-To keep the above rules a little cleaner, some of the grammar is split out into a few reused helper rules.
+To keep the above rules a little cleaner, some grammar is split out into a few reused helper rules.
 
 ```ebnf
-arguments  → expression ( "," expression )* ;
-parameters → pattern ( "," pattern )* ;
+arguments   → equality ( "," equality )* ;
+parameters  → pattern ( "," pattern )* ;
 
-name     → "_" | IDENTIFIER ;
-sign     → "+" | "-" ;
-equality → "=" | "<>" ;
-lesser   → "<" | "<=" ;
-greater  → ">" | ">=" ;
+name        → "_" | IDENTIFIER ;
+sign        → "+" | "-" ;
+equality    → "=" ;
+comparison  → "<" | "<=" | "<>" | ">=" | ">" ;
 ```
 
 # Lexical Grammar
