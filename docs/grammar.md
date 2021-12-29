@@ -11,18 +11,17 @@ program → expression* EOF ;
 A program is a series of expressions. Expressions produce values. `Tortuga` has a number of binary operators with different levels of precedence. Some grammars for languages do not directly encode the precedence relationships and specify that elsewhere. Here, we use a separate rule for each precedence level to make it explicit.
 
 ```ebnf
-expression → modulo | assignment ;
-assignment → function "=" block ;
-block      → expression | ( "[" expression expression+ "]" ) ;
+expression → epsilon ;
 
+epsilon    → modulo ( "~" modulo )* ;
 modulo     → sum ( "%" sum )* ;
 sum        → product ( sign product )* ;
 product    → power ( ( "*" | "/" ) power )* ;
-power      → primary ( "^" primary )* ;
+power      → call ( "^" call )* ;
 
-primary    → number | call | ( "(" expression ")" ) ;
 call       → IDENTIFIER ( "(" arguments ")" )? ;
-number     → ( sign? NUMBER ) | NUMBER_WITH_RADIX ;
+primary    → number | "_" | IDENTIFIER ;
+number     → ( sign? NUMBER ) ;
 ```
 
 ## Pattern Rules
@@ -53,13 +52,16 @@ greater  → ">" | ">=" ;
 The lexical grammar is used during lexical analysis to group characters into tokens. Where the syntax is [context free](https://en.wikipedia.org/wiki/Context-free_grammar), the lexical grammar is [regular](https://en.wikipedia.org/wiki/Regular_grammar) -- note that there are no recursive rules.
 
 ```ebnf
-NUMBER                  → DECIMAL ;
-NUMBER_WITH_RADIX       → DIGIT+ "#" ( "+" | "-" )? BASE36 ;
-IDENTIFIER              → \{alphabetic} ( ( "_" | \{alphanumeric} )*  \{alphanumeric} )? ;
+IDENTIFIER              → XID_START XID_CONTINUE* ;
+NUMBER                  → NONZERO DIGIT? "#" ( "0" | NATURAL | REAL | FRACTION) ;
+NATURAL                 → NZ_ALPHANUM ALPHANUM* ( "." "0"? )? ;
+REAL                    → NZ_ALPHANUM ALPHANUM* "." ALPHANUM*? NZ_ALPHANUM ;
+FRACTION                → "0"? "." ALPHANUM*? NZ_ALPHANUM ;
+                
 
-BASE36                  → DIGIT36+ ( "." DIGIT36* )? | "." DIGIT36+ ;
-DECIMAL                 → DIGIT+ ( "." DIGIT* )? | "." DIGIT+ ;
-DIGIT36                 → ALPHA | DIGIT ;
+NZ_ALPHANUM             → NZ_DIGIT | ALPHA ;                
+ALPHANUM                → DIGIT | ALPHA ;
 ALPHA                   → "a" ... "z" | "A" ... "Z" ;
+NZ_DIGIT                → "1" ... "9" ;
 DIGIT                   → "0" ... "9" ;
 ```
