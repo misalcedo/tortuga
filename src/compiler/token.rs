@@ -1,7 +1,6 @@
 //! Lexical `Token`s for Tortuga.
 
 use crate::compiler::Lexeme;
-use crate::runtime::Number;
 use std::fmt::{self, Display, Formatter, Write};
 
 /// A lexical token is a pair of a `Lexeme` and a `Kind`.
@@ -9,12 +8,6 @@ use std::fmt::{self, Display, Formatter, Write};
 pub struct Token {
     lexeme: Lexeme,
     kind: Kind,
-}
-
-/// Extra information derived from the text during lexical analysis.
-pub trait Attribute {
-    /// Get the attribute from the given `Kind` if present, else `None`.
-    fn attribute_from(kind: &Kind) -> Option<&Self>;
 }
 
 impl Token {
@@ -35,20 +28,13 @@ impl Token {
     pub fn kind(&self) -> &Kind {
         &self.kind
     }
-
-    /// Extra information derived from the text during lexical analysis.
-    /// If an attribute `A` can be be extracted from this `Token`'s `Kind`, returns the attribute.
-    /// Otherwise, returns `None`.
-    pub fn attribute<A: Attribute>(&self) -> Option<&A> {
-        A::attribute_from(&self.kind)
-    }
 }
 
 /// The variants of the `Token`s and their associated attributes.
 /// Rust does not support
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Kind {
-    Number(Number),
+    Number,
     Identifier,
 
     // Punctuation
@@ -92,25 +78,10 @@ pub enum Kind {
     RightBracket,
 }
 
-impl<I: Into<Number>> From<I> for Kind {
-    fn from(number: I) -> Self {
-        Kind::Number(number.into())
-    }
-}
-
-impl Attribute for Number {
-    fn attribute_from(value: &Kind) -> Option<&Self> {
-        match value {
-            Kind::Number(number) => Some(number),
-            _ => None,
-        }
-    }
-}
-
 impl Display for Kind {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            Kind::Number(_) => f.write_str("NUMBER"),
+            Kind::Number => f.write_str("NUMBER"),
             Kind::Identifier => f.write_str("IDENTIFIER"),
             Kind::Plus => f.write_char('+'),
             Kind::Minus => f.write_char('-'),
@@ -146,12 +117,10 @@ mod tests {
     fn token() {
         let lexeme = "ab";
         let attribute = 200;
-        let number = attribute.into();
-        let kind = Kind::Number(number);
+        let kind = Kind::Number;
         let token = Token::new(lexeme, kind);
 
         assert_eq!(token.lexeme(), &Lexeme::new(Location::default(), lexeme));
         assert_eq!(token.kind(), &kind);
-        assert_eq!(token.attribute::<Number>(), Some(&number));
     }
 }

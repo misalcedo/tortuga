@@ -4,6 +4,7 @@ use crate::CommandLineError;
 use colored::*;
 use std::io::{stderr, stdout, Write};
 use tortuga::compiler::{Kind, Scanner};
+use tortuga::runtime::Number;
 
 pub fn scan_file(source: &str) -> Result<(), CommandLineError> {
     let mut std_out = stdout();
@@ -17,13 +18,18 @@ pub fn scan_file(source: &str) -> Result<(), CommandLineError> {
                 let start = token.lexeme().start().to_string();
 
                 match token.kind() {
-                    Kind::Number(number) => writeln!(
+                    Kind::Number => writeln!(
                         std_out,
                         "{}) [{}] \"{}\" = {} {} {}",
                         index + 1,
                         kind.green().bold(),
                         lexeme.blue(),
-                        number.to_string().blue().bold(),
+                        lexeme
+                            .parse::<Number>()
+                            .unwrap_or_default()
+                            .to_string()
+                            .blue()
+                            .bold(),
                         "@".yellow().bold(),
                         start.red()
                     )?,

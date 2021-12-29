@@ -13,23 +13,24 @@ pub const MAX_RADIX: u32 = 36;
 const DEFAULT_NUMBER_PART: &str = "0";
 const DEFAULT_RADIX: &str = "10";
 
+lazy_static! {
+    /// A regular expression used to validate and extract a number from a Lexeme.
+    pub static ref NUMBER_REGEX: Regex = Regex::new(
+        r###"(?x)
+            ^
+            (?: ( [[:digit:]--0] [[:digit:]]{0, 1}) \# )? # Optional non-zero radix; at most 2 digits.
+            ( 0? | (?: [[:alnum:]--0] [[:alnum:]]* ) ) # Interger part; optional when the fractional part is present.
+            (?: \. ( [[:alnum:]]* ) )? # Fractional part; optional when the integer part is present.
+            $
+        "###
+    )
+    .expect("Invalid regular expression for NUMBER token.");
+}
+
 impl FromStr for Number {
     type Err = ErrorKind;
 
     fn from_str(number: &str) -> Result<Self, Self::Err> {
-        lazy_static! {
-            static ref NUMBER_REGEX: Regex = Regex::new(
-                r###"(?x)
-                    ^
-                    (?: ( [[:digit:]--0] [[:digit:]]{0, 1}) \# )? # Optional non-zero radix; at most 2 digits.
-                    ( 0? | (?: [[:alnum:]--0] [[:alnum:]]* ) ) # Interger part; optional when the fractional part is present.
-                    (?: \. ( [[:alnum:]]* ) )? # Fractional part; optional when the integer part is present.
-                    $
-                "###
-            )
-            .expect("Invalid regular expression for NUMBER token.");
-        }
-
         let captures = NUMBER_REGEX.captures(number).ok_or(ErrorKind::Number)?;
 
         let radix_part = get_match(&captures, 1).unwrap_or(DEFAULT_RADIX);

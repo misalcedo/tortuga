@@ -1,10 +1,9 @@
 //! Performs lexical analysis on Tortuga input and produces a sequence of `Token`s.
 
 use crate::compiler::errors::lexical::ErrorKind;
-use crate::compiler::number::{DECIMAL, MAX_RADIX};
+use crate::compiler::number::{DECIMAL, MAX_RADIX, NUMBER_REGEX};
 use crate::compiler::unicode::UnicodeProperties;
 use crate::compiler::{Input, Kind, LexicalError, Token};
-use crate::runtime::Number;
 use std::str::Chars;
 
 type LexicalResult = Result<Token, LexicalError>;
@@ -102,47 +101,51 @@ impl<'a> Scanner<'a> {
     }
 
     fn scan_fractional_number(&mut self) -> LexicalResult {
-        self.scan_digits(DECIMAL);
+        let digits = self.scan_digits(DECIMAL);
 
-        let lexeme = self.input.peek_lexeme();
-
-        if lexeme.len() == 1 {
+        if digits == 0 {
             self.new_error(ErrorKind::Number)
         } else {
-            let value: f64 = lexeme
-                .extract_from(self.source)
-                .parse()
-                .map_err(|_| LexicalError::new(self.input.advance(), ErrorKind::Number))?;
-
-            self.new_token(Kind::Number(Number::from(value)))
+            self.new_token(Kind::Number)
         }
     }
 
     fn scan_number(&mut self) -> LexicalResult {
         let mut base = DECIMAL;
 
-        self.scan_digits(base);
+        let mut integer_digits = self.scan_digits(base) + 1;
+        let mut fraction_digits = 0;
 
         if self.input.next_if_eq('#').is_some() {
             base = MAX_RADIX;
-            self.scan_digits(base);
+            integer_digits = self.scan_digits(base);
         }
 
         if self.input.next_if_eq('.').is_some() {
-            self.scan_digits(base);
+            fraction_digits = self.scan_digits(base);
         }
 
-        let lexeme = self.input.peek_lexeme();
-        let number = lexeme.extract_from(self.source);
+        if integer_digits == 0 && fraction_digits == 0 {
+            return self.new_error(ErrorKind::Number);
+        }
 
-        match number.parse::<Number>() {
-            Ok(n) => self.new_token(Kind::Number(n)),
-            Err(kind) => self.new_error(kind),
+        let number = self.input.peek_lexeme().extract_from(self.source);
+
+        if NUMBER_REGEX.is_match(number) {
+            self.new_token(Kind::Number)
+        } else {
+            self.new_error(ErrorKind::Number)
         }
     }
 
-    fn scan_digits(&mut self, radix: u32) {
-        while self.input.next_digit(radix).is_some() {}
+    fn scan_digits(&mut self, radix: u32) -> usize {
+        let mut digits = 0;
+
+        while self.input.next_digit(radix).is_some() {
+            digits += 1;
+        }
+
+        digits
     }
 
     fn scan_identifier(&mut self) -> LexicalResult {
@@ -261,14 +264,14 @@ mod tests {
         validate_identifier("I");
     }
 
-    fn validate_number<K: Into<Kind>>(number: &str, value: K) {
+    fn validate_number(number: &str) {
         let mut scanner: Scanner<'_> = number.into();
 
         assert_eq!(
             scanner.next(),
             Some(Ok(Token::new(
                 Lexeme::new(Location::default(), number),
-                value
+                Kind::Number
             )))
         );
         assert_eq!(scanner.next(), None);
@@ -276,29 +279,31 @@ mod tests {
 
     #[test]
     fn scan_number() {
-        validate_number("0", 0);
-        validate_number("2", 2);
-        validate_number("21", 21);
-        validate_number("100", 100);
-        validate_number(".100", 0.100);
-        validate_number(".5", 0.5);
-        validate_number("1.0", 1.0);
-        validate_number("4.5", 4.5);
-        validate_number("0.5", 0.5);
-        validate_number("10000.5002", 10000.5002);
-        validate_number("7.002", 7.002);
+        validate_number("0");
+        validate_number("2");
+        validate_number("21");
+        validate_number("100");
+        validate_number(".100");
+        validate_number(".5");
+        validate_number("1.0");
+        validate_number("4.5");
+        validate_number("0.5");
+        validate_number("10000.5002");
+        validate_number("7.002");
 
-        validate_number("2#0", 0);
-        validate_number("16#F", 15);
-        validate_number("3#21", 7);
-        validate_number("2#100", 4);
-        validate_number("2#.100", 0.5);
-        validate_number("10#.5", 0.5);
-        validate_number("12#1.0", 1.0);
-        validate_number("20#4.5", 4.25);
-        validate_number("30#0.5", 0.16666666666666666);
-        validate_number("36#10000.5002", 1679616.1388900797);
-        validate_number("32#7.002", 7.00006103515625);
+        validate_number("2#0");
+        validate_number("16#F");
+        validate_number("3#21");
+        validate_number("2#100");
+        validate_number("2#.100");
+        validate_number("10#.5");
+        validate_number("12#1.0");
+        validate_number("20#4.5");
+        validate_number("30#0.5");
+        validate_number("36#10000.5002");
+        validate_number("32#7.002");
+        validate_number("37#1.0");
+        validate_number("2#4.0");
     }
 
     fn invalidate_number(number: &str) {
@@ -320,8 +325,6 @@ mod tests {
         invalidate_number("20#.");
         invalidate_number("008#1.0");
         invalidate_number("0008");
-        invalidate_number("37#1.0");
-        invalidate_number("2#4.0");
     }
 
     #[test]
@@ -338,7 +341,7 @@ mod tests {
         );
         assert_eq!(
             scanner.next(),
-            Some(Ok(Token::new(Lexeme::new("#", input), 1.0)))
+            Some(Ok(Token::new(Lexeme::new("#", input), Kind::Number)))
         );
         assert_eq!(scanner.next(), None);
     }
@@ -379,7 +382,7 @@ mod tests {
             scanner.next(),
             Some(Ok(Token::new(
                 Lexeme::new(&input[..input.len() - 2], input),
-                Kind::Number(42.into())
+                Kind::Number
             )))
         );
         assert_eq!(scanner.next(), None);
@@ -399,7 +402,10 @@ mod tests {
 
         assert_eq!(
             scanner.next(),
-            Some(Ok(Token::new(Lexeme::new(Location::default(), "2"), 2)))
+            Some(Ok(Token::new(
+                Lexeme::new(Location::default(), "2"),
+                Kind::Number
+            )))
         );
         assert_eq!(
             scanner.next(),

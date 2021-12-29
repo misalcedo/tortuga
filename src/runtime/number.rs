@@ -4,7 +4,7 @@ use crate::runtime::EpsilonRange;
 use std::fmt;
 use std::ops::{Add, BitXor, Div, Mul, Rem, Sub};
 
-#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, PartialOrd)]
 pub struct Number(f64);
 
 impl Number {
