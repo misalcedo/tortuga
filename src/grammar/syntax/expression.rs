@@ -9,7 +9,9 @@ use crate::grammar::lexical;
 /// program → expression+ EOF ;
 pub struct Expressions(Expression, Vec<Expression>);
 
-struct List<H, T = H>(H, Vec<T>);
+/// A non-empty `List` of items.
+/// By default, the `Head` and `Tail` of a `List` have the same type, but they may differ.  
+pub struct List<H, T = H>(H, Vec<T>);
 
 impl<Head, Tail> List<Head, Tail> {
     /// Creates a new instance of a non-empty `List`.
