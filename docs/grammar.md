@@ -1,56 +1,55 @@
 This is the complete Extended Backus Normal Form (eBNF) grammar definition for Tortuga.
 
 # Syntax Grammar
-The syntactic grammar of `Tortuga` is used to parse a linear sequence of tokens into a nested syntax tree structure. The root of the grammar matches an entire `Tortuga` program (or a single entry in the interpreter).
+The syntactic grammar of `Tortuga` is used to parse a linear sequence of tokens into a nested syntax tree structure. The root of the grammar matches an entire `Tortuga` program (or a sequence of comparisons to make the interpreter more useful).
 
 ```ebnf
-program → expression* EOF ;
+program → expression+ EOF ;
+program → expression ( comparison expression )+ EOF ;
 ```
 
 ## Expression
 A program is a series of expressions. Expressions produce values. `Tortuga` has a number of binary operators with different levels of precedence. Some grammars for languages do not directly encode the precedence relationships and specify that elsewhere. Here, we use a separate rule for each precedence level to make it explicit.
 
 ```ebnf
-expression → inequality ;
-
-inequality → equality ( comparison equality )* ;
-equality   → epislon | ( bind "=" block ) | ( block "=" bind ) ;
-bind       → name ( "(" parameters ")" )? ;
-block      → equality | ( "[" equality equality+ "]" ) ;
+expression → epsilon | assignment ;
+assignment → "@" function "=" block ;
+block      → expression | "[" expression expression+ "]" ;
 
 epsilon    → modulo ( "~" modulo )* ;
 modulo     → sum ( "%" sum )* ;
 sum        → product ( sign product )* ;
 product    → power ( ( "*" | "/" ) power )* ;
-power      → call ( "^" call )* ;
+power      → primary ( "^" primary )* ;
 
-call       → primary | ( name ( "(" arguments ")" )? ) ;
-primary    → number | grouping ;
+primary    → number | call | grouping ;
 number     → sign? NUMBER ;
-grouping   → "(" equality ")" ;
+call       → IDENTIFIER ( "(" arguments ")" )* ;
+grouping   → "(" expression ")" ;
 ```
 
 ## Pattern Rules
-The grammar allows pattern-matching in function definitions instead of having built-in control flow. These rules define the allowed types of patterns.
+The grammar allows pattern-matching in function definitions instead of having built-in control flow. These rules define the allowed patterns.
 
 ```ebnf
 pattern  → function | range | identity ;
 function → name ( "(" parameters ")" )? ;
-range    → ( expression lesser )? name ( greater expression )? ;
-identity → expression | name equality expression | expression equality name ; 
+range    → number inequality name | ( number inequality )? name inequality number ;
+identity → number | name equality number | number equality name ;
 ```
 
 ## Utility Rules
 To keep the above rules a little cleaner, some grammar is split out into a few reused helper rules.
 
 ```ebnf
-arguments   → equality ( "," equality )* ;
+arguments   → expression ( "," expression )* ;
 parameters  → pattern ( "," pattern )* ;
 
 name        → "_" | IDENTIFIER ;
 sign        → "+" | "-" ;
-equality    → "=" ;
-comparison  → "<" | "<=" | "<>" | ">=" | ">" ;
+inequality  → "<" | "<=" | ">" | ">=" ;
+equality    → "=" | "<>" ;
+comparison  → equality | inequality ;
 ```
 
 # Lexical Grammar
