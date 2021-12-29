@@ -71,13 +71,19 @@ DIGIT                   → "0" ... "9" ;
 # Associativity
 The associativity of the various operators in Tortuga are defined below.
 
-| Precedence | Operation  | Symbol | Left Associative | Right Associative | Non-Associative |
-|:-----------|:-----------|--------|------------------|-------------------|-----------------|
-| 1          | Epsilon    | ~      |                  |                   | X               |
-| 2          | Modulo     | %      | X                | X                 |                 |
-| 3          | Add        | +      | X                | X                 |                 |
-| 3          | Subtract   | -      | X                |                   |                 |
-| 4          | Multiply   | *      | X                | X                 |                 |
-| 4          | Divide     | /      | X                |                   |                 |
-| 5          | Exponent   | ^      |                  | X                 |                 |
-| 6          | Assignment | =      |                  | X                 |                 |
+| Precedence | Operation                | Symbol | Left Associative | Right Associative | Non-Associative |
+|:-----------|:-------------------------|--------|------------------|-------------------|-----------------|
+| 1          | Epsilon                  | ~      |                  |                   | X               |
+| 2          | Modulo                   | %      | X                | X                 |                 |
+| 3          | Add                      | +      | X                | X                 |                 |
+| 3          | Subtract                 | -      | X                |                   |                 |
+| 4          | Multiply                 | *      | X                | X                 |                 |
+| 4          | Divide                   | /      | X                |                   |                 |
+| 5          | Exponent                 | ^      |                  | X                 |                 |
+| 6          | Assignment               | =      |                  | X                 |                 |
+| 7          | Equality                 | =      | X                | X                 |                 |
+| 7          | Inequality               | <>     | X                | X                 |                 |
+| 7          | Less Than                | <      | X                | X                 |                 |
+| 7          | Less Than or Equal To    | <=     | X                | X                 |                 |
+| 7          | Greater Than             | >      | X                | X                 |                 |
+| 7          | Greater Than or Equal To | >=     | X                | X                 |                 |
