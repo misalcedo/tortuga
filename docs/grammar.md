@@ -16,7 +16,7 @@ expression → epsilon | assignment ;
 assignment → "@" function "=" block ;
 block      → expression | "[" expression expression+ "]" ;
 
-epsilon    → modulo ( "~" modulo )* ;
+epsilon    → modulo ( "~" modulo )? ;
 modulo     → sum ( "%" sum )* ;
 sum        → product ( ( "+" | "-") product )* ;
 product    → power ( ( "*" | "/" ) power )* ;
@@ -67,3 +67,17 @@ ALPHA                   → "a" ... "z" | "A" ... "Z" ;
 NZ_DIGIT                → "1" ... "9" ;
 DIGIT                   → "0" ... "9" ;
 ```
+
+# Associativity
+The associativity of the various operators in Tortuga are defined below.
+
+| Precedence | Operation  | Symbol | Left Associative | Right Associative | Non-Associative |
+|:-----------|:-----------|--------|------------------|-------------------|-----------------|
+| 1          | Epsilon    | ~      |                  |                   | X               |
+| 2          | Modulo     | %      | X                | X                 |                 |
+| 3          | Add        | +      | X                | X                 |                 |
+| 3          | Subtract   | -      | X                |                   |                 |
+| 4          | Multiply   | *      | X                | X                 |                 |
+| 4          | Divide     | /      | X                |                   |                 |
+| 5          | Exponent   | ^      |                  | X                 |                 |
+| 6          | Assignment | =      |                  | X                 |                 |
