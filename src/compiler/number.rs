@@ -26,14 +26,12 @@ lazy_static! {
             ^
             (?: ( [[:digit:]--0] [[:digit:]]{0, 1}) \# )?
             (?: 
-                (?: ( 0 ) () )
-                |
                 (?:
-                    ( [[:alnum:]--0] [[:alnum:]]* )
+                    ( 0 | [[:alnum:]--0] [[:alnum:]]* )
                     (?: \. ( 0? | [[:alnum:]]*? [[:alnum:]--0] ) )?
                 )
                 |
-                (?: ( 0? ) \. ( [[:alnum:]]*? [[:alnum:]--0] ) )
+                (?: ( 0? ) \. ( 0 | [[:alnum:]]*? [[:alnum:]--0] ) )
             )
             $
         "###
@@ -106,6 +104,9 @@ mod tests {
     #[test]
     fn parse_number() {
         validate_number("0", 0);
+        validate_number("0.0", 0);
+        validate_number(".0", 0);
+        validate_number("0.", 0);
         validate_number("2", 2);
         validate_number("21", 21);
         validate_number("100", 100);
@@ -140,9 +141,9 @@ mod tests {
     #[test]
     fn parse_invalid_number() {
         invalidate_number(".");
-        invalidate_number("0.0");
         invalidate_number("20#.");
         invalidate_number("008#1.0");
+        invalidate_number("0#1.0");
         invalidate_number("0008");
         invalidate_number(".1000");
         invalidate_number("2#.100");

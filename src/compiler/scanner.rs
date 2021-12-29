@@ -321,7 +321,6 @@ mod tests {
         invalidate_number(".100");
         invalidate_number("2#.100");
         invalidate_number("300#1");
-        invalidate_number("7#.0");
     }
 
     #[test]
