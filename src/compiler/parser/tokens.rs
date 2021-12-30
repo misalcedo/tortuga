@@ -7,6 +7,7 @@ use std::iter::Peekable;
 /// A sequence of tokens from Lexical Analysis.
 pub trait Tokens {
     /// Gets the next `Token` if it matches the expected kind. Otherwise, returns `None`.
+    /// The underlying `Token` sequence is only advanced on a `Some` return value.
     fn next_kind(&mut self, expected: &[Kind]) -> Option<Token>;
 
     /// Peeks the next `Token`'s `Kind`, if one is present.

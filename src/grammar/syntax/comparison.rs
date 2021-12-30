@@ -2,11 +2,11 @@ use crate::grammar::syntax::{Expression, List};
 
 /// A pair of a comparison operator and the right-hand side expression to compare against.
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
-pub struct Comparison(Operator, Expression);
+pub struct Comparison(Comparator, Expression);
 
 impl Comparison {
     /// Creates a new operator and right-hand side pair for the comparison rule.
-    pub fn new(operator: Operator, rhs: Expression) -> Self {
+    pub fn new(operator: Comparator, rhs: Expression) -> Self {
         Comparison(operator, rhs)
     }
 }
@@ -37,7 +37,7 @@ impl Comparisons {
 
 /// Comparison operators.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
-pub enum Operator {
+pub enum Comparator {
     LessThan,
     LessThanOrEqualTo,
     GreaterThan,

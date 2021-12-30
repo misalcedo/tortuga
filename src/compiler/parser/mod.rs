@@ -4,11 +4,21 @@ mod tokens;
 
 use crate::compiler::errors::{syntactical::ErrorKind, LexicalError, Reporter};
 use crate::compiler::{Kind, Token};
-use crate::grammar::syntax::{Comparison, Comparisons, Expression, List, Program};
+use crate::grammar::syntax::Comparator::*;
+use crate::grammar::syntax::{Comparator, Comparison, Comparisons, Expression, List, Program};
 use crate::{Scanner, SyntacticalError};
 use std::iter::Peekable;
 use std::str::FromStr;
 use tokens::Tokens;
+
+const COMPARISON_KINDS: &[Kind] = &[
+    Kind::LessThan,
+    Kind::GreaterThan,
+    Kind::LessThanOrEqualTo,
+    Kind::GreaterThanOrEqualTo,
+    Kind::Equal,
+    Kind::NotEqual,
+];
 
 /// A recursive descent LL(1) parser for the syntax grammar.
 /// Parses a sequence of `Token`s into syntax tree.
@@ -79,7 +89,39 @@ impl<'a, I: Iterator<Item = Result<Token, LexicalError>>> Parser<'a, I> {
     }
 
     fn parse_comparison(&mut self) -> Result<Comparison, SyntacticalError> {
-        Err(ErrorKind::NoMatch.into())
+        let operator = self.parse_comparison_operator(COMPARISON_KINDS)?;
+        let expression = self.parse_expression()?;
+
+        Ok(Comparison::new(operator, expression))
+    }
+
+    fn parse_comparison_operator(
+        &mut self,
+        kinds: &[Kind],
+    ) -> Result<Comparator, SyntacticalError> {
+        let operator = match self.next_kind(kinds)?.kind() {
+            Kind::LessThan => LessThan,
+            Kind::GreaterThan => GreaterThan,
+            Kind::LessThanOrEqualTo => LessThanOrEqualTo,
+            Kind::GreaterThanOrEqualTo => GreaterThanOrEqualTo,
+            Kind::NotEqual => NotEqualTo,
+            _ => NotEqualTo,
+        };
+
+        Ok(operator)
+    }
+
+    /// gets the next token matching the expected kinds.
+    /// If no match is found returns an error.
+    fn next_kind(&mut self, kinds: &[Kind]) -> Result<Token, SyntacticalError> {
+        if self.tokens.has_next() {
+            match self.tokens.next_kind(kinds) {
+                Some(token) => Ok(token),
+                None => Err(SyntacticalError::from(ErrorKind::NoMatch)),
+            }
+        } else {
+            Err(SyntacticalError::from(ErrorKind::Incomplete))
+        }
     }
 
     fn parse_expression(&mut self) -> Result<Expression, SyntacticalError> {

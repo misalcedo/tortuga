@@ -5,7 +5,7 @@ mod expression;
 mod list;
 mod pattern;
 
-pub use comparison::{Comparison, Comparisons};
+pub use comparison::{Comparator, Comparison, Comparisons};
 pub use expression::{Expression, Expressions};
 pub use list::List;
 
