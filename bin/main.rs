@@ -13,6 +13,7 @@ use std::path::PathBuf;
 use tracing::{subscriber::set_global_default, Level};
 use tracing_log::LogTracer;
 
+use crate::parse::parse_file;
 use crate::scan::scan_file;
 use clap::{AppSettings, Parser, Subcommand};
 
@@ -114,9 +115,9 @@ fn run_subcommand(arguments: Arguments) -> Result<(), CommandLineError> {
             Ok(())
         }
         Commands::Parse(command) => {
-            let _source = fs::read_to_string(command.filename)?;
+            let source = fs::read_to_string(command.filename)?;
 
-            Ok(())
+            parse_file(source.as_str())
         }
         Commands::Scan(command) => {
             let source = fs::read_to_string(command.filename)?;
