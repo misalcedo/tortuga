@@ -1,4 +1,4 @@
-use crate::grammar::syntax::expression::{Expression, List};
+use crate::grammar::syntax::{Expression, List};
 
 /// A pair of a comparison operator and the right-hand side expression to compare against.
 pub struct Comparison(Operator, Expression);
