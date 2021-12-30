@@ -3,9 +3,9 @@
 use crate::CommandLineError;
 use colored::*;
 use std::io::{stderr, stdout, Write};
-use tortuga::compiler::{Kind, Scanner};
-use tortuga::runtime::Number;
+use tortuga::{Kind, Number, Scanner};
 
+/// Pretty print the sequence of tokens for the given source.
 pub fn scan_file(source: &str) -> Result<(), CommandLineError> {
     let mut std_out = stdout();
     let mut std_err = stderr();

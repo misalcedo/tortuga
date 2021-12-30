@@ -5,6 +5,7 @@ use crate::grammar::syntax::expression::Number;
 use crate::grammar::syntax::List;
 
 /// pattern  → function | range | identity ;
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Pattern {
     Function(Box<Function>),
     Range(Range),
@@ -12,6 +13,7 @@ pub enum Pattern {
 }
 
 /// function → name ( "(" parameters ")" )? ;
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Function {
     name: Name,
     parameters: Option<Parameters>,
@@ -38,18 +40,21 @@ impl Function {
 pub type Parameters = List<Pattern>;
 
 /// name → "_" | IDENTIFIER ;
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Name {
     Anonymous,
     Identified(Identifier),
 }
 
 /// range → number inequality name | ( number inequality )? name inequality number ;
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Range {
     Left(Bound),
     Both(Bounds),
 }
 
 /// The singular bound on a `range` pattern.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Bound {
     value: Number,
     inequality: Inequality,
@@ -73,6 +78,7 @@ impl Bound {
 }
 
 /// The bounds on a `range` pattern.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Bounds {
     left: Bound,
     name: Name,
@@ -102,6 +108,7 @@ impl Bounds {
 }
 
 /// inequality → "<" | "<=" | ">" | ">=" ;
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Inequality {
     LessThan,
     LessThanOrEqualTo,
@@ -110,6 +117,7 @@ pub enum Inequality {
 }
 
 /// identity → number | name equality number | number equality name ;
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Identity {
     value: Number,
     name: Option<Name>,

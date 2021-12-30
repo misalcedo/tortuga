@@ -119,7 +119,6 @@ mod tests {
     #[test]
     fn token() {
         let lexeme = "ab";
-        let attribute = 200;
         let kind = Kind::Number;
         let token = Token::new(lexeme, kind);
 

@@ -11,12 +11,14 @@ use crate::grammar::syntax::List;
 pub type Expressions = List<Expression>;
 
 /// expression → epsilon | assignment ;
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Expression {
     Epsilon(Box<Epsilon>),
     Assignment,
 }
 
 /// epsilon → modulo ( "~" modulo )? ;
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Epsilon {
     lhs: Modulo,
     rhs: Option<Modulo>,
@@ -46,6 +48,7 @@ pub type Modulo = List<Sum>;
 pub type Sum = List<Product, AddOrSubtract>;
 
 /// The operator and right-hand side for the `sum` grammar rule.
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum AddOrSubtract {
     /// +
     Add(Product),
@@ -56,6 +59,7 @@ pub enum AddOrSubtract {
 pub type Product = List<Power, MultiplyOrDivide>;
 
 /// The operator and right-hand side for the `product` grammar rule.
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum MultiplyOrDivide {
     Multiply(Power),
     Divide(Power),
@@ -65,13 +69,15 @@ pub enum MultiplyOrDivide {
 pub type Power = List<Primary>;
 
 /// primary → number | call | grouping ;
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Primary {
-    Number,
-    Call,
-    Grouping,
+    Number(Number),
+    Call(Call),
+    Grouping(Grouping),
 }
 
 /// number → "-"? NUMBER ;
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Number {
     negative: bool,
     number: lexical::Number,
@@ -101,6 +107,7 @@ pub type Call = List<lexical::Identifier, Arguments>;
 pub type Arguments = List<Expression>;
 
 /// grouping → "(" expression ")" ;
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Grouping(Expression);
 
 impl From<Expression> for Grouping {

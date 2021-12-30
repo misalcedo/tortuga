@@ -11,6 +11,7 @@ pub use list::List;
 
 /// The syntactic grammar of `Tortuga` is used to parse a linear sequence of tokens into a nested syntax tree structure.
 /// The root of the grammar matches an entire `Tortuga` program (or a sequence of comparisons to make the interpreter more useful).
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Program {
     /// program → expression+ EOF ;
     Expression(Expressions),

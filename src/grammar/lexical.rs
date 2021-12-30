@@ -3,6 +3,7 @@
 use crate::compiler::Lexeme;
 
 /// The name of a function or constant.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Identifier(Lexeme);
 
 impl From<Lexeme> for Identifier {
@@ -12,6 +13,7 @@ impl From<Lexeme> for Identifier {
 }
 
 /// A numerical literal.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Number(Lexeme);
 
 impl From<Lexeme> for Number {

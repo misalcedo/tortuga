@@ -1,4 +1,5 @@
 mod errors;
+mod parse;
 mod prompt;
 mod scan;
 

@@ -1,6 +1,7 @@
 use crate::grammar::syntax::{Expression, List};
 
 /// A pair of a comparison operator and the right-hand side expression to compare against.
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Comparison(Operator, Expression);
 
 impl Comparison {
@@ -11,6 +12,7 @@ impl Comparison {
 }
 
 /// program → expression ( comparison expression )+ EOF ;
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Comparisons {
     lhs: Expression,
     comparison: List<Comparison>,
@@ -34,6 +36,7 @@ impl Comparisons {
 }
 
 /// Comparison operators.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Operator {
     LessThan,
     LessThanOrEqualTo,
