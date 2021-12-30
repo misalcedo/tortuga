@@ -5,7 +5,6 @@ mod input;
 mod lexeme;
 mod location;
 mod number;
-mod parser;
 mod scanner;
 mod token;
 mod unicode;

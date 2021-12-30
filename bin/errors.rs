@@ -13,6 +13,4 @@ pub enum CommandLineError {
     InvalidPath(#[from] std::path::StripPrefixError),
     #[error("Encountered an error prompting the user for input. {0}")]
     PromptError(#[from] rustyline::error::ReadlineError),
-    #[error(transparent)]
-    ParseError(#[from] tortuga::peg::ParseError),
 }

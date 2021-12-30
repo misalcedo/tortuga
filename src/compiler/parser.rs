@@ -1,6 +1,6 @@
 //! Parse a sequence of tokens into a syntax tree.
 
-use crate::compile::{Attachment, Kind, LexicalToken, ParseError, SyntaxError, Token, TokenStream};
+use crate::compiler::{Kind, LexicalError, SyntacticalError, Token};
 use crate::grammar::{
     BinaryOperation, Block, ComparisonOperation, ComparisonOperator, Expression, Grouping,
     Operator, Program, Variable,
@@ -24,9 +24,11 @@ const PRIMARY_TOKEN_KINDS: [Kind; 6] = [
     Kind::Identifier,
 ];
 
+pub struct TokenStream<'a, I> {}
+
 fn parse_expression<'source, I: Iterator<Item = Token<'source>>>(
     tokens: &mut TokenStream<'source, I>,
-) -> Result<Expression, SyntaxError<'source>> {
+) -> Result<Expression, SyntacticalError> {
     if tokens.next_matches_kind(&[Kind::LeftBracket]) {
         Ok(parse_block(tokens)?.into())
     } else {
@@ -36,7 +38,7 @@ fn parse_expression<'source, I: Iterator<Item = Token<'source>>>(
 
 fn parse_block<'source, I: Iterator<Item = Token<'source>>>(
     tokens: &mut TokenStream<'source, I>,
-) -> Result<Block, SyntaxError<'source>> {
+) -> Result<Block, SyntacticalError> {
     tokens.next_kind(&[Kind::LeftBracket])?;
 
     let mut expressions = vec![parse_comparison(tokens)?];
@@ -53,7 +55,7 @@ fn parse_block<'source, I: Iterator<Item = Token<'source>>>(
 /// Parse a comparison grammar rule.
 fn parse_comparison<'source, I: Iterator<Item = Token<'source>>>(
     tokens: &mut TokenStream<'source, I>,
-) -> Result<Expression, SyntaxError<'source>> {
+) -> Result<Expression, SyntacticalError> {
     let mut expression = parse_modulo(tokens)?;
 
     while tokens.next_matches_kind(&COMPARISON_TOKEN_KINDS) {
@@ -69,7 +71,7 @@ fn parse_comparison<'source, I: Iterator<Item = Token<'source>>>(
 /// Parses a comparison operator of the expected token kind.
 fn parse_comparison_operator<'source, I: Iterator<Item = Token<'source>>>(
     tokens: &mut TokenStream<'source, I>,
-) -> Result<ComparisonOperator, SyntaxError<'source>> {
+) -> Result<ComparisonOperator, SyntacticalError> {
     let token = tokens.next_kind(&COMPARISON_TOKEN_KINDS)?;
     let mut operators = vec![token.kind()];
 
@@ -85,7 +87,7 @@ fn parse_comparison_operator<'source, I: Iterator<Item = Token<'source>>>(
         [Kind::Equals] => Ok(ComparisonOperator::EqualTo),
         [Kind::LessThan, Kind::GreaterThan] => Ok(ComparisonOperator::NotEqualTo),
         [Kind::LessThan, Kind::Equals, Kind::GreaterThan] => Ok(ComparisonOperator::Comparable),
-        _ => Err(SyntaxError::NoMatchingRule(
+        _ => Err(SyntacticalError::NoMatchingRule(
             token,
             COMPARISON_TOKEN_KINDS.to_vec(),
         )),
@@ -95,7 +97,7 @@ fn parse_comparison_operator<'source, I: Iterator<Item = Token<'source>>>(
 /// Parse a modulo grammar rule.
 fn parse_modulo<'source, I: Iterator<Item = Token<'source>>>(
     tokens: &mut TokenStream<'source, I>,
-) -> Result<Expression, SyntaxError<'source>> {
+) -> Result<Expression, SyntacticalError> {
     let mut expression = parse_term(tokens)?;
 
     while tokens.next_matches_kind(&MODULO_TOKEN_KINDS) {
@@ -111,7 +113,7 @@ fn parse_modulo<'source, I: Iterator<Item = Token<'source>>>(
 /// Parse a term grammar rule (i.e., add and subtract).
 fn parse_term<'source, I: Iterator<Item = Token<'source>>>(
     tokens: &mut TokenStream<'source, I>,
-) -> Result<Expression, SyntaxError<'source>> {
+) -> Result<Expression, SyntacticalError> {
     let mut expression = parse_factor(tokens)?;
 
     while tokens.next_matches_kind(&TERM_TOKEN_KINDS) {
@@ -127,7 +129,7 @@ fn parse_term<'source, I: Iterator<Item = Token<'source>>>(
 /// Parse a factor grammar rule (i.e., multiply and divide).
 fn parse_factor<'source, I: Iterator<Item = Token<'source>>>(
     tokens: &mut TokenStream<'source, I>,
-) -> Result<Expression, SyntaxError<'source>> {
+) -> Result<Expression, SyntacticalError> {
     let mut expression = parse_exponent(tokens)?;
 
     while tokens.next_matches_kind(&FACTOR_TOKEN_KINDS) {
@@ -143,7 +145,7 @@ fn parse_factor<'source, I: Iterator<Item = Token<'source>>>(
 /// Parse a exponent grammar rule (i.e., multiply and divide).
 fn parse_exponent<'source, I: Iterator<Item = Token<'source>>>(
     tokens: &mut TokenStream<'source, I>,
-) -> Result<Expression, SyntaxError<'source>> {
+) -> Result<Expression, SyntacticalError> {
     let mut expression = parse_primary(tokens)?;
 
     while tokens.next_matches_kind(&EXPONENT_TOKEN_KINDS) {
@@ -160,7 +162,7 @@ fn parse_exponent<'source, I: Iterator<Item = Token<'source>>>(
 fn parse_operator<'source, I: Iterator<Item = Token<'source>>>(
     tokens: &mut TokenStream<'source, I>,
     expected: &[Kind],
-) -> Result<Operator, SyntaxError<'source>> {
+) -> Result<Operator, SyntacticalError> {
     let token = tokens.next_kind(expected)?;
 
     match token.kind() {
@@ -170,14 +172,14 @@ fn parse_operator<'source, I: Iterator<Item = Token<'source>>>(
         Kind::ForwardSlash => Ok(Operator::Divide),
         Kind::Caret => Ok(Operator::Exponent),
         Kind::Percent => Ok(Operator::Modulo),
-        _ => Err(SyntaxError::NoMatchingRule(token, expected.to_vec())),
+        _ => Err(SyntacticalError::NoMatchingRule(token, expected.to_vec())),
     }
 }
 
 /// Parse a primary grammar rule.
 fn parse_primary<'source, I: Iterator<Item = Token<'source>>>(
     tokens: &mut TokenStream<'source, I>,
-) -> Result<Expression, SyntaxError<'source>> {
+) -> Result<Expression, SyntacticalError> {
     match tokens.peek_kind()? {
         Some(Kind::LeftParenthesis) => parse_grouping(tokens).map(Expression::Grouping),
         Some(Kind::Plus | Kind::Minus | Kind::Number) => {
@@ -186,25 +188,29 @@ fn parse_primary<'source, I: Iterator<Item = Token<'source>>>(
         Some(Kind::NumberWithRadix) => parse_number_with_radix(tokens).map(Expression::Number),
         Some(Kind::Identifier) => parse_variable(tokens).map(Expression::Variable),
         Some(_) => match tokens.next()? {
-            Some(token) => Err(SyntaxError::NoMatchingRule(
+            Some(token) => Err(SyntacticalError::NoMatchingRule(
                 token,
                 PRIMARY_TOKEN_KINDS.to_vec(),
             )),
-            None => Err(SyntaxError::IncompleteRule(PRIMARY_TOKEN_KINDS.to_vec())),
+            None => Err(SyntacticalError::IncompleteRule(
+                PRIMARY_TOKEN_KINDS.to_vec(),
+            )),
         },
-        None => Err(SyntaxError::IncompleteRule(PRIMARY_TOKEN_KINDS.to_vec())),
+        None => Err(SyntacticalError::IncompleteRule(
+            PRIMARY_TOKEN_KINDS.to_vec(),
+        )),
     }
 }
 
 /// Parse a number literal with an optional plus or minus sign.
 fn parse_number<'source, I: Iterator<Item = Token<'source>>>(
     tokens: &mut TokenStream<'source, I>,
-) -> Result<Number, SyntaxError<'source>> {
+) -> Result<Number, SyntacticalError> {
     let sign = match tokens.next_if_kind(&[Kind::Plus, Kind::Minus])? {
         Some(token) if token.kind() == Kind::Minus => Some(Sign::Negative),
         Some(token) if token.kind() == Kind::Plus => Some(Sign::Positive),
         Some(token) => {
-            return Err(SyntaxError::NoMatchingRule(
+            return Err(SyntacticalError::NoMatchingRule(
                 token,
                 vec![Kind::Plus, Kind::Minus],
             ))
@@ -221,20 +227,20 @@ fn parse_number<'source, I: Iterator<Item = Token<'source>>>(
 
         Ok(number)
     } else {
-        Err(SyntaxError::NoMatchingRule(token, vec![Kind::Number]))
+        Err(SyntacticalError::NoMatchingRule(token, vec![Kind::Number]))
     }
 }
 
 /// Parse a number literal with a radix.
 fn parse_number_with_radix<'source, I: Iterator<Item = Token<'source>>>(
     tokens: &mut TokenStream<'source, I>,
-) -> Result<Number, SyntaxError<'source>> {
+) -> Result<Number, SyntacticalError> {
     let mut token = tokens.next_kind(&[Kind::NumberWithRadix])?;
 
     if let Attachment::NumberWithRadix(number) = token.take_attachment() {
         Ok(number)
     } else {
-        Err(SyntaxError::NoMatchingRule(
+        Err(SyntacticalError::NoMatchingRule(
             token,
             vec![Kind::NumberWithRadix],
         ))
@@ -244,7 +250,7 @@ fn parse_number_with_radix<'source, I: Iterator<Item = Token<'source>>>(
 /// Parses an identifier token as a variable.
 fn parse_variable<'source, I: Iterator<Item = Token<'source>>>(
     tokens: &mut TokenStream<'source, I>,
-) -> Result<Variable, SyntaxError<'source>> {
+) -> Result<Variable, SyntacticalError> {
     let token = tokens.next_kind(&[Kind::Identifier])?;
 
     Ok(Variable::new(token.source()))
@@ -253,7 +259,7 @@ fn parse_variable<'source, I: Iterator<Item = Token<'source>>>(
 /// Parse a grouping grammar rule.
 fn parse_grouping<'source, I: Iterator<Item = Token<'source>>>(
     tokens: &mut TokenStream<'source, I>,
-) -> Result<Grouping, SyntaxError<'source>> {
+) -> Result<Grouping, SyntacticalError> {
     tokens.next_kind(&[Kind::LeftParenthesis])?;
 
     let expression = parse_expression(tokens)?;
@@ -280,7 +286,7 @@ impl Parser {
         IT: Into<TokenStream<'source, I>>,
     {
         let mut tokens = tokens.into();
-        let mut errors: Vec<SyntaxError> = Vec::new();
+        let mut errors: Vec<SyntacticalError> = Vec::new();
         let mut expressions = Vec::new();
 
         while !tokens.is_empty() {
@@ -305,7 +311,7 @@ impl Parser {
                 info!("{}", error);
             }
 
-            if let Some(SyntaxError::IncompleteRule(..)) = errors.last() {
+            if let Some(SyntacticalError::IncompleteRule(..)) = errors.last() {
                 Err(ParseError::EndOfFile)
             } else {
                 Err(ParseError::MultipleErrors)

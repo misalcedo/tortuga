@@ -9,7 +9,7 @@ use rustyline::hint::Hinter;
 use rustyline::line_buffer::LineBuffer;
 use rustyline::validate::{ValidationContext, ValidationResult, Validator};
 use rustyline::{error::ReadlineError, Editor, Helper};
-use tortuga::{about, Interpreter, ParseError, Parser};
+use tortuga::about;
 use tracing::error;
 
 struct PromptHelper;
@@ -78,36 +78,23 @@ impl Validator for PromptHelper {
             return Ok(ValidationResult::Valid(None));
         }
 
-        match Parser::default().parse(ctx.input()) {
-            Ok(_) => Ok(ValidationResult::Valid(None)),
-            Err(ParseError::EndOfFile) => Ok(ValidationResult::Incomplete),
-            Err(error) => Ok(ValidationResult::Invalid(Some(format!(
-                "\t{}",
-                error.to_string()
-            )))),
-        }
+        Ok(ValidationResult::Valid(None))
     }
 }
 
 /// Runs the read-evaluate-print loop.
 pub fn run_prompt() -> Result<(), CommandLineError> {
     let mut user = Prompt::default();
-    let mut interpreter = Interpreter::default();
 
     println!("{} {}", about::PROGRAM.green(), about::VERSION);
     println!("{}", "Press Ctrl-C to exit.".yellow().bold());
-    println!("");
+    println!();
 
     loop {
         match user.prompt()? {
             None => return Ok(()),
             Some(input) if input.trim().is_empty() => continue,
-            Some(input) => {
-                match Parser::default().parse(input.as_str()) {
-                    Ok(program) => interpreter.interpret(&program),
-                    Err(error) => error!("{}", error),
-                };
-            }
+            Some(_) => (),
         }
     }
 }

@@ -17,3 +17,15 @@ pub enum Program {
     /// program → expression ( comparison expression )+ EOF ;
     Comparison(Comparisons),
 }
+
+impl From<Expressions> for Program {
+    fn from(expressions: Expressions) -> Self {
+        Program::Expression(expressions)
+    }
+}
+
+impl From<Comparisons> for Program {
+    fn from(comparisons: Comparisons) -> Self {
+        Program::Comparison(comparisons)
+    }
+}

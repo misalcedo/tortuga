@@ -25,17 +25,13 @@ tracing-subscriber = { version = "0.3", default-features = false, features = ["e
 
 [features]
 default = ["cli"]
-cli = ["clap", "colored", "peg", "rustyline"]
-peg = ["pest", "pest_derive"]
+cli = ["clap", "colored", "rustyline"]
 
 [dependencies]
 clap = { version = "3.0.0-rc.9", features = ["derive"], optional = true }
 colored = { version = "2.0.0", optional = true }
 lazy_static = "1.4"
 log = "0.4"
-pest = { version = "2.1", optional = true }
-pest_derive = { version = "2.1", optional = true }
-proc-macro2 = "1.0.33"
 rustyline = { version = "9", optional = true }
 regex = "1"
 thiserror = "1.0"

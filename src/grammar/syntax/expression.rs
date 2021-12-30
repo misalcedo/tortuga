@@ -8,7 +8,7 @@ use crate::grammar::lexical;
 use crate::grammar::syntax::List;
 
 /// program → expression+ EOF ;
-pub struct Expressions(Expression, Vec<Expression>);
+pub type Expressions = List<Expression>;
 
 /// expression → epsilon | assignment ;
 pub enum Expression {

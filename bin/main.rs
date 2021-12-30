@@ -1,10 +1,8 @@
 mod errors;
-mod parse;
 mod prompt;
 mod scan;
 
 pub use errors::CommandLineError;
-use parse::parse_file;
 use prompt::run_prompt;
 
 use std::fs;
@@ -110,14 +108,14 @@ fn run_subcommand(arguments: Arguments) -> Result<(), CommandLineError> {
     match arguments.command.unwrap_or_default() {
         Commands::Prompt(_) => run_prompt(),
         Commands::Run(command) => {
-            let source = fs::read_to_string(command.filename)?;
+            let _source = fs::read_to_string(command.filename)?;
 
-            Ok(tortuga::run(source.as_str()))
+            Ok(())
         }
         Commands::Parse(command) => {
-            let source = fs::read_to_string(command.filename)?;
+            let _source = fs::read_to_string(command.filename)?;
 
-            parse_file(source.as_str())
+            Ok(())
         }
         Commands::Scan(command) => {
             let source = fs::read_to_string(command.filename)?;
