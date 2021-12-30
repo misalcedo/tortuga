@@ -2,7 +2,7 @@
 
 mod tokens;
 
-use crate::compiler::errors::{LexicalError, Reporter};
+use crate::compiler::errors::{syntactical::ErrorKind, LexicalError, Reporter};
 use crate::compiler::{Kind, Token};
 use crate::grammar::syntax::{Comparison, Comparisons, Expression, List, Program};
 use crate::{Scanner, SyntacticalError};
@@ -42,7 +42,11 @@ impl<'a, I: Iterator<Item = Result<Token, LexicalError>>> Parser<'a, I> {
     pub fn parse(&mut self) -> Result<Program, SyntacticalError> {
         let expression = self.parse_expression()?;
 
-        match self.tokens.peek_kind().ok_or_else(SyntacticalError::new)? {
+        match self
+            .tokens
+            .peek_kind()
+            .ok_or_else(|| SyntacticalError::from(ErrorKind::Incomplete))?
+        {
             Kind::LessThan
             | Kind::GreaterThan
             | Kind::LessThanOrEqualTo
@@ -75,11 +79,11 @@ impl<'a, I: Iterator<Item = Result<Token, LexicalError>>> Parser<'a, I> {
     }
 
     fn parse_comparison(&mut self) -> Result<Comparison, SyntacticalError> {
-        Err(SyntacticalError {})
+        Err(ErrorKind::NoMatch.into())
     }
 
     fn parse_expression(&mut self) -> Result<Expression, SyntacticalError> {
-        Err(SyntacticalError {})
+        Err(ErrorKind::NoMatch.into())
     }
 }
 
