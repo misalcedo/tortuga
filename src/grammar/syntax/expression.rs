@@ -5,30 +5,10 @@
 //! Here, we use a separate rule for each precedence level to make it explicit.
 
 use crate::grammar::lexical;
+use crate::grammar::syntax::List;
 
 /// program → expression+ EOF ;
 pub struct Expressions(Expression, Vec<Expression>);
-
-/// A non-empty `List` of items.
-/// By default, the `Head` and `Tail` of a `List` have the same type, but they may differ.  
-pub struct List<H, T = H>(H, Vec<T>);
-
-impl<Head, Tail> List<Head, Tail> {
-    /// Creates a new instance of a non-empty `List`.
-    pub fn new(head: Head, tail: Vec<Tail>) -> Self {
-        List(head, tail)
-    }
-
-    /// The head of this `List`.
-    pub fn head(&self) -> &Head {
-        &self.0
-    }
-
-    /// The tail (i.e. rest) of this `List`.
-    pub fn tail(&self) -> &[Tail] {
-        self.1.as_slice()
-    }
-}
 
 /// expression → epsilon | assignment ;
 pub enum Expression {

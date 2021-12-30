@@ -22,7 +22,7 @@ impl Comparisons {
         Comparisons { lhs, comparison }
     }
 
-    /// The left-hand side of this sequenece of `Comparisons`.
+    /// The left-hand side of this sequence of `Comparisons`.
     pub fn lhs(&self) -> &Expression {
         &self.lhs
     }
