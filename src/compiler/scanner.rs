@@ -48,6 +48,7 @@ impl<'a> Iterator for Scanner<'a> {
                 '{' => self.new_token(Kind::LeftBrace),
                 '}' => self.new_token(Kind::RightBrace),
                 ',' => self.new_token(Kind::Comma),
+                '@' => self.new_token(Kind::At),
                 ';' => {
                     self.skip_comment();
                     continue;
@@ -200,6 +201,7 @@ mod tests {
         validate(Kind::GreaterThanOrEqualTo);
         validate(Kind::Comma);
         validate(Kind::Underscore);
+        validate(Kind::At);
         validate(Kind::LeftParenthesis);
         validate(Kind::RightParenthesis);
         validate(Kind::LeftBrace);

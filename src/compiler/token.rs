@@ -68,6 +68,8 @@ pub enum Kind {
     Comma,
     /// _
     Underscore,
+    /// @
+    At,
 
     // Delimiters
     LeftParenthesis,
@@ -98,6 +100,7 @@ impl Display for Kind {
             Kind::GreaterThanOrEqualTo => f.write_str(">="),
             Kind::Comma => f.write_char(','),
             Kind::Underscore => f.write_char('_'),
+            Kind::At => f.write_char('@'),
             Kind::LeftParenthesis => f.write_char('('),
             Kind::RightParenthesis => f.write_char(')'),
             Kind::LeftBrace => f.write_char('{'),
