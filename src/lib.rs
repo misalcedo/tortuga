@@ -6,4 +6,4 @@ pub mod grammar;
 pub mod runtime;
 
 pub use about::*;
-pub use compiler::{LexicalError, Location, Scanner, SyntacticalError};
+pub use compiler::{LexicalError, Scanner, SyntacticalError};

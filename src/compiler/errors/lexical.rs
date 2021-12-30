@@ -20,8 +20,11 @@ pub enum ErrorKind {
 
 impl LexicalError {
     /// Creates a new instance of a `LexicalError`.
-    pub fn new(lexeme: Lexeme, kind: ErrorKind) -> Self {
-        LexicalError { lexeme, kind }
+    pub fn new<L: Into<Lexeme>>(lexeme: L, kind: ErrorKind) -> Self {
+        LexicalError {
+            lexeme: lexeme.into(),
+            kind,
+        }
     }
 
     /// The actual text this lexical error represents in the input.
