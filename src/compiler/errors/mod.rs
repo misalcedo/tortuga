@@ -2,8 +2,10 @@
 
 pub mod lexical;
 pub mod number;
+pub mod reporter;
 pub mod syntactical;
 
 pub use lexical::LexicalError;
 pub use number::ParseNumberError;
+pub use reporter::Reporter;
 pub use syntactical::SyntacticalError;
