@@ -4,18 +4,21 @@ This is the complete Extended Backus Normal Form (eBNF) grammar definition for T
 The syntactic grammar of `Tortuga` is used to parse a linear sequence of tokens into a nested syntax tree structure. The root of the grammar matches an entire `Tortuga` program (or a sequence of comparisons to make the interpreter more useful).
 
 ```ebnf
-program → expression+ EOF ;
-program → expression ( comparison expression )+ EOF ;
+program     → expressions | comparions EOF ;
+expressions → expression+ ;
+comparisons → expression ( comparator expression )+ ;
 ```
 
 ## Expression
 A program is a series of expressions. Expressions produce values. `Tortuga` has a number of binary operators with different levels of precedence. Some grammars for languages do not directly encode the precedence relationships and specify that elsewhere. Here, we use a separate rule for each precedence level to make it explicit.
 
 ```ebnf
-expression → epsilon | assignment ;
+expression → assignment | arithmetic ;
 assignment → "@" function "=" block ;
-block      → expression | "[" expression expression+ "]" ;
+function   → name parameters? ;
+block      → "[" expression expression+ "]" | expression ;
 
+arithmetic → epsilon ;
 epsilon    → modulo ( "~" modulo )? ;
 modulo     → sum ( "%" sum )* ;
 sum        → product ( ( "+" | "-") product )* ;
@@ -24,7 +27,7 @@ power      → primary ( "^" primary )* ;
 
 primary    → number | call | grouping ;
 number     → "-"? NUMBER ;
-call       → IDENTIFIER ( "(" arguments ")" )* ;
+call       → IDENTIFIER arguments* ;
 grouping   → "(" expression ")" ;
 ```
 
@@ -32,23 +35,22 @@ grouping   → "(" expression ")" ;
 The grammar allows pattern-matching in function definitions instead of having built-in control flow. These rules define the allowed patterns.
 
 ```ebnf
-pattern  → function | range | identity ;
-function → name ( "(" parameters ")" )? ;
-range    → number inequality name | ( number inequality )? name inequality number ;
-identity → number | name equality number | number equality name ;
+pattern    → refinement | function | bounds ;
+refinement → name comparator arithmetic ;
+bounds     → arithmetic inequality name inequality arithmetic ;
 ```
 
 ## Utility Rules
 To keep the above rules a little cleaner, some grammar is split out into a few reused helper rules.
 
 ```ebnf
-arguments   → expression ( "," expression )* ;
-parameters  → pattern ( "," pattern )* ;
+arguments   → "(" expression ( "," expression )* ")" ;
+parameters  → "(" pattern ( "," pattern )* ")" ;
 
 name        → "_" | IDENTIFIER ;
 inequality  → "<" | "<=" | ">" | ">=" ;
 equality    → "=" | "<>" ;
-comparison  → equality | inequality ;
+comparator  → equality | inequality ;
 ```
 
 # Lexical Grammar

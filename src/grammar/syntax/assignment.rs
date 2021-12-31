@@ -1,7 +1,7 @@
 //! Grammar rules for function declarations and pattern matching.
 
 use crate::grammar::lexical::Identifier;
-use crate::grammar::syntax::{Expression, List, Number};
+use crate::grammar::syntax::{Arithmetic, Comparator, Expression, List};
 
 /// assignment → "@" function "=" block ;
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -34,8 +34,26 @@ pub type Block = List<Expression>;
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Pattern {
     Function(Box<Function>),
-    Range(Range),
-    Identity(Identity),
+    Bounds(Box<Bounds>),
+    Refinement(Box<Refinement>),
+}
+
+impl From<Function> for Pattern {
+    fn from(function: Function) -> Self {
+        Pattern::Function(Box::new(function))
+    }
+}
+
+impl From<Refinement> for Pattern {
+    fn from(refinement: Refinement) -> Self {
+        Pattern::Refinement(Box::new(refinement))
+    }
+}
+
+impl From<Bounds> for Pattern {
+    fn from(bounds: Bounds) -> Self {
+        Pattern::Bounds(Box::new(bounds))
+    }
 }
 
 /// function → name ( "(" parameters ")" )? ;
@@ -72,39 +90,14 @@ pub enum Name {
     Identified(Identifier),
 }
 
-/// range → number inequality name | ( number inequality )? name inequality number ;
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
-pub enum Range {
-    Left(Bound),
-    Both(Bounds),
-}
-
-/// The singular bound on a `range` pattern.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
-pub struct Bound {
-    value: Number,
-    inequality: Inequality,
-}
-
-impl Bound {
-    /// Create a new `Bound` pattern.
-    pub fn new(value: Number, inequality: Inequality) -> Self {
-        Bound { value, inequality }
-    }
-
-    /// The value this pattern matches.
-    pub fn value(&self) -> &Number {
-        &self.value
-    }
-
-    /// The inequality to this pattern's value with.
-    pub fn inequality(&self) -> &Inequality {
-        &self.inequality
+impl<I: Into<Identifier>> From<I> for Name {
+    fn from(identifier: I) -> Self {
+        Name::Identified(identifier.into())
     }
 }
 
-/// The bounds on a `range` pattern.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+/// bounds → arithmetic inequality name inequality arithmetic ;
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Bounds {
     left: Bound,
     name: Name,
@@ -117,7 +110,7 @@ impl Bounds {
         Bounds { left, name, right }
     }
 
-    /// The left bound on this `Range` pattern.
+    /// The left `Bound` on this `Bounds` pattern.
     pub fn left(&self) -> &Bound {
         &self.left
     }
@@ -127,9 +120,36 @@ impl Bounds {
         &self.name
     }
 
-    /// The right bound on this `Range` pattern.
+    /// The right `Bound` on this `Bounds` pattern.
     pub fn right(&self) -> &Bound {
         &self.right
+    }
+}
+
+/// The singular bound on a `range` pattern.
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub struct Bound {
+    constraint: Arithmetic,
+    inequality: Inequality,
+}
+
+impl Bound {
+    /// Create a new `Bound` pattern.
+    pub fn new(constraint: Arithmetic, inequality: Inequality) -> Self {
+        Bound {
+            constraint,
+            inequality,
+        }
+    }
+
+    /// The constraint this pattern matches.
+    pub fn constraint(&self) -> &Arithmetic {
+        &self.constraint
+    }
+
+    /// The inequality to this pattern's value with.
+    pub fn inequality(&self) -> &Inequality {
+        &self.inequality
     }
 }
 
@@ -142,26 +162,36 @@ pub enum Inequality {
     GreaterThanOrEqualTo,
 }
 
-/// identity → number | name equality number | number equality name ;
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
-pub struct Identity {
-    value: Number,
-    name: Option<Name>,
+/// refinement → name comparison arithmetic ;
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub struct Refinement {
+    name: Name,
+    comparator: Comparator,
+    constraint: Arithmetic,
 }
 
-impl Identity {
-    /// Creates a new instance of an `Identity`.
-    pub fn new(value: Number, name: Option<Name>) -> Self {
-        Identity { value, name }
-    }
-
-    /// The value this pattern matches.
-    pub fn value(&self) -> &Number {
-        &self.value
+impl Refinement {
+    /// Creates a new instance of a `Refinement`.
+    pub fn new(name: Name, comparator: Comparator, constraint: Arithmetic) -> Self {
+        Refinement {
+            name,
+            comparator,
+            constraint,
+        }
     }
 
     /// The `Name` defined when this pattern matches.
-    pub fn name(&self) -> Option<&Name> {
-        self.name.as_ref()
+    pub fn name(&self) -> &Name {
+        &self.name
+    }
+
+    /// The comparison operator use by this `Refinement`.
+    pub fn comparator(&self) -> &Comparator {
+        &self.comparator
+    }
+
+    /// The `Arithmetic` value used to constrain the name defined by this `Refinement`.
+    pub fn constraint(&self) -> &Arithmetic {
+        &self.constraint
     }
 }

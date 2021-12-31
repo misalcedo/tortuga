@@ -10,22 +10,32 @@ use crate::grammar::syntax::{Assignment, List};
 /// program → expression+ EOF ;
 pub type Expressions = List<Expression>;
 
-/// expression → epsilon | assignment ;
+/// expression → assignment | arithmetic ;
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Expression {
-    Epsilon(Box<Epsilon>),
+    Arithmetic(Box<Arithmetic>),
     Assignment(Box<Assignment>),
 }
 
-impl From<Epsilon> for Expression {
-    fn from(epsilon: Epsilon) -> Self {
-        Expression::Epsilon(Box::new(epsilon))
+impl From<Arithmetic> for Expression {
+    fn from(arithmetic: Arithmetic) -> Self {
+        Expression::Arithmetic(Box::new(arithmetic))
     }
 }
 
 impl From<Assignment> for Expression {
     fn from(assignment: Assignment) -> Self {
         Expression::Assignment(Box::new(assignment))
+    }
+}
+
+/// arithmetic → epsilon ;
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub struct Arithmetic(Epsilon);
+
+impl From<Epsilon> for Arithmetic {
+    fn from(epsilon: Epsilon) -> Self {
+        Arithmetic(epsilon)
     }
 }
 
@@ -137,12 +147,12 @@ impl Number {
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Call {
     identifier: lexical::Identifier,
-    arguments: Arguments,
+    arguments: Vec<Arguments>,
 }
 
 impl Call {
     /// Creates a new instance of a `Call` grammar rule.
-    pub fn new<I: Into<lexical::Identifier>>(identifier: I, arguments: Arguments) -> Self {
+    pub fn new<I: Into<lexical::Identifier>>(identifier: I, arguments: Vec<Arguments>) -> Self {
         Call {
             identifier: identifier.into(),
             arguments,

@@ -39,7 +39,7 @@ pub trait Tokens {
     /// Tests whether the next `Token`'s `Kind` is the expected one.
     /// Returns [`None`] on an empty sequence.
     /// Does not advance the sequence.
-    fn has_next_match<Matcher: TokenMatcher>(&mut self, matcher: Matcher) -> Option<bool>;
+    fn next_matches<Matcher: TokenMatcher>(&mut self, matcher: Matcher) -> Option<bool>;
 
     /// Tests whether the `Token` stream has any more tokens without consuming any.
     fn has_next(&mut self) -> bool;
@@ -65,7 +65,7 @@ impl<I: Iterator<Item = Result<Token, LexicalError>>> Tokens for Peekable<I> {
         }
     }
 
-    fn has_next_match<Matcher: TokenMatcher>(&mut self, matcher: Matcher) -> Option<bool> {
+    fn next_matches<Matcher: TokenMatcher>(&mut self, matcher: Matcher) -> Option<bool> {
         Some(matches!(self.peek()?, Ok(token) if matcher.matches(token)))
     }
 
@@ -107,31 +107,31 @@ mod tests {
     }
 
     #[test]
-    fn has_next_of_when_empty() {
+    fn next_matches_when_empty() {
         let tokens: Vec<Result<Token, LexicalError>> = vec![];
         let mut peekable = tokens.into_iter().peekable();
 
-        assert_eq!(peekable.has_next_match(Kind::Number), None);
+        assert_eq!(peekable.next_matches(Kind::Number), None);
     }
 
     #[test]
-    fn has_next_of_with_tokens() {
+    fn next_matches_with_tokens() {
         let tokens = new_tokens();
         let mut peekable = tokens.into_iter().peekable();
 
-        assert_eq!(peekable.has_next_match(Kind::Number), Some(true));
-        assert_eq!(peekable.has_next_match(Kind::Identifier), Some(false));
+        assert_eq!(peekable.next_matches(Kind::Number), Some(true));
+        assert_eq!(peekable.next_matches(Kind::Identifier), Some(false));
     }
 
     #[test]
-    fn has_next_of_with_tokens_peeked() {
+    fn next_matches_with_tokens_peeked() {
         let tokens = new_tokens();
         let mut peekable = tokens.into_iter().peekable();
 
         peekable.peek().unwrap();
 
-        assert_eq!(peekable.has_next_match(Kind::Number), Some(true));
-        assert_eq!(peekable.has_next_match(Kind::Identifier), Some(false));
+        assert_eq!(peekable.next_matches(Kind::Number), Some(true));
+        assert_eq!(peekable.next_matches(Kind::Identifier), Some(false));
     }
 
     #[test]
@@ -239,11 +239,11 @@ mod tests {
     }
 
     #[test]
-    fn has_next_of_invalid() {
+    fn next_matches_invalid() {
         let tokens = vec![Err(LexicalError::new(".", ErrorKind::Number))];
         let mut peekable = tokens.into_iter().peekable();
 
-        assert_eq!(peekable.has_next_match(Kind::At), Some(false))
+        assert_eq!(peekable.next_matches(Kind::At), Some(false))
     }
 
     fn new_tokens() -> Vec<Result<Token, LexicalError>> {

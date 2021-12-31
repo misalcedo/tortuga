@@ -100,17 +100,14 @@ impl<T: Tokens> Parser<T> {
     }
 
     fn parse_comparison(&mut self) -> Result<Comparison, SyntacticalError> {
-        let operator = self.parse_comparison_operator(COMPARISON_KINDS)?;
+        let operator = self.parse_comparator()?;
         let expression = self.parse_expression()?;
 
         Ok(Comparison::new(operator, expression))
     }
 
-    fn parse_comparison_operator(
-        &mut self,
-        kinds: &[Kind],
-    ) -> Result<Comparator, SyntacticalError> {
-        let operator = match self.next_kind(kinds)?.kind() {
+    fn parse_comparator(&mut self) -> Result<Comparator, SyntacticalError> {
+        let operator = match self.next_kind(COMPARISON_KINDS)?.kind() {
             Kind::LessThan => Comparator::LessThan,
             Kind::GreaterThan => Comparator::GreaterThan,
             Kind::LessThanOrEqualTo => Comparator::LessThanOrEqualTo,
@@ -126,8 +123,12 @@ impl<T: Tokens> Parser<T> {
         if let Some(Kind::At) = self.tokens.peek_kind() {
             self.parse_assignment().map(Expression::from)
         } else {
-            self.parse_epsilon().map(Expression::from)
+            self.parse_arithmetic().map(Expression::from)
         }
+    }
+
+    fn parse_arithmetic(&mut self) -> Result<Arithmetic, SyntacticalError> {
+        Ok(self.parse_epsilon()?.into())
     }
 
     fn parse_epsilon(&mut self) -> Result<Epsilon, SyntacticalError> {
@@ -216,23 +217,26 @@ impl<T: Tokens> Parser<T> {
 
     fn parse_call(&mut self) -> Result<Call, SyntacticalError> {
         let identifier = self.next_kind(Kind::Identifier)?;
+        let mut arguments = Vec::new();
 
-        self.next_kind(Kind::LeftParenthesis)?;
-
-        let arguments = self.parse_arguments()?;
-
-        self.next_kind(Kind::RightParenthesis)?;
+        while let Some(true) = self.tokens.next_matches(Kind::LeftParenthesis) {
+            arguments.push(self.parse_arguments()?);
+        }
 
         Ok(Call::new(*identifier.lexeme(), arguments))
     }
 
     fn parse_arguments(&mut self) -> Result<Arguments, SyntacticalError> {
+        self.next_kind(Kind::LeftParenthesis)?;
+
         let head = self.parse_expression()?;
         let mut tail = Vec::new();
 
         while self.tokens.next_if_match(Kind::Comma).is_some() {
             tail.push(self.parse_expression()?);
         }
+
+        self.next_kind(Kind::RightParenthesis)?;
 
         Ok(List::new(head, tail))
     }
@@ -260,14 +264,28 @@ impl<T: Tokens> Parser<T> {
     }
 
     fn parse_function(&mut self) -> Result<Function, SyntacticalError> {
-        Err(ErrorKind::NoMatch.into())
+        let name = self.parse_name()?;
+        let mut parameters = None;
+
+        if let Some(true) = self.tokens.next_matches(Kind::LeftParenthesis) {
+            parameters = Some(self.parse_parameters()?);
+        }
+
+        Ok(Function::new(name, parameters))
     }
 
     fn parse_name(&mut self) -> Result<Name, SyntacticalError> {
-        Err(ErrorKind::NoMatch.into())
+        let token = self.next_kind(&[Kind::Identifier, Kind::Underscore])?;
+
+        match token.kind() {
+            Kind::Identifier => Ok(Name::from(*token.lexeme())),
+            _ => Ok(Name::Anonymous),
+        }
     }
 
     fn parse_parameters(&mut self) -> Result<Parameters, SyntacticalError> {
+        self.next_kind(Kind::LeftParenthesis)?;
+
         let head = self.parse_pattern()?;
         let mut tail = Vec::new();
 
@@ -275,11 +293,28 @@ impl<T: Tokens> Parser<T> {
             tail.push(self.parse_pattern()?);
         }
 
+        self.next_kind(Kind::RightParenthesis)?;
+
         Ok(List::new(head, tail))
     }
 
     fn parse_pattern(&mut self) -> Result<Pattern, SyntacticalError> {
-        Err(ErrorKind::NoMatch.into())
+        let name = self.parse_name()?;
+
+        if let Some(true) = self.tokens.next_matches(COMPARISON_KINDS) {
+            let comparator = self.parse_comparator()?;
+            let arithmetic = self.parse_arithmetic()?;
+
+            Ok(Refinement::new(name, comparator, arithmetic).into())
+        } else {
+            let mut parameters = None;
+
+            if let Some(true) = self.tokens.next_matches(Kind::LeftParenthesis) {
+                parameters = Some(self.parse_parameters()?);
+            }
+
+            Ok(Function::new(name, parameters).into())
+        }
     }
 
     fn parse_block(&mut self) -> Result<Block, SyntacticalError> {
@@ -289,7 +324,7 @@ impl<T: Tokens> Parser<T> {
             let head = self.parse_expression()?;
             let mut tail = vec![self.parse_expression()?];
 
-            while let Some(false) = self.tokens.has_next_match(Kind::RightBracket) {
+            while let Some(false) = self.tokens.next_matches(Kind::RightBracket) {
                 tail.push(self.parse_expression()?);
             }
 
