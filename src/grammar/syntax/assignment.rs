@@ -1,8 +1,34 @@
-//! Grammar rules for pattern matching within function declarations.
+//! Grammar rules for function declarations and pattern matching.
 
 use crate::grammar::lexical::Identifier;
-use crate::grammar::syntax::expression::Number;
-use crate::grammar::syntax::List;
+use crate::grammar::syntax::{Expression, List, Number};
+
+/// assignment → "@" function "=" block ;
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub struct Assignment {
+    function: Function,
+    block: Block,
+}
+
+impl Assignment {
+    /// Creates a new `assignment` grammar rule.
+    pub fn new(function: Function, block: Block) -> Self {
+        Assignment { function, block }
+    }
+
+    /// Get the `function` defined by this `Assignment`.
+    pub fn function(&self) -> &Function {
+        &self.function
+    }
+
+    /// Get the code block to be executed on a call to this `Assignment`'s `function`.
+    pub fn block(&self) -> &Block {
+        &self.block
+    }
+}
+
+/// block → expression | "[" expression expression+ "]" ;
+pub type Block = List<Expression>;
 
 /// pattern  → function | range | identity ;
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]

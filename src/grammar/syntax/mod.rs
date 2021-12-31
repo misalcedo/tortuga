@@ -3,11 +3,12 @@
 mod comparison;
 mod expression;
 mod list;
-mod pattern;
+mod assignment;
 
-pub use comparison::{Comparator, Comparison, Comparisons};
-pub use expression::{Expression, Expressions};
+pub use comparison::*;
+pub use expression::*;
 pub use list::List;
+pub use assignment::*;
 
 /// The syntactic grammar of `Tortuga` is used to parse a linear sequence of tokens into a nested syntax tree structure.
 /// The root of the grammar matches an entire `Tortuga` program (or a sequence of comparisons to make the interpreter more useful).

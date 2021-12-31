@@ -4,8 +4,7 @@ mod tokens;
 
 use crate::compiler::errors::syntactical::ErrorKind;
 use crate::compiler::{Kind, Token};
-use crate::grammar::syntax::Comparator::*;
-use crate::grammar::syntax::{Comparator, Comparison, Comparisons, Expression, List, Program};
+use crate::grammar::syntax::*;
 use crate::{Scanner, SyntacticalError};
 use std::iter::Peekable;
 use std::str::FromStr;
@@ -108,18 +107,30 @@ impl<T: Tokens> Parser<T> {
         kinds: &[Kind],
     ) -> Result<Comparator, SyntacticalError> {
         let operator = match self.next_kind(kinds)?.kind() {
-            Kind::LessThan => LessThan,
-            Kind::GreaterThan => GreaterThan,
-            Kind::LessThanOrEqualTo => LessThanOrEqualTo,
-            Kind::GreaterThanOrEqualTo => GreaterThanOrEqualTo,
-            Kind::NotEqual => NotEqualTo,
-            _ => NotEqualTo,
+            Kind::LessThan => Comparator::LessThan,
+            Kind::GreaterThan => Comparator::GreaterThan,
+            Kind::LessThanOrEqualTo => Comparator::LessThanOrEqualTo,
+            Kind::GreaterThanOrEqualTo => Comparator::GreaterThanOrEqualTo,
+            Kind::NotEqual => Comparator::NotEqualTo,
+            _ => Comparator::EqualTo,
         };
 
         Ok(operator)
     }
 
     fn parse_expression(&mut self) -> Result<Expression, SyntacticalError> {
+        if let Some(&Kind::At) = self.tokens.peek_kind() {
+            self.parse_assignment().map(Expression::from)
+        } else {
+            self.parse_epsilon().map(Expression::from)
+        }
+    }
+
+    fn parse_epsilon(&mut self) -> Result<Epsilon, SyntacticalError> {
+        Err(ErrorKind::NoMatch.into())
+    }
+
+    fn parse_assignment(&mut self) -> Result<Assignment, SyntacticalError> {
         Err(ErrorKind::NoMatch.into())
     }
 }

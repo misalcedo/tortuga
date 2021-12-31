@@ -5,7 +5,7 @@
 //! Here, we use a separate rule for each precedence level to make it explicit.
 
 use crate::grammar::lexical;
-use crate::grammar::syntax::List;
+use crate::grammar::syntax::{Assignment, List};
 
 /// program → expression+ EOF ;
 pub type Expressions = List<Expression>;
@@ -14,7 +14,19 @@ pub type Expressions = List<Expression>;
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Expression {
     Epsilon(Box<Epsilon>),
-    Assignment,
+    Assignment(Box<Assignment>),
+}
+
+impl From<Epsilon> for Expression {
+    fn from(epsilon: Epsilon) -> Self {
+        Expression::Epsilon(Box::new(epsilon))
+    }
+}
+
+impl From<Assignment> for Expression {
+    fn from(assignment: Assignment) -> Self {
+        Expression::Assignment(Box::new(assignment))
+    }
 }
 
 /// epsilon → modulo ( "~" modulo )? ;
