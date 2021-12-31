@@ -45,30 +45,30 @@ bounds     = arithmetic inequality name inequality arithmetic ;
 To keep the above rules a little cleaner, some grammar is split out into a few reused helper rules.
 
 ```ebnf
-arguments   = "(" expression ( "," expression )* ")" ;
-parameters  = "(" pattern ( "," pattern )* ")" ;
+arguments  = "(" expression ( "," expression )* ")" ;
+parameters = "(" pattern ( "," pattern )* ")" ;
 
-name        = "_" | "@" IDENTIFIER ;
-inequality  = "<" | "<=" | ">" | ">=" ;
-equality    = "=" | "<>" ;
-comparator  = equality | inequality ;
+name       = "_" | "@" IDENTIFIER ;
+inequality = "<" | "<=" | ">" | ">=" ;
+equality   = "=" | "<>" ;
+comparator = equality | inequality ;
 ```
 
 # Lexical Grammar
 The lexical grammar is used during lexical analysis to group characters into tokens. Where the syntax is [context free](https://en.wikipedia.org/wiki/Context-free_grammar), the lexical grammar is [regular](https://en.wikipedia.org/wiki/Regular_grammar) -- note that there are no recursive rules.
 
 ```ebnf
-IDENTIFIER              = XID_START XID_CONTINUE* ;
-NUMBER                  = NONZERO DIGIT? "#" ( "0" | NATURAL | REAL | FRACTION) ;
-NATURAL                 = NZ_ALPHANUM ALPHANUM* ( "." "0"? )? ;
-REAL                    = NZ_ALPHANUM ALPHANUM* "." ALPHANUM*? NZ_ALPHANUM ;
-FRACTION                = "0"? "." ALPHANUM*? NZ_ALPHANUM ;
+IDENTIFIER  = XID_START XID_CONTINUE* ;
+NUMBER      = NONZERO DIGIT? "#" ( "0" | NATURAL | REAL | FRACTION) ;
+NATURAL     = NZ_ALPHANUM ALPHANUM* ( "." "0"? )? ;
+REAL        = NZ_ALPHANUM ALPHANUM* "." ALPHANUM*? NZ_ALPHANUM ;
+FRACTION    = "0"? "." ALPHANUM*? NZ_ALPHANUM ;
 
-NZ_ALPHANUM             = NZ_DIGIT | ALPHA ;                
-ALPHANUM                = DIGIT | ALPHA ;
-ALPHA                   = "a" ... "z" | "A" ... "Z" ;
-NZ_DIGIT                = "1" ... "9" ;
-DIGIT                   = "0" ... "9" ;
+NZ_ALPHANUM = NZ_DIGIT | ALPHA ;                
+ALPHANUM    = DIGIT | ALPHA ;
+ALPHA       = "a" ... "z" | "A" ... "Z" ;
+NZ_DIGIT    = "1" ... "9" ;
+DIGIT       = "0" ... "9" ;
 ```
 
 # Associativity
