@@ -248,7 +248,52 @@ impl<T: Tokens> Parser<T> {
     }
 
     fn parse_assignment(&mut self) -> Result<Assignment, SyntacticalError> {
+        self.next_kind(Kind::At)?;
+
+        let function = self.parse_function()?;
+
+        self.next_kind(Kind::Equal)?;
+
+        let block = self.parse_block()?;
+
+        Ok(Assignment::new(function, block))
+    }
+
+    fn parse_function(&mut self) -> Result<Function, SyntacticalError> {
         Err(ErrorKind::NoMatch.into())
+    }
+
+    fn parse_name(&mut self) -> Result<Name, SyntacticalError> {
+        Err(ErrorKind::NoMatch.into())
+    }
+
+    fn parse_parameters(&mut self) -> Result<Parameters, SyntacticalError> {
+        Err(ErrorKind::NoMatch.into())
+    }
+
+    fn parse_pattern(&mut self) -> Result<Pattern, SyntacticalError> {
+        Err(ErrorKind::NoMatch.into())
+    }
+
+    fn parse_block(&mut self) -> Result<Block, SyntacticalError> {
+        if let Some(Kind::LeftBracket) = self.tokens.peek_kind() {
+            self.next_kind(Kind::LeftBracket)?;
+
+            let head = self.parse_expression()?;
+            let mut tail = vec![self.parse_expression()?];
+
+            while let Some(false) = self.tokens.has_next_match(Kind::RightBracket) {
+                tail.push(self.parse_expression()?);
+            }
+
+            self.next_kind(Kind::RightBracket)?;
+
+            Ok(List::new(head, tail))
+        } else {
+            let head = self.parse_expression()?;
+
+            Ok(List::new(head, Vec::new()))
+        }
     }
 }
 
