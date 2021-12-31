@@ -43,10 +43,6 @@ pub trait Tokens {
 impl<I: Iterator<Item = Result<Token, LexicalError>>> Tokens for Peekable<I> {
     fn next_if_match<Matcher: TokenMatcher>(&mut self, matcher: Matcher) -> Option<Token> {
         if matches!(self.peek()?, Ok(token) if matcher.matches(token)) {
-            if let Some(Ok(ref token)) = self.peek() {
-                println!("Token at: {}.", token.lexeme().start());
-            }
-
             self.next()?.ok()
         } else {
             None
