@@ -1,43 +1,11 @@
-use crate::compiler::{Lexeme, Token};
+//! Pretty print Tortuga [`Program`]s and errors.
+
+use crate::compiler::Token;
 use crate::grammar::*;
-use crate::{runtime, Kind, LexicalError, SyntacticalError};
+use crate::{runtime, Kind, LexicalError, SyntacticalError, WithLexeme};
 use colored::*;
-use std::fmt;
-use std::fmt::{Display, Formatter};
+use std::fmt::Display;
 use std::io::{self, Write};
-
-/// A trait that defines how to get a [`Lexeme`] from types that can be displayed.
-pub trait WithLexeme {
-    /// The [`Lexeme`] of this object.
-    fn lexeme(&self) -> &Lexeme;
-
-    /// Create a [`LexemeString`] for this instance with the given source.
-    fn as_display<'a>(&self, source: &'a str) -> LexemeString<'a> {
-        LexemeString {
-            source,
-            lexeme: *self.lexeme(),
-        }
-    }
-}
-
-/// A [`String`]-like type to display [`Lexeme`]s.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub struct LexemeString<'a> {
-    source: &'a str,
-    lexeme: Lexeme,
-}
-
-impl<'a> fmt::Display for LexemeString<'a> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.write_str(self.lexeme.extract_from(self.source))
-    }
-}
-
-impl WithLexeme for Lexeme {
-    fn lexeme(&self) -> &Lexeme {
-        self
-    }
-}
 
 /// A printer to standard out for Tortuga programs.
 pub struct PrettyPrinter<'a, StdOut: Write, StdErr: Write> {
