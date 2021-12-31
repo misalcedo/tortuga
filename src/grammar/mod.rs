@@ -2,3 +2,5 @@
 
 pub mod lexical;
 pub mod syntax;
+
+pub use syntax::*;

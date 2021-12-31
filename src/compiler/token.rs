@@ -32,8 +32,8 @@ impl Token {
 }
 
 impl WithLexeme for Token {
-    fn lexeme(&self) -> Option<&Lexeme> {
-        Some(&self.lexeme)
+    fn lexeme(&self) -> &Lexeme {
+        &self.lexeme
     }
 }
 
