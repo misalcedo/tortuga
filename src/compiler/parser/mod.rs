@@ -250,8 +250,6 @@ impl<T: Tokens> Parser<T> {
     }
 
     fn parse_assignment(&mut self) -> Result<Assignment, SyntacticalError> {
-        self.next_kind(Kind::At)?;
-
         let function = self.parse_function()?;
 
         self.next_kind(Kind::Equal)?;
@@ -273,10 +271,14 @@ impl<T: Tokens> Parser<T> {
     }
 
     fn parse_name(&mut self) -> Result<Name, SyntacticalError> {
-        let token = self.next_kind(&[Kind::Identifier, Kind::Underscore])?;
+        let token = self.next_kind(&[Kind::At, Kind::Underscore])?;
 
         match token.kind() {
-            Kind::Identifier => Ok(Name::from(*token.lexeme())),
+            Kind::At => {
+                let identifier = self.next_kind(Kind::Identifier)?;
+
+                Ok(Name::from(*identifier.lexeme()))
+            }
             _ => Ok(Name::Anonymous),
         }
     }
