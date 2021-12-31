@@ -6,7 +6,8 @@ The syntactic grammar of `Tortuga` is used to parse a linear sequence of tokens 
 ```ebnf
 program     → expressions | comparisons EOF ;
 expressions → expression+ ;
-comparisons → expression ( comparator expression )+ ;
+comparisons → expression comparison+ ;
+comparison  → comparator expression ;
 ```
 
 ## Expression
@@ -14,7 +15,7 @@ A program is a series of expressions. Expressions produce values. `Tortuga` has 
 
 ```ebnf
 expression → assignment | arithmetic ;
-assignment → "@" function "=" block ;
+assignment → function "=" block ;
 function   → name parameters? ;
 block      → "[" expression expression+ "]" | expression ;
 
@@ -47,7 +48,7 @@ To keep the above rules a little cleaner, some grammar is split out into a few r
 arguments   → "(" expression ( "," expression )* ")" ;
 parameters  → "(" pattern ( "," pattern )* ")" ;
 
-name        → "_" | IDENTIFIER ;
+name        → "_" | "@" IDENTIFIER ;
 inequality  → "<" | "<=" | ">" | ">=" ;
 equality    → "=" | "<>" ;
 comparator  → equality | inequality ;

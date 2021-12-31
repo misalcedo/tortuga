@@ -1,6 +1,7 @@
 //! Errors that may occur during lexical analysis.
 
 use crate::compiler::Lexeme;
+use crate::WithLexeme;
 use std::fmt;
 
 /// An error that occurred during lexical analysis of a specific lexeme.
@@ -9,6 +10,12 @@ use std::fmt;
 pub struct LexicalError {
     lexeme: Lexeme,
     kind: ErrorKind,
+}
+
+impl WithLexeme for LexicalError {
+    fn lexeme(&self) -> &Lexeme {
+        &self.lexeme
+    }
 }
 
 /// The kind of lexical error that occurred.

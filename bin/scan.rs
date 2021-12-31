@@ -3,7 +3,7 @@
 use crate::CommandLineError;
 use colored::*;
 use std::io::{stderr, stdout, Write};
-use tortuga::{Kind, Number, Scanner};
+use tortuga::{Kind, Number, Scanner, WithLexeme};
 
 /// Pretty print the sequence of tokens for the given source.
 pub fn scan_file(source: &str) -> Result<(), CommandLineError> {
@@ -14,7 +14,7 @@ pub fn scan_file(source: &str) -> Result<(), CommandLineError> {
         match result {
             Ok(token) => {
                 let kind = token.kind().to_string();
-                let lexeme = token.lexeme().extract_from(source);
+                let lexeme = token.to_string_with(source).to_string();
                 let start = token.lexeme().start().to_string();
 
                 match token.kind() {
@@ -54,7 +54,7 @@ pub fn scan_file(source: &str) -> Result<(), CommandLineError> {
             }
             Err(error) => {
                 let kind = error.kind().to_string();
-                let lexeme = error.lexeme().extract_from(source);
+                let lexeme = error.to_string_with(source).to_string();
                 let start = error.lexeme().start().to_string();
 
                 writeln!(

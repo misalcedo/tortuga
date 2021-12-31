@@ -1,6 +1,7 @@
 //! Lexical `Token`s for Tortuga.
 
 use crate::compiler::Lexeme;
+use crate::WithLexeme;
 use std::fmt::{self, Display, Formatter, Write};
 
 /// A lexical token is a pair of a `Lexeme` and a `Kind`.
@@ -27,6 +28,12 @@ impl Token {
     /// This `Token`'s variant.
     pub fn kind(&self) -> &Kind {
         &self.kind
+    }
+}
+
+impl WithLexeme for Token {
+    fn lexeme(&self) -> &Lexeme {
+        &self.lexeme
     }
 }
 
