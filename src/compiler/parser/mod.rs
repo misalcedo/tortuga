@@ -2,7 +2,7 @@
 
 mod tokens;
 
-use crate::compiler::errors::{syntactical::ErrorKind, LexicalError, Reporter};
+use crate::compiler::errors::{syntactical::ErrorKind, LexicalError};
 use crate::compiler::{Kind, Token};
 use crate::grammar::syntax::Comparator::*;
 use crate::grammar::syntax::{Comparator, Comparison, Comparisons, Expression, List, Program};
@@ -22,29 +22,23 @@ const COMPARISON_KINDS: &[Kind] = &[
 
 /// A recursive descent LL(1) parser for the syntax grammar.
 /// Parses a sequence of `Token`s into syntax tree.
-pub struct Parser<'a, I: Iterator<Item = Result<Token, LexicalError>>> {
+pub struct Parser<I: Iterator<Item = Result<Token, LexicalError>>> {
     tokens: Peekable<I>,
-    reporter: Reporter<'a>,
 }
 
-impl<'a> From<&'a str> for Parser<'a, Scanner<'a>> {
+impl<'a> From<&'a str> for Parser<Scanner<'a>> {
     fn from(source: &'a str) -> Self {
         Parser {
             tokens: Scanner::from(source).peekable(),
-            reporter: source.into(),
         }
     }
 }
 
-impl<'a, I: Iterator<Item = Result<Token, LexicalError>>> Parser<'a, I> {
+impl<I: Iterator<Item = Result<Token, LexicalError>>> Parser<I> {
     /// Creates a new `Parser`.
-    pub fn new<II: IntoIterator<IntoIter = I, Item = I::Item>, R: Into<Reporter<'a>>>(
-        tokens: II,
-        reporter: R,
-    ) -> Self {
+    pub fn new<II: IntoIterator<IntoIter = I, Item = I::Item>>(tokens: II) -> Self {
         Parser {
             tokens: tokens.into_iter().peekable(),
-            reporter: reporter.into(),
         }
     }
 
