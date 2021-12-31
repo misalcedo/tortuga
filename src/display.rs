@@ -76,10 +76,11 @@ impl<'a, StdOut: Write, StdErr: Write> PrettyPrinter<'a, StdOut, StdErr> {
         match error {
             SyntacticalError::Incomplete => {
                 self.print_error_prefix("EOF")?;
-                write!(self.std_err, "Reached the end of file prematurely; unable to complete parsing a grammar rule.")
+                writeln!(self.std_err, "Reached the end of file prematurely; unable to complete parsing a grammar rule.")
             }
             SyntacticalError::NoMatch(token) => {
                 self.print_error_prefix("NoMatch")?;
+                self.print_err("No grammar rule matched the token: ")?;
                 print_token_to(self.source, token, &mut self.std_err)
             }
             SyntacticalError::Lexical(error) => self.print_lexical_error(error),
