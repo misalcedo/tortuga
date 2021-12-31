@@ -2,7 +2,7 @@
 
 mod tokens;
 
-use crate::compiler::errors::{syntactical::ErrorKind, LexicalError};
+use crate::compiler::errors::syntactical::ErrorKind;
 use crate::compiler::{Kind, Token};
 use crate::grammar::syntax::Comparator::*;
 use crate::grammar::syntax::{Comparator, Comparison, Comparisons, Expression, List, Program};
@@ -22,11 +22,11 @@ const COMPARISON_KINDS: &[Kind] = &[
 
 /// A recursive descent LL(1) parser for the syntax grammar.
 /// Parses a sequence of `Token`s into syntax tree.
-pub struct Parser<I: Iterator<Item = Result<Token, LexicalError>>> {
-    tokens: Peekable<I>,
+pub struct Parser<T: Tokens> {
+    tokens: T,
 }
 
-impl<'a> From<&'a str> for Parser<Scanner<'a>> {
+impl<'a> From<&'a str> for Parser<Peekable<Scanner<'a>>> {
     fn from(source: &'a str) -> Self {
         Parser {
             tokens: Scanner::from(source).peekable(),
@@ -34,11 +34,25 @@ impl<'a> From<&'a str> for Parser<Scanner<'a>> {
     }
 }
 
-impl<I: Iterator<Item = Result<Token, LexicalError>>> Parser<I> {
-    /// Creates a new `Parser`.
-    pub fn new<II: IntoIterator<IntoIter = I, Item = I::Item>>(tokens: II) -> Self {
-        Parser {
-            tokens: tokens.into_iter().peekable(),
+impl<T: Tokens> From<T> for Parser<T> {
+    fn from(tokens: T) -> Self {
+        Parser { tokens }
+    }
+}
+
+impl<T: Tokens> Parser<T> {
+    /// Advances the token sequence and returns the next value if the token is one of the expected [`Kind`]s.
+    ///
+    /// Returns [`Err`] when at the end of the sequence,
+    /// if the token's kind does not match, or if the token is invalid.
+    fn next_kind(&mut self, kinds: &[Kind]) -> Result<Token, SyntacticalError> {
+        if self.tokens.has_next() {
+            match self.tokens.next_if_kind(kinds) {
+                Some(token) => Ok(token),
+                None => Err(SyntacticalError::from(ErrorKind::NoMatch)),
+            }
+        } else {
+            Err(SyntacticalError::from(ErrorKind::Incomplete))
         }
     }
 
@@ -103,19 +117,6 @@ impl<I: Iterator<Item = Result<Token, LexicalError>>> Parser<I> {
         };
 
         Ok(operator)
-    }
-
-    /// gets the next token matching the expected kinds.
-    /// If no match is found returns an error.
-    fn next_kind(&mut self, kinds: &[Kind]) -> Result<Token, SyntacticalError> {
-        if self.tokens.has_next() {
-            match self.tokens.next_kind(kinds) {
-                Some(token) => Ok(token),
-                None => Err(SyntacticalError::from(ErrorKind::NoMatch)),
-            }
-        } else {
-            Err(SyntacticalError::from(ErrorKind::Incomplete))
-        }
     }
 
     fn parse_expression(&mut self) -> Result<Expression, SyntacticalError> {

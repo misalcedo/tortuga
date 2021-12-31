@@ -6,9 +6,14 @@ use std::iter::Peekable;
 
 /// A sequence of tokens from Lexical Analysis.
 pub trait Tokens {
+    /// Advances the token sequence and returns the next value.
+    ///
+    /// Returns [`None`] when at the end of the sequence.
+    fn next_token(&mut self) -> Option<Result<Token, LexicalError>>;
+
     /// Gets the next `Token` if it matches the expected kind. Otherwise, returns `None`.
     /// The underlying `Token` sequence is only advanced on a `Some` return value.
-    fn next_kind(&mut self, expected: &[Kind]) -> Option<Token>;
+    fn next_if_kind(&mut self, expected: &[Kind]) -> Option<Token>;
 
     /// Peeks the next `Token`'s `Kind`, if one is present.
     fn peek_kind(&mut self) -> Option<&Kind>;
@@ -18,7 +23,11 @@ pub trait Tokens {
 }
 
 impl<I: Iterator<Item = Result<Token, LexicalError>>> Tokens for Peekable<I> {
-    fn next_kind(&mut self, expected: &[Kind]) -> Option<Token> {
+    fn next_token(&mut self) -> Option<Result<Token, LexicalError>> {
+        self.next()
+    }
+
+    fn next_if_kind(&mut self, expected: &[Kind]) -> Option<Token> {
         if matches!(self.peek()?, Ok(token) if expected.contains(token.kind())) {
             self.next()?.ok()
         } else {
@@ -71,41 +80,41 @@ mod tests {
     }
 
     #[test]
-    fn next_kind_when_expected_empty() {
+    fn next_if_kind_when_expected_empty() {
         let tokens = new_tokens();
         let mut peekable = tokens.into_iter().peekable();
 
-        assert_eq!(peekable.next_kind(&[]), None);
+        assert_eq!(peekable.next_if_kind(&[]), None);
     }
 
     #[test]
-    fn next_kind_when_empty() {
+    fn next_if_kind_when_empty() {
         let tokens: Vec<Result<Token, LexicalError>> = vec![];
         let mut peekable = tokens.into_iter().peekable();
 
-        assert_eq!(peekable.next_kind(&[Kind::Number]), None);
+        assert_eq!(peekable.next_if_kind(&[Kind::Number]), None);
     }
 
     #[test]
-    fn next_kind_with_tokens() {
+    fn next_if_kind_with_tokens() {
         let tokens = new_tokens();
         let mut peekable = tokens.into_iter().peekable();
 
         assert_eq!(
-            peekable.next_kind(&[Kind::Number]),
+            peekable.next_if_kind(&[Kind::Number]),
             Some(Token::new("1", Kind::Number))
         );
     }
 
     #[test]
-    fn next_kind_with_tokens_peeked() {
+    fn next_if_kind_with_tokens_peeked() {
         let tokens = new_tokens();
         let mut peekable = tokens.into_iter().peekable();
 
         peekable.peek().unwrap();
 
         assert_eq!(
-            peekable.next_kind(&[Kind::Number]),
+            peekable.next_if_kind(&[Kind::Number]),
             Some(Token::new("1", Kind::Number))
         );
     }
@@ -131,7 +140,7 @@ mod tests {
         let tokens = new_tokens();
         let mut peekable = tokens.into_iter().peekable();
 
-        peekable.next().unwrap();
+        peekable.next().unwrap().unwrap();
         peekable.peek_kind().unwrap();
 
         assert_eq!(
@@ -151,11 +160,11 @@ mod tests {
     }
 
     #[test]
-    fn next_kind_invalid() {
+    fn next_if_kind_invalid() {
         let tokens = vec![Err(LexicalError::new("|", ErrorKind::Invalid))];
         let mut peekable = tokens.into_iter().peekable();
 
-        assert_eq!(peekable.next_kind(&[Kind::Number]), None)
+        assert_eq!(peekable.next_if_kind(&[Kind::Number]), None)
     }
 
     #[test]
