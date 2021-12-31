@@ -49,7 +49,7 @@ impl<'a, I: Iterator<Item = Result<Token, LexicalError>>> Parser<'a, I> {
     }
 
     /// Generate a syntax tree rooted at a `Program` for this `Parser`'s sequence of tokens.
-    pub fn parse(&mut self) -> Result<Program, SyntacticalError> {
+    pub fn parse(mut self) -> Result<Program, SyntacticalError> {
         let expression = self.parse_expression()?;
 
         match self
