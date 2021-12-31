@@ -11,7 +11,6 @@ impl Comparison {
     }
 }
 
-/// program → expression ( comparison expression )+ EOF ;
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Comparisons {
     lhs: Expression,

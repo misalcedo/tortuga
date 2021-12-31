@@ -3,7 +3,6 @@
 use crate::grammar::lexical::Identifier;
 use crate::grammar::syntax::{Arithmetic, Comparator, Expression, List};
 
-/// assignment → "@" function "=" block ;
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Assignment {
     function: Function,
@@ -27,10 +26,8 @@ impl Assignment {
     }
 }
 
-/// block → expression | "[" expression expression+ "]" ;
 pub type Block = List<Expression>;
 
-/// pattern  → function | range | identity ;
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Pattern {
     Function(Box<Function>),
@@ -56,7 +53,6 @@ impl From<Bounds> for Pattern {
     }
 }
 
-/// function → name ( "(" parameters ")" )? ;
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Function {
     name: Name,
@@ -80,10 +76,8 @@ impl Function {
     }
 }
 
-/// parameters → pattern ( "," pattern )* ;
 pub type Parameters = List<Pattern>;
 
-/// name → "_" | IDENTIFIER ;
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Name {
     Anonymous,
@@ -96,7 +90,6 @@ impl<I: Into<Identifier>> From<I> for Name {
     }
 }
 
-/// bounds → arithmetic inequality name inequality arithmetic ;
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Bounds {
     left: Bound,
@@ -153,7 +146,6 @@ impl Bound {
     }
 }
 
-/// inequality → "<" | "<=" | ">" | ">=" ;
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Inequality {
     LessThan,
@@ -162,7 +154,6 @@ pub enum Inequality {
     GreaterThanOrEqualTo,
 }
 
-/// refinement → name comparison arithmetic ;
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Refinement {
     name: Name,

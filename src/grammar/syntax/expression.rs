@@ -7,10 +7,8 @@
 use crate::grammar::lexical;
 use crate::grammar::syntax::{Assignment, List};
 
-/// program → expression+ EOF ;
 pub type Expressions = List<Expression>;
 
-/// expression → assignment | arithmetic ;
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Expression {
     Arithmetic(Box<Arithmetic>),
@@ -29,7 +27,6 @@ impl From<Assignment> for Expression {
     }
 }
 
-/// arithmetic → epsilon ;
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Arithmetic(Epsilon);
 
@@ -39,7 +36,6 @@ impl From<Epsilon> for Arithmetic {
     }
 }
 
-/// epsilon → modulo ( "~" modulo )? ;
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Epsilon {
     lhs: Modulo,
@@ -63,10 +59,8 @@ impl Epsilon {
     }
 }
 
-/// modulo → sum ( "%" sum )* ;
 pub type Modulo = List<Sum>;
 
-/// sum → product ( ( "+" | "-") product )* ;
 pub type Sum = List<Product, AddOrSubtract>;
 
 /// The operator and right-hand side for the `sum` grammar rule.
@@ -77,7 +71,6 @@ pub enum AddOrSubtract {
     /// -
     Subtract(Product),
 }
-/// product → power ( ( "*" | "/" ) power )* ;
 pub type Product = List<Power, MultiplyOrDivide>;
 
 /// The operator and right-hand side for the `product` grammar rule.
@@ -87,10 +80,8 @@ pub enum MultiplyOrDivide {
     Divide(Power),
 }
 
-/// power → primary ( "^" primary )* ;
 pub type Power = List<Primary>;
 
-/// primary → number | call | grouping ;
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Primary {
     Number(Number),
@@ -116,7 +107,6 @@ impl From<Grouping> for Primary {
     }
 }
 
-/// number → "-"? NUMBER ;
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Number {
     negative: bool,
@@ -143,7 +133,6 @@ impl Number {
     }
 }
 
-/// call → IDENTIFIER ( "(" arguments ")" )* ;
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Call {
     identifier: lexical::Identifier,
@@ -160,10 +149,8 @@ impl Call {
     }
 }
 
-/// arguments → expression ( "," expression )* ;
 pub type Arguments = List<Expression>;
 
-/// grouping → "(" expression ")" ;
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Grouping(Expression);
 
