@@ -14,7 +14,7 @@ pub fn scan_file(source: &str) -> Result<(), CommandLineError> {
         match result {
             Ok(token) => {
                 let kind = token.kind().to_string();
-                let lexeme = token.to_string_with(source).to_string();
+                let lexeme = token.as_display(source).to_string();
                 let start = token.lexeme().start().to_string();
 
                 match token.kind() {
@@ -54,7 +54,7 @@ pub fn scan_file(source: &str) -> Result<(), CommandLineError> {
             }
             Err(error) => {
                 let kind = error.kind().to_string();
-                let lexeme = error.to_string_with(source).to_string();
+                let lexeme = error.as_display(source).to_string();
                 let start = error.lexeme().start().to_string();
 
                 writeln!(

@@ -8,7 +8,7 @@ pub trait WithLexeme {
     fn lexeme(&self) -> &Lexeme;
 
     /// Create a [`LexemeString`] for this instance with the given source.
-    fn to_string_with<'a>(&self, source: &'a str) -> LexemeString<'a> {
+    fn as_display<'a>(&self, source: &'a str) -> LexemeString<'a> {
         LexemeString {
             source,
             lexeme: *self.lexeme(),
