@@ -230,7 +230,7 @@ impl<T: Tokens> Parser<T> {
         let head = self.parse_expression()?;
         let mut tail = Vec::new();
 
-        while let Some(false) = self.tokens.has_next_match(Kind::RightParenthesis) {
+        while self.tokens.next_if_match(Kind::Comma).is_some() {
             tail.push(self.parse_expression()?);
         }
 
@@ -268,7 +268,14 @@ impl<T: Tokens> Parser<T> {
     }
 
     fn parse_parameters(&mut self) -> Result<Parameters, SyntacticalError> {
-        Err(ErrorKind::NoMatch.into())
+        let head = self.parse_pattern()?;
+        let mut tail = Vec::new();
+
+        while self.tokens.next_if_match(Kind::Comma).is_some() {
+            tail.push(self.parse_pattern()?);
+        }
+
+        Ok(List::new(head, tail))
     }
 
     fn parse_pattern(&mut self) -> Result<Pattern, SyntacticalError> {
