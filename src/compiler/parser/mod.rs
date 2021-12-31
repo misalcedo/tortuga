@@ -134,7 +134,7 @@ impl<T: Tokens> Parser<T> {
         let lhs = self.parse_modulo()?;
         let mut rhs = None;
 
-        if self.tokens.next_if_match(&[Kind::Tilde]).is_some() {
+        if self.tokens.next_if_match(Kind::Tilde).is_some() {
             rhs = Some(self.parse_modulo()?);
         }
 
@@ -142,22 +142,55 @@ impl<T: Tokens> Parser<T> {
     }
 
     fn parse_modulo(&mut self) -> Result<Modulo, SyntacticalError> {
-        Err(ErrorKind::NoMatch.into())
+        let head = self.parse_sum()?;
+        let mut tail = Vec::new();
+
+        while self.tokens.next_if_match(Kind::Percent).is_some() {
+            tail.push(self.parse_sum()?);
+        }
+
+        Ok(List::new(head, tail))
     }
 
     fn parse_sum(&mut self) -> Result<Sum, SyntacticalError> {
-        Err(ErrorKind::NoMatch.into())
+        let head = self.parse_product()?;
+        let mut tail = Vec::new();
+
+        while let Some(token) = self.tokens.next_if_match(&[Kind::Plus, Kind::Minus]) {
+            let rhs = self.parse_product()?;
+            let operation = match token.kind() {
+                Kind::Plus => AddOrSubtract::Add(rhs),
+                _ => AddOrSubtract::Subtract(rhs),
+            };
+
+            tail.push(operation);
+        }
+
+        Ok(List::new(head, tail))
     }
 
     fn parse_product(&mut self) -> Result<Product, SyntacticalError> {
-        Err(ErrorKind::NoMatch.into())
+        let head = self.parse_power()?;
+        let mut tail = Vec::new();
+
+        while let Some(token) = self.tokens.next_if_match(&[Kind::Star, Kind::Slash]) {
+            let rhs = self.parse_power()?;
+            let operation = match token.kind() {
+                Kind::Star => MultiplyOrDivide::Multiply(rhs),
+                _ => MultiplyOrDivide::Divide(rhs),
+            };
+
+            tail.push(operation);
+        }
+
+        Ok(List::new(head, tail))
     }
 
     fn parse_power(&mut self) -> Result<Power, SyntacticalError> {
         let lhs = self.parse_primary()?;
         let mut rhs = Vec::new();
 
-        while let Some(true) = self.tokens.has_next_match(Kind::Caret) {
+        while self.tokens.next_if_match(Kind::Caret).is_some() {
             rhs.push(self.parse_primary()?);
         }
 
