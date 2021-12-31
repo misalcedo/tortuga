@@ -1,7 +1,7 @@
 //! Extension to a token sequence useful for generating a syntax tre.
 
 use crate::compiler::{Kind, Token};
-use crate::LexicalError;
+use crate::{LexicalError, SyntacticalError};
 use std::iter::Peekable;
 
 /// Determines whether a token matches a given pattern.
@@ -10,26 +10,64 @@ pub trait TokenMatcher {
     fn matches(&self, token: &Token) -> bool;
 }
 
+impl TokenMatcher for bool {
+    fn matches(&self, _: &Token) -> bool {
+        *self
+    }
+}
+
 impl TokenMatcher for Kind {
     fn matches(&self, token: &Token) -> bool {
         token.kind() == self
     }
 }
 
-impl<S: AsRef<[Kind]>> TokenMatcher for S {
+impl TokenMatcher for [Kind] {
     fn matches(&self, token: &Token) -> bool {
-        self.as_ref().contains(token.kind())
+        self.contains(token.kind())
+    }
+}
+
+impl TokenMatcher for &[Kind] {
+    fn matches(&self, token: &Token) -> bool {
+        self.contains(token.kind())
+    }
+}
+
+impl<const N: usize> TokenMatcher for [Kind; N] {
+    fn matches(&self, token: &Token) -> bool {
+        self.contains(token.kind())
+    }
+}
+
+impl<const N: usize> TokenMatcher for &[Kind; N] {
+    fn matches(&self, token: &Token) -> bool {
+        self.contains(token.kind())
     }
 }
 
 /// A sequence of tokens from Lexical Analysis.
 pub trait Tokens {
+    /// Advances the sequence and returns the next [`Token`].
+    fn next_token(&mut self) -> Result<Token, SyntacticalError>;
+
+    /// Peeks at the next [`Token`] in the sequence without advancing.
+    fn peek_token(&mut self) -> Option<&Token>;
+
     /// Gets the next `Token` if it the given `Matcher` returns [`true`]. Otherwise, returns [`None`].
     /// The underlying `Token` sequence is only advanced on a [`Some`] return value.
-    fn next_if_match<Matcher: TokenMatcher>(&mut self, matcher: Matcher) -> Option<Token>;
+    fn next_if_match<Matcher: TokenMatcher>(&mut self, matcher: Matcher) -> Option<Token> {
+        if matcher.matches(self.peek_token()?) {
+            self.next_token().ok()
+        } else {
+            None
+        }
+    }
 
     /// Peeks the next `Token`'s `Kind`, if one is present.
-    fn peek_kind(&mut self) -> Option<&Kind>;
+    fn peek_kind(&mut self) -> Option<&Kind> {
+        Some(self.peek_token()?.kind())
+    }
 
     /// Tests whether the next `Token`'s `Kind` is the expected one.
     /// Returns [`None`] on an empty sequence.
@@ -37,31 +75,30 @@ pub trait Tokens {
     fn next_matches<Matcher: TokenMatcher>(&mut self, matcher: Matcher) -> Option<bool>;
 
     /// Tests whether the `Token` stream has any more tokens without consuming any.
-    fn has_next(&mut self) -> bool;
+    fn has_next(&mut self) -> bool {
+        self.next_matches(true).is_some()
+    }
 }
 
 impl<I: Iterator<Item = Result<Token, LexicalError>>> Tokens for Peekable<I> {
-    fn next_if_match<Matcher: TokenMatcher>(&mut self, matcher: Matcher) -> Option<Token> {
-        if matches!(self.peek()?, Ok(token) if matcher.matches(token)) {
-            self.next()?.ok()
-        } else {
-            None
-        }
+    fn next_token(&mut self) -> Result<Token, SyntacticalError> {
+        self.next()
+            .ok_or(SyntacticalError::Incomplete)?
+            .map_err(SyntacticalError::Lexical)
     }
 
-    fn peek_kind(&mut self) -> Option<&Kind> {
-        match self.peek()? {
-            Ok(token) => Some(token.kind()),
+    fn peek_token(&mut self) -> Option<&Token> {
+        match self.peek().map(Result::as_ref).transpose() {
+            Ok(token) => token,
             Err(_) => None,
         }
     }
 
     fn next_matches<Matcher: TokenMatcher>(&mut self, matcher: Matcher) -> Option<bool> {
-        Some(matches!(self.peek()?, Ok(token) if matcher.matches(token)))
-    }
-
-    fn has_next(&mut self) -> bool {
-        self.peek().is_some()
+        match self.peek()? {
+            Ok(token) => Some(matcher.matches(token)),
+            Err(_) => Some(false),
+        }
     }
 }
 

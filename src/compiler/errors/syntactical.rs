@@ -1,30 +1,26 @@
 //! Errors that may occur during syntax analysis.
 
+use crate::LexicalError;
+
 /// An error that occurred while generating a syntax tree from a sequence of tokens.
 /// After an error is encountered, the parser may continue to generate a tree in panic mode.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SyntacticalError {
-    kind: ErrorKind,
+#[derive(Clone, Debug, PartialEq)]
+pub enum SyntacticalError {
+    Incomplete,
+    NoMatch,
+    Lexical(LexicalError),
 }
 
 impl SyntacticalError {
     /// Tests whether the parser had complete input or ran out of tokens prematurely.
     /// [`false`] if the parser ran out of tokens. Otherwise, [`true`].
     pub fn is_complete(&self) -> bool {
-        self.kind != ErrorKind::Incomplete
+        matches!(self, Self::Incomplete)
     }
 }
 
-/// The kind of syntax error that occurred.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum ErrorKind {
-    Incomplete,
-    NoMatch,
-    Lexical,
-}
-
-impl From<ErrorKind> for SyntacticalError {
-    fn from(kind: ErrorKind) -> Self {
-        SyntacticalError { kind }
+impl From<LexicalError> for SyntacticalError {
+    fn from(error: LexicalError) -> Self {
+        Self::Lexical(error)
     }
 }

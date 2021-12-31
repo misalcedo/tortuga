@@ -2,7 +2,6 @@
 
 mod tokens;
 
-use crate::compiler::errors::syntactical::ErrorKind;
 use crate::compiler::parser::tokens::TokenMatcher;
 use crate::compiler::{Kind, Token};
 use crate::grammar::syntax::*;
@@ -56,13 +55,10 @@ impl<T: Tokens> Parser<T> {
         &mut self,
         matcher: Matcher,
     ) -> Result<Token, SyntacticalError> {
-        if self.tokens.has_next() {
-            match self.tokens.next_if_match(matcher) {
-                Some(token) => Ok(token),
-                None => Err(ErrorKind::NoMatch.into()),
-            }
-        } else {
-            Err(ErrorKind::Incomplete.into())
+        match self.tokens.next_matches(matcher) {
+            Some(true) => self.tokens.next_token(),
+            Some(false) => Err(SyntacticalError::NoMatch),
+            None => Err(SyntacticalError::Incomplete),
         }
     }
 
@@ -208,8 +204,8 @@ impl<T: Tokens> Parser<T> {
             Some(Kind::Minus | Kind::Number) => self.parse_number().map(Primary::from),
             Some(Kind::Identifier) => self.parse_call().map(Primary::from),
             Some(Kind::LeftParenthesis) => self.parse_grouping().map(Primary::from),
-            Some(_) => Err(ErrorKind::NoMatch.into()),
-            None => Err(ErrorKind::Incomplete.into()),
+            Some(_) => Err(SyntacticalError::NoMatch),
+            None => Err(SyntacticalError::Incomplete),
         }
     }
 
