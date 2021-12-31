@@ -5,7 +5,7 @@ use crate::compiler::Location;
 
 /// A combination of a `Location` and a length in bytes.
 /// Used to slice a source file to just the excerpt that is this `Lexeme`.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Lexeme {
     start: Location,
     end: Location,

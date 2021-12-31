@@ -13,8 +13,8 @@ pub struct LexicalError {
 }
 
 impl WithLexeme for LexicalError {
-    fn lexeme(&self) -> &Lexeme {
-        &self.lexeme
+    fn lexeme(&self) -> Option<&Lexeme> {
+        Some(&self.lexeme)
     }
 }
 

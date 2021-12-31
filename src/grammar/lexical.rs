@@ -14,8 +14,8 @@ impl From<Lexeme> for Identifier {
 }
 
 impl WithLexeme for Identifier {
-    fn lexeme(&self) -> &Lexeme {
-        &self.0
+    fn lexeme(&self) -> Option<&Lexeme> {
+        Some(&self.0)
     }
 }
 
@@ -30,7 +30,7 @@ impl From<Lexeme> for Number {
 }
 
 impl WithLexeme for Number {
-    fn lexeme(&self) -> &Lexeme {
-        &self.0
+    fn lexeme(&self) -> Option<&Lexeme> {
+        Some(&self.0)
     }
 }
