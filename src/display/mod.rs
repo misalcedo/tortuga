@@ -1,3 +1,5 @@
+//! Mechanisms to display Tortuga [`Program`]s and errors.
+
 mod lexeme;
 mod printer;
 
