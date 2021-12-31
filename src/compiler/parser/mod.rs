@@ -63,17 +63,15 @@ impl<T: Tokens> Parser<T> {
     pub fn parse(mut self) -> Result<Program, SyntacticalError> {
         let expression = self.parse_expression()?;
 
-        match self
-            .tokens
-            .peek_kind()
-            .ok_or_else(|| SyntacticalError::from(ErrorKind::Incomplete))?
-        {
-            Kind::LessThan
-            | Kind::GreaterThan
-            | Kind::LessThanOrEqualTo
-            | Kind::GreaterThanOrEqualTo
-            | Kind::Equal
-            | Kind::NotEqual => self.parse_comparisons(expression),
+        match self.tokens.peek_kind() {
+            Some(
+                Kind::LessThan
+                | Kind::GreaterThan
+                | Kind::LessThanOrEqualTo
+                | Kind::GreaterThanOrEqualTo
+                | Kind::Equal
+                | Kind::NotEqual,
+            ) => self.parse_comparisons(expression),
             _ => self.parse_expressions(expression),
         }
     }

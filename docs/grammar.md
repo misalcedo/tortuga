@@ -4,7 +4,7 @@ This is the complete Extended Backus Normal Form (eBNF) grammar definition for T
 The syntactic grammar of `Tortuga` is used to parse a linear sequence of tokens into a nested syntax tree structure. The root of the grammar matches an entire `Tortuga` program (or a sequence of comparisons to make the interpreter more useful).
 
 ```ebnf
-program     → expressions | comparions EOF ;
+program     → expressions | comparisons EOF ;
 expressions → expression+ ;
 comparisons → expression ( comparator expression )+ ;
 ```

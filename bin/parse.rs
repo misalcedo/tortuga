@@ -3,7 +3,7 @@
 use crate::CommandLineError;
 use colored::*;
 use std::io::{stderr, stdout, Write};
-use tortuga::{Kind, Number, Parser, Program};
+use tortuga::Program;
 
 /// Pretty print the syntax tree for the given source.
 pub fn parse_file(source: &str) -> Result<(), CommandLineError> {

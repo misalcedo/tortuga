@@ -24,11 +24,6 @@ impl<S: AsRef<[Kind]>> TokenMatcher for S {
 
 /// A sequence of tokens from Lexical Analysis.
 pub trait Tokens {
-    /// Advances the token sequence and returns the next value.
-    ///
-    /// Returns [`None`] when at the end of the sequence.
-    fn next_token(&mut self) -> Option<Result<Token, LexicalError>>;
-
     /// Gets the next `Token` if it the given `Matcher` returns [`true`]. Otherwise, returns [`None`].
     /// The underlying `Token` sequence is only advanced on a [`Some`] return value.
     fn next_if_match<Matcher: TokenMatcher>(&mut self, matcher: Matcher) -> Option<Token>;
@@ -46,10 +41,6 @@ pub trait Tokens {
 }
 
 impl<I: Iterator<Item = Result<Token, LexicalError>>> Tokens for Peekable<I> {
-    fn next_token(&mut self) -> Option<Result<Token, LexicalError>> {
-        self.next()
-    }
-
     fn next_if_match<Matcher: TokenMatcher>(&mut self, matcher: Matcher) -> Option<Token> {
         if matches!(self.peek()?, Ok(token) if matcher.matches(token)) {
             self.next()?.ok()

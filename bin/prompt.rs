@@ -10,7 +10,8 @@ use rustyline::line_buffer::LineBuffer;
 use rustyline::validate::{ValidationContext, ValidationResult, Validator};
 use rustyline::{error::ReadlineError, Editor, Helper};
 use tortuga::about;
-use tracing::error;
+use tortuga::Program;
+use tracing::{error, info};
 
 struct PromptHelper;
 
@@ -78,7 +79,13 @@ impl Validator for PromptHelper {
             return Ok(ValidationResult::Valid(None));
         }
 
-        Ok(ValidationResult::Valid(None))
+        match ctx.input().parse::<Program>() {
+            Ok(_) => Ok(ValidationResult::Valid(None)),
+            Err(error) if error.is_complete() => {
+                Ok(ValidationResult::Invalid(Some(format!("\t{:?}", error))))
+            }
+            Err(_) => Ok(ValidationResult::Incomplete),
+        }
     }
 }
 
@@ -94,7 +101,12 @@ pub fn run_prompt() -> Result<(), CommandLineError> {
         match user.prompt()? {
             None => return Ok(()),
             Some(input) if input.trim().is_empty() => continue,
-            Some(_) => (),
+            Some(input) => {
+                match input.as_str().parse::<Program>() {
+                    Ok(program) => info!("{:?}", program),
+                    Err(error) => error!("{:?}", error),
+                };
+            }
         }
     }
 }
