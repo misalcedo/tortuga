@@ -4,6 +4,24 @@ use crate::compiler::{Kind, Token};
 use crate::LexicalError;
 use std::iter::Peekable;
 
+/// Determines whether a token matches a given pattern.
+pub trait TokenMatcher {
+    /// Tests whether a token matches a given pattern.
+    fn matches(&self, token: &Token) -> bool;
+}
+
+impl TokenMatcher for Kind {
+    fn matches(&self, token: &Token) -> bool {
+        token.kind() == self
+    }
+}
+
+impl<S: AsRef<[Kind]>> TokenMatcher for S {
+    fn matches(&self, token: &Token) -> bool {
+        self.as_ref().contains(token.kind())
+    }
+}
+
 /// A sequence of tokens from Lexical Analysis.
 pub trait Tokens {
     /// Advances the token sequence and returns the next value.
@@ -11,12 +29,17 @@ pub trait Tokens {
     /// Returns [`None`] when at the end of the sequence.
     fn next_token(&mut self) -> Option<Result<Token, LexicalError>>;
 
-    /// Gets the next `Token` if it matches the expected kind. Otherwise, returns `None`.
-    /// The underlying `Token` sequence is only advanced on a `Some` return value.
-    fn next_if_kind(&mut self, expected: &[Kind]) -> Option<Token>;
+    /// Gets the next `Token` if it the given `Matcher` returns [`true`]. Otherwise, returns [`None`].
+    /// The underlying `Token` sequence is only advanced on a [`Some`] return value.
+    fn next_if_match<Matcher: TokenMatcher>(&mut self, matcher: Matcher) -> Option<Token>;
 
     /// Peeks the next `Token`'s `Kind`, if one is present.
     fn peek_kind(&mut self) -> Option<&Kind>;
+
+    /// Tests whether the next `Token`'s `Kind` is the expected one.
+    /// Returns [`None`] on an empty sequence.
+    /// Does not advance the sequence.
+    fn has_next_match<Matcher: TokenMatcher>(&mut self, matcher: Matcher) -> Option<bool>;
 
     /// Tests whether the `Token` stream has any more tokens without consuming any.
     fn has_next(&mut self) -> bool;
@@ -27,8 +50,8 @@ impl<I: Iterator<Item = Result<Token, LexicalError>>> Tokens for Peekable<I> {
         self.next()
     }
 
-    fn next_if_kind(&mut self, expected: &[Kind]) -> Option<Token> {
-        if matches!(self.peek()?, Ok(token) if expected.contains(token.kind())) {
+    fn next_if_match<Matcher: TokenMatcher>(&mut self, matcher: Matcher) -> Option<Token> {
+        if matches!(self.peek()?, Ok(token) if matcher.matches(token)) {
             self.next()?.ok()
         } else {
             None
@@ -40,6 +63,10 @@ impl<I: Iterator<Item = Result<Token, LexicalError>>> Tokens for Peekable<I> {
             Ok(token) => Some(token.kind()),
             Err(_) => None,
         }
+    }
+
+    fn has_next_match<Matcher: TokenMatcher>(&mut self, matcher: Matcher) -> Option<bool> {
+        Some(matches!(self.peek()?, Ok(token) if matcher.matches(token)))
     }
 
     fn has_next(&mut self) -> bool {
@@ -80,41 +107,69 @@ mod tests {
     }
 
     #[test]
-    fn next_if_kind_when_expected_empty() {
-        let tokens = new_tokens();
-        let mut peekable = tokens.into_iter().peekable();
-
-        assert_eq!(peekable.next_if_kind(&[]), None);
-    }
-
-    #[test]
-    fn next_if_kind_when_empty() {
+    fn has_next_of_when_empty() {
         let tokens: Vec<Result<Token, LexicalError>> = vec![];
         let mut peekable = tokens.into_iter().peekable();
 
-        assert_eq!(peekable.next_if_kind(&[Kind::Number]), None);
+        assert_eq!(peekable.has_next_match(Kind::Number), None);
     }
 
     #[test]
-    fn next_if_kind_with_tokens() {
+    fn has_next_of_with_tokens() {
+        let tokens = new_tokens();
+        let mut peekable = tokens.into_iter().peekable();
+
+        assert_eq!(peekable.has_next_match(Kind::Number), Some(true));
+        assert_eq!(peekable.has_next_match(Kind::Identifier), Some(false));
+    }
+
+    #[test]
+    fn has_next_of_with_tokens_peeked() {
+        let tokens = new_tokens();
+        let mut peekable = tokens.into_iter().peekable();
+
+        peekable.peek().unwrap();
+
+        assert_eq!(peekable.has_next_match(Kind::Number), Some(true));
+        assert_eq!(peekable.has_next_match(Kind::Identifier), Some(false));
+    }
+
+    #[test]
+    fn next_if_match_when_expected_empty() {
+        let tokens = new_tokens();
+        let mut peekable = tokens.into_iter().peekable();
+
+        assert_eq!(peekable.next_if_match(&[][..]), None);
+    }
+
+    #[test]
+    fn next_if_match_when_empty() {
+        let tokens: Vec<Result<Token, LexicalError>> = vec![];
+        let mut peekable = tokens.into_iter().peekable();
+
+        assert_eq!(peekable.next_if_match(&[Kind::Number]), None);
+    }
+
+    #[test]
+    fn next_if_match_with_tokens() {
         let tokens = new_tokens();
         let mut peekable = tokens.into_iter().peekable();
 
         assert_eq!(
-            peekable.next_if_kind(&[Kind::Number]),
+            peekable.next_if_match(&[Kind::Number]),
             Some(Token::new("1", Kind::Number))
         );
     }
 
     #[test]
-    fn next_if_kind_with_tokens_peeked() {
+    fn next_if_match_with_tokens_peeked() {
         let tokens = new_tokens();
         let mut peekable = tokens.into_iter().peekable();
 
         peekable.peek().unwrap();
 
         assert_eq!(
-            peekable.next_if_kind(&[Kind::Number]),
+            peekable.next_if_match(&[Kind::Number]),
             Some(Token::new("1", Kind::Number))
         );
     }
@@ -160,11 +215,11 @@ mod tests {
     }
 
     #[test]
-    fn next_if_kind_invalid() {
+    fn next_if_match_invalid() {
         let tokens = vec![Err(LexicalError::new("|", ErrorKind::Invalid))];
         let mut peekable = tokens.into_iter().peekable();
 
-        assert_eq!(peekable.next_if_kind(&[Kind::Number]), None)
+        assert_eq!(peekable.next_if_match(&[Kind::Number]), None)
     }
 
     #[test]
@@ -181,6 +236,14 @@ mod tests {
         let mut peekable = tokens.into_iter().peekable();
 
         assert!(peekable.has_next())
+    }
+
+    #[test]
+    fn has_next_of_invalid() {
+        let tokens = vec![Err(LexicalError::new(".", ErrorKind::Number))];
+        let mut peekable = tokens.into_iter().peekable();
+
+        assert_eq!(peekable.has_next_match(Kind::At), Some(false))
     }
 
     fn new_tokens() -> Vec<Result<Token, LexicalError>> {

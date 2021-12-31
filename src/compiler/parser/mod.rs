@@ -3,6 +3,7 @@
 mod tokens;
 
 use crate::compiler::errors::syntactical::ErrorKind;
+use crate::compiler::parser::tokens::TokenMatcher;
 use crate::compiler::{Kind, Token};
 use crate::grammar::syntax::*;
 use crate::{Scanner, SyntacticalError};
@@ -44,14 +45,17 @@ impl<T: Tokens> Parser<T> {
     ///
     /// Returns [`Err`] when at the end of the sequence,
     /// if the token's kind does not match, or if the token is invalid.
-    fn next_kind(&mut self, kinds: &[Kind]) -> Result<Token, SyntacticalError> {
+    fn next_kind<Matcher: TokenMatcher>(
+        &mut self,
+        matcher: Matcher,
+    ) -> Result<Token, SyntacticalError> {
         if self.tokens.has_next() {
-            match self.tokens.next_if_kind(kinds) {
+            match self.tokens.next_if_match(matcher) {
                 Some(token) => Ok(token),
-                None => Err(SyntacticalError::from(ErrorKind::NoMatch)),
+                None => Err(ErrorKind::NoMatch.into()),
             }
         } else {
-            Err(SyntacticalError::from(ErrorKind::Incomplete))
+            Err(ErrorKind::Incomplete.into())
         }
     }
 
@@ -119,7 +123,7 @@ impl<T: Tokens> Parser<T> {
     }
 
     fn parse_expression(&mut self) -> Result<Expression, SyntacticalError> {
-        if let Some(&Kind::At) = self.tokens.peek_kind() {
+        if let Some(Kind::At) = self.tokens.peek_kind() {
             self.parse_assignment().map(Expression::from)
         } else {
             self.parse_epsilon().map(Expression::from)
@@ -127,7 +131,87 @@ impl<T: Tokens> Parser<T> {
     }
 
     fn parse_epsilon(&mut self) -> Result<Epsilon, SyntacticalError> {
+        let lhs = self.parse_modulo()?;
+        let mut rhs = None;
+
+        if self.tokens.next_if_match(&[Kind::Tilde]).is_some() {
+            rhs = Some(self.parse_modulo()?);
+        }
+
+        Ok(Epsilon::new(lhs, rhs))
+    }
+
+    fn parse_modulo(&mut self) -> Result<Modulo, SyntacticalError> {
         Err(ErrorKind::NoMatch.into())
+    }
+
+    fn parse_sum(&mut self) -> Result<Sum, SyntacticalError> {
+        Err(ErrorKind::NoMatch.into())
+    }
+
+    fn parse_product(&mut self) -> Result<Product, SyntacticalError> {
+        Err(ErrorKind::NoMatch.into())
+    }
+
+    fn parse_power(&mut self) -> Result<Power, SyntacticalError> {
+        let lhs = self.parse_primary()?;
+        let mut rhs = Vec::new();
+
+        while let Some(true) = self.tokens.has_next_match(Kind::Caret) {
+            rhs.push(self.parse_primary()?);
+        }
+
+        Ok(List::new(lhs, rhs))
+    }
+
+    fn parse_primary(&mut self) -> Result<Primary, SyntacticalError> {
+        match self.tokens.peek_kind() {
+            Some(Kind::Minus | Kind::Number) => self.parse_number().map(Primary::from),
+            Some(Kind::Identifier) => self.parse_call().map(Primary::from),
+            Some(Kind::LeftParenthesis) => self.parse_grouping().map(Primary::from),
+            Some(_) => Err(ErrorKind::NoMatch.into()),
+            None => Err(ErrorKind::Incomplete.into()),
+        }
+    }
+
+    fn parse_number(&mut self) -> Result<Number, SyntacticalError> {
+        let negative = self.tokens.next_if_match(Kind::Minus).is_some();
+        let number = self.next_kind(Kind::Number)?;
+
+        Ok(Number::new(negative, *number.lexeme()))
+    }
+
+    fn parse_call(&mut self) -> Result<Call, SyntacticalError> {
+        let identifier = self.next_kind(Kind::Identifier)?;
+
+        self.next_kind(Kind::LeftParenthesis)?;
+
+        let arguments = self.parse_arguments()?;
+
+        self.next_kind(Kind::RightParenthesis)?;
+
+        Ok(Call::new(*identifier.lexeme(), arguments))
+    }
+
+    fn parse_arguments(&mut self) -> Result<Arguments, SyntacticalError> {
+        let head = self.parse_expression()?;
+        let mut tail = Vec::new();
+
+        while let Some(false) = self.tokens.has_next_match(Kind::RightParenthesis) {
+            tail.push(self.parse_expression()?);
+        }
+
+        Ok(List::new(head, tail))
+    }
+
+    fn parse_grouping(&mut self) -> Result<Grouping, SyntacticalError> {
+        self.next_kind(Kind::LeftParenthesis)?;
+
+        let expression = self.parse_expression()?;
+
+        self.next_kind(Kind::RightParenthesis)?;
+
+        Ok(expression.into())
     }
 
     fn parse_assignment(&mut self) -> Result<Assignment, SyntacticalError> {

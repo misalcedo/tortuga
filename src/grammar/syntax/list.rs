@@ -16,8 +16,8 @@ where
     Tail: Clone + Debug + Eq + PartialEq + Ord + PartialOrd,
 {
     /// Creates a new instance of a non-empty `List`.
-    pub fn new(head: Head, tail: Vec<Tail>) -> Self {
-        List(head, tail)
+    pub fn new<H: Into<Head>>(head: H, tail: Vec<Tail>) -> Self {
+        List(head.into(), tail)
     }
 
     /// The head of this `List`.

@@ -88,6 +88,24 @@ pub enum Primary {
     Grouping(Grouping),
 }
 
+impl From<Number> for Primary {
+    fn from(number: Number) -> Self {
+        Primary::Number(number)
+    }
+}
+
+impl From<Call> for Primary {
+    fn from(call: Call) -> Self {
+        Primary::Call(call)
+    }
+}
+
+impl From<Grouping> for Primary {
+    fn from(grouping: Grouping) -> Self {
+        Primary::Grouping(grouping)
+    }
+}
+
 /// number → "-"? NUMBER ;
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Number {
@@ -97,8 +115,11 @@ pub struct Number {
 
 impl Number {
     /// Creates a new instance of a `number` grammar rule.
-    pub fn new(negative: bool, number: lexical::Number) -> Self {
-        Number { negative, number }
+    pub fn new<I: Into<lexical::Number>>(negative: bool, number: I) -> Self {
+        Number {
+            negative,
+            number: number.into(),
+        }
     }
 
     /// Tests whether this `Number` represents a negative value.
@@ -113,7 +134,21 @@ impl Number {
 }
 
 /// call → IDENTIFIER ( "(" arguments ")" )* ;
-pub type Call = List<lexical::Identifier, Arguments>;
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub struct Call {
+    identifier: lexical::Identifier,
+    arguments: Arguments,
+}
+
+impl Call {
+    /// Creates a new instance of a `Call` grammar rule.
+    pub fn new<I: Into<lexical::Identifier>>(identifier: I, arguments: Arguments) -> Self {
+        Call {
+            identifier: identifier.into(),
+            arguments,
+        }
+    }
+}
 
 /// arguments → expression ( "," expression )* ;
 pub type Arguments = List<Expression>;
