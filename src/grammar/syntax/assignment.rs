@@ -31,8 +31,8 @@ pub type Block = List<Expression>;
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Pattern {
     Function(Box<Function>),
-    Bounds(Box<Bounds>),
     Refinement(Box<Refinement>),
+    Bounds(Box<Bounds>),
 }
 
 impl From<Function> for Pattern {

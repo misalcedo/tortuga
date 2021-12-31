@@ -16,7 +16,6 @@ A program is a series of expressions. Expressions produce values. `Tortuga` has 
 ```ebnf
 expression → assignment | arithmetic ;
 assignment → function "=" block ;
-function   → name parameters? ;
 block      → "[" expression expression+ "]" | expression ;
 
 arithmetic → epsilon ;
@@ -36,7 +35,8 @@ grouping   → "(" expression ")" ;
 The grammar allows pattern-matching in function definitions instead of having built-in control flow. These rules define the allowed patterns.
 
 ```ebnf
-pattern    → refinement | function | bounds ;
+pattern    → function | refinement | bounds ;
+function   → name parameters? ;
 refinement → name comparator arithmetic ;
 bounds     → arithmetic inequality name inequality arithmetic ;
 ```

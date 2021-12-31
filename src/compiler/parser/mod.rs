@@ -19,6 +19,13 @@ const COMPARISON_KINDS: &[Kind] = &[
     Kind::Equal,
     Kind::NotEqual,
 ];
+const NAME_KINDS: &[Kind] = &[Kind::At, Kind::Underscore];
+const INEQUALITY_KINDS: &[Kind] = &[
+    Kind::LessThan,
+    Kind::GreaterThan,
+    Kind::LessThanOrEqualTo,
+    Kind::GreaterThanOrEqualTo,
+];
 
 /// A recursive descent LL(1) parser for the syntax grammar.
 /// Parses a sequence of `Token`s into syntax tree.
@@ -118,7 +125,7 @@ impl<T: Tokens> Parser<T> {
     }
 
     fn parse_expression(&mut self) -> Result<Expression, SyntacticalError> {
-        if let Some(Kind::At) = self.tokens.peek_kind() {
+        if let Some(true) = self.tokens.next_matches(NAME_KINDS) {
             self.parse_assignment().map(Expression::from)
         } else {
             self.parse_arithmetic().map(Expression::from)
@@ -261,17 +268,13 @@ impl<T: Tokens> Parser<T> {
 
     fn parse_function(&mut self) -> Result<Function, SyntacticalError> {
         let name = self.parse_name()?;
-        let mut parameters = None;
-
-        if let Some(true) = self.tokens.next_matches(Kind::LeftParenthesis) {
-            parameters = Some(self.parse_parameters()?);
-        }
+        let parameters = self.parse_optional_parameters()?;
 
         Ok(Function::new(name, parameters))
     }
 
     fn parse_name(&mut self) -> Result<Name, SyntacticalError> {
-        let token = self.next_kind(&[Kind::At, Kind::Underscore])?;
+        let token = self.next_kind(NAME_KINDS)?;
 
         match token.kind() {
             Kind::At => {
@@ -280,6 +283,14 @@ impl<T: Tokens> Parser<T> {
                 Ok(Name::from(*identifier.lexeme()))
             }
             _ => Ok(Name::Anonymous),
+        }
+    }
+
+    fn parse_optional_parameters(&mut self) -> Result<Option<Parameters>, SyntacticalError> {
+        if let Some(true) = self.tokens.next_matches(Kind::LeftParenthesis) {
+            Ok(Some(self.parse_parameters()?))
+        } else {
+            Ok(None)
         }
     }
 
@@ -299,22 +310,49 @@ impl<T: Tokens> Parser<T> {
     }
 
     fn parse_pattern(&mut self) -> Result<Pattern, SyntacticalError> {
+        if let Some(true) = self.tokens.next_matches(NAME_KINDS) {
+            let name = self.parse_name()?;
+
+            if let Some(true) = self.tokens.next_matches(COMPARISON_KINDS) {
+                self.parse_refinement(name)
+            } else {
+                let parameters = self.parse_optional_parameters()?;
+
+                Ok(Function::new(name, parameters).into())
+            }
+        } else {
+            Ok(self.parse_bounds()?.into())
+        }
+    }
+
+    fn parse_inequality(&mut self) -> Result<Inequality, SyntacticalError> {
+        let operator = match self.next_kind(INEQUALITY_KINDS)?.kind() {
+            Kind::LessThan => Inequality::LessThan,
+            Kind::GreaterThan => Inequality::GreaterThan,
+            Kind::LessThanOrEqualTo => Inequality::LessThanOrEqualTo,
+            _ => Inequality::GreaterThanOrEqualTo,
+        };
+
+        Ok(operator)
+    }
+
+    fn parse_bounds(&mut self) -> Result<Bounds, SyntacticalError> {
+        let left = Bound::new(self.parse_arithmetic()?, self.parse_inequality()?);
+
         let name = self.parse_name()?;
 
-        if let Some(true) = self.tokens.next_matches(COMPARISON_KINDS) {
-            let comparator = self.parse_comparator()?;
-            let arithmetic = self.parse_arithmetic()?;
+        let right_inequality = self.parse_inequality()?;
+        let right_constraint = self.parse_arithmetic()?;
+        let right = Bound::new(right_constraint, right_inequality);
 
-            Ok(Refinement::new(name, comparator, arithmetic).into())
-        } else {
-            let mut parameters = None;
+        Ok(Bounds::new(left, name, right))
+    }
 
-            if let Some(true) = self.tokens.next_matches(Kind::LeftParenthesis) {
-                parameters = Some(self.parse_parameters()?);
-            }
+    fn parse_refinement(&mut self, name: Name) -> Result<Pattern, SyntacticalError> {
+        let comparator = self.parse_comparator()?;
+        let arithmetic = self.parse_arithmetic()?;
 
-            Ok(Function::new(name, parameters).into())
-        }
+        Ok(Refinement::new(name, comparator, arithmetic).into())
     }
 
     fn parse_block(&mut self) -> Result<Block, SyntacticalError> {
