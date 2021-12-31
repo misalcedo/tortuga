@@ -57,7 +57,12 @@ impl<T: Tokens> Parser<T> {
     ) -> Result<Token, SyntacticalError> {
         match self.tokens.next_matches(matcher) {
             Some(true) => self.tokens.next_token(),
-            Some(false) => Err(SyntacticalError::NoMatch),
+            Some(false) => Err(SyntacticalError::NoMatch(
+                self.tokens
+                    .peek_token()
+                    .copied()
+                    .ok_or(SyntacticalError::Incomplete)?,
+            )),
             None => Err(SyntacticalError::Incomplete),
         }
     }
@@ -200,24 +205,31 @@ impl<T: Tokens> Parser<T> {
     }
 
     fn parse_primary(&mut self) -> Result<Primary, SyntacticalError> {
-        match self.tokens.peek_kind() {
-            Some(Kind::Minus | Kind::Number) => self.parse_number().map(Primary::from),
-            Some(Kind::Identifier) => self.parse_call().map(Primary::from),
-            Some(Kind::LeftParenthesis) => self.parse_grouping().map(Primary::from),
-            Some(_) => Err(SyntacticalError::NoMatch),
-            None => Err(SyntacticalError::Incomplete),
+        let token = self.next_kind(&[
+            Kind::Minus,
+            Kind::Number,
+            Kind::Identifier,
+            Kind::LeftParenthesis,
+        ])?;
+
+        match token.kind() {
+            Kind::Minus | Kind::Number => self.parse_number(token).map(Primary::from),
+            Kind::Identifier => self.parse_call(token).map(Primary::from),
+            _ => self.parse_grouping(token).map(Primary::from),
         }
     }
 
-    fn parse_number(&mut self) -> Result<Number, SyntacticalError> {
-        let negative = self.tokens.next_if_match(Kind::Minus).is_some();
-        let number = self.next_kind(Kind::Number)?;
-
-        Ok(Number::new(negative, *number.lexeme()))
+    fn parse_number(&mut self, token: Token) -> Result<Number, SyntacticalError> {
+        match token.kind() {
+            Kind::Minus => {
+                let number = self.next_kind(Kind::Number)?;
+                Ok(Number::new(true, *number.lexeme()))
+            }
+            _ => Ok(Number::new(false, *token.lexeme())),
+        }
     }
 
-    fn parse_call(&mut self) -> Result<Call, SyntacticalError> {
-        let identifier = self.next_kind(Kind::Identifier)?;
+    fn parse_call(&mut self, identifier: Token) -> Result<Call, SyntacticalError> {
         let mut arguments = Vec::new();
 
         while let Some(true) = self.tokens.next_matches(Kind::LeftParenthesis) {
@@ -242,9 +254,7 @@ impl<T: Tokens> Parser<T> {
         Ok(List::new(head, tail))
     }
 
-    fn parse_grouping(&mut self) -> Result<Grouping, SyntacticalError> {
-        self.next_kind(Kind::LeftParenthesis)?;
-
+    fn parse_grouping(&mut self, _: Token) -> Result<Grouping, SyntacticalError> {
         let expression = self.parse_expression()?;
 
         self.next_kind(Kind::RightParenthesis)?;

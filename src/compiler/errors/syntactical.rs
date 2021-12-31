@@ -1,5 +1,6 @@
 //! Errors that may occur during syntax analysis.
 
+use crate::compiler::Token;
 use crate::LexicalError;
 
 /// An error that occurred while generating a syntax tree from a sequence of tokens.
@@ -7,7 +8,7 @@ use crate::LexicalError;
 #[derive(Clone, Debug, PartialEq)]
 pub enum SyntacticalError {
     Incomplete,
-    NoMatch,
+    NoMatch(Token),
     Lexical(LexicalError),
 }
 
