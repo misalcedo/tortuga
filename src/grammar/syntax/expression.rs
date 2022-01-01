@@ -10,7 +10,7 @@ use crate::grammar::syntax::{Assignment, List};
 
 pub type Expressions = List<Expression>;
 
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Expression {
     Arithmetic(Box<Arithmetic>),
     Assignment(Box<Assignment>),
@@ -28,7 +28,7 @@ impl From<Assignment> for Expression {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Arithmetic(Epsilon);
 
 impl Arithmetic {
@@ -44,7 +44,7 @@ impl From<Epsilon> for Arithmetic {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Epsilon {
     lhs: Modulo,
     rhs: Option<Modulo>,
@@ -72,7 +72,7 @@ pub type Modulo = List<Sum>;
 pub type Sum = List<Product, AddOrSubtract>;
 
 /// The operator and right-hand side for the `sum` grammar rule.
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AddOrSubtract {
     /// +
     Add(Product),
@@ -82,7 +82,7 @@ pub enum AddOrSubtract {
 pub type Product = List<Power, MultiplyOrDivide>;
 
 /// The operator and right-hand side for the `product` grammar rule.
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum MultiplyOrDivide {
     Multiply(Power),
     Divide(Power),
@@ -90,7 +90,7 @@ pub enum MultiplyOrDivide {
 
 pub type Power = List<Primary>;
 
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Primary {
     Number(Number),
     Call(Call),
@@ -117,14 +117,14 @@ impl From<Grouping> for Primary {
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Number {
-    negative: bool,
     number: lexical::Number,
+    negative: bool,
 }
 
 impl Number {
     /// Creates a new instance of a `number` grammar rule.
     pub fn new(negative: bool, number: lexical::Number) -> Self {
-        Number { negative, number }
+        Number { number, negative }
     }
 
     /// Tests whether this `Number` represents a negative value.
@@ -138,7 +138,7 @@ impl Number {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Call {
     identifier: lexical::Identifier,
     arguments: Vec<Arguments>,
@@ -166,7 +166,7 @@ impl Call {
 
 pub type Arguments = List<Expression>;
 
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Grouping(Expression);
 
 impl From<Expression> for Grouping {

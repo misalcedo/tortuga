@@ -4,7 +4,7 @@ use crate::grammar::lexical::Identifier;
 use crate::grammar::syntax::{Arithmetic, Comparator, Expression, List};
 use std::fmt::{self, Write};
 
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Assignment {
     function: Function,
     block: Block,
@@ -29,7 +29,7 @@ impl Assignment {
 
 pub type Block = List<Expression>;
 
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Pattern {
     Function(Box<Function>),
     Refinement(Box<Refinement>),
@@ -54,7 +54,7 @@ impl From<Bounds> for Pattern {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Function {
     name: Name,
     parameters: Option<Parameters>,
@@ -91,7 +91,7 @@ impl From<Identifier> for Name {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Bounds {
     left: Bound,
     name: Name,
@@ -121,7 +121,7 @@ impl Bounds {
 }
 
 /// The singular bound on a `range` pattern.
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Bound {
     constraint: Arithmetic,
     inequality: Inequality,
@@ -147,7 +147,7 @@ impl Bound {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Inequality {
     LessThan,
     LessThanOrEqualTo,
@@ -166,7 +166,7 @@ impl fmt::Display for Inequality {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Refinement {
     name: Name,
     comparator: Comparator,

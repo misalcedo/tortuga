@@ -2,7 +2,7 @@ use crate::grammar::syntax::{Expression, List};
 use std::fmt::{self, Write};
 
 /// A pair of a comparison operator and the right-hand side expression to compare against.
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Comparison(Comparator, Expression);
 
 impl Comparison {
@@ -22,7 +22,7 @@ impl Comparison {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Comparisons {
     lhs: Expression,
     comparison: List<Comparison>,
@@ -46,7 +46,7 @@ impl Comparisons {
 }
 
 /// Comparison operators.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Comparator {
     LessThan,
     LessThanOrEqualTo,

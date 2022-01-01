@@ -4,16 +4,16 @@ use std::fmt::Debug;
 
 /// A non-empty `List` of items.
 /// By default, the `Head` and `Tail` of a `List` have the same type, but they may differ.  
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct List<H, T = H>(H, Vec<T>)
 where
-    H: Clone + Debug + Eq + PartialEq + Ord + PartialOrd,
-    T: Clone + Debug + Eq + PartialEq + Ord + PartialOrd;
+    H: Clone + Debug + Eq + PartialEq,
+    T: Clone + Debug + Eq + PartialEq;
 
 impl<Head, Tail> List<Head, Tail>
 where
-    Head: Clone + Debug + Eq + PartialEq + Ord + PartialOrd,
-    Tail: Clone + Debug + Eq + PartialEq + Ord + PartialOrd,
+    Head: Clone + Debug + Eq + PartialEq,
+    Tail: Clone + Debug + Eq + PartialEq,
 {
     /// Creates a new instance of a non-empty `List`.
     pub fn new<H: Into<Head>>(head: H, tail: Vec<Tail>) -> Self {
