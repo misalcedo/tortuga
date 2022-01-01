@@ -1,11 +1,12 @@
 //! Valid values in the Tortuga runtime.
 
 use crate::runtime::{Number, Tolerance};
+use std::cmp::Ordering;
 use std::fmt;
 use std::ops::{Add, BitAnd, BitXor, Div, Mul, Rem, Sub};
 
 /// A value that may be created by a literal, or returned from a function.
-#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Debug)]
 pub enum Value {
     Unit,
     Boolean(bool),
@@ -128,7 +129,7 @@ impl Rem for Value {
 
     fn rem(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
-            (Value::Number(a), Value::Number(b)) => Value::Number(a + b),
+            (Value::Number(a), Value::Number(b)) => Value::Number(a % b),
             _ => Self::Unit,
         }
     }
@@ -154,6 +155,48 @@ impl BitAnd for Value {
         match (self, rhs) {
             (Value::Boolean(a), Value::Boolean(b)) => Value::Boolean(a && b),
             _ => Self::Unit,
+        }
+    }
+}
+
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Value::Number(a), Value::Number(b)) => a == b,
+            (Value::Tolerance(a), Value::Tolerance(b)) => a == b,
+            (Value::Boolean(a), Value::Boolean(b)) => a == b,
+            (Value::Unit, Value::Unit) => true,
+            (Value::Number(a), Value::Tolerance(b)) => b.contains(a),
+            (Value::Tolerance(a), Value::Number(b)) => a.contains(b),
+            _ => false,
+        }
+    }
+}
+
+impl PartialOrd for Value {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match (self, other) {
+            (Value::Number(a), Value::Number(b)) => a.partial_cmp(b),
+            (a @ Value::Tolerance(_), b @ Value::Number(_)) => {
+                b.partial_cmp(a).map(|x| x.reverse())
+            }
+            (Value::Number(a), Value::Tolerance(b)) => {
+                if a < &b.min() {
+                    Some(Ordering::Less)
+                } else if a > &b.max() {
+                    Some(Ordering::Greater)
+                } else {
+                    Some(Ordering::Equal)
+                }
+            }
+            (Value::Tolerance(a), Value::Tolerance(b)) => {
+                if (a.min() <= b.max()) && (a.max() >= b.min()) {
+                    a.center().partial_cmp(&b.center())
+                } else {
+                    a.max().partial_cmp(&b.min())
+                }
+            }
+            _ => None,
         }
     }
 }

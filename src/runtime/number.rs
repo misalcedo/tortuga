@@ -8,7 +8,7 @@ use std::ops::{Add, BitXor, Div, Mul, Rem, Sub};
 pub struct Number(f64);
 
 impl Number {
-    /// The ~ operator in Tortuga. Used to create an `EpsilonRange`.
+    /// The ~ operator in Tortuga. Used to create an `Tolerance`.
     pub fn epsilon(&self, epsilon: Number) -> Tolerance {
         Tolerance::new(*self, epsilon)
     }

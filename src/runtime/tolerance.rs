@@ -18,18 +18,38 @@ pub struct Tolerance {
 }
 
 impl Tolerance {
-    /// Creates a new instance of an `EpsilonRange` around a given `center`.
+    /// Creates a new instance of an `Tolerance` around a given `center`.
     pub fn new<C: Into<Number>, E: Into<Number>>(center: C, epsilon: E) -> Self {
         Tolerance {
             center: center.into(),
             epsilon: epsilon.into(),
         }
     }
+
+    /// The minimum value of this [`Tolerance].
+    pub fn min(&self) -> Number {
+        self.center - self.epsilon
+    }
+
+    /// The central value of this [`Tolerance].
+    pub fn center(&self) -> Number {
+        self.center
+    }
+
+    /// The maximum value of this [`Tolerance].
+    pub fn max(&self) -> Number {
+        self.center + self.epsilon
+    }
+
+    /// Tests whether the given number is contained in this [`Tolerance].
+    pub fn contains(&self, number: &Number) -> bool {
+        &self.min() <= number && number <= &self.max()
+    }
 }
 
 impl fmt::Display for Tolerance {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} \u{C2B1} {}", self.center, self.epsilon)
+        write!(f, "{} ± {}", self.center, self.epsilon)
     }
 }
 
