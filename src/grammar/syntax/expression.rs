@@ -30,6 +30,13 @@ impl From<Assignment> for Expression {
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Arithmetic(Epsilon);
 
+impl Arithmetic {
+    /// The [`Epsilon`] grammar rule wrapped by this [`Arithmetic`] rule.
+    pub fn epsilon(&self) -> &Epsilon {
+        &self.0
+    }
+}
+
 impl From<Epsilon> for Arithmetic {
     fn from(epsilon: Epsilon) -> Self {
         Arithmetic(epsilon)
@@ -146,6 +153,16 @@ impl Call {
             identifier: identifier.into(),
             arguments,
         }
+    }
+
+    /// The [`lexical::Identifier`] of the function to [`Call`].
+    pub fn identifier(&self) -> &lexical::Identifier {
+        &self.identifier
+    }
+
+    /// The [`Arguments`] to invoke this function [`Call`] with.
+    pub fn arguments(&self) -> &[Arguments] {
+        &self.arguments
     }
 }
 

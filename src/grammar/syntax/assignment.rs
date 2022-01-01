@@ -2,6 +2,7 @@
 
 use crate::grammar::lexical::Identifier;
 use crate::grammar::syntax::{Arithmetic, Comparator, Expression, List};
+use std::fmt::{self, Write};
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Assignment {
@@ -152,6 +153,17 @@ pub enum Inequality {
     LessThanOrEqualTo,
     GreaterThan,
     GreaterThanOrEqualTo,
+}
+
+impl fmt::Display for Inequality {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Inequality::LessThan => f.write_char('<'),
+            Inequality::LessThanOrEqualTo => f.write_str("<="),
+            Inequality::GreaterThan => f.write_char('>'),
+            Inequality::GreaterThanOrEqualTo => f.write_str(">="),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
