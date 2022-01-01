@@ -2,7 +2,7 @@
 
 use crate::runtime::{Number, Tolerance};
 use std::fmt;
-use std::ops::{Add, BitXor, Div, Mul, Rem, Sub};
+use std::ops::{Add, BitAnd, BitXor, Div, Mul, Rem, Sub};
 
 /// A value that may be created by a literal, or returned from a function.
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
@@ -36,6 +36,12 @@ impl fmt::Display for Value {
 impl From<Number> for Value {
     fn from(number: Number) -> Self {
         Value::Number(number)
+    }
+}
+
+impl From<i32> for Value {
+    fn from(number: i32) -> Self {
+        Value::Number(number.into())
     }
 }
 
@@ -136,6 +142,17 @@ impl BitXor for Value {
             (Value::Number(a), Value::Number(b)) => Value::Number(a ^ b),
             (Value::Tolerance(a), Value::Number(b)) => Value::Tolerance(a ^ b),
             (Value::Number(a), Value::Tolerance(b)) => Value::Tolerance(a ^ b),
+            _ => Self::Unit,
+        }
+    }
+}
+
+impl BitAnd for Value {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (Value::Boolean(a), Value::Boolean(b)) => Value::Boolean(a && b),
             _ => Self::Unit,
         }
     }

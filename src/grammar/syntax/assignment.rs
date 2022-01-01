@@ -79,15 +79,15 @@ impl Function {
 
 pub type Parameters = List<Pattern>;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Name {
     Anonymous,
     Identified(Identifier),
 }
 
-impl<I: Into<Identifier>> From<I> for Name {
-    fn from(identifier: I) -> Self {
-        Name::Identified(identifier.into())
+impl From<Identifier> for Name {
+    fn from(identifier: Identifier) -> Self {
+        Name::Identified(identifier)
     }
 }
 

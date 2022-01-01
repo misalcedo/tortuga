@@ -2,11 +2,22 @@
 
 use crate::grammar::*;
 use crate::runtime::{Environment, Value};
-use crate::{Program, WithLexeme};
+use crate::Program;
 
 /// Interprets a Tortuga [`Program`] and returns the [`Value`].
 ///
 /// # Example
+/// ## Expression
+/// ```rust
+/// use tortuga::{Program, Interpreter};
+///
+/// let program: Program = "(2 + 2#10) ^ 2".parse::<Program>().unwrap();
+/// let mut interpreter = Interpreter::default();
+///
+/// assert_eq!(interpreter.run(program), 16.into());
+/// ```
+///
+/// ## Comparison
 /// ```rust
 /// use tortuga::{Program, Interpreter};
 ///
@@ -154,8 +165,7 @@ impl Interpret for Primary {
 impl Interpret for Number {
     fn execute(&self, _: &mut Environment) -> Value {
         self.number()
-            .lexeme()
-            .extract_from("")
+            .as_str()
             .parse::<crate::runtime::Number>()
             .map(Value::Number)
             .unwrap_or(Value::Unit)
@@ -169,7 +179,36 @@ impl Interpret for Call {
 }
 
 impl Interpret for Comparisons {
-    fn execute(&self, _: &mut Environment) -> Value {
-        Value::Unit
+    fn execute(&self, environment: &mut Environment) -> Value {
+        let mut lhs = self.lhs().execute(environment);
+        let mut comparator = self.comparisons().head().comparator();
+        let mut rhs = self.comparisons().head().rhs().execute(environment);
+
+        let mut value = compare(lhs, comparator, rhs);
+
+        for comparison in self.comparisons().tail() {
+            if value == Value::Boolean(false) {
+                break;
+            }
+
+            lhs = rhs;
+            comparator = comparison.comparator();
+            rhs = comparison.rhs().execute(environment);
+
+            value = value & compare(lhs, comparator, rhs);
+        }
+
+        value
     }
+}
+
+fn compare(lhs: Value, comparator: &Comparator, rhs: Value) -> Value {
+    Value::Boolean(match comparator {
+        Comparator::LessThan => lhs < rhs,
+        Comparator::LessThanOrEqualTo => lhs <= rhs,
+        Comparator::GreaterThan => lhs > rhs,
+        Comparator::GreaterThanOrEqualTo => lhs >= rhs,
+        Comparator::EqualTo => lhs == rhs,
+        Comparator::NotEqualTo => lhs != rhs,
+    })
 }

@@ -4,6 +4,7 @@ mod tokens;
 
 use crate::compiler::parser::tokens::TokenMatcher;
 use crate::compiler::{Kind, Token};
+use crate::grammar::lexical;
 use crate::grammar::syntax::*;
 use crate::{Scanner, SyntacticalError};
 use std::iter::Peekable;
@@ -35,25 +36,21 @@ const INEQUALITY_KINDS: &[Kind] = &[
 ///
 /// assert!("(2 + 2#10) ^ 2 = 16".parse::<Program>().is_ok());
 /// ```
-pub struct Parser<T: Tokens> {
+pub struct Parser<'a, T: Tokens> {
+    source: &'a str,
     tokens: T,
 }
 
-impl<'a> From<&'a str> for Parser<Peekable<Scanner<'a>>> {
+impl<'a> From<&'a str> for Parser<'a, Peekable<Scanner<'a>>> {
     fn from(source: &'a str) -> Self {
         Parser {
+            source,
             tokens: Scanner::from(source).peekable(),
         }
     }
 }
 
-impl<T: Tokens> From<T> for Parser<T> {
-    fn from(tokens: T) -> Self {
-        Parser { tokens }
-    }
-}
-
-impl<T: Tokens> Parser<T> {
+impl<'a, T: Tokens> Parser<'a, T> {
     /// Advances the token sequence and returns the next value if the token is one of the expected [`Kind`]s.
     ///
     /// Returns [`Err`] when at the end of the sequence,
@@ -230,9 +227,15 @@ impl<T: Tokens> Parser<T> {
         match token.kind() {
             Kind::Minus => {
                 let number = self.next_kind(Kind::Number)?;
-                Ok(Number::new(true, *number.lexeme()))
+                Ok(Number::new(
+                    true,
+                    lexical::Number::new(self.source, number.lexeme()),
+                ))
             }
-            _ => Ok(Number::new(false, *token.lexeme())),
+            _ => Ok(Number::new(
+                false,
+                lexical::Number::new(self.source, token.lexeme()),
+            )),
         }
     }
 
@@ -243,7 +246,10 @@ impl<T: Tokens> Parser<T> {
             arguments.push(self.parse_arguments()?);
         }
 
-        Ok(Call::new(*identifier.lexeme(), arguments))
+        Ok(Call::new(
+            lexical::Identifier::new(self.source, identifier.lexeme()),
+            arguments,
+        ))
     }
 
     fn parse_arguments(&mut self) -> Result<Arguments, SyntacticalError> {
@@ -293,7 +299,10 @@ impl<T: Tokens> Parser<T> {
             Kind::At => {
                 let identifier = self.next_kind(Kind::Identifier)?;
 
-                Ok(Name::from(*identifier.lexeme()))
+                Ok(Name::from(lexical::Identifier::new(
+                    self.source,
+                    identifier.lexeme(),
+                )))
             }
             _ => Ok(Name::Anonymous),
         }

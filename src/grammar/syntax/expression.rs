@@ -5,6 +5,7 @@
 //! Here, we use a separate rule for each precedence level to make it explicit.
 
 use crate::grammar::lexical;
+use crate::grammar::lexical::Identifier;
 use crate::grammar::syntax::{Assignment, List};
 
 pub type Expressions = List<Expression>;
@@ -114,7 +115,7 @@ impl From<Grouping> for Primary {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Number {
     negative: bool,
     number: lexical::Number,
@@ -122,11 +123,8 @@ pub struct Number {
 
 impl Number {
     /// Creates a new instance of a `number` grammar rule.
-    pub fn new<I: Into<lexical::Number>>(negative: bool, number: I) -> Self {
-        Number {
-            negative,
-            number: number.into(),
-        }
+    pub fn new(negative: bool, number: lexical::Number) -> Self {
+        Number { negative, number }
     }
 
     /// Tests whether this `Number` represents a negative value.
@@ -148,9 +146,9 @@ pub struct Call {
 
 impl Call {
     /// Creates a new instance of a `Call` grammar rule.
-    pub fn new<I: Into<lexical::Identifier>>(identifier: I, arguments: Vec<Arguments>) -> Self {
+    pub fn new(identifier: Identifier, arguments: Vec<Arguments>) -> Self {
         Call {
-            identifier: identifier.into(),
+            identifier,
             arguments,
         }
     }
