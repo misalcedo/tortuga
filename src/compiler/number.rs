@@ -82,7 +82,7 @@ fn get_matches<'a>(captures: &Captures<'a>, indices: &[usize]) -> Option<&'a str
         }
     }
 
-    return None;
+    None
 }
 
 fn get_match<'a>(captures: &Captures<'a>, index: usize) -> Option<&'a str> {
