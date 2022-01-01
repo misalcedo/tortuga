@@ -2,7 +2,9 @@
 
 use crate::runtime::Number;
 use std::fmt;
-use std::ops::{Add, BitXor, Div, Mul, Sub};
+use std::ops::{
+    Add, AddAssign, BitXor, BitXorAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign,
+};
 
 /// A range centered around a value.
 /// The start and end of the range are inclusive of the center plus and minus a value epsilon.
@@ -188,5 +190,49 @@ impl BitXor<Tolerance> for Number {
             center: self ^ rhs.center,
             epsilon: rhs.epsilon,
         }
+    }
+}
+
+impl AddAssign for Tolerance {
+    fn add_assign(&mut self, rhs: Self) {
+        self.center += rhs.center;
+        self.epsilon += rhs.epsilon;
+    }
+}
+
+impl AddAssign<Number> for Tolerance {
+    fn add_assign(&mut self, rhs: Number) {
+        self.center += rhs;
+    }
+}
+
+impl SubAssign for Tolerance {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.center -= rhs.center;
+        self.epsilon += rhs.epsilon;
+    }
+}
+
+impl SubAssign<Number> for Tolerance {
+    fn sub_assign(&mut self, rhs: Number) {
+        self.center -= rhs;
+    }
+}
+
+impl MulAssign<Number> for Tolerance {
+    fn mul_assign(&mut self, rhs: Number) {
+        self.center *= rhs;
+    }
+}
+
+impl DivAssign<Number> for Tolerance {
+    fn div_assign(&mut self, rhs: Number) {
+        self.center /= rhs;
+    }
+}
+
+impl BitXorAssign<Number> for Tolerance {
+    fn bitxor_assign(&mut self, rhs: Number) {
+        self.center ^= rhs;
     }
 }

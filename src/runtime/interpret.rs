@@ -103,7 +103,7 @@ impl Interpret for Modulo {
         let mut value = self.head().execute(environment);
 
         for sum in self.tail() {
-            value = value % sum.execute(environment);
+            value %= sum.execute(environment);
         }
 
         value
@@ -116,8 +116,8 @@ impl Interpret for Sum {
 
         for add_or_subtract in self.tail() {
             match add_or_subtract {
-                AddOrSubtract::Add(rhs) => value = value + rhs.execute(environment),
-                AddOrSubtract::Subtract(rhs) => value = value - rhs.execute(environment),
+                AddOrSubtract::Add(rhs) => value += rhs.execute(environment),
+                AddOrSubtract::Subtract(rhs) => value -= rhs.execute(environment),
             }
         }
 
@@ -131,8 +131,8 @@ impl Interpret for Product {
 
         for multiply_or_divide in self.tail() {
             match multiply_or_divide {
-                MultiplyOrDivide::Multiply(rhs) => value = value * rhs.execute(environment),
-                MultiplyOrDivide::Divide(rhs) => value = value / rhs.execute(environment),
+                MultiplyOrDivide::Multiply(rhs) => value *= rhs.execute(environment),
+                MultiplyOrDivide::Divide(rhs) => value /= rhs.execute(environment),
             }
         }
 
@@ -145,7 +145,7 @@ impl Interpret for Power {
         let mut value = self.head().execute(environment);
 
         for sum in self.tail() {
-            value = value ^ sum.execute(environment);
+            value ^= sum.execute(environment);
         }
 
         value
@@ -195,7 +195,7 @@ impl Interpret for Comparisons {
             comparator = comparison.comparator();
             rhs = comparison.rhs().execute(environment);
 
-            value = value & compare(lhs, comparator, rhs);
+            value &= compare(lhs, comparator, rhs);
         }
 
         value

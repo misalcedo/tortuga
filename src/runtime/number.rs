@@ -2,15 +2,18 @@
 
 use crate::runtime::Tolerance;
 use std::fmt;
-use std::ops::{Add, BitXor, Div, Mul, Rem, Sub};
+use std::ops::{
+    Add, AddAssign, BitXor, BitXorAssign, Div, DivAssign, Mul, MulAssign, Rem, RemAssign, Sub,
+    SubAssign,
+};
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, PartialOrd)]
 pub struct Number(f64);
 
 impl Number {
     /// The ~ operator in Tortuga. Used to create an `Tolerance`.
-    pub fn epsilon(&self, epsilon: Number) -> Tolerance {
-        Tolerance::new(*self, epsilon)
+    pub fn epsilon<I: Into<Number>>(&self, epsilon: I) -> Tolerance {
+        Tolerance::new(*self, epsilon.into())
     }
 }
 
@@ -75,5 +78,41 @@ impl BitXor for Number {
 
     fn bitxor(self, rhs: Self) -> Self::Output {
         Number(self.0.powf(rhs.0))
+    }
+}
+
+impl AddAssign for Number {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0;
+    }
+}
+
+impl SubAssign for Number {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.0 -= rhs.0;
+    }
+}
+
+impl MulAssign for Number {
+    fn mul_assign(&mut self, rhs: Self) {
+        self.0 *= rhs.0;
+    }
+}
+
+impl DivAssign for Number {
+    fn div_assign(&mut self, rhs: Self) {
+        self.0 /= rhs.0;
+    }
+}
+
+impl RemAssign for Number {
+    fn rem_assign(&mut self, rhs: Self) {
+        self.0 %= rhs.0;
+    }
+}
+
+impl BitXorAssign for Number {
+    fn bitxor_assign(&mut self, rhs: Self) {
+        self.0 = self.0.powf(rhs.0);
     }
 }

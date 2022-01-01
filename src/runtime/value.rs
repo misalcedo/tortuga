@@ -3,7 +3,10 @@
 use crate::runtime::{Number, Tolerance};
 use std::cmp::Ordering;
 use std::fmt;
-use std::ops::{Add, BitAnd, BitXor, Div, Mul, Rem, Sub};
+use std::ops::{
+    Add, AddAssign, BitAnd, BitAndAssign, BitXor, BitXorAssign, Div, DivAssign, Mul, MulAssign,
+    Rem, RemAssign, Sub, SubAssign,
+};
 
 /// A value that may be created by a literal, or returned from a function.
 #[derive(Copy, Clone, Debug)]
@@ -84,6 +87,12 @@ impl Add for Value {
     }
 }
 
+impl AddAssign for Value {
+    fn add_assign(&mut self, rhs: Self) {
+        *self = *self + rhs;
+    }
+}
+
 impl Sub for Value {
     type Output = Self;
 
@@ -95,6 +104,12 @@ impl Sub for Value {
             (Value::Tolerance(a), Value::Tolerance(b)) => Value::Tolerance(a - b),
             _ => Self::Unit,
         }
+    }
+}
+
+impl SubAssign for Value {
+    fn sub_assign(&mut self, rhs: Self) {
+        *self = *self - rhs;
     }
 }
 
@@ -111,6 +126,12 @@ impl Mul for Value {
     }
 }
 
+impl MulAssign for Value {
+    fn mul_assign(&mut self, rhs: Self) {
+        *self = *self * rhs;
+    }
+}
+
 impl Div for Value {
     type Output = Self;
 
@@ -124,6 +145,12 @@ impl Div for Value {
     }
 }
 
+impl DivAssign for Value {
+    fn div_assign(&mut self, rhs: Self) {
+        *self = *self / rhs;
+    }
+}
+
 impl Rem for Value {
     type Output = Self;
 
@@ -131,6 +158,15 @@ impl Rem for Value {
         match (self, rhs) {
             (Value::Number(a), Value::Number(b)) => Value::Number(a % b),
             _ => Self::Unit,
+        }
+    }
+}
+
+impl RemAssign for Value {
+    fn rem_assign(&mut self, rhs: Self) {
+        match (self, rhs) {
+            (Value::Number(a), Value::Number(b)) => *a %= b,
+            (a, _) => *a = Self::Unit,
         }
     }
 }
@@ -148,6 +184,12 @@ impl BitXor for Value {
     }
 }
 
+impl BitXorAssign for Value {
+    fn bitxor_assign(&mut self, rhs: Self) {
+        *self = *self ^ rhs;
+    }
+}
+
 impl BitAnd for Value {
     type Output = Self;
 
@@ -155,6 +197,15 @@ impl BitAnd for Value {
         match (self, rhs) {
             (Value::Boolean(a), Value::Boolean(b)) => Value::Boolean(a && b),
             _ => Self::Unit,
+        }
+    }
+}
+
+impl BitAndAssign for Value {
+    fn bitand_assign(&mut self, rhs: Self) {
+        match (self, rhs) {
+            (Value::Boolean(a), Value::Boolean(b)) => *a &= b,
+            (v, _) => *v = Self::Unit,
         }
     }
 }
@@ -198,5 +249,289 @@ impl PartialOrd for Value {
             }
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn add_number() {
+        let a = Value::from(1);
+        let b = Value::from(1);
+        let mut c = a;
+
+        c += b;
+
+        assert_eq!(a + b, c);
+        assert_eq!(c, 2.into());
+    }
+
+    #[test]
+    fn add_number_tolerance() {
+        let a = Value::from(1);
+        let b = Value::from(Number::from(1).epsilon(2));
+        let mut c = a;
+
+        c += b;
+
+        assert_eq!(a + b, c);
+        assert_eq!(c, Tolerance::new(2, 2).into());
+    }
+
+    #[test]
+    fn add_tolerance_number() {
+        let a = Value::from(Tolerance::new(1, 2));
+        let b = Value::from(1);
+        let mut c = a;
+
+        c += b;
+
+        assert_eq!(a + b, c);
+        assert_eq!(c, Tolerance::new(2, 2).into());
+    }
+
+    #[test]
+    fn add_tolerance() {
+        let a = Value::from(Tolerance::new(1, 2));
+        let b = Value::from(Tolerance::new(1, 2));
+        let mut c = a;
+
+        c += b;
+
+        assert_eq!(a + b, c);
+        assert_eq!(c, Tolerance::new(2, 4).into());
+    }
+
+    #[test]
+    fn add_other() {
+        let a = Value::from(false);
+        let b = Value::from(1);
+
+        assert_eq!(a + b, Value::Unit);
+    }
+
+    #[test]
+    fn sub_number() {
+        let a = Value::from(1);
+        let b = Value::from(1);
+        let mut c = a;
+
+        c -= b;
+
+        assert_eq!(a - b, c);
+        assert_eq!(c, 0.into());
+    }
+
+    #[test]
+    fn sub_number_tolerance() {
+        let a = Value::from(1);
+        let b = Value::from(Number::from(1).epsilon(2));
+        let mut c = a;
+
+        c -= b;
+
+        assert_eq!(a - b, c);
+        assert_eq!(c, Tolerance::new(0, 2).into());
+    }
+
+    #[test]
+    fn sub_tolerance_number() {
+        let a = Value::from(Tolerance::new(1, 2));
+        let b = Value::from(1);
+        let mut c = a;
+
+        c -= b;
+
+        assert_eq!(a - b, c);
+        assert_eq!(c, Tolerance::new(0, 2).into());
+    }
+
+    #[test]
+    fn sub_tolerance() {
+        let a = Value::from(Tolerance::new(1, 2));
+        let b = Value::from(Tolerance::new(1, 2));
+        let mut c = a;
+
+        c -= b;
+
+        assert_eq!(a - b, c);
+        assert_eq!(c, Tolerance::new(0, 4).into());
+    }
+
+    #[test]
+    fn sub_other() {
+        let a = Value::from(1);
+        let b = Value::from(false);
+
+        assert_eq!(a - b, Value::Unit);
+    }
+
+    #[test]
+    fn mul_number() {
+        let a = Value::from(2);
+        let b = Value::from(2);
+        let mut c = a;
+
+        c *= b;
+
+        assert_eq!(a * b, c);
+    }
+
+    #[test]
+    fn mul_number_tolerance() {
+        let a = Value::from(2);
+        let b = Value::from(Number::from(2).epsilon(2));
+        let mut c = a;
+
+        c *= b;
+
+        assert_eq!(a * b, c);
+        assert_eq!(c, Tolerance::new(4, 2).into());
+    }
+
+    #[test]
+    fn mul_tolerance_number() {
+        let a = Value::from(Tolerance::new(2, 2));
+        let b = Value::from(2);
+        let mut c = a;
+
+        c *= b;
+
+        assert_eq!(a * b, c);
+        assert_eq!(c, Tolerance::new(4, 2).into());
+    }
+
+    #[test]
+    fn mul_other() {
+        let a = Value::from(1);
+        let b = Value::Unit;
+
+        assert_eq!(a * b, Value::Unit);
+    }
+
+    #[test]
+    fn div_number() {
+        let a = Value::from(4);
+        let b = Value::from(2);
+        let mut c = a;
+
+        c /= b;
+
+        assert_eq!(a / b, c);
+    }
+
+    #[test]
+    fn div_number_tolerance() {
+        let a = Value::from(4);
+        let b = Value::from(Number::from(2).epsilon(2));
+        let mut c = a;
+
+        c /= b;
+
+        assert_eq!(a / b, c);
+        assert_eq!(c, Tolerance::new(2, 2).into());
+    }
+
+    #[test]
+    fn div_tolerance_number() {
+        let a = Value::from(Tolerance::new(4, 2));
+        let b = Value::from(2);
+        let mut c = a;
+
+        c /= b;
+
+        assert_eq!(a / b, c);
+        assert_eq!(c, Tolerance::new(2, 2).into());
+    }
+
+    #[test]
+    fn div_other() {
+        let a = Value::from(true);
+        let b = Value::from(1);
+
+        assert_eq!(a / b, Value::Unit);
+    }
+
+    #[test]
+    fn rem_number() {
+        let a = Value::from(5);
+        let b = Value::from(3);
+        let mut c = a;
+
+        c %= b;
+
+        assert_eq!(a % b, c);
+    }
+
+    #[test]
+    fn rem_other() {
+        let a = Value::from(true);
+        let b = Value::from(true);
+
+        assert_eq!(a % b, Value::Unit);
+    }
+
+    #[test]
+    fn bitxor_number() {
+        let a = Value::from(2);
+        let b = Value::from(2);
+        let mut c = a;
+
+        c ^= b;
+
+        assert_eq!(a ^ b, c);
+    }
+
+    #[test]
+    fn bitxor_number_tolerance() {
+        let a = Value::from(2);
+        let b = Value::from(Number::from(2).epsilon(2));
+        let mut c = a;
+
+        c ^= b;
+
+        assert_eq!(a ^ b, c);
+        assert_eq!(c, Tolerance::new(4, 2).into());
+    }
+
+    #[test]
+    fn bitxor_tolerance_number() {
+        let a = Value::from(Tolerance::new(2, 2));
+        let b = Value::from(2);
+        let mut c = a;
+
+        c ^= b;
+
+        assert_eq!(a ^ b, c);
+        assert_eq!(c, Tolerance::new(4, 2).into());
+    }
+
+    #[test]
+    fn bitxor_other() {
+        let a = Value::from(1);
+        let b = Value::from(true);
+
+        assert_eq!(a ^ b, Value::Unit);
+    }
+
+    #[test]
+    fn bitand_boolean() {
+        let a = Value::from(true);
+        let b = Value::from(false);
+        let mut c = a;
+
+        c &= b;
+
+        assert_eq!(a & b, c);
+    }
+
+    #[test]
+    fn bitand_other() {
+        let a = Value::from(1);
+        let b = Value::from(1);
+
+        assert_eq!(a & b, Value::Unit);
     }
 }
