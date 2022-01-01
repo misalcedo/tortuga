@@ -16,7 +16,7 @@ impl SyntacticalError {
     /// Tests whether the parser had complete input or ran out of tokens prematurely.
     /// [`false`] if the parser ran out of tokens. Otherwise, [`true`].
     pub fn is_complete(&self) -> bool {
-        matches!(self, Self::Incomplete)
+        !matches!(self, Self::Incomplete)
     }
 }
 
