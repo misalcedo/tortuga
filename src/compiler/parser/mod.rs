@@ -28,6 +28,13 @@ const INEQUALITY_KINDS: &[Kind] = &[
 
 /// A recursive descent LL(1) parser for the syntax grammar.
 /// Parses a sequence of `Token`s into syntax tree.
+///
+/// # Examples
+/// ```rust
+/// use tortuga::Program;
+///
+/// assert!("(2 + 2#10) ^ 2 = 16".parse::<Program>().is_ok());
+/// ```
 pub struct Parser<T: Tokens> {
     tokens: T,
 }
@@ -388,5 +395,46 @@ impl FromStr for Program {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Parser::from(s).parse()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_number() {
+        assert!("2".parse::<Program>().is_ok());
+    }
+
+    #[test]
+    fn parse_negative_number() {
+        assert!("-2#100".parse::<Program>().is_ok());
+    }
+
+    #[test]
+    fn parse_identifier() {
+        assert!("xyz".parse::<Program>().is_ok());
+    }
+
+    #[test]
+    fn parse_example() {
+        assert!(include_str!("../../../examples/example.ta")
+            .parse::<Program>()
+            .is_ok())
+    }
+
+    #[test]
+    fn parse_factorial() {
+        assert!(include_str!("../../../examples/factorial.ta")
+            .parse::<Program>()
+            .is_ok())
+    }
+
+    #[test]
+    fn parse_bad() {
+        assert!(include_str!("../../../examples/bad.ta")
+            .parse::<Program>()
+            .is_err())
     }
 }
