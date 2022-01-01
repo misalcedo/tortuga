@@ -10,4 +10,4 @@ pub use about::*;
 pub use compiler::{Kind, LexicalError, Parser, Scanner, SyntacticalError};
 pub use display::{PrettyPrinter, WithLexeme};
 pub use grammar::syntax::Program;
-pub use runtime::Number;
+pub use runtime::{Interpreter, Value};

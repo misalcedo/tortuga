@@ -2,7 +2,7 @@
 
 use crate::runtime::Number;
 use std::fmt;
-use std::ops::{Add, BitXor, Div, Mul, Rem, Sub};
+use std::ops::{Add, BitXor, Div, Mul, Sub};
 
 /// A range centered around a value.
 /// The start and end of the range are inclusive of the center plus and minus a value epsilon.
@@ -11,160 +11,160 @@ use std::ops::{Add, BitXor, Div, Mul, Rem, Sub};
 /// Adheres to interval arithmetic.
 ///
 /// See <https://en.wikipedia.org/wiki/Interval_arithmetic#Interval_operators>
-#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
-pub struct EpsilonRange {
+#[derive(Copy, Clone, Debug, Default, PartialEq, PartialOrd)]
+pub struct Tolerance {
     center: Number,
     epsilon: Number,
 }
 
-impl EpsilonRange {
+impl Tolerance {
     /// Creates a new instance of an `EpsilonRange` around a given `center`.
     pub fn new<C: Into<Number>, E: Into<Number>>(center: C, epsilon: E) -> Self {
-        EpsilonRange {
+        Tolerance {
             center: center.into(),
             epsilon: epsilon.into(),
         }
     }
 }
 
-impl fmt::Display for EpsilonRange {
+impl fmt::Display for Tolerance {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{} \u{C2B1} {}", self.center, self.epsilon)
     }
 }
 
-impl<I: Into<Number>> From<I> for EpsilonRange {
+impl<I: Into<Number>> From<I> for Tolerance {
     fn from(value: I) -> Self {
-        EpsilonRange::new(value, 0.0)
+        Tolerance::new(value, 0.0)
     }
 }
 
-impl Add for EpsilonRange {
-    type Output = EpsilonRange;
+impl Add for Tolerance {
+    type Output = Tolerance;
 
     fn add(self, rhs: Self) -> Self::Output {
-        EpsilonRange {
+        Tolerance {
             center: self.center + rhs.center,
             epsilon: self.epsilon + rhs.epsilon,
         }
     }
 }
 
-impl Add<Number> for EpsilonRange {
-    type Output = EpsilonRange;
+impl Add<Number> for Tolerance {
+    type Output = Tolerance;
 
     fn add(self, rhs: Number) -> Self::Output {
-        EpsilonRange {
+        Tolerance {
             center: self.center + rhs,
             epsilon: self.epsilon,
         }
     }
 }
 
-impl Add<EpsilonRange> for Number {
-    type Output = EpsilonRange;
+impl Add<Tolerance> for Number {
+    type Output = Tolerance;
 
-    fn add(self, rhs: EpsilonRange) -> Self::Output {
-        EpsilonRange {
+    fn add(self, rhs: Tolerance) -> Self::Output {
+        Tolerance {
             center: self + rhs.center,
             epsilon: rhs.epsilon,
         }
     }
 }
 
-impl Sub for EpsilonRange {
-    type Output = EpsilonRange;
+impl Sub for Tolerance {
+    type Output = Tolerance;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        EpsilonRange {
+        Tolerance {
             center: self.center - rhs.center,
             epsilon: self.epsilon + rhs.epsilon,
         }
     }
 }
 
-impl Sub<Number> for EpsilonRange {
-    type Output = EpsilonRange;
+impl Sub<Number> for Tolerance {
+    type Output = Tolerance;
 
     fn sub(self, rhs: Number) -> Self::Output {
-        EpsilonRange {
+        Tolerance {
             center: self.center - rhs,
             epsilon: self.epsilon,
         }
     }
 }
 
-impl Sub<EpsilonRange> for Number {
-    type Output = EpsilonRange;
+impl Sub<Tolerance> for Number {
+    type Output = Tolerance;
 
-    fn sub(self, rhs: EpsilonRange) -> Self::Output {
-        EpsilonRange {
+    fn sub(self, rhs: Tolerance) -> Self::Output {
+        Tolerance {
             center: self - rhs.center,
             epsilon: rhs.epsilon,
         }
     }
 }
 
-impl Mul<Number> for EpsilonRange {
-    type Output = EpsilonRange;
+impl Mul<Number> for Tolerance {
+    type Output = Tolerance;
 
     fn mul(self, rhs: Number) -> Self::Output {
-        EpsilonRange {
+        Tolerance {
             center: self.center * rhs,
             epsilon: self.epsilon,
         }
     }
 }
 
-impl Mul<EpsilonRange> for Number {
-    type Output = EpsilonRange;
+impl Mul<Tolerance> for Number {
+    type Output = Tolerance;
 
-    fn mul(self, rhs: EpsilonRange) -> Self::Output {
-        EpsilonRange {
+    fn mul(self, rhs: Tolerance) -> Self::Output {
+        Tolerance {
             center: self * rhs.center,
             epsilon: rhs.epsilon,
         }
     }
 }
 
-impl Div<Number> for EpsilonRange {
-    type Output = EpsilonRange;
+impl Div<Number> for Tolerance {
+    type Output = Tolerance;
 
     fn div(self, rhs: Number) -> Self::Output {
-        EpsilonRange {
+        Tolerance {
             center: self.center / rhs,
             epsilon: self.epsilon,
         }
     }
 }
 
-impl Div<EpsilonRange> for Number {
-    type Output = EpsilonRange;
+impl Div<Tolerance> for Number {
+    type Output = Tolerance;
 
-    fn div(self, rhs: EpsilonRange) -> Self::Output {
-        EpsilonRange {
+    fn div(self, rhs: Tolerance) -> Self::Output {
+        Tolerance {
             center: self / rhs.center,
             epsilon: rhs.epsilon,
         }
     }
 }
 
-impl BitXor<Number> for EpsilonRange {
-    type Output = EpsilonRange;
+impl BitXor<Number> for Tolerance {
+    type Output = Tolerance;
 
     fn bitxor(self, rhs: Number) -> Self::Output {
-        EpsilonRange {
+        Tolerance {
             center: self.center ^ rhs,
             epsilon: self.epsilon,
         }
     }
 }
 
-impl BitXor<EpsilonRange> for Number {
-    type Output = EpsilonRange;
+impl BitXor<Tolerance> for Number {
+    type Output = Tolerance;
 
-    fn bitxor(self, rhs: EpsilonRange) -> Self::Output {
-        EpsilonRange {
+    fn bitxor(self, rhs: Tolerance) -> Self::Output {
+        Tolerance {
             center: self ^ rhs.center,
             epsilon: rhs.epsilon,
         }

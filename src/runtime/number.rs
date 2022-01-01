@@ -1,6 +1,6 @@
 //! Representation of numbers within the Tortuga runtime.
 
-use crate::runtime::EpsilonRange;
+use crate::runtime::Tolerance;
 use std::fmt;
 use std::ops::{Add, BitXor, Div, Mul, Rem, Sub};
 
@@ -9,8 +9,8 @@ pub struct Number(f64);
 
 impl Number {
     /// The ~ operator in Tortuga. Used to create an `EpsilonRange`.
-    pub fn tilde(&self, epsilon: Number) -> EpsilonRange {
-        EpsilonRange::new(*self, epsilon)
+    pub fn epsilon(&self, epsilon: Number) -> Tolerance {
+        Tolerance::new(*self, epsilon)
     }
 }
 
@@ -27,7 +27,7 @@ impl<I: Into<f64>> From<I> for Number {
 }
 
 impl Add for Number {
-    type Output = Number;
+    type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
         Number(self.0 + rhs.0)
@@ -35,7 +35,7 @@ impl Add for Number {
 }
 
 impl Sub for Number {
-    type Output = Number;
+    type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
         Number(self.0 - rhs.0)
@@ -43,7 +43,7 @@ impl Sub for Number {
 }
 
 impl Mul for Number {
-    type Output = Number;
+    type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
         Number(self.0 * rhs.0)
@@ -51,7 +51,7 @@ impl Mul for Number {
 }
 
 impl Div for Number {
-    type Output = Number;
+    type Output = Self;
 
     fn div(self, rhs: Self) -> Self::Output {
         Number(self.0 / rhs.0)
@@ -59,7 +59,7 @@ impl Div for Number {
 }
 
 impl Rem for Number {
-    type Output = Number;
+    type Output = Self;
 
     fn rem(self, rhs: Self) -> Self::Output {
         if self.0.signum() == rhs.0.signum() {
@@ -71,7 +71,7 @@ impl Rem for Number {
 }
 
 impl BitXor for Number {
-    type Output = Number;
+    type Output = Self;
 
     fn bitxor(self, rhs: Self) -> Self::Output {
         Number(self.0.powf(rhs.0))
