@@ -91,7 +91,7 @@ impl Interpret for Epsilon {
         let mut value = self.lhs().execute(environment);
 
         if let Some(rhs) = self.rhs() {
-            value = value.epsilon(rhs.execute(environment));
+            value = crate::runtime::Epsilon::epsilon(value, rhs.execute(environment));
         }
 
         value

@@ -1,5 +1,6 @@
 //! Valid values in the Tortuga runtime.
 
+use crate::runtime::epsilon::Epsilon;
 use crate::runtime::{Number, Tolerance};
 use std::cmp::Ordering;
 use std::fmt;
@@ -17,9 +18,11 @@ pub enum Value {
     Tolerance(Tolerance),
 }
 
-impl Value {
-    pub fn epsilon(self, rhs: Self) -> Self {
-        match (self, rhs) {
+impl<I: Into<Value>> Epsilon<I> for Value {
+    type Output = Value;
+
+    fn epsilon(self, rhs: I) -> Self::Output {
+        match (self, rhs.into()) {
             (Value::Number(a), Value::Number(b)) => Value::Tolerance(a.epsilon(b)),
             _ => Self::Unit,
         }
