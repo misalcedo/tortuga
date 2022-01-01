@@ -13,6 +13,7 @@ pub struct PrettyPrinter<'a, StdOut: Write, StdErr: Write> {
     std_out: StdOut,
     std_err: StdErr,
     nesting: usize,
+    spaces: usize,
 }
 
 fn print_token_to<W: Write>(source: &str, token: Token, mut write: W) -> io::Result<()> {
@@ -63,7 +64,22 @@ impl<'a, StdOut: Write, StdErr: Write> PrettyPrinter<'a, StdOut, StdErr> {
             std_out,
             std_err,
             nesting: 0,
+            spaces: 2,
         }
+    }
+
+    fn decrement_nesting(&mut self) {
+        self.nesting -= self.spaces;
+    }
+
+    fn increment_nesting(&mut self) -> io::Result<()> {
+        self.nesting += self.spaces;
+
+        self.print_nesting(' ')
+    }
+
+    fn print_nesting<D: Display>(&mut self, value: D) -> io::Result<()> {
+        write!(self.std_out, "{:>1$}", value, self.nesting)
     }
 
     /// Prints a [`Display`] instance to this [`PrettyPrinter`]'s `std_out` [`Write`]r.
@@ -156,9 +172,11 @@ impl<'a, StdOut: Write, StdErr: Write> PrettyPrinter<'a, StdOut, StdErr> {
 
     fn print_expression(&mut self, expression: &Expression) -> io::Result<()> {
         match expression {
-            Expression::Assignment(assignment) => self.print_assignment(assignment),
-            Expression::Arithmetic(arithmetic) => self.print_arithmetic(arithmetic),
+            Expression::Assignment(assignment) => self.print_assignment(assignment)?,
+            Expression::Arithmetic(arithmetic) => self.print_arithmetic(arithmetic)?,
         }
+
+        Ok(())
     }
 
     fn print_comparison(&mut self, comparison: &Comparison) -> io::Result<()> {
@@ -243,17 +261,23 @@ impl<'a, StdOut: Write, StdErr: Write> PrettyPrinter<'a, StdOut, StdErr> {
         if block.tail().is_empty() {
             self.print_expression(block.head())
         } else {
-            writeln!(self.std_out, "[")?;
+            writeln!(self.std_out, "{:>1$}", '[', self.nesting)?;
+
+            self.increment_nesting()?;
 
             self.print_expression(block.head())?;
 
             for expression in block.tail() {
                 writeln!(self.std_out)?;
+                self.print_nesting(' ')?;
                 self.print_expression(expression)?;
             }
 
             writeln!(self.std_out)?;
-            write!(self.std_out, "]")
+
+            self.decrement_nesting();
+
+            write!(self.std_out, "{:>1$}", ']', self.nesting)
         }
     }
 

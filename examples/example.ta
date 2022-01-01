@@ -15,7 +15,10 @@ x(1, 2)
   @passing = (best - worst) * 0.65
 
   @validate(@grade >= passing) = 1
-  @validate(@grade) = 0
+  @validate(@grade) = [
+    0 * 0
+    0 ^ 2
+  ]
 ]
 pass_fail(0, 100)(30)
 
