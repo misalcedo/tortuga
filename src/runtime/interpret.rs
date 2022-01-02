@@ -104,16 +104,14 @@ impl Interpret for Assignment {
         let function = self.function();
         let name = function.name().as_str();
 
-        let result = if function.parameters().is_none() {
+        if function.parameters().is_none() {
             let mut local_environment = environment.new_child();
             let value = self.block().execute(&mut local_environment)?;
 
             environment.define_value(name, &value)
         } else {
             environment.define_function(name, self)
-        };
-
-        result.map_err(|_| RuntimeError::Unknown)
+        }
     }
 }
 
@@ -206,7 +204,7 @@ impl Interpret for Number {
 impl Interpret for Call {
     fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
         let name = self.identifier().as_str();
-        let mut value = *environment.value(name).ok_or(RuntimeError::Unknown)?;
+        let mut value = environment.value(name)?;
 
         if self.arguments().is_empty() {
             return Ok(value);
@@ -222,9 +220,8 @@ impl Interpret for Call {
 
 impl Interpret for Pattern {
     fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
-        let value = *environment
-            .value(self.name().as_str().unwrap_or_default())
-            .ok_or(RuntimeError::Unknown)?;
+        let name = self.name().as_str().unwrap_or_default();
+        let value = environment.value(name)?;
 
         match self {
             Pattern::Function(function) => {
@@ -234,10 +231,7 @@ impl Interpret for Pattern {
                     _ => return Err(RuntimeError::Unknown),
                 };
 
-                let assignment = match environment.function(&reference) {
-                    None => return Err(RuntimeError::Unknown),
-                    Some(assignment) => assignment.clone(),
-                };
+                let assignment = environment.function(&reference)?;
 
                 Ok(Value::Boolean(assignment.function() == function.deref()))
             }
@@ -318,10 +312,7 @@ fn get_assignment(
         _ => return Err(RuntimeError::Unknown),
     };
 
-    environment
-        .function(reference)
-        .cloned()
-        .ok_or(RuntimeError::Unknown)
+    environment.function(reference)
 }
 
 fn call_function(
@@ -343,16 +334,12 @@ fn call_function(
             let value = argument.execute(environment)?;
             let name = parameter.name().as_str();
 
-            local_environment
-                .define_value(name, &value)
-                .map_err(|_| RuntimeError::Unknown)?;
+            local_environment.define_value(name, &value)?;
 
             let pattern_matched = if name.is_none() {
                 let mut pattern_environment = local_environment.new_child();
 
-                pattern_environment
-                    .define_value(Some(String::default().as_str()), &value)
-                    .map_err(|_| RuntimeError::Unknown)?;
+                pattern_environment.define_value(Some(String::default().as_str()), &value)?;
 
                 parameter.execute(&mut pattern_environment)?
             } else {

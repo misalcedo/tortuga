@@ -5,6 +5,7 @@
 
 use crate::grammar::Assignment;
 use crate::runtime::Value;
+use crate::RuntimeError;
 use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::HashMap;
 use std::fmt;
@@ -25,7 +26,7 @@ pub struct FunctionReference(usize);
 
 impl fmt::Display for FunctionReference {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
+        write!(f, "@{}", self.0)
     }
 }
 
@@ -36,25 +37,38 @@ impl Environment {
     }
 
     /// Get the [`Value`] of the variable with the given [`Identifier`].
-    pub fn value(&self, name: &str) -> Option<&Value> {
-        self.variables.get(name)
+    pub fn value(&self, name: &str) -> Result<Value, RuntimeError> {
+        self.variables
+            .get(name)
+            .copied()
+            .ok_or_else(|| RuntimeError::VariableNotDefined(name.to_string()))
     }
 
     /// Get the [`Assignment`] of the variable with the given index.
-    pub fn function(&self, reference: &FunctionReference) -> Option<&Assignment> {
-        self.functions.get(reference.0)
+    pub fn function(&self, reference: &FunctionReference) -> Result<Assignment, RuntimeError> {
+        self.functions
+            .get(reference.0)
+            .cloned()
+            .ok_or_else(|| RuntimeError::FunctionNotDefined(*reference))
     }
 
     /// Defines a variable as having a given [`Value`].
     /// Returns the previously defined value, if any.
-    pub fn define_value(&mut self, name: Option<&str>, value: &Value) -> Result<Value, Value> {
+    pub fn define_value(
+        &mut self,
+        name: Option<&str>,
+        value: &Value,
+    ) -> Result<Value, RuntimeError> {
         match name {
             Some(name) => match self.variables.entry(name.to_string()) {
                 Vacant(entry) => {
                     entry.insert(*value);
                     Ok(*value)
                 }
-                Occupied(entry) => Err(*entry.get()),
+                Occupied(entry) => Err(RuntimeError::VariableAlreadyDefined(
+                    name.to_string(),
+                    *entry.get(),
+                )),
             },
             None => Ok(*value),
         }
@@ -66,7 +80,7 @@ impl Environment {
         &mut self,
         name: Option<&str>,
         function: &Assignment,
-    ) -> Result<Value, Value> {
+    ) -> Result<Value, RuntimeError> {
         let index = self.functions.len();
         let value = FunctionReference(index).into();
 
@@ -79,7 +93,10 @@ impl Environment {
 
                     Ok(value)
                 }
-                Occupied(entry) => Err(*entry.get()),
+                Occupied(entry) => Err(RuntimeError::VariableAlreadyDefined(
+                    name.to_string(),
+                    *entry.get(),
+                )),
             },
             None => Ok(value),
         }
