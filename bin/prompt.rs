@@ -9,7 +9,7 @@ use rustyline::hint::Hinter;
 use rustyline::line_buffer::LineBuffer;
 use rustyline::validate::{ValidationContext, ValidationResult, Validator};
 use rustyline::{error::ReadlineError, Editor, Helper};
-use std::io::{stdout, Write};
+use std::io::{stderr, stdout, Write};
 use tortuga::Program;
 use tortuga::{about, Interpreter};
 use tracing::error;
@@ -83,7 +83,7 @@ impl Validator for PromptHelper {
         match ctx.input().parse::<Program>() {
             Ok(_) => Ok(ValidationResult::Valid(None)),
             Err(error) if error.is_complete() => {
-                Ok(ValidationResult::Invalid(Some(format!("\t{:?}", error))))
+                Ok(ValidationResult::Invalid(Some(format!("\t{}", error))))
             }
             Err(_) => Ok(ValidationResult::Incomplete),
         }
@@ -105,11 +105,10 @@ pub fn run_prompt() -> Result<(), CommandLineError> {
             Some(input) if input.trim().is_empty() => continue,
             Some(input) => {
                 match input.as_str().parse::<Program>() {
-                    Ok(program) => writeln!(
-                        stdout(),
-                        "=> {}",
-                        interpreter.run(program).unwrap_or_default()
-                    )?,
+                    Ok(program) => match interpreter.run(program) {
+                        Ok(value) => writeln!(stdout(), "=> {}", value)?,
+                        Err(error) => writeln!(stderr(), "=> {}", error)?,
+                    },
                     Err(error) => error!("{:?}", error),
                 };
             }

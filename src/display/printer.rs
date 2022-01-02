@@ -102,7 +102,7 @@ impl<'a, StdOut: Write, StdErr: Write> PrettyPrinter<'a, StdOut, StdErr> {
         match error {
             SyntacticalError::Incomplete => {
                 self.print_error_prefix("EOF")?;
-                writeln!(self.std_err, "Reached the end of file prematurely; unable to complete parsing a grammar rule.")
+                writeln!(self.std_err, "{}", error)
             }
             SyntacticalError::NoMatch(token) => {
                 self.print_error_prefix("NoMatch")?;

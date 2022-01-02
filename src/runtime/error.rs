@@ -1,5 +1,7 @@
 //! Runtime errors.
 
+use crate::Value;
+
 /// An error that may occur while executing a [`Program`].
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum RuntimeError {
@@ -7,6 +9,8 @@ pub enum RuntimeError {
     Syntax(#[from] crate::SyntacticalError),
     #[error(transparent)]
     Number(#[from] crate::ParseNumberError),
+    #[error("Variable \"{0}\" is already defined as {1}.")]
+    VariableAlreadyDefined(String, Value),
     #[error("Encountered an unknown runtime error.")]
     Unknown,
 }
