@@ -3,7 +3,10 @@
 use crate::runtime::environment::FunctionReference;
 use crate::runtime::epsilon::EpsilonOperator;
 use crate::runtime::{Number, Tolerance};
+use crate::RuntimeError;
+use std::any::type_name;
 use std::cmp::Ordering;
+use std::convert::TryFrom;
 use std::fmt;
 use std::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitXor, BitXorAssign, Div, DivAssign, Mul, MulAssign,
@@ -261,6 +264,20 @@ impl PartialOrd for Value {
                 }
             }
             _ => None,
+        }
+    }
+}
+
+impl TryFrom<Value> for FunctionReference {
+    type Error = RuntimeError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        match value {
+            Value::FunctionReference(reference) => Ok(reference),
+            _ => Err(RuntimeError::UnexpectedType(
+                value,
+                type_name::<Self>().to_string(),
+            )),
         }
     }
 }

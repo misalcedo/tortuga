@@ -48,50 +48,68 @@ impl Function {
         self.code.function().parameters()
     }
 
+    /// The number of [`Parameter`] patterns for this [`Function`].
+    pub fn arity(&self) -> usize {
+        self.code
+            .function()
+            .parameters()
+            .map(Parameters::len)
+            .unwrap_or_default()
+    }
+
     /// Calls this [`Function`] with the given arguments.
     pub fn call(&self, arguments: &[Value]) -> Result<CallResult, RuntimeError> {
         let parameters = self.parameters();
         let mut environment = self.binding.new_child();
 
-        match_patterns(arguments, parameters, &mut environment)?;
+        self.match_patterns(arguments, parameters, &mut environment)?;
 
         let value = self.code.block().execute(&mut environment)?;
 
         Ok(CallResult(value, environment))
     }
-}
 
-fn match_patterns(
-    arguments: &[Value],
-    parameters: Option<&Parameters>,
-    environment: &mut Environment,
-) -> Result<(), RuntimeError> {
-    match parameters {
-        None if arguments.is_empty() => Ok(()),
-        Some(parameters) if parameters.len() == arguments.len() => {
-            for (parameter, &argument) in parameters.iter().zip(arguments.iter()) {
-                let name = parameter.name().as_str();
+    fn match_patterns(
+        &self,
+        arguments: &[Value],
+        parameters: Option<&Parameters>,
+        environment: &mut Environment,
+    ) -> Result<(), RuntimeError> {
+        match parameters {
+            None if arguments.is_empty() => Ok(()),
+            Some(parameters) if parameters.len() == arguments.len() => {
+                for (parameter, &argument) in parameters.iter().zip(arguments.iter()) {
+                    let name = parameter.name().as_str();
 
-                environment.define_value(name, argument)?;
+                    environment.define_value(name, argument)?;
 
-                let pattern_matched = if name.is_none() {
-                    let mut pattern_environment = environment.new_child();
+                    let pattern_matched = if name.is_none() {
+                        let mut pattern_environment = environment.new_child();
 
-                    pattern_environment.define_value(Some(String::default().as_str()), argument)?;
+                        pattern_environment
+                            .define_value(Some(String::default().as_str()), argument)?;
 
-                    parameter.execute(&mut pattern_environment)?
-                } else {
-                    parameter.execute(environment)?
-                };
+                        parameter.execute(&mut pattern_environment)?
+                    } else {
+                        parameter.execute(environment)?
+                    };
 
-                if let Value::Boolean(false) = pattern_matched {
-                    return Err(RuntimeError::Unknown);
+                    if let Value::Boolean(false) = pattern_matched {
+                        return Err(RuntimeError::NoMatchingDefinition(
+                            self.to_string(),
+                            arguments.to_vec(),
+                        ));
+                    }
                 }
-            }
 
-            Ok(())
+                Ok(())
+            }
+            _ => Err(RuntimeError::MismatchedArity(
+                self.to_string(),
+                self.arity(),
+                arguments.len(),
+            )),
         }
-        _ => Err(RuntimeError::Unknown),
     }
 }
 
@@ -103,11 +121,6 @@ impl PartialEq<grammar::Function> for Function {
 
 impl Display for Function {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}/{}",
-            self.code.function().name(),
-            self.parameters().map(Parameters::len).unwrap_or_default()
-        )
+        write!(f, "{}/{}", self.code.function().name(), self.arity())
     }
 }

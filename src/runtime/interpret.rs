@@ -1,8 +1,9 @@
 //! An interpreter used in the CLI prompt.
 
 use crate::grammar::*;
-use crate::runtime::{Environment, EpsilonOperator, Value};
+use crate::runtime::{Environment, EpsilonOperator, FunctionReference, Value};
 use crate::{runtime, Program, RuntimeError};
+use std::convert::TryFrom;
 use std::ops::Deref;
 
 /// Interprets a Tortuga [`Program`] and returns the [`Value`].
@@ -225,12 +226,11 @@ impl Interpret for Pattern {
 
         match self {
             Pattern::Function(signature) => {
-                let reference = match value {
-                    _ if signature.parameters().is_none() => return Ok(true.into()),
-                    Value::FunctionReference(reference) => reference,
-                    _ => return Err(RuntimeError::Unknown),
-                };
+                if signature.parameters().is_none() {
+                    return Ok(true.into());
+                }
 
+                let reference = FunctionReference::try_from(value)?;
                 let function = environment.function(&reference)?;
 
                 Ok(Value::Boolean(&function == signature.deref()))
@@ -303,24 +303,13 @@ fn compare_inequality(lhs: Value, inequality: &Inequality, rhs: Value) -> Value 
     })
 }
 
-fn get_function(
-    value: &Value,
-    environment: &mut Environment,
-) -> Result<runtime::Function, RuntimeError> {
-    let reference = match value {
-        Value::FunctionReference(reference) => reference,
-        _ => return Err(RuntimeError::Unknown),
-    };
-
-    environment.function(reference)
-}
-
 fn call_function(
     value: &Value,
     arguments: &Arguments,
     environment: &mut Environment,
 ) -> Result<Value, RuntimeError> {
-    let function = get_function(value, environment)?;
+    let reference = FunctionReference::try_from(*value)?;
+    let function = environment.function(&reference)?;
     let mut values = Vec::new();
 
     for argument in arguments.iter() {
@@ -356,13 +345,41 @@ mod tests {
     }
 
     #[test]
+    fn invalid_call() {
+        let source = r###"@x = 42
+
+            x(7)"###;
+        assert_eq!(
+            Interpreter::build_then_run(source),
+            Err(RuntimeError::UnexpectedType(
+                42.into(),
+                "tortuga::runtime::environment::FunctionReference".to_string()
+            ))
+        );
+    }
+
+    #[test]
     fn no_matching_definition() {
         let source = r###"@f(_ > 3) = 42
 
             f(2)"###;
         assert_eq!(
             Interpreter::build_then_run(source),
-            Err(RuntimeError::Unknown)
+            Err(RuntimeError::NoMatchingDefinition(
+                "f/1".to_string(),
+                vec![2.into()]
+            ))
+        );
+    }
+
+    #[test]
+    fn wrong_number_of_arguments() {
+        let source = r###"@f(_ > 3) = 42
+
+            f(2, 4)"###;
+        assert_eq!(
+            Interpreter::build_then_run(source),
+            Err(RuntimeError::MismatchedArity("f/1".to_string(), 1, 2))
         );
     }
 
