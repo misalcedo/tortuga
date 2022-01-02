@@ -2,7 +2,7 @@
 
 use crate::grammar::lexical::Identifier;
 use crate::grammar::syntax::{Arithmetic, Comparator, Expression, List};
-use std::fmt::{self, Write};
+use std::fmt::{self, Display, Formatter, Write};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Assignment {
@@ -94,6 +94,15 @@ pub type Parameters = List<Pattern>;
 pub enum Name {
     Anonymous,
     Identified(Identifier),
+}
+
+impl Display for Name {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Name::Anonymous => f.write_char('_'),
+            Name::Identified(identifier) => f.write_str(identifier.as_str()),
+        }
+    }
 }
 
 impl Name {

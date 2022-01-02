@@ -3,7 +3,7 @@
 //!
 //! See <https://en.wikipedia.org/wiki/Constraint_programming>
 
-use crate::grammar::Assignment;
+use crate::runtime::Function;
 use crate::runtime::Value;
 use crate::RuntimeError;
 use std::collections::hash_map::Entry::{Occupied, Vacant};
@@ -17,7 +17,7 @@ use std::fmt;
 #[derive(Clone, Debug, Default)]
 pub struct Environment {
     variables: HashMap<String, Value>,
-    functions: Vec<Assignment>,
+    functions: Vec<Function>,
 }
 
 /// A reference to a function.
@@ -45,7 +45,7 @@ impl Environment {
     }
 
     /// Get the [`Assignment`] of the variable with the given index.
-    pub fn function(&self, reference: &FunctionReference) -> Result<Assignment, RuntimeError> {
+    pub fn function(&self, reference: &FunctionReference) -> Result<Function, RuntimeError> {
         self.functions
             .get(reference.0)
             .cloned()
@@ -57,40 +57,12 @@ impl Environment {
     pub fn define_value(
         &mut self,
         name: Option<&str>,
-        value: &Value,
+        value: Value,
     ) -> Result<Value, RuntimeError> {
-        match name {
-            Some(name) => match self.variables.entry(name.to_string()) {
-                Vacant(entry) => {
-                    entry.insert(*value);
-                    Ok(*value)
-                }
-                Occupied(entry) => Err(RuntimeError::VariableAlreadyDefined(
-                    name.to_string(),
-                    *entry.get(),
-                )),
-            },
-            None => Ok(*value),
-        }
-    }
-
-    /// Defines a variable as having a given function.
-    /// Returns the previously defined value as an [`Err`], if any.
-    pub fn define_function(
-        &mut self,
-        name: Option<&str>,
-        function: &Assignment,
-    ) -> Result<Value, RuntimeError> {
-        let index = self.functions.len();
-        let value = FunctionReference(index).into();
-
-        self.functions.push(function.clone());
-
         match name {
             Some(name) => match self.variables.entry(name.to_string()) {
                 Vacant(entry) => {
                     entry.insert(value);
-
                     Ok(value)
                 }
                 Occupied(entry) => Err(RuntimeError::VariableAlreadyDefined(
@@ -100,5 +72,19 @@ impl Environment {
             },
             None => Ok(value),
         }
+    }
+
+    /// Defines a variable as having a given function.
+    /// Returns the previously defined value as an [`Err`], if any.
+    pub fn define_function(
+        &mut self,
+        name: Option<&str>,
+        function: Function,
+    ) -> Result<Value, RuntimeError> {
+        let index = self.functions.len();
+        let value = FunctionReference(index).into();
+
+        self.functions.push(function);
+        self.define_value(name, value)
     }
 }

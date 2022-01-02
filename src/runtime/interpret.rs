@@ -2,7 +2,7 @@
 
 use crate::grammar::*;
 use crate::runtime::{Environment, Value};
-use crate::{Program, RuntimeError};
+use crate::{runtime, Program, RuntimeError};
 use std::ops::Deref;
 
 /// Interprets a Tortuga [`Program`] and returns the [`Value`].
@@ -101,16 +101,17 @@ impl Interpret for Arithmetic {
 
 impl Interpret for Assignment {
     fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
-        let function = self.function();
-        let name = function.name().as_str();
+        let signature = self.function();
+        let name = signature.name().as_str();
 
-        if function.parameters().is_none() {
+        if signature.parameters().is_none() {
             let mut local_environment = environment.new_child();
             let value = self.block().execute(&mut local_environment)?;
 
-            environment.define_value(name, &value)
+            environment.define_value(name, value)
         } else {
-            environment.define_function(name, self)
+            let function = runtime::Function::new(self, environment);
+            environment.define_function(name, function)
         }
     }
 }
@@ -224,16 +225,16 @@ impl Interpret for Pattern {
         let value = environment.value(name)?;
 
         match self {
-            Pattern::Function(function) => {
+            Pattern::Function(signature) => {
                 let reference = match value {
-                    _ if function.parameters().is_none() => return Ok(true.into()),
+                    _ if signature.parameters().is_none() => return Ok(true.into()),
                     Value::FunctionReference(reference) => reference,
                     _ => return Err(RuntimeError::Unknown),
                 };
 
-                let assignment = environment.function(&reference)?;
+                let function = environment.function(&reference)?;
 
-                Ok(Value::Boolean(assignment.function() == function.deref()))
+                Ok(Value::Boolean(&function == signature.deref()))
             }
             Pattern::Refinement(refinement) => Ok(compare(
                 value,
@@ -303,10 +304,10 @@ fn compare_inequality(lhs: Value, inequality: &Inequality, rhs: Value) -> Value 
     })
 }
 
-fn get_assignment(
+fn get_function(
     value: &Value,
     environment: &mut Environment,
-) -> Result<Assignment, RuntimeError> {
+) -> Result<runtime::Function, RuntimeError> {
     let reference = match value {
         Value::FunctionReference(reference) => reference,
         _ => return Err(RuntimeError::Unknown),
@@ -320,41 +321,14 @@ fn call_function(
     arguments: &Arguments,
     environment: &mut Environment,
 ) -> Result<Value, RuntimeError> {
-    let assignment = get_assignment(value, environment)?;
-    let parameters = assignment.function().parameters();
+    let function = get_function(value, environment)?;
+    let mut values = Vec::new();
 
-    if let Some(parameters) = parameters {
-        let mut local_environment = environment.new_child();
-
-        if parameters.len() != arguments.len() {
-            return Err(RuntimeError::Unknown);
-        }
-
-        for (parameter, argument) in parameters.iter().zip(arguments.iter()) {
-            let value = argument.execute(environment)?;
-            let name = parameter.name().as_str();
-
-            local_environment.define_value(name, &value)?;
-
-            let pattern_matched = if name.is_none() {
-                let mut pattern_environment = local_environment.new_child();
-
-                pattern_environment.define_value(Some(String::default().as_str()), &value)?;
-
-                parameter.execute(&mut pattern_environment)?
-            } else {
-                parameter.execute(&mut local_environment)?
-            };
-
-            if let Value::Boolean(false) = pattern_matched {
-                return Err(RuntimeError::Unknown);
-            }
-        }
-
-        assignment.block().execute(&mut local_environment)
-    } else {
-        Err(RuntimeError::Unknown)
+    for argument in arguments.iter() {
+        values.push(argument.execute(environment)?);
     }
+
+    function.call(values.as_slice())
 }
 
 #[cfg(test)]
