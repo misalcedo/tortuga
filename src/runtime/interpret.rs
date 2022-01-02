@@ -179,12 +179,17 @@ impl Interpret for Number {
 impl Interpret for Call {
     fn execute(&self, environment: &mut Environment) -> Result<Value, ()> {
         let name = self.identifier().as_str();
+        let mut value = *environment.value(name).ok_or(())?;
 
         if self.arguments().is_empty() {
-            return execute_assignment(name, None, environment);
+            return call_function(&value, None, environment);
         }
 
-        Err(())
+        for arguments in self.arguments() {
+            value = call_function(&value, Some(arguments), environment)?;
+        }
+
+        Ok(value)
     }
 }
 
@@ -275,9 +280,7 @@ fn compare_inequality(lhs: Value, inequality: &Inequality, rhs: Value) -> Value 
     })
 }
 
-fn get_assignment(name: &str, environment: &mut Environment) -> Result<Assignment, ()> {
-    let value = environment.value(name).ok_or(())?;
-
+fn get_assignment(value: &Value, environment: &mut Environment) -> Result<Assignment, ()> {
     let reference = match value {
         Value::FunctionReference(reference) => reference,
         _ => return Err(()),
@@ -286,12 +289,12 @@ fn get_assignment(name: &str, environment: &mut Environment) -> Result<Assignmen
     environment.function(reference).cloned().ok_or(())
 }
 
-fn execute_assignment(
-    name: &str,
+fn call_function(
+    reference: &Value,
     arguments: Option<&Arguments>,
     environment: &mut Environment,
 ) -> Result<Value, ()> {
-    let assignment = get_assignment(name, environment)?;
+    let assignment = get_assignment(reference, environment)?;
     let mut local_environment = environment.new_child();
 
     let parameters = assignment.function().parameters();
