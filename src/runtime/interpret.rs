@@ -372,6 +372,13 @@ mod tests {
             Ok(10.403124237432849.into())
         );
     }
+    #[test]
+    fn anonymous_parameter() {
+        let source = r###"@f(_ > 3) = 42
+
+            f(7)"###;
+        assert_eq!(Interpreter::build_then_run(source), Ok(42.into()));
+    }
 
     #[test]
     fn anonymous_function() {
