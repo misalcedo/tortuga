@@ -372,4 +372,22 @@ mod tests {
             Ok(10.403124237432849.into())
         );
     }
+
+    #[test]
+    fn anonymous_function() {
+        let source = r###"@f = _(@a, @b) = (a^2 + b^2)^.5
+            
+            f(4, 5)"###;
+        assert_eq!(
+            Interpreter::build_then_run(source),
+            Ok(6.403124237432849.into())
+        );
+    }
+
+    #[test]
+    fn comparisons() {
+        let source = "2*2 + (4^2 + 5^2)^.5  = 4 + 6.4 ~ 0.1";
+
+        assert_eq!(Interpreter::build_then_run(source), Ok(true.into()));
+    }
 }
