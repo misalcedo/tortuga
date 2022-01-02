@@ -395,9 +395,127 @@ mod tests {
     }
 
     #[test]
+    fn same_function_same_patterns() {
+        let source = r###"
+            @f(@x) = 1
+            @f(@y) = 2
+            f(1) * f(2)
+        "###;
+
+        assert_eq!(
+            Interpreter::build_then_run(source),
+            Err(RuntimeError::VariableAlreadyDefined(
+                "f".to_string(),
+                FunctionReference::from(0).into()
+            ))
+        );
+    }
+
+    #[test]
+    fn multiple_constant_functions() {
+        let source = r###"
+            @x = 1
+            @x = 2
+            x * x
+        "###;
+
+        assert_eq!(
+            Interpreter::build_then_run(source),
+            Err(RuntimeError::VariableAlreadyDefined(
+                "f".to_string(),
+                FunctionReference::from(0).into()
+            ))
+        );
+    }
+
+    #[test]
     fn comparisons() {
         let source = "2*2 + (4^2 + 5^2)^.5  = 4 + 6.4 ~ 0.1";
 
         assert_eq!(Interpreter::build_then_run(source), Ok(true.into()));
+    }
+
+    #[test]
+    fn recursive_factorial() {
+        let source = r###"@factorial(@n <= 1) = 1
+            @factorial(@n > 1) = n * factorial(n - 1)
+            
+            factorial(1)
+            factorial(3)
+            factorial(9)"###;
+
+        assert_eq!(Interpreter::build_then_run(source), Ok(true.into()));
+    }
+
+    #[test]
+    fn variable_arity() {
+        let source = r###"
+            @f = 42
+            @f(@c) = c^2
+            @f(@x, @y) = x * y
+            
+            f + f(2) + f(2, 2)"###;
+
+        assert_eq!(Interpreter::build_then_run(source), Ok(50.into()));
+    }
+
+    #[test]
+    fn arguments_with_name_of_function() {
+        let source = r###"@x(@x, @y) = x * y
+            x(2, 2)"###;
+
+        assert_eq!(
+            Interpreter::build_then_run(source),
+            Err(RuntimeError::VariableAlreadyDefined(
+                "x".to_string(),
+                FunctionReference::from(0).into()
+            ))
+        );
+    }
+
+    #[test]
+    fn arguments_with_name_of_terminal_function() {
+        let source = r###"@x = @f(@x, @y) = x * y
+            x(3, 4)"###;
+
+        assert_eq!(Interpreter::build_then_run(source), Ok(12.into()));
+    }
+
+    #[test]
+    fn call_internal_function() {
+        let source = r###"@x = @f(@x, @y) = x * y
+            f(3, 4)"###;
+
+        assert_eq!(
+            Interpreter::build_then_run(source),
+            Err(RuntimeError::VariableNotDefined("f".to_string()))
+        );
+    }
+
+    #[test]
+    fn curry() {
+        let source = r###"@g(@a) = @f(@x, @y) = a + x * y
+            g(1)(3, 4)"###;
+
+        assert_eq!(Interpreter::build_then_run(source), Ok(13.into()));
+    }
+
+    #[test]
+    fn higher_order() {
+        let source = r###"
+            @f(@n, @callable(@n)) = callable(n^2) 
+            f(2, _(@n) = n^2)
+        "###;
+
+        assert_eq!(Interpreter::build_then_run(source), Ok(8.into()));
+    }
+
+    #[test]
+    fn anonymous() {
+        let source = r###"
+            @f(@x) = (_(@n) = x + 1)(x) + (_(@n) = n + 1)(x)
+        "###;
+
+        assert_eq!(Interpreter::build_then_run(source), Ok(4.into()));
     }
 }

@@ -24,6 +24,12 @@ pub struct Environment {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct FunctionReference(usize);
 
+impl From<usize> for FunctionReference {
+    fn from(index: usize) -> Self {
+        FunctionReference(index)
+    }
+}
+
 impl fmt::Display for FunctionReference {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "@{}", self.0)
