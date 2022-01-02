@@ -2,6 +2,7 @@
 //! Lexeme's in the tortuga compiler are denoted by their start and end `Location`s.
 
 use crate::compiler::Location;
+use std::fmt::{self, Display, Formatter};
 
 /// A combination of a `Location` and a length in bytes.
 /// Used to slice a source file to just the excerpt that is this `Lexeme`.
@@ -9,6 +10,12 @@ use crate::compiler::Location;
 pub struct Lexeme {
     start: Location,
     end: Location,
+}
+
+impl Display for Lexeme {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        self.start.fmt(f)
+    }
 }
 
 impl<L: Into<Location>> From<L> for Lexeme {
@@ -68,7 +75,7 @@ mod tests {
         let input = "Hello, World!";
 
         assert_eq!(lexeme.len(), 5);
-        assert_eq!(lexeme.is_empty(), false);
+        assert!(!lexeme.is_empty());
         assert_eq!(lexeme.extract_from(input), "World");
         assert_eq!(lexeme, Lexeme::new("Hello, ", "Hello, World"));
     }
@@ -79,7 +86,7 @@ mod tests {
         let input = "Hello, World!";
 
         assert_eq!(lexeme.len(), 0);
-        assert_eq!(lexeme.is_empty(), true);
+        assert!(lexeme.is_empty());
         assert_eq!(lexeme.extract_from(input), "");
     }
 }

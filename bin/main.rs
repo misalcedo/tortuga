@@ -1,10 +1,12 @@
 mod errors;
 mod parse;
 mod prompt;
+mod run;
 mod scan;
 
 pub use errors::CommandLineError;
 use prompt::run_prompt;
+use run::run;
 
 use std::fs;
 use std::io::ErrorKind::BrokenPipe;
@@ -110,9 +112,8 @@ fn run_subcommand(arguments: Arguments) -> Result<(), CommandLineError> {
     match arguments.command.unwrap_or_default() {
         Commands::Prompt(_) => run_prompt(),
         Commands::Run(command) => {
-            let _source = fs::read_to_string(command.filename)?;
-
-            Ok(())
+            let source = fs::read_to_string(command.filename)?;
+            run(source.as_str())
         }
         Commands::Parse(command) => {
             let source = fs::read_to_string(command.filename)?;

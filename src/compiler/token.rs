@@ -11,6 +11,12 @@ pub struct Token {
     kind: Kind,
 }
 
+impl Display for Token {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{} token on {}", self.kind, self.lexeme)
+    }
+}
+
 impl Token {
     /// Creates a new instance of a `Token` with the given `Lexeme` and attribute.
     pub fn new<L: Into<Lexeme>, K: Into<Kind>>(lexeme: L, kind: K) -> Self {
