@@ -29,6 +29,11 @@ impl Environment {
         self.variables.get(name)
     }
 
+    /// Get the [`Assignment`] of the variable with the given index.
+    pub fn function(&self, reference: usize) -> Option<&Assignment> {
+        self.functions.get(reference)
+    }
+
     /// Defines a variable as having a given [`Value`].
     /// Returns the previously defined value, if any.
     pub fn define_value(&mut self, name: &str, value: &Value) -> Option<Value> {
@@ -42,8 +47,8 @@ impl Environment {
     }
 
     /// Defines a variable as having a given function.
-    /// Returns the previously defined value, if any.
-    pub fn define_function(&mut self, name: &str, function: &Assignment) -> Option<Value> {
+    /// Returns the previously defined value as an [`Err`], if any.
+    pub fn define_function(&mut self, name: &str, function: &Assignment) -> Result<Value, Value> {
         match self.variables.entry(name.to_string()) {
             Vacant(entry) => {
                 let index = self.functions.len();
@@ -51,9 +56,9 @@ impl Environment {
                 self.functions.push(function.clone());
                 entry.insert(index.into());
 
-                None
+                Ok(index.into())
             }
-            Occupied(entry) => Some(*entry.get()),
+            Occupied(entry) => Err(*entry.get()),
         }
     }
 }

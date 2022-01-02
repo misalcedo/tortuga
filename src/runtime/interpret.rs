@@ -81,8 +81,22 @@ impl Interpret for Arithmetic {
 }
 
 impl Interpret for Assignment {
-    fn execute(&self, _: &mut Environment) -> Value {
-        Value::Unit
+    fn execute(&self, environment: &mut Environment) -> Value {
+        let function = self.function();
+        let name = function.name().as_str();
+
+        if function.parameters().is_some() {
+            environment
+                .define_function(name, self)
+                .unwrap_or(Value::Unit)
+        } else {
+            let value = self.block().execute(environment);
+
+            match environment.define_value(name, &value) {
+                None => value,
+                Some(_) => Value::Unit,
+            }
+        }
     }
 }
 
@@ -173,8 +187,21 @@ impl Interpret for Number {
 }
 
 impl Interpret for Call {
-    fn execute(&self, _: &mut Environment) -> Value {
-        Value::Unit
+    fn execute(&self, environment: &mut Environment) -> Value {
+        match environment
+            .value(self.identifier().as_str())
+            .copied()
+            .unwrap_or(Value::Unit)
+        {
+            Value::FunctionReference(reference) => {
+                if let Some(_assignment) = environment.function(reference) {
+                    Value::Unit
+                } else {
+                    Value::Unit
+                }
+            }
+            value => value,
+        }
     }
 }
 

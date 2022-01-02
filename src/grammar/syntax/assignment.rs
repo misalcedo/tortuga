@@ -85,6 +85,16 @@ pub enum Name {
     Identified(Identifier),
 }
 
+impl Name {
+    /// The [`str`] representation of this [`Name`].
+    pub fn as_str(&self) -> &str {
+        match self {
+            Name::Anonymous => "_",
+            Name::Identified(identifier) => identifier.as_str(),
+        }
+    }
+}
+
 impl From<Identifier> for Name {
     fn from(identifier: Identifier) -> Self {
         Name::Identified(identifier)
