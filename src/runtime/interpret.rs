@@ -2,12 +2,21 @@
 
 use crate::grammar::*;
 use crate::runtime::{Environment, Value};
-use crate::Program;
+use crate::{Program, RuntimeError};
 use std::ops::Deref;
 
 /// Interprets a Tortuga [`Program`] and returns the [`Value`].
 ///
 /// # Example
+/// ## Build then run
+/// ```rust
+/// use tortuga::Interpreter;
+///
+/// let value = Interpreter::build_then_run("2*2 + (4^2 + 5^2)^.5  = 4 + 6.4 ~ 0.1");
+///
+/// assert_eq!(value, Ok(true.into()));
+/// ```
+///
 /// ## Expression
 /// ```rust
 /// use tortuga::{Program, Interpreter};
@@ -15,7 +24,7 @@ use std::ops::Deref;
 /// let program: Program = "(2 + 2#10) ^ 2".parse::<Program>().unwrap();
 /// let mut interpreter = Interpreter::default();
 ///
-/// assert_eq!(interpreter.run(program), 16.into());
+/// assert_eq!(interpreter.run(program), Ok(16.into()));
 /// ```
 ///
 /// ## Comparison
@@ -25,7 +34,7 @@ use std::ops::Deref;
 /// let program: Program = "(2 + 2#10) ^ 2 = 16".parse::<Program>().unwrap();
 /// let mut interpreter = Interpreter::default();
 ///
-/// assert_eq!(interpreter.run(program), true.into());
+/// assert_eq!(interpreter.run(program), Ok(true.into()));
 /// ```
 #[derive(Debug, Default)]
 pub struct Interpreter {
@@ -34,19 +43,28 @@ pub struct Interpreter {
 
 impl Interpreter {
     /// Runs the given [`Program`].
-    pub fn run(&mut self, program: Program) -> Value {
-        program.execute(&mut self.environment).unwrap_or_default()
+    pub fn run(&mut self, program: Program) -> Result<Value, RuntimeError> {
+        program.execute(&mut self.environment)
+    }
+
+    /// Build then execute the given input.
+    pub fn build_then_run(source: &str) -> Result<Value, RuntimeError> {
+        let program: Program = source.parse()?;
+
+        let mut interpreter = Interpreter::default();
+
+        interpreter.run(program)
     }
 }
 
 /// Defines how to interpret nodes in the syntax tree.
 pub trait Interpret {
     /// Interpret this node with the given [`Environment`].
-    fn execute(&self, environment: &mut Environment) -> Result<Value, ()>;
+    fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError>;
 }
 
 impl Interpret for Program {
-    fn execute(&self, environment: &mut Environment) -> Result<Value, ()> {
+    fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
         match self {
             Self::Expressions(expressions) => expressions.execute(environment),
             Self::Comparisons(comparisons) => comparisons.execute(environment),
@@ -55,7 +73,7 @@ impl Interpret for Program {
 }
 
 impl Interpret for Expressions {
-    fn execute(&self, environment: &mut Environment) -> Result<Value, ()> {
+    fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
         let mut value = self.head().execute(environment);
 
         for expression in self.tail() {
@@ -67,7 +85,7 @@ impl Interpret for Expressions {
 }
 
 impl Interpret for Expression {
-    fn execute(&self, environment: &mut Environment) -> Result<Value, ()> {
+    fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
         match self {
             Self::Arithmetic(arithmetic) => arithmetic.execute(environment),
             Self::Assignment(assignment) => assignment.execute(environment),
@@ -76,13 +94,13 @@ impl Interpret for Expression {
 }
 
 impl Interpret for Arithmetic {
-    fn execute(&self, environment: &mut Environment) -> Result<Value, ()> {
+    fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
         self.epsilon().execute(environment)
     }
 }
 
 impl Interpret for Assignment {
-    fn execute(&self, environment: &mut Environment) -> Result<Value, ()> {
+    fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
         let function = self.function();
         let name = function.name().as_str();
 
@@ -95,12 +113,12 @@ impl Interpret for Assignment {
             environment.define_function(name, self)
         };
 
-        result.map_err(|_| ())
+        result.map_err(|_| RuntimeError::Unknown)
     }
 }
 
 impl Interpret for Epsilon {
-    fn execute(&self, environment: &mut Environment) -> Result<Value, ()> {
+    fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
         let mut value = self.lhs().execute(environment)?;
 
         if let Some(rhs) = self.rhs() {
@@ -112,7 +130,7 @@ impl Interpret for Epsilon {
 }
 
 impl Interpret for Modulo {
-    fn execute(&self, environment: &mut Environment) -> Result<Value, ()> {
+    fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
         let mut value = self.head().execute(environment)?;
 
         for sum in self.tail() {
@@ -124,7 +142,7 @@ impl Interpret for Modulo {
 }
 
 impl Interpret for Sum {
-    fn execute(&self, environment: &mut Environment) -> Result<Value, ()> {
+    fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
         let mut value = self.head().execute(environment)?;
 
         for add_or_subtract in self.tail() {
@@ -139,7 +157,7 @@ impl Interpret for Sum {
 }
 
 impl Interpret for Product {
-    fn execute(&self, environment: &mut Environment) -> Result<Value, ()> {
+    fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
         let mut value = self.head().execute(environment)?;
 
         for multiply_or_divide in self.tail() {
@@ -154,7 +172,7 @@ impl Interpret for Product {
 }
 
 impl Interpret for Power {
-    fn execute(&self, environment: &mut Environment) -> Result<Value, ()> {
+    fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
         let mut value = self.head().execute(environment)?;
 
         for sum in self.tail() {
@@ -166,7 +184,7 @@ impl Interpret for Power {
 }
 
 impl Interpret for Primary {
-    fn execute(&self, environment: &mut Environment) -> Result<Value, ()> {
+    fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
         match self {
             Primary::Number(number) => number.execute(environment),
             Primary::Call(call) => call.execute(environment),
@@ -176,19 +194,19 @@ impl Interpret for Primary {
 }
 
 impl Interpret for Number {
-    fn execute(&self, _: &mut Environment) -> Result<Value, ()> {
-        self.number()
+    fn execute(&self, _: &mut Environment) -> Result<Value, RuntimeError> {
+        Ok(self
+            .number()
             .as_str()
             .parse::<crate::runtime::Number>()
-            .map(Value::Number)
-            .map_err(|_| ())
+            .map(Value::Number)?)
     }
 }
 
 impl Interpret for Call {
-    fn execute(&self, environment: &mut Environment) -> Result<Value, ()> {
+    fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
         let name = self.identifier().as_str();
-        let mut value = *environment.value(name).ok_or(())?;
+        let mut value = *environment.value(name).ok_or(RuntimeError::Unknown)?;
 
         if self.arguments().is_empty() {
             return Ok(value);
@@ -203,21 +221,21 @@ impl Interpret for Call {
 }
 
 impl Interpret for Pattern {
-    fn execute(&self, environment: &mut Environment) -> Result<Value, ()> {
+    fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
         let value = *environment
             .value(self.name().as_str().unwrap_or_default())
-            .ok_or(())?;
+            .ok_or(RuntimeError::Unknown)?;
 
         match self {
             Pattern::Function(function) => {
                 let reference = match value {
                     _ if function.parameters().is_none() => return Ok(true.into()),
                     Value::FunctionReference(reference) => reference,
-                    _ => return Err(()),
+                    _ => return Err(RuntimeError::Unknown),
                 };
 
                 let assignment = match environment.function(&reference) {
-                    None => return Err(()),
+                    None => return Err(RuntimeError::Unknown),
                     Some(assignment) => assignment.clone(),
                 };
 
@@ -248,7 +266,7 @@ impl Interpret for Pattern {
 }
 
 impl Interpret for Comparisons {
-    fn execute(&self, environment: &mut Environment) -> Result<Value, ()> {
+    fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
         let mut lhs = self.lhs().execute(environment)?;
         let mut comparator = self.comparisons().head().comparator();
         let mut rhs = self.comparisons().head().rhs().execute(environment)?;
@@ -291,20 +309,26 @@ fn compare_inequality(lhs: Value, inequality: &Inequality, rhs: Value) -> Value 
     })
 }
 
-fn get_assignment(value: &Value, environment: &mut Environment) -> Result<Assignment, ()> {
+fn get_assignment(
+    value: &Value,
+    environment: &mut Environment,
+) -> Result<Assignment, RuntimeError> {
     let reference = match value {
         Value::FunctionReference(reference) => reference,
-        _ => return Err(()),
+        _ => return Err(RuntimeError::Unknown),
     };
 
-    environment.function(reference).cloned().ok_or(())
+    environment
+        .function(reference)
+        .cloned()
+        .ok_or(RuntimeError::Unknown)
 }
 
 fn call_function(
     value: &Value,
     arguments: &Arguments,
     environment: &mut Environment,
-) -> Result<Value, ()> {
+) -> Result<Value, RuntimeError> {
     let assignment = get_assignment(value, environment)?;
     let parameters = assignment.function().parameters();
 
@@ -312,7 +336,7 @@ fn call_function(
         let mut local_environment = environment.new_child();
 
         if parameters.len() != arguments.len() {
-            return Err(());
+            return Err(RuntimeError::Unknown);
         }
 
         for (parameter, argument) in parameters.iter().zip(arguments.iter()) {
@@ -321,14 +345,14 @@ fn call_function(
 
             local_environment
                 .define_value(name, &value)
-                .map_err(|_| ())?;
+                .map_err(|_| RuntimeError::Unknown)?;
 
             let pattern_matched = if name.is_none() {
                 let mut pattern_environment = local_environment.new_child();
 
                 pattern_environment
                     .define_value(Some(String::default().as_str()), &value)
-                    .map_err(|_| ())?;
+                    .map_err(|_| RuntimeError::Unknown)?;
 
                 parameter.execute(&mut pattern_environment)?
             } else {
@@ -336,12 +360,29 @@ fn call_function(
             };
 
             if let Value::Boolean(false) = pattern_matched {
-                return Err(());
+                return Err(RuntimeError::Unknown);
             }
         }
 
         assignment.block().execute(&mut local_environment)
     } else {
-        Err(())
+        Err(RuntimeError::Unknown)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pythagorean_function() {
+        let source = r###"@x = 2
+            @f(@a, @b) = (a^2 + b^2)^.5
+
+            x^2 + f(4, 5) ; = 4 + 6.4 ~ 0.1"###;
+        assert_eq!(
+            Interpreter::build_then_run(source),
+            Ok(10.403124237432849.into())
+        );
     }
 }

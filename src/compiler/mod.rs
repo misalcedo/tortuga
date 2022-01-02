@@ -10,7 +10,7 @@ mod scanner;
 mod token;
 mod unicode;
 
-pub use errors::{LexicalError, SyntacticalError};
+pub use errors::{LexicalError, ParseNumberError, SyntacticalError};
 pub use input::Input;
 pub use lexeme::Lexeme;
 pub use location::Location;

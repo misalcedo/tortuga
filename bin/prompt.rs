@@ -105,7 +105,11 @@ pub fn run_prompt() -> Result<(), CommandLineError> {
             Some(input) if input.trim().is_empty() => continue,
             Some(input) => {
                 match input.as_str().parse::<Program>() {
-                    Ok(program) => writeln!(stdout(), "=> {}", interpreter.run(program))?,
+                    Ok(program) => writeln!(
+                        stdout(),
+                        "=> {}",
+                        interpreter.run(program).unwrap_or_default()
+                    )?,
                     Err(error) => error!("{:?}", error),
                 };
             }

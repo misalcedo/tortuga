@@ -13,6 +13,6 @@ pub enum CommandLineError {
     InvalidPath(#[from] std::path::StripPrefixError),
     #[error("Encountered an error prompting the user for input. {0}")]
     PromptError(#[from] rustyline::error::ReadlineError),
-    #[error("Encountered a syntax error parsing the given Tortuga input. {0}")]
-    Syntax(#[from] tortuga::SyntacticalError),
+    #[error(transparent)]
+    Runtime(#[from] tortuga::RuntimeError),
 }
