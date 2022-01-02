@@ -11,7 +11,7 @@ pub fn run(source: &str) -> Result<(), CommandLineError> {
     let mut interpreter = Interpreter::default();
     let value = interpreter.run(program);
 
-    write!(stdout(), "{}", value)?;
+    writeln!(stdout(), "{}", value)?;
 
     Ok(())
 }
