@@ -181,7 +181,7 @@ impl Interpret for Call {
         let name = self.identifier().as_str();
 
         if self.arguments().is_empty() {
-            return execute_assignment(name, environment);
+            return execute_assignment(name, None, environment);
         }
 
         Err(())
@@ -286,12 +286,32 @@ fn get_assignment(name: &str, environment: &mut Environment) -> Result<Assignmen
     environment.function(reference).cloned().ok_or(())
 }
 
-fn execute_assignment(name: &str, environment: &mut Environment) -> Result<Value, ()> {
+fn execute_assignment(
+    name: &str,
+    arguments: Option<&Arguments>,
+    environment: &mut Environment,
+) -> Result<Value, ()> {
     let assignment = get_assignment(name, environment)?;
     let mut local_environment = environment.new_child();
 
-    if assignment.function().parameters().is_none() {
+    let parameters = assignment.function().parameters();
+
+    if arguments.is_none() && parameters.is_none() {
         assignment.block().execute(&mut local_environment)
+    } else if let (Some(arguments), Some(parameters)) = (arguments, parameters) {
+        if parameters.len() != arguments.len() {
+            return Err(());
+        }
+
+        for (parameter, argument) in parameters.iter().zip(arguments.iter()) {
+            let value = argument.execute(environment)?;
+
+            local_environment
+                .define_value(parameter.name().as_str(), &value)
+                .ok_or(())?;
+        }
+
+        Err(())
     } else {
         Err(())
     }

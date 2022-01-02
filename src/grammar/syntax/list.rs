@@ -1,6 +1,7 @@
 //! Re-usable grammar component for non-empty lists.
 
 use std::fmt::Debug;
+use std::iter::Chain;
 
 /// A non-empty `List` of items.
 /// By default, the `Head` and `Tail` of a `List` have the same type, but they may differ.  
@@ -38,5 +39,27 @@ where
     /// Tests whether this [`List`] has no elements.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+}
+
+impl<Type> List<Type, Type>
+where
+    Type: Clone + Debug + Eq + PartialEq,
+{
+    /// Returns an [`Iterator`] over this [`List`].
+    pub fn iter(&self) -> impl Iterator<Item = &Type> {
+        Some(&self.0).into_iter().chain(self.1.as_slice())
+    }
+}
+
+impl<Type> IntoIterator for List<Type, Type>
+where
+    Type: Clone + Debug + Eq + PartialEq,
+{
+    type Item = Type;
+    type IntoIter = Chain<std::option::IntoIter<Self::Item>, std::vec::IntoIter<Self::Item>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Some(self.0).into_iter().chain(self.1)
     }
 }
