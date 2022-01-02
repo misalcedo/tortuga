@@ -1,6 +1,6 @@
 //! Runtime representation of a function.
 
-use crate::grammar::{self, Assignment, Name, Parameters};
+use crate::grammar::{self, Assignment, Parameters};
 use crate::runtime::interpret::Interpret;
 use crate::runtime::Environment;
 use crate::{RuntimeError, Value};
@@ -13,6 +13,22 @@ pub struct Function {
     binding: Environment,
 }
 
+/// The result of correctly invoking a [`Function`].
+pub struct CallResult(Value, Environment);
+
+impl Interpret for CallResult {
+    fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
+        match self.0 {
+            Value::FunctionReference(reference) => {
+                let function = self.1.function(&reference)?;
+
+                environment.define_function(function)
+            }
+            value => Ok(value),
+        }
+    }
+}
+
 impl Function {
     /// Creates a new instance of a runtime [`Function`].
     pub fn new(code: &Assignment, binding: &Environment) -> Self {
@@ -23,8 +39,8 @@ impl Function {
     }
 
     /// The [`Name`] patterns for this [`Function`].
-    pub fn name(&self) -> &Name {
-        self.code.function().name()
+    pub fn name(&self) -> Option<&str> {
+        self.code.function().name().as_str()
     }
 
     /// The [`Parameter`] patterns for this [`Function`].
@@ -32,13 +48,16 @@ impl Function {
         self.code.function().parameters()
     }
 
-    pub fn call(&self, arguments: &[Value]) -> Result<Value, RuntimeError> {
+    /// Calls this [`Function`] with the given arguments.
+    pub fn call(&self, arguments: &[Value]) -> Result<CallResult, RuntimeError> {
         let parameters = self.parameters();
         let mut environment = self.binding.new_child();
 
         match_patterns(arguments, parameters, &mut environment)?;
 
-        self.code.block().execute(&mut environment)
+        let value = self.code.block().execute(&mut environment)?;
+
+        Ok(CallResult(value, environment))
     }
 }
 
@@ -87,7 +106,7 @@ impl Display for Function {
         write!(
             f,
             "{}/{}",
-            self.name(),
+            self.code.function().name(),
             self.parameters().map(Parameters::len).unwrap_or_default()
         )
     }

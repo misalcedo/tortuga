@@ -1,7 +1,7 @@
 //! An interpreter used in the CLI prompt.
 
 use crate::grammar::*;
-use crate::runtime::{Environment, Value};
+use crate::runtime::{Environment, EpsilonOperator, Value};
 use crate::{runtime, Program, RuntimeError};
 use std::ops::Deref;
 
@@ -101,17 +101,16 @@ impl Interpret for Arithmetic {
 
 impl Interpret for Assignment {
     fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
+        let function = runtime::Function::new(self, environment);
         let signature = self.function();
-        let name = signature.name().as_str();
 
         if signature.parameters().is_none() {
-            let mut local_environment = environment.new_child();
-            let value = self.block().execute(&mut local_environment)?;
+            let name = signature.name().as_str();
+            let value = function.call(&[])?.execute(environment)?;
 
             environment.define_value(name, value)
         } else {
-            let function = runtime::Function::new(self, environment);
-            environment.define_function(name, function)
+            environment.define_function(function)
         }
     }
 }
@@ -121,7 +120,7 @@ impl Interpret for Epsilon {
         let mut value = self.lhs().execute(environment)?;
 
         if let Some(rhs) = self.rhs() {
-            value = crate::runtime::Epsilon::epsilon(value, rhs.execute(environment)?);
+            value = value.epsilon(rhs.execute(environment)?);
         }
 
         Ok(value)
@@ -328,12 +327,13 @@ fn call_function(
         values.push(argument.execute(environment)?);
     }
 
-    function.call(values.as_slice())
+    function.call(values.as_slice())?.execute(environment)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::runtime::Tolerance;
 
     #[test]
     fn pythagorean_function() {
@@ -343,7 +343,7 @@ mod tests {
             x^2 + f(4, 5) ; = 4 + 6.4 ~ 0.1"###;
         assert_eq!(
             Interpreter::build_then_run(source),
-            Ok(10.403124237432849.into())
+            Ok(Tolerance::new(10.4, 0.1).into())
         );
     }
 
@@ -373,7 +373,7 @@ mod tests {
             f(4, 5)"###;
         assert_eq!(
             Interpreter::build_then_run(source),
-            Ok(6.403124237432849.into())
+            Ok(Tolerance::new(6.4, 0.1).into())
         );
     }
 

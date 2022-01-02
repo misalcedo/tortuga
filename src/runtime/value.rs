@@ -1,7 +1,7 @@
 //! Valid values in the Tortuga runtime.
 
 use crate::runtime::environment::FunctionReference;
-use crate::runtime::epsilon::Epsilon;
+use crate::runtime::epsilon::EpsilonOperator;
 use crate::runtime::{Number, Tolerance};
 use std::cmp::Ordering;
 use std::fmt;
@@ -20,7 +20,7 @@ pub enum Value {
     FunctionReference(FunctionReference),
 }
 
-impl<I: Into<Value>> Epsilon<I> for Value {
+impl<I: Into<Value>> EpsilonOperator<I> for Value {
     type Output = Value;
 
     fn epsilon(self, rhs: I) -> Self::Output {

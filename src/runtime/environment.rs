@@ -76,15 +76,13 @@ impl Environment {
 
     /// Defines a variable as having a given function.
     /// Returns the previously defined value as an [`Err`], if any.
-    pub fn define_function(
-        &mut self,
-        name: Option<&str>,
-        function: Function,
-    ) -> Result<Value, RuntimeError> {
+    pub fn define_function(&mut self, function: Function) -> Result<Value, RuntimeError> {
         let index = self.functions.len();
         let value = FunctionReference(index).into();
 
+        self.define_value(function.name(), value)?;
         self.functions.push(function);
-        self.define_value(name, value)
+
+        Ok(value)
     }
 }

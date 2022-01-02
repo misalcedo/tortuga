@@ -1,6 +1,6 @@
 //! Representation of numbers within the Tortuga runtime.
 
-use crate::runtime::epsilon::Epsilon;
+use crate::runtime::epsilon::EpsilonOperator;
 use crate::runtime::Tolerance;
 use std::fmt;
 use std::ops::{
@@ -11,7 +11,7 @@ use std::ops::{
 #[derive(Copy, Clone, Debug, Default, PartialEq, PartialOrd)]
 pub struct Number(f64);
 
-impl<I: Into<Number>> Epsilon<I> for Number {
+impl<I: Into<Number>> EpsilonOperator<I> for Number {
     type Output = Tolerance;
 
     fn epsilon(self, epsilon: I) -> Self::Output {

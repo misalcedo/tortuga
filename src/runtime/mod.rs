@@ -10,7 +10,7 @@ mod tolerance;
 mod value;
 
 pub use environment::{Environment, FunctionReference};
-pub use epsilon::Epsilon;
+pub use epsilon::EpsilonOperator;
 pub use error::RuntimeError;
 pub use function::Function;
 pub use interpret::Interpreter;
