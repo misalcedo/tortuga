@@ -98,10 +98,10 @@ pub enum Name {
 
 impl Name {
     /// The [`str`] representation of this [`Name`].
-    pub fn as_str(&self) -> &str {
+    pub fn as_str(&self) -> Option<&str> {
         match self {
-            Name::Anonymous => "_",
-            Name::Identified(identifier) => identifier.as_str(),
+            Name::Anonymous => None,
+            Name::Identified(identifier) => Some(identifier.as_str()),
         }
     }
 }

@@ -86,7 +86,16 @@ impl Interpret for Assignment {
         let function = self.function();
         let name = function.name().as_str();
 
-        environment.define_function(name, self).map_err(|_| ())
+        let result = if function.parameters().is_none() {
+            let mut local_environment = environment.new_child();
+            let value = self.block().execute(&mut local_environment)?;
+
+            environment.define_value(name, &value)
+        } else {
+            environment.define_function(name, self)
+        };
+
+        result.map_err(|_| ())
     }
 }
 
@@ -182,11 +191,11 @@ impl Interpret for Call {
         let mut value = *environment.value(name).ok_or(())?;
 
         if self.arguments().is_empty() {
-            return call_function(&value, None, environment);
+            return Ok(value);
         }
 
         for arguments in self.arguments() {
-            value = call_function(&value, Some(arguments), environment)?;
+            value = call_function(&value, arguments, environment)?;
         }
 
         Ok(value)
@@ -195,7 +204,9 @@ impl Interpret for Call {
 
 impl Interpret for Pattern {
     fn execute(&self, environment: &mut Environment) -> Result<Value, ()> {
-        let value = *environment.value(self.name().as_str()).ok_or(())?;
+        let value = *environment
+            .value(self.name().as_str().unwrap_or_default())
+            .ok_or(())?;
 
         match self {
             Pattern::Function(function) => {
@@ -290,31 +301,46 @@ fn get_assignment(value: &Value, environment: &mut Environment) -> Result<Assign
 }
 
 fn call_function(
-    reference: &Value,
-    arguments: Option<&Arguments>,
+    value: &Value,
+    arguments: &Arguments,
     environment: &mut Environment,
 ) -> Result<Value, ()> {
-    let assignment = get_assignment(reference, environment)?;
-    let mut local_environment = environment.new_child();
-
+    let assignment = get_assignment(value, environment)?;
     let parameters = assignment.function().parameters();
 
-    if arguments.is_none() && parameters.is_none() {
-        assignment.block().execute(&mut local_environment)
-    } else if let (Some(arguments), Some(parameters)) = (arguments, parameters) {
+    if let Some(parameters) = parameters {
+        let mut local_environment = environment.new_child();
+
         if parameters.len() != arguments.len() {
             return Err(());
         }
 
         for (parameter, argument) in parameters.iter().zip(arguments.iter()) {
             let value = argument.execute(environment)?;
+            let name = parameter.name().as_str();
 
             local_environment
-                .define_value(parameter.name().as_str(), &value)
-                .ok_or(())?;
+                .define_value(name, &value)
+                .map_err(|_| ())?;
+
+            let pattern_matched = if name.is_none() {
+                let mut pattern_environment = local_environment.new_child();
+
+                pattern_environment
+                    .define_value(Some(String::default().as_str()), &value)
+                    .map_err(|_| ())?;
+
+                parameter.execute(&mut pattern_environment)?
+            } else {
+                parameter.execute(&mut local_environment)?
+            };
+
+            if let Value::Boolean(false) = pattern_matched {
+                return Err(());
+            }
         }
 
-        Err(())
+        assignment.block().execute(&mut local_environment)
     } else {
         Err(())
     }

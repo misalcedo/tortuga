@@ -47,30 +47,41 @@ impl Environment {
 
     /// Defines a variable as having a given [`Value`].
     /// Returns the previously defined value, if any.
-    pub fn define_value(&mut self, name: &str, value: &Value) -> Option<Value> {
-        match self.variables.entry(name.to_string()) {
-            Vacant(entry) => {
-                entry.insert(*value);
-                None
-            }
-            Occupied(entry) => Some(*entry.get()),
+    pub fn define_value(&mut self, name: Option<&str>, value: &Value) -> Result<Value, Value> {
+        match name {
+            Some(name) => match self.variables.entry(name.to_string()) {
+                Vacant(entry) => {
+                    entry.insert(*value);
+                    Ok(*value)
+                }
+                Occupied(entry) => Err(*entry.get()),
+            },
+            None => Ok(*value),
         }
     }
 
     /// Defines a variable as having a given function.
     /// Returns the previously defined value as an [`Err`], if any.
-    pub fn define_function(&mut self, name: &str, function: &Assignment) -> Result<Value, Value> {
-        match self.variables.entry(name.to_string()) {
-            Vacant(entry) => {
-                let index = self.functions.len();
-                let value = FunctionReference(index).into();
+    pub fn define_function(
+        &mut self,
+        name: Option<&str>,
+        function: &Assignment,
+    ) -> Result<Value, Value> {
+        let index = self.functions.len();
+        let value = FunctionReference(index).into();
 
-                self.functions.push(function.clone());
-                entry.insert(value);
+        self.functions.push(function.clone());
 
-                Ok(value)
-            }
-            Occupied(entry) => Err(*entry.get()),
+        match name {
+            Some(name) => match self.variables.entry(name.to_string()) {
+                Vacant(entry) => {
+                    entry.insert(value);
+
+                    Ok(value)
+                }
+                Occupied(entry) => Err(*entry.get()),
+            },
+            None => Ok(value),
         }
     }
 }

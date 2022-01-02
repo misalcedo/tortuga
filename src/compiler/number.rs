@@ -108,6 +108,7 @@ mod tests {
         validate_number(".0", 0);
         validate_number("0.", 0);
         validate_number("2", 2);
+        validate_number("4", 4);
         validate_number("21", 21);
         validate_number("100", 100);
         validate_number(".1", 0.1);
