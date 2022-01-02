@@ -36,6 +36,17 @@ pub enum Pattern {
     Bounds(Box<Bounds>),
 }
 
+impl Pattern {
+    /// The [`Name`] of this [`Pattern`].
+    pub fn name(&self) -> &Name {
+        match self {
+            Pattern::Function(function) => function.name(),
+            Pattern::Refinement(refinement) => refinement.name(),
+            Pattern::Bounds(bounds) => bounds.name(),
+        }
+    }
+}
+
 impl From<Function> for Pattern {
     fn from(function: Function) -> Self {
         Pattern::Function(Box::new(function))

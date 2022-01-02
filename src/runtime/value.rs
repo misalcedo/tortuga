@@ -1,5 +1,6 @@
 //! Valid values in the Tortuga runtime.
 
+use crate::runtime::environment::FunctionReference;
 use crate::runtime::epsilon::Epsilon;
 use crate::runtime::{Number, Tolerance};
 use std::cmp::Ordering;
@@ -16,7 +17,7 @@ pub enum Value {
     Boolean(bool),
     Number(Number),
     Tolerance(Tolerance),
-    FunctionReference(usize),
+    FunctionReference(FunctionReference),
 }
 
 impl<I: Into<Value>> Epsilon<I> for Value {
@@ -37,7 +38,7 @@ impl fmt::Display for Value {
             Value::Boolean(boolean) => write!(f, "{}", boolean),
             Value::Number(number) => write!(f, "{}", number),
             Value::Tolerance(tolerance) => write!(f, "{}", tolerance),
-            Value::FunctionReference(index) => write!(f, "@{}", index),
+            Value::FunctionReference(reference) => write!(f, "@{}", reference),
         }
     }
 }
@@ -60,9 +61,9 @@ impl From<f64> for Value {
     }
 }
 
-impl From<usize> for Value {
-    fn from(index: usize) -> Self {
-        Value::FunctionReference(index)
+impl From<FunctionReference> for Value {
+    fn from(reference: FunctionReference) -> Self {
+        Value::FunctionReference(reference)
     }
 }
 

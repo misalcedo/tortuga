@@ -29,4 +29,14 @@ where
     pub fn tail(&self) -> &[Tail] {
         self.1.as_slice()
     }
+
+    /// The number of total elements in this [`List`].
+    pub fn len(&self) -> usize {
+        1 + self.tail().len()
+    }
+
+    /// Tests whether this [`List`] has no elements.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }

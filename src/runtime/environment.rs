@@ -7,6 +7,7 @@ use crate::grammar::Assignment;
 use crate::runtime::Value;
 use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::HashMap;
+use std::fmt;
 
 /// The variable context for a single lexical scope.
 /// Environments are a tree, the root of the tree has no parent.
@@ -16,6 +17,16 @@ use std::collections::HashMap;
 pub struct Environment {
     variables: HashMap<String, Value>,
     functions: Vec<Assignment>,
+}
+
+/// A reference to a function.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct FunctionReference(usize);
+
+impl fmt::Display for FunctionReference {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
 }
 
 impl Environment {
@@ -30,8 +41,8 @@ impl Environment {
     }
 
     /// Get the [`Assignment`] of the variable with the given index.
-    pub fn function(&self, reference: usize) -> Option<&Assignment> {
-        self.functions.get(reference)
+    pub fn function(&self, reference: &FunctionReference) -> Option<&Assignment> {
+        self.functions.get(reference.0)
     }
 
     /// Defines a variable as having a given [`Value`].
@@ -52,11 +63,12 @@ impl Environment {
         match self.variables.entry(name.to_string()) {
             Vacant(entry) => {
                 let index = self.functions.len();
+                let value = FunctionReference(index).into();
 
                 self.functions.push(function.clone());
-                entry.insert(index.into());
+                entry.insert(value);
 
-                Ok(index.into())
+                Ok(value)
             }
             Occupied(entry) => Err(*entry.get()),
         }

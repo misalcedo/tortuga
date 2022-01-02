@@ -7,7 +7,7 @@ mod number;
 mod tolerance;
 mod value;
 
-pub use environment::Environment;
+pub use environment::{Environment, FunctionReference};
 pub use epsilon::Epsilon;
 pub use interpret::Interpreter;
 pub use number::Number;
