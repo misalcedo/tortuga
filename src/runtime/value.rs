@@ -16,6 +16,7 @@ pub enum Value {
     Boolean(bool),
     Number(Number),
     Tolerance(Tolerance),
+    FunctionReference(usize),
 }
 
 impl<I: Into<Value>> Epsilon<I> for Value {
@@ -36,6 +37,7 @@ impl fmt::Display for Value {
             Value::Boolean(boolean) => write!(f, "{}", boolean),
             Value::Number(number) => write!(f, "{}", number),
             Value::Tolerance(tolerance) => write!(f, "{}", tolerance),
+            Value::FunctionReference(index) => write!(f, "@{}", index),
         }
     }
 }
@@ -55,6 +57,12 @@ impl From<i32> for Value {
 impl From<f64> for Value {
     fn from(number: f64) -> Self {
         Value::Number(number.into())
+    }
+}
+
+impl From<usize> for Value {
+    fn from(index: usize) -> Self {
+        Value::FunctionReference(index)
     }
 }
 
@@ -222,6 +230,7 @@ impl PartialEq for Value {
             (Value::Unit, Value::Unit) => true,
             (Value::Number(a), Value::Tolerance(b)) => b.contains(a),
             (Value::Tolerance(a), Value::Number(b)) => a.contains(b),
+            (Value::FunctionReference(a), Value::FunctionReference(b)) => a == b,
             _ => false,
         }
     }

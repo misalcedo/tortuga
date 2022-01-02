@@ -3,6 +3,7 @@
 //!
 //! See <https://en.wikipedia.org/wiki/Constraint_programming>
 
+use crate::grammar::Assignment;
 use crate::runtime::Value;
 use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::HashMap;
@@ -14,6 +15,7 @@ use std::collections::HashMap;
 #[derive(Clone, Debug, Default)]
 pub struct Environment {
     variables: HashMap<String, Value>,
+    functions: Vec<Assignment>,
 }
 
 impl Environment {
@@ -29,10 +31,26 @@ impl Environment {
 
     /// Defines a variable as having a given [`Value`].
     /// Returns the previously defined value, if any.
-    pub fn define(&mut self, name: &str, value: &Value) -> Option<Value> {
+    pub fn define_value(&mut self, name: &str, value: &Value) -> Option<Value> {
         match self.variables.entry(name.to_string()) {
             Vacant(entry) => {
                 entry.insert(*value);
+                None
+            }
+            Occupied(entry) => Some(*entry.get()),
+        }
+    }
+
+    /// Defines a variable as having a given function.
+    /// Returns the previously defined value, if any.
+    pub fn define_function(&mut self, name: &str, function: &Assignment) -> Option<Value> {
+        match self.variables.entry(name.to_string()) {
+            Vacant(entry) => {
+                let index = self.functions.len();
+
+                self.functions.push(function.clone());
+                entry.insert(index.into());
+
                 None
             }
             Occupied(entry) => Some(*entry.get()),
