@@ -12,7 +12,7 @@ pub enum RuntimeError {
     Number(#[from] crate::ParseNumberError),
     #[error("Variable \"{0}\" is already defined as {1}.")]
     VariableAlreadyDefined(String, Value),
-    #[error("Variable \"{0}\" is not defined to a value.")]
+    #[error("Variable \"{0}\" is not defined.")]
     VariableNotDefined(String),
     #[error("Function reference \"{0}\" is not defined.")]
     FunctionNotDefined(FunctionReference),
