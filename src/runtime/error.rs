@@ -18,8 +18,6 @@ pub enum RuntimeError {
     FunctionNotDefined(FunctionReference),
     #[error("Expected value {0} to be of type {1}.")]
     UnexpectedType(Value, String),
-    #[error("Called function {0} with the wrong number of argument(s) (expected {1}, but called with {2}.")]
-    MismatchedArity(String, usize, usize),
     #[error("No definition found for function {0} with the given arguments: {}.", stringify_arguments(.1.as_slice()))]
     NoMatchingDefinition(String, Vec<Value>),
 }

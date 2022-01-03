@@ -196,10 +196,7 @@ impl<'a, StdOut: Write, StdErr: Write> PrettyPrinter<'a, StdOut, StdErr> {
 
     fn print_function(&mut self, function: &Function) -> io::Result<()> {
         self.print_name(function.name())?;
-
-        if let Some(parameters) = function.parameters() {
-            self.print_parameters(parameters)?;
-        }
+        self.print_parameters(function.parameters())?;
 
         Ok(())
     }
@@ -218,14 +215,21 @@ impl<'a, StdOut: Write, StdErr: Write> PrettyPrinter<'a, StdOut, StdErr> {
         write!(self.std_out, "{}", identifier.as_display(self.source))
     }
 
-    fn print_parameters(&mut self, parameters: &Parameters) -> io::Result<()> {
+    fn print_parameters(&mut self, parameters: &[Pattern]) -> io::Result<()> {
+        if parameters.is_empty() {
+            return Ok(());
+        }
+
         write!(self.std_out, "(")?;
 
-        self.print_pattern(parameters.head())?;
+        let mut iterator = parameters.iter().peekable();
 
-        for pattern in parameters.tail() {
-            write!(self.std_out, ", ")?;
-            self.print_pattern(pattern)?;
+        while let Some(parameter) = iterator.next() {
+            self.print_pattern(parameter)?;
+
+            if iterator.peek().is_some() {
+                write!(self.std_out, ", ")?;
+            }
         }
 
         write!(self.std_out, ")")

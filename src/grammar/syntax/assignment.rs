@@ -68,12 +68,14 @@ impl From<Bounds> for Pattern {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Function {
     name: Name,
-    parameters: Option<Parameters>,
+    parameters: Vec<Pattern>,
 }
+
+pub type Parameters = Vec<Pattern>;
 
 impl Function {
     /// Create a new instance of a `Function`.
-    pub fn new(name: Name, parameters: Option<Parameters>) -> Self {
+    pub fn new(name: Name, parameters: Vec<Pattern>) -> Self {
         Function { name, parameters }
     }
 
@@ -83,12 +85,10 @@ impl Function {
     }
 
     /// The `Parameters` necessary to invoke this `Function`.
-    pub fn parameters(&self) -> Option<&Parameters> {
+    pub fn parameters(&self) -> &[Pattern] {
         self.parameters.as_ref()
     }
 }
-
-pub type Parameters = List<Pattern>;
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Name {

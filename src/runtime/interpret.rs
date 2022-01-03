@@ -105,7 +105,7 @@ impl Interpret for Assignment {
         let function = runtime::Function::new(self, environment);
         let signature = self.function();
 
-        if signature.parameters().is_none() {
+        if signature.parameters().is_empty() {
             let name = signature.name().as_str();
             let value = function.call(&[])?.execute(environment)?;
 
@@ -226,7 +226,7 @@ impl Interpret for Pattern {
 
         match self {
             Pattern::Function(signature) => {
-                if signature.parameters().is_none() {
+                if signature.parameters().is_empty() {
                     return Ok(true.into());
                 }
 
@@ -379,7 +379,10 @@ mod tests {
             f(2, 4)"###;
         assert_eq!(
             Interpreter::build_then_run(source),
-            Err(RuntimeError::MismatchedArity("f/1".to_string(), 1, 2))
+            Err(RuntimeError::NoMatchingDefinition(
+                "f".to_string(),
+                vec![2.into(), 4.into()]
+            ))
         );
     }
 

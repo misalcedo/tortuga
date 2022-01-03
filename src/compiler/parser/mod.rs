@@ -287,7 +287,7 @@ impl<'a, T: Tokens> Parser<'a, T> {
 
     fn parse_function(&mut self) -> Result<Function, SyntacticalError> {
         let name = self.parse_name()?;
-        let parameters = self.parse_optional_parameters()?;
+        let parameters = self.parse_parameters()?;
 
         Ok(Function::new(name, parameters))
     }
@@ -308,27 +308,20 @@ impl<'a, T: Tokens> Parser<'a, T> {
         }
     }
 
-    fn parse_optional_parameters(&mut self) -> Result<Option<Parameters>, SyntacticalError> {
-        if let Some(true) = self.tokens.next_matches(Kind::LeftParenthesis) {
-            Ok(Some(self.parse_parameters()?))
-        } else {
-            Ok(None)
-        }
-    }
+    fn parse_parameters(&mut self) -> Result<Vec<Pattern>, SyntacticalError> {
+        let mut parameters = Vec::new();
 
-    fn parse_parameters(&mut self) -> Result<Parameters, SyntacticalError> {
-        self.next_kind(Kind::LeftParenthesis)?;
+        if self.tokens.next_if_match(Kind::LeftParenthesis).is_some() {
+            parameters.push(self.parse_pattern()?);
 
-        let head = self.parse_pattern()?;
-        let mut tail = Vec::new();
+            while self.tokens.next_if_match(Kind::Comma).is_some() {
+                parameters.push(self.parse_pattern()?);
+            }
 
-        while self.tokens.next_if_match(Kind::Comma).is_some() {
-            tail.push(self.parse_pattern()?);
+            self.next_kind(Kind::RightParenthesis)?;
         }
 
-        self.next_kind(Kind::RightParenthesis)?;
-
-        Ok(List::new(head, tail))
+        Ok(parameters)
     }
 
     fn parse_pattern(&mut self) -> Result<Pattern, SyntacticalError> {
@@ -338,7 +331,7 @@ impl<'a, T: Tokens> Parser<'a, T> {
             if let Some(true) = self.tokens.next_matches(COMPARISON_KINDS) {
                 self.parse_refinement(name)
             } else {
-                let parameters = self.parse_optional_parameters()?;
+                let parameters = self.parse_parameters()?;
 
                 Ok(Function::new(name, parameters).into())
             }
