@@ -75,13 +75,13 @@ impl Interpret for Program {
 
 impl Interpret for Expressions {
     fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
-        let mut value = self.head().execute(environment);
+        let mut value = self.head().execute(environment)?;
 
         for expression in self.tail() {
-            value = expression.execute(environment);
+            value = expression.execute(environment)?;
         }
 
-        value
+        Ok(value)
     }
 }
 
@@ -445,6 +445,18 @@ mod tests {
     #[test]
     fn variable_arity() {
         let source = r###"
+            @f(@c) = c^2
+            @f(@x, @y) = x * y
+            
+            f(2) + f(2, 2)
+        "###;
+
+        assert_eq!(Interpreter::build_then_run(source), Ok(8.into()));
+    }
+
+    #[test]
+    fn constant_or_variable_function() {
+        let source = r###"
             @f = 42
             @f(@c) = c^2
             @f(@x, @y) = x * y
@@ -452,7 +464,13 @@ mod tests {
             f + f(2) + f(2, 2)
         "###;
 
-        assert_eq!(Interpreter::build_then_run(source), Ok(50.into()));
+        assert_eq!(
+            Interpreter::build_then_run(source),
+            Err(RuntimeError::UnexpectedType(
+                42.into(),
+                "tortuga::runtime::environment::FunctionReference".to_string()
+            ))
+        );
     }
 
     #[test]
