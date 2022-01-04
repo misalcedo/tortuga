@@ -10,7 +10,7 @@ env:
 
 jobs:
   publish:
-    name: Pulish to crates.io
+    name: Pulish to ghcr.io, crates.io, Github Pages, and edit the release.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
