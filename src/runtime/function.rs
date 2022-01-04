@@ -34,7 +34,9 @@ impl Declaration {
 
         let mut local_environment = self.1.clone();
 
-        local_environment.override_function(function.clone()).ok()?;
+        if let Err(error) = local_environment.override_function(function.clone()) {
+            return Some(Err(error));
+        }
 
         for (parameter, &argument) in self.0.iter().zip(arguments.iter()) {
             let name = parameter.name().as_str();

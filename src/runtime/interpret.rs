@@ -412,7 +412,7 @@ mod tests {
 
         assert_eq!(
             Interpreter::build_then_run(source),
-            Err(RuntimeError::FunctionAlreadyDefined("f".to_string(),))
+            Err(RuntimeError::FunctionAlreadyDefined("@f".to_string(),))
         );
     }
 
@@ -426,7 +426,7 @@ mod tests {
 
         assert_eq!(
             Interpreter::build_then_run(source),
-            Err(RuntimeError::FunctionAlreadyDefined("f".to_string(),))
+            Err(RuntimeError::FunctionAlreadyDefined("x".to_string(),))
         );
     }
 

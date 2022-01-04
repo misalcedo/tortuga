@@ -29,11 +29,24 @@ impl Assignment {
 
 pub type Block = List<Expression>;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq)]
 pub enum Pattern {
     Function(Box<Function>),
     Refinement(Box<Refinement>),
     Bounds(Box<Bounds>),
+}
+
+impl PartialEq for Pattern {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Pattern::Function(a), Pattern::Function(b)) => a.parameters == b.parameters,
+            (Pattern::Refinement(a), Pattern::Refinement(b)) => {
+                a.comparator == b.comparator && a.constraint == b.constraint
+            }
+            (Pattern::Bounds(a), Pattern::Bounds(b)) => a.left == b.left && a.right == b.right,
+            _ => false,
+        }
+    }
 }
 
 impl Pattern {
