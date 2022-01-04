@@ -8,48 +8,18 @@ use std::fmt::{self, Display, Formatter, Write};
 
 /// A declaration of a [`Function`].
 #[derive(Clone, Debug)]
-pub struct Declaration(Vec<Pattern>, Environment, Body);
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum Body {
-    Block(Block),
-    Value(Value),
-}
-
-impl From<Block> for Body {
-    fn from(block: Block) -> Self {
-        Body::Block(block)
-    }
-}
-
-impl From<Value> for Body {
-    fn from(value: Value) -> Self {
-        Body::Value(value)
-    }
-}
-
-impl Interpret for Body {
-    fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
-        match self {
-            Body::Block(block) => block.execute(environment),
-            Body::Value(value) => Ok(*value),
-        }
-    }
-}
+pub struct Declaration(Vec<Pattern>, Environment, Block);
 
 impl Declaration {
     /// Create a new [`Declaration`].
     pub fn new(assignment: &Assignment, environment: &Environment) -> Self {
-        Declaration(
-            assignment.function().parameters().to_vec(),
-            environment.clone(),
-            assignment.block().clone().into(),
-        )
-    }
+        let parameters = assignment.function().parameters();
 
-    /// Create a new constant [`Declaration`].
-    pub fn new_constant(value: Value, environment: &Environment) -> Self {
-        Declaration(Vec::new(), environment.clone(), value.into())
+        Declaration(
+            parameters.to_vec(),
+            environment.clone(),
+            assignment.block().clone(),
+        )
     }
 
     pub fn call(
@@ -112,14 +82,6 @@ impl Function {
         Function {
             name: assignment.function().name().as_str().map(String::from),
             declarations: vec![Declaration::new(assignment, environment)],
-        }
-    }
-
-    /// Creates a new instance of a runtime [`Function`].
-    pub fn new_constant(name: Option<&str>, value: Value, environment: &Environment) -> Self {
-        Function {
-            name: name.map(String::from),
-            declarations: vec![Declaration::new_constant(value, environment)],
         }
     }
 

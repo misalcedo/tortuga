@@ -104,7 +104,12 @@ impl Interpret for Assignment {
     fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
         let function = runtime::Function::new(self, environment);
 
-        environment.define_function(function).map(Value::from)
+        if self.function().parameters().is_empty() {
+            let value = self.block().execute(environment)?;
+            environment.define_value(self.function().name().as_str(), value)
+        } else {
+            environment.define_function(function)
+        }
     }
 }
 
@@ -197,7 +202,7 @@ impl Interpret for Number {
 impl Interpret for Call {
     fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
         let name = self.identifier().as_str();
-        let mut value = environment.function_reference(name).map(Value::from)?;
+        let mut value = environment.value(name)?;
 
         for arguments in self.arguments() {
             let reference = FunctionReference::try_from(value)?;
@@ -220,7 +225,7 @@ impl Interpret for Call {
 impl Interpret for Pattern {
     fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
         let name = self.name().as_str().unwrap_or_default();
-        let value = environment.function_reference(name).map(Value::from)?;
+        let value = environment.value(name)?;
 
         match self {
             Pattern::Function(signature) => {
@@ -338,9 +343,9 @@ mod tests {
         "###;
         assert_eq!(
             Interpreter::build_then_run(source),
-            Err(RuntimeError::NoMatchingDefinition(
-                "x".to_string(),
-                vec![7.into()]
+            Err(RuntimeError::UnexpectedType(
+                42.into(),
+                "tortuga::runtime::environment::FunctionReference".to_string()
             ))
         );
     }

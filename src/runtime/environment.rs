@@ -12,7 +12,7 @@ use std::fmt;
 /// environments start as a clone of their parent.
 #[derive(Clone, Debug, Default)]
 pub struct Environment {
-    names: HashMap<String, usize>,
+    names: HashMap<String, Value>,
     functions: Vec<Function>,
 }
 
@@ -42,43 +42,41 @@ impl Environment {
     }
 
     /// Get the [`FunctionReference`] with the given name.
-    pub fn function_reference(&self, name: &str) -> Result<FunctionReference, RuntimeError> {
-        let index = self
-            .names
+    pub fn value(&self, name: &str) -> Result<Value, RuntimeError> {
+        self.names
             .get(name)
-            .ok_or_else(|| RuntimeError::FunctionNotDefined(name.to_string()))?;
-
-        Ok(FunctionReference(*index))
+            .copied()
+            .ok_or_else(|| RuntimeError::FunctionNotDefined(name.to_string()))
     }
 
     /// Defines a [`Function`] as having a given name.
     /// Returns the previously defined value as an [`Err`], if any.
-    pub fn define_function(
+    pub fn define_function(&mut self, function: Function) -> Result<Value, RuntimeError> {
+        let index = self.functions.len();
+        let value = FunctionReference(index).into();
+
+        self.define_value(function.name(), value)?;
+        self.functions.push(function);
+
+        Ok(value)
+    }
+
+    /// Defines a variable as having a given [`Value`].
+    /// Returns the previously defined value, if any.
+    pub fn define_value(
         &mut self,
-        function: Function,
-    ) -> Result<FunctionReference, RuntimeError> {
-        match function.name() {
+        name: Option<&str>,
+        value: Value,
+    ) -> Result<Value, RuntimeError> {
+        match name {
             Some(name) => match self.names.entry(name.to_string()) {
                 Vacant(entry) => {
-                    let reference = insert_function(&mut self.functions, function);
-
-                    entry.insert(reference.0);
-
-                    Ok(reference)
+                    entry.insert(value);
+                    Ok(value)
                 }
-                Occupied(entry) => {
-                    let index = *entry.get();
-                    let existing = self
-                        .functions
-                        .get_mut(index)
-                        .ok_or_else(|| RuntimeError::FunctionNotDefined(name.to_string()))?;
-
-                    existing.merge(function)?;
-
-                    Ok(FunctionReference(index))
-                }
+                Occupied(_) => Err(RuntimeError::FunctionAlreadyDefined(name.to_string())),
             },
-            None => Ok(insert_function(&mut self.functions, function)),
+            None => Ok(value),
         }
     }
 
@@ -87,20 +85,13 @@ impl Environment {
         source: &mut Environment,
         name: Option<&str>,
         value: Value,
-    ) -> Result<FunctionReference, RuntimeError> {
-        let function = match value {
-            Value::FunctionReference(ref reference) => source.function(reference)?,
-            constant => Function::new_constant(name, constant, self),
-        };
-
-        self.define_function(function)
+    ) -> Result<Value, RuntimeError> {
+        match value {
+            Value::FunctionReference(ref reference) => {
+                let function = source.function(reference)?;
+                self.define_function(function)
+            }
+            constant => self.define_value(name, constant),
+        }
     }
-}
-
-fn insert_function(functions: &mut Vec<Function>, function: Function) -> FunctionReference {
-    let index = functions.len();
-
-    functions.push(function);
-
-    FunctionReference(index)
 }

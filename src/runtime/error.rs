@@ -3,7 +3,7 @@
 use crate::Value;
 
 /// An error that may occur while executing a [`Program`].
-#[derive(thiserror::Error, Debug, PartialEq)]
+#[derive(thiserror::Error, Clone, Debug, PartialEq)]
 pub enum RuntimeError {
     #[error("Encountered a syntax error parsing the given Tortuga input. {0}")]
     Syntax(#[from] crate::SyntacticalError),
