@@ -57,3 +57,9 @@ jobs:
         run: |
           cargo login ${{ secrets.CRATES_IO_TOKEN }}
           cargo publish
+      - name: Edit release
+        run: |
+        TAG=${GITHUB_REF#*/tags/}
+        cargo build --bin tortuga --release
+        cd target/release
+        hub release edit -m "" --attach tortuga $TAG
