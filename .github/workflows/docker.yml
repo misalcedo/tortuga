@@ -28,3 +28,4 @@ jobs:
       - name: Build and push
         run: |
           docker build . -t ghcr.io/${{ github.repository }}:$(tortuga version)
+          docker push ghcr.io/${{ github.repository }}:$(tortuga version)
