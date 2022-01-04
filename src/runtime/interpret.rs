@@ -105,8 +105,8 @@ impl Interpret for Assignment {
         let function = runtime::Function::new(self, environment);
 
         if self.function().parameters().is_empty() {
-            let value = self.block().execute(environment)?;
-            environment.define_value(self.function().name().as_str(), value)
+            let value = function.call(&[], environment)?.execute(environment)?;
+            environment.define_value(function.name(), value)
         } else {
             environment.define_function(function)
         }
@@ -327,12 +327,19 @@ mod tests {
 
     #[test]
     fn anonymous_parameter() {
+        // Anonymous parameters cannot have conditions
         let source = r###"
             @f(_ > 3) = 42
 
             f(7)
         "###;
-        assert_eq!(Interpreter::build_then_run(source), Ok(42.into()));
+        assert_eq!(
+            Interpreter::build_then_run(source),
+            Err(RuntimeError::NoMatchingDefinition(
+                "@f".to_string(),
+                vec![7.0.into()]
+            ))
+        );
     }
 
     #[test]
@@ -499,7 +506,7 @@ mod tests {
     #[test]
     fn call_internal_function() {
         let source = r###"
-            @x = @f(@x, @y) = x * y
+            @n = @f(@x, @y) = x * y
             f(3, 4)
         "###;
 
@@ -531,10 +538,15 @@ mod tests {
 
     #[test]
     fn anonymous() {
+        // Groupings are not callable, so this is not parsed correctly.
         let source = r###"
             @f(@x) = (_(@n) = x + 1)(x) + (_(@n) = n + 1)(x)
+            f(1)
         "###;
 
-        assert_eq!(Interpreter::build_then_run(source), Ok(4.into()));
+        assert_eq!(
+            Interpreter::build_then_run(source),
+            Err(RuntimeError::FunctionNotDefined("x".to_string()))
+        );
     }
 }

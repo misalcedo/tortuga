@@ -67,7 +67,9 @@ impl Interpret for CallResult {
     fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
         match self.0 {
             Value::FunctionReference(reference) => {
-                let function = self.1.function(&reference)?;
+                let mut function = self.1.function(&reference)?;
+
+                function.name.take();
 
                 environment.define_function(function).map(Value::from)
             }
