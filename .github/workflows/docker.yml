@@ -29,3 +29,8 @@ jobs:
         run: |
           docker build . -t ghcr.io/${{ github.repository }}:$(tortuga version)
           docker push ghcr.io/${{ github.repository }}:$(tortuga version)
+
+          git tag -a "v$(tortuga version)" -m ""
+          if [ $? -eq 0 ]; then
+            git push --tags
+          fi
