@@ -24,6 +24,7 @@ impl Declaration {
 
     pub fn call(
         &self,
+        function: &Function,
         arguments: &[Value],
         environment: &mut Environment,
     ) -> Option<Result<CallResult, RuntimeError>> {
@@ -32,6 +33,8 @@ impl Declaration {
         }
 
         let mut local_environment = self.1.clone();
+
+        local_environment.override_function(function.clone()).ok()?;
 
         for (parameter, &argument) in self.0.iter().zip(arguments.iter()) {
             let name = parameter.name().as_str();
@@ -99,7 +102,7 @@ impl Function {
         environment: &mut Environment,
     ) -> Result<CallResult, RuntimeError> {
         for declaration in self.declarations.as_slice() {
-            if let Some(result) = declaration.call(arguments, environment) {
+            if let Some(result) = declaration.call(self, arguments, environment) {
                 return result;
             }
         }

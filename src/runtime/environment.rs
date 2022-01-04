@@ -49,6 +49,19 @@ impl Environment {
             .ok_or_else(|| RuntimeError::FunctionNotDefined(name.to_string()))
     }
 
+    pub fn override_function(&mut self, function: Function) -> Result<Value, RuntimeError> {
+        if let Some(name) = function.name() {
+            if let Some(Value::FunctionReference(reference)) = self.names.get(name) {
+                if let Some(slot) = self.functions.get_mut(reference.0) {
+                    *slot = function;
+                    return Ok(Value::from(*reference));
+                }
+            }
+        }
+
+        self.define_function(function)
+    }
+
     /// Defines a [`Function`] as having a given name.
     /// Returns the previously defined value as an [`Err`], if any.
     pub fn define_function(&mut self, function: Function) -> Result<Value, RuntimeError> {
