@@ -426,7 +426,7 @@ mod tests {
 
         assert_eq!(
             Interpreter::build_then_run(source),
-            Err(RuntimeError::FunctionAlreadyDefined("x".to_string(),))
+            Err(RuntimeError::FunctionAlreadyDefined("@x".to_string(),))
         );
     }
 
@@ -473,10 +473,7 @@ mod tests {
 
         assert_eq!(
             Interpreter::build_then_run(source),
-            Err(RuntimeError::UnexpectedType(
-                42.into(),
-                "tortuga::runtime::environment::FunctionReference".to_string()
-            ))
+            Err(RuntimeError::FunctionAlreadyDefined("@f".to_string()))
         );
     }
 
@@ -489,7 +486,7 @@ mod tests {
 
         assert_eq!(
             Interpreter::build_then_run(source),
-            Err(RuntimeError::FunctionAlreadyDefined("x".to_string(),))
+            Err(RuntimeError::FunctionAlreadyDefined("@x".to_string(),))
         );
     }
 
@@ -502,7 +499,7 @@ mod tests {
 
         assert_eq!(
             Interpreter::build_then_run(source),
-            Err(RuntimeError::FunctionAlreadyDefined("x".to_string(),))
+            Err(RuntimeError::FunctionAlreadyDefined("@x".to_string(),))
         );
     }
 
@@ -532,7 +529,7 @@ mod tests {
     #[test]
     fn higher_order() {
         let source = r###"
-            @f(@n, @callable(@n)) = callable(n^2) 
+            @f(@n, @callable(@x)) = callable(n^2) 
             f(2, _(@n) = n^2)
         "###;
 

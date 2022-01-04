@@ -100,7 +100,7 @@ impl Environment {
                     entry.insert(value);
                     Ok(value)
                 }
-                Occupied(_) => Err(RuntimeError::FunctionAlreadyDefined(name.to_string())),
+                Occupied(_) => Err(RuntimeError::FunctionAlreadyDefined(format!("@{}", name))),
             },
             None => Ok(value),
         }
