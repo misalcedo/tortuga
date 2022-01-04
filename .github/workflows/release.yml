@@ -29,14 +29,11 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: ghcr.io/${{ github.repository }}:latest
-      - uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: mdbook
       - name: Deploy GitHub Pages
         run: |
           cd docs/
-          mdbook build
+          curl -sSL https://github.com/rust-lang/mdBook/releases/download/v0.4.15/mdbook-v0.4.15-x86_64-unknown-linux-gnu.tar.gz | tar -xz --directory=bin
+          bin/mdbook build
           git worktree add gh-pages gh-pages
           git config user.name "Deploy from CI"
           git config user.email ""
