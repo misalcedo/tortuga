@@ -21,6 +21,10 @@ impl Declaration {
     }
 
     pub fn call(&self, arguments: &[Value]) -> Option<Result<CallResult, RuntimeError>> {
+        if self.0.len() != arguments.len() {
+            return None;
+        }
+
         let mut environment = self.1.new_child();
 
         for (parameter, &argument) in self.0.iter().zip(arguments.iter()) {
@@ -107,11 +111,9 @@ impl Function {
 
 impl PartialEq<grammar::Function> for Function {
     fn eq(&self, other: &grammar::Function) -> bool {
-        self.name() == other.name().as_str()
-            && self
-                .declarations
-                .iter()
-                .any(|declaration| declaration.0.as_slice() == other.parameters())
+        self.declarations
+            .iter()
+            .any(|declaration| declaration.0.as_slice() == other.parameters())
     }
 }
 

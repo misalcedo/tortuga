@@ -103,16 +103,8 @@ impl Interpret for Arithmetic {
 impl Interpret for Assignment {
     fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
         let function = runtime::Function::new(self, environment);
-        let signature = self.function();
 
-        if signature.parameters().is_empty() {
-            let name = signature.name().as_str();
-            let value = function.call(&[])?.execute(environment)?;
-
-            environment.define_value(name, value)
-        } else {
-            environment.define_function(function)
-        }
+        environment.define_function(function)
     }
 }
 
@@ -207,12 +199,16 @@ impl Interpret for Call {
         let name = self.identifier().as_str();
         let mut value = environment.value(name)?;
 
-        if self.arguments().is_empty() {
-            return Ok(value);
-        }
-
         for arguments in self.arguments() {
-            value = call_function(&value, arguments, environment)?;
+            let reference = FunctionReference::try_from(value)?;
+            let function = environment.function(&reference)?;
+            let mut values = Vec::new();
+
+            for argument in arguments.iter() {
+                values.push(argument.execute(environment)?);
+            }
+
+            value = function.call(values.as_slice())?.execute(environment)?;
         }
 
         Ok(value)
@@ -303,22 +299,6 @@ fn compare_inequality(lhs: Value, inequality: &Inequality, rhs: Value) -> Value 
     })
 }
 
-fn call_function(
-    value: &Value,
-    arguments: &Arguments,
-    environment: &mut Environment,
-) -> Result<Value, RuntimeError> {
-    let reference = FunctionReference::try_from(*value)?;
-    let function = environment.function(&reference)?;
-    let mut values = Vec::new();
-
-    for argument in arguments.iter() {
-        values.push(argument.execute(environment)?);
-    }
-
-    function.call(values.as_slice())?.execute(environment)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -326,10 +306,12 @@ mod tests {
 
     #[test]
     fn pythagorean_function() {
-        let source = r###"@x = 2
+        let source = r###"
+            @x = 2
             @f(@a, @b) = (a^2 + b^2)^.5
 
-            x^2 + f(4, 5) ; = 4 + 6.4 ~ 0.1"###;
+            x^2 + f(4, 5) ; = 4 + 6.4 ~ 0.1
+        "###;
         assert_eq!(
             Interpreter::build_then_run(source),
             Ok(Tolerance::new(10.4, 0.1).into())
@@ -338,35 +320,40 @@ mod tests {
 
     #[test]
     fn anonymous_parameter() {
-        let source = r###"@f(_ > 3) = 42
+        let source = r###"
+            @f(_ > 3) = 42
 
-            f(7)"###;
+            f(7)
+        "###;
         assert_eq!(Interpreter::build_then_run(source), Ok(42.into()));
     }
 
     #[test]
     fn invalid_call() {
-        let source = r###"@x = 42
-
-            x(7)"###;
+        let source = r###"
+            @x = 42
+            x(7)
+        "###;
         assert_eq!(
             Interpreter::build_then_run(source),
-            Err(RuntimeError::UnexpectedType(
-                42.into(),
-                "tortuga::runtime::environment::FunctionReference".to_string()
+            Err(RuntimeError::NoMatchingDefinition(
+                "x".to_string(),
+                vec![7.into()]
             ))
         );
     }
 
     #[test]
     fn no_matching_definition() {
-        let source = r###"@f(_ > 3) = 42
+        let source = r###"
+            @f(_ > 3) = 42
 
-            f(2)"###;
+            f(2)
+        "###;
         assert_eq!(
             Interpreter::build_then_run(source),
             Err(RuntimeError::NoMatchingDefinition(
-                "f/1".to_string(),
+                "f".to_string(),
                 vec![2.into()]
             ))
         );
@@ -374,9 +361,11 @@ mod tests {
 
     #[test]
     fn wrong_number_of_arguments() {
-        let source = r###"@f(_ > 3) = 42
+        let source = r###"
+            @f(_ > 3) = 42
 
-            f(2, 4)"###;
+            f(2, 4)
+        "###;
         assert_eq!(
             Interpreter::build_then_run(source),
             Err(RuntimeError::NoMatchingDefinition(
@@ -388,9 +377,11 @@ mod tests {
 
     #[test]
     fn anonymous_function() {
-        let source = r###"@f = _(@a, @b) = (a^2 + b^2)^.5
+        let source = r###"
+            @f = _(@a, @b) = (a^2 + b^2)^.5
             
-            f(4, 5)"###;
+            f(4, 5)
+        "###;
         assert_eq!(
             Interpreter::build_then_run(source),
             Ok(Tolerance::new(6.4, 0.1).into())
@@ -440,12 +431,14 @@ mod tests {
 
     #[test]
     fn recursive_factorial() {
-        let source = r###"@factorial(@n <= 1) = 1
+        let source = r###"
+            @factorial(@n <= 1) = 1
             @factorial(@n > 1) = n * factorial(n - 1)
             
             factorial(1)
             factorial(3)
-            factorial(9)"###;
+            factorial(9)
+        "###;
 
         assert_eq!(Interpreter::build_then_run(source), Ok(true.into()));
     }
@@ -457,15 +450,18 @@ mod tests {
             @f(@c) = c^2
             @f(@x, @y) = x * y
             
-            f + f(2) + f(2, 2)"###;
+            f + f(2) + f(2, 2)
+        "###;
 
         assert_eq!(Interpreter::build_then_run(source), Ok(50.into()));
     }
 
     #[test]
     fn arguments_with_name_of_function() {
-        let source = r###"@x(@x, @y) = x * y
-            x(2, 2)"###;
+        let source = r###"
+            @x(@x, @y) = x * y
+            x(2, 2)
+        "###;
 
         assert_eq!(
             Interpreter::build_then_run(source),
@@ -478,16 +474,20 @@ mod tests {
 
     #[test]
     fn arguments_with_name_of_terminal_function() {
-        let source = r###"@x = @f(@x, @y) = x * y
-            x(3, 4)"###;
+        let source = r###"
+            @x = @f(@x, @y) = x * y
+            x(3, 4)
+        "###;
 
         assert_eq!(Interpreter::build_then_run(source), Ok(12.into()));
     }
 
     #[test]
     fn call_internal_function() {
-        let source = r###"@x = @f(@x, @y) = x * y
-            f(3, 4)"###;
+        let source = r###"
+            @x = @f(@x, @y) = x * y
+            f(3, 4)
+        "###;
 
         assert_eq!(
             Interpreter::build_then_run(source),
@@ -497,8 +497,10 @@ mod tests {
 
     #[test]
     fn curry() {
-        let source = r###"@g(@a) = @f(@x, @y) = a + x * y
-            g(1)(3, 4)"###;
+        let source = r###"
+            @g(@a) = @f(@x, @y) = a + x * y
+            g(1)(3, 4)
+        "###;
 
         assert_eq!(Interpreter::build_then_run(source), Ok(13.into()));
     }
