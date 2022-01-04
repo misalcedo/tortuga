@@ -104,7 +104,7 @@ impl Interpret for Assignment {
     fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
         let function = runtime::Function::new(self, environment);
 
-        environment.define_function(function)
+        environment.define_function(function).map(Value::from)
     }
 }
 
@@ -197,7 +197,7 @@ impl Interpret for Number {
 impl Interpret for Call {
     fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
         let name = self.identifier().as_str();
-        let mut value = environment.value(name)?;
+        let mut value = environment.function_reference(name).map(Value::from)?;
 
         for arguments in self.arguments() {
             let reference = FunctionReference::try_from(value)?;
@@ -208,7 +208,9 @@ impl Interpret for Call {
                 values.push(argument.execute(environment)?);
             }
 
-            value = function.call(values.as_slice())?.execute(environment)?;
+            value = function
+                .call(values.as_slice(), environment)?
+                .execute(environment)?;
         }
 
         Ok(value)
@@ -218,7 +220,7 @@ impl Interpret for Call {
 impl Interpret for Pattern {
     fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
         let name = self.name().as_str().unwrap_or_default();
-        let value = environment.value(name)?;
+        let value = environment.function_reference(name).map(Value::from)?;
 
         match self {
             Pattern::Function(signature) => {
@@ -353,7 +355,7 @@ mod tests {
         assert_eq!(
             Interpreter::build_then_run(source),
             Err(RuntimeError::NoMatchingDefinition(
-                "f".to_string(),
+                "@f".to_string(),
                 vec![2.into()]
             ))
         );
@@ -369,7 +371,7 @@ mod tests {
         assert_eq!(
             Interpreter::build_then_run(source),
             Err(RuntimeError::NoMatchingDefinition(
-                "f".to_string(),
+                "@f".to_string(),
                 vec![2.into(), 4.into()]
             ))
         );
@@ -398,10 +400,7 @@ mod tests {
 
         assert_eq!(
             Interpreter::build_then_run(source),
-            Err(RuntimeError::VariableAlreadyDefined(
-                "f".to_string(),
-                FunctionReference::from(0).into()
-            ))
+            Err(RuntimeError::FunctionAlreadyDefined("f".to_string(),))
         );
     }
 
@@ -415,10 +414,7 @@ mod tests {
 
         assert_eq!(
             Interpreter::build_then_run(source),
-            Err(RuntimeError::VariableAlreadyDefined(
-                "f".to_string(),
-                FunctionReference::from(0).into()
-            ))
+            Err(RuntimeError::FunctionAlreadyDefined("f".to_string(),))
         );
     }
 
@@ -435,12 +431,10 @@ mod tests {
             @factorial(@n <= 1) = 1
             @factorial(@n > 1) = n * factorial(n - 1)
             
-            factorial(1)
-            factorial(3)
             factorial(9)
         "###;
 
-        assert_eq!(Interpreter::build_then_run(source), Ok(true.into()));
+        assert_eq!(Interpreter::build_then_run(source), Ok(362880.into()));
     }
 
     #[test]
@@ -465,10 +459,7 @@ mod tests {
 
         assert_eq!(
             Interpreter::build_then_run(source),
-            Err(RuntimeError::VariableAlreadyDefined(
-                "x".to_string(),
-                FunctionReference::from(0).into()
-            ))
+            Err(RuntimeError::FunctionAlreadyDefined("x".to_string(),))
         );
     }
 
@@ -491,7 +482,7 @@ mod tests {
 
         assert_eq!(
             Interpreter::build_then_run(source),
-            Err(RuntimeError::VariableNotDefined("f".to_string()))
+            Err(RuntimeError::FunctionNotDefined("f".to_string()))
         );
     }
 

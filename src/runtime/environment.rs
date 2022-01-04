@@ -1,11 +1,7 @@
-//! A Constraint Satisfaction Problem solver.
-//! Used to determine the runtime value of a variable.
-//!
-//! See <https://en.wikipedia.org/wiki/Constraint_programming>
+//! A scope used to determine the runtime value of a function.
 
 use crate::runtime::Function;
-use crate::runtime::Value;
-use crate::RuntimeError;
+use crate::{RuntimeError, Value};
 use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::HashMap;
 use std::fmt;
@@ -16,7 +12,7 @@ use std::fmt;
 /// environments start as a clone of their parent.
 #[derive(Clone, Debug, Default)]
 pub struct Environment {
-    variables: HashMap<String, Value>,
+    names: HashMap<String, usize>,
     functions: Vec<Function>,
 }
 
@@ -32,63 +28,79 @@ impl From<usize> for FunctionReference {
 
 impl fmt::Display for FunctionReference {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "@{}", self.0)
+        write!(f, "{}", self.0)
     }
 }
 
 impl Environment {
-    /// Creates a child [`Environment`].
-    pub fn new_child(&self) -> Environment {
-        self.clone()
-    }
-
-    /// Get the [`Value`] of the variable with the given [`Identifier`].
-    pub fn value(&self, name: &str) -> Result<Value, RuntimeError> {
-        self.variables
-            .get(name)
-            .copied()
-            .ok_or_else(|| RuntimeError::VariableNotDefined(name.to_string()))
-    }
-
-    /// Get the [`Assignment`] of the variable with the given index.
+    /// Get the [`Function`] declarations with the given name.
     pub fn function(&self, reference: &FunctionReference) -> Result<Function, RuntimeError> {
         self.functions
             .get(reference.0)
             .cloned()
-            .ok_or_else(|| RuntimeError::FunctionNotDefined(*reference))
+            .ok_or_else(|| RuntimeError::FunctionNotDefined(reference.to_string()))
     }
 
-    /// Defines a variable as having a given [`Value`].
-    /// Returns the previously defined value, if any.
-    pub fn define_value(
+    /// Get the [`FunctionReference`] with the given name.
+    pub fn function_reference(&self, name: &str) -> Result<FunctionReference, RuntimeError> {
+        let index = self
+            .names
+            .get(name)
+            .ok_or_else(|| RuntimeError::FunctionNotDefined(name.to_string()))?;
+
+        Ok(FunctionReference(*index))
+    }
+
+    /// Defines a [`Function`] as having a given name.
+    /// Returns the previously defined value as an [`Err`], if any.
+    pub fn define_function(
         &mut self,
-        name: Option<&str>,
-        value: Value,
-    ) -> Result<Value, RuntimeError> {
-        match name {
-            Some(name) => match self.variables.entry(name.to_string()) {
+        function: Function,
+    ) -> Result<FunctionReference, RuntimeError> {
+        match function.name() {
+            Some(name) => match self.names.entry(name.to_string()) {
                 Vacant(entry) => {
-                    entry.insert(value);
-                    Ok(value)
+                    let reference = insert_function(&mut self.functions, function);
+
+                    entry.insert(reference.0);
+
+                    Ok(reference)
                 }
-                Occupied(entry) => Err(RuntimeError::VariableAlreadyDefined(
-                    name.to_string(),
-                    *entry.get(),
-                )),
+                Occupied(entry) => {
+                    let index = *entry.get();
+                    let existing = self
+                        .functions
+                        .get_mut(index)
+                        .ok_or_else(|| RuntimeError::FunctionNotDefined(name.to_string()))?;
+
+                    existing.merge(function)?;
+
+                    Ok(FunctionReference(index))
+                }
             },
-            None => Ok(value),
+            None => Ok(insert_function(&mut self.functions, function)),
         }
     }
 
-    /// Defines a variable as having a given function.
-    /// Returns the previously defined value as an [`Err`], if any.
-    pub fn define_function(&mut self, function: Function) -> Result<Value, RuntimeError> {
-        let index = self.functions.len();
-        let value = FunctionReference(index).into();
+    pub fn define_function_from(
+        &mut self,
+        source: &mut Environment,
+        name: Option<&str>,
+        value: Value,
+    ) -> Result<FunctionReference, RuntimeError> {
+        let function = match value {
+            Value::FunctionReference(ref reference) => source.function(reference)?,
+            constant => Function::new_constant(name, constant, self),
+        };
 
-        self.define_value(function.name(), value)?;
-        self.functions.push(function);
-
-        Ok(value)
+        self.define_function(function)
     }
+}
+
+fn insert_function(functions: &mut Vec<Function>, function: Function) -> FunctionReference {
+    let index = functions.len();
+
+    functions.push(function);
+
+    FunctionReference(index)
 }
