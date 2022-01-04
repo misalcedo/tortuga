@@ -500,7 +500,10 @@ mod tests {
             x(3, 4)
         "###;
 
-        assert_eq!(Interpreter::build_then_run(source), Ok(12.into()));
+        assert_eq!(
+            Interpreter::build_then_run(source),
+            Err(RuntimeError::FunctionAlreadyDefined("x".to_string(),))
+        );
     }
 
     #[test]

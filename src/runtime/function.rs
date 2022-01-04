@@ -41,9 +41,10 @@ impl Declaration {
         for (parameter, &argument) in self.0.iter().zip(arguments.iter()) {
             let name = parameter.name().as_str();
 
-            local_environment
-                .define_function_from(environment, name, argument)
-                .ok()?;
+            if let Err(error) = local_environment.define_function_from(environment, name, argument)
+            {
+                return Some(Err(error));
+            }
 
             if let Value::Boolean(false) = parameter.execute(&mut local_environment).ok()? {
                 return None;
