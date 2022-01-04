@@ -52,6 +52,19 @@ impl Environment {
     /// Defines a [`Function`] as having a given name.
     /// Returns the previously defined value as an [`Err`], if any.
     pub fn define_function(&mut self, function: Function) -> Result<Value, RuntimeError> {
+        if let Some(name) = function.name() {
+            if let Some(Value::FunctionReference(reference)) = self.names.get(name) {
+                let existing = self
+                    .functions
+                    .get_mut(reference.0)
+                    .ok_or_else(|| RuntimeError::FunctionNotDefined(name.to_string()))?;
+
+                existing.merge(function)?;
+
+                return Ok(Value::from(*reference));
+            }
+        }
+
         let index = self.functions.len();
         let value = FunctionReference(index).into();
 
