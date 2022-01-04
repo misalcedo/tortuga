@@ -32,6 +32,7 @@ jobs:
       - name: Deploy GitHub Pages
         run: |
           cd docs/
+          mkdir bin
           curl -sSL https://github.com/rust-lang/mdBook/releases/download/v0.4.15/mdbook-v0.4.15-x86_64-unknown-linux-gnu.tar.gz | tar -xz --directory=bin
           bin/mdbook build
           git worktree add gh-pages gh-pages
