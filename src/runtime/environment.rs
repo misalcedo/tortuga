@@ -114,7 +114,8 @@ impl Environment {
     ) -> Result<Value, RuntimeError> {
         match value {
             Value::FunctionReference(ref reference) => {
-                let function = source.function(reference)?;
+                let mut function = source.function(reference)?;
+                function.set_name(name);
                 self.define_function(function)
             }
             constant => self.define_value(name, constant),

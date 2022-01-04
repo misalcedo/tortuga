@@ -98,6 +98,11 @@ impl Function {
         self.name.as_deref()
     }
 
+    /// The [`Name`] patterns for this [`Function`].
+    pub fn set_name(&mut self, name: Option<&str>) {
+        self.name = name.map(String::from);
+    }
+
     /// Calls this [`Function`] with the given arguments.
     pub fn call(
         &self,

@@ -327,7 +327,6 @@ mod tests {
 
     #[test]
     fn anonymous_parameter() {
-        // Anonymous parameters cannot have conditions
         let source = r###"
             @f(_ > 3) = 42
 
@@ -337,7 +336,7 @@ mod tests {
             Interpreter::build_then_run(source),
             Err(RuntimeError::NoMatchingDefinition(
                 "@f".to_string(),
-                vec![7.0.into()]
+                vec![7.into()]
             ))
         );
     }
@@ -529,11 +528,11 @@ mod tests {
     #[test]
     fn higher_order() {
         let source = r###"
-            @f(@n, @callable(@x)) = callable(n^2) 
+            @f(@n, @callable(@x)) = callable(n^2)
             f(2, _(@n) = n^2)
         "###;
 
-        assert_eq!(Interpreter::build_then_run(source), Ok(8.into()));
+        assert_eq!(Interpreter::build_then_run(source), Ok(16.into()));
     }
 
     #[test]
