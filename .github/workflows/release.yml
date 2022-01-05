@@ -30,7 +30,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-          target: {{ matrix.target }}
+          target: ${{ matrix.target }}
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v1.3.0
       - uses: actions-rs/cargo@v1
@@ -40,7 +40,7 @@ jobs:
       - name: Upload artifacts
         env:
           FILE: target/release/tortuga
-          TARGET: {{ matrix.target }}
+          TARGET: ${{ matrix.target }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG=v$(cargo metadata --no-deps --quiet | jq -r '.packages[] | select(.name == "tortuga") | .version')
