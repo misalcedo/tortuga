@@ -16,11 +16,10 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: fix
-          args: --all --all-features
+          args: --all-features
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: ---all
       - name: Upload formatting and lint fixes
         run: |
           git config user.name "Upload lint fixes from CI"
