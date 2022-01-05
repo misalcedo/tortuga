@@ -39,18 +39,24 @@ jobs:
           args: --bin tortuga --release --all-features
       - name: Upload artifacts
         env:
-          FILE: target/release/tortuga
+          BUILD: ${{ matrix.build }}
           TARGET: ${{ matrix.target }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG=v$(cargo metadata --no-deps --quiet | jq -r '.packages[] | select(.name == "tortuga") | .version')
+          FILE=target/release/tortuga
+          ASSET="tortuga-$TAG-$TARGET"
 
-          if [ -f $FILE ]
+          if [ $BUILD -eq "windows" ]
           then
-            gh release upload $TAG $FILE#$TARGET/tortuga
-          elif [ -f "$FILE.exe" ]
-          then
-            gh release upload $TAG $FILE.exe#$TARGET/tortuga.exe
+            FILE=$FILE.exe
+            ASSET=$ASSET.zip
+
+            7z a $ASSET mdbook.exe
+            gh release upload $TAG $FILE
           else
-            echo "Unable to upload binary to the $TAG release."
+            ASSET=$ASSET.tar.gz
+
+            tar czf $ASSET $FILE
+            gh release upload $TAG $FILE
           fi
