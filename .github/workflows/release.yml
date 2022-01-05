@@ -41,6 +41,7 @@ jobs:
         env:
           FILE: target/release/tortuga
           TARGET: {{ matrix.target }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG=v$(cargo metadata --no-deps --quiet | jq -r '.packages[] | select(.name == "tortuga") | .version')
 
