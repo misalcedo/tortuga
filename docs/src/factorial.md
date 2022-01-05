@@ -3,7 +3,7 @@
 In this chapter we will implement [factorial](https://en.wikipedia.org/wiki/Factorial) using the Tortuga Programming Language. In mathematics, the `factorial` of a non-negative integer `n`, denoted by `n!`, is the product of all positive integers less than or equal to `n`. The factorial of `n` also equals the product of `n` with the next smaller factorial. The factorial of `0` is equal to `1` (i.e., `0! = 1`).
 
 ## Implementation
-Since factorial is only defined for non-negative integers and all numbers in the Tortuga Programming Language are signed real numbers, our implementation will round all real numbers to their nearest integer and report an error for non-negative numbers.
+ All numbers in the Tortuga Programming Language are signed real numbers. Since factorial is only defined for non-negative integers, our implementation will round all real numbers to their nearest integer and report an error for non-negative numbers.
 
 ## Copy & Paste
 Create a file named `factorial.ta` with the following contents:
