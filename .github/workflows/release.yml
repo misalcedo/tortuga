@@ -1,4 +1,4 @@
-name: Release to Crates.io
+name: Upload Artifacts
 
 on:
   release:
@@ -9,17 +9,47 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  publish:
-    name: Pulish to crates.io
-    runs-on: ubuntu-latest
+  release:
+    name: Upload artifacts to release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        build: [linux, macos, windows]
+        include:
+          - build: linux
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+          - build: macos
+            os: macos-latest
+            target: x86_64-apple-darwin
+          - build: windows
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+          target: {{ matrix.target }}
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v1.3.0
-      - name: Publish to Crates.io
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --bin tortuga --release --all-features
+      - name: Upload artifacts:
+        env:
+          FILE: target/release/tortuga
+          TARGET: {{ matrix.target }}
         run: |
-          cargo login ${{ secrets.CRATES_IO_TOKEN }}
-          cargo publish
+          TAG=v$(cargo metadata --no-deps --quiet | jq -r '.packages[] | select(.name == "tortuga") | .version')
+
+          if [ -f $FILE ]
+          then
+            gh release upload $TAG $FILE#TARGET/$FILE
+          elif [ -f "$FILE.exe" ]
+          then
+            gh release upload $TAG $FILE.exe#TARGET/$FILE.exe
+          else
+            echo "Unable to upload binary to the $TAG release."
+          fi
