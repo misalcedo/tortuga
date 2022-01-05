@@ -12,6 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - name: Validate Links
+        uses: reiddraper/freshlinks@v0.1.1
+        with:
+          glob: "**/*.md"
       - name: Install mdbook
         run: |
           curl -sSL https://github.com/rust-lang/mdBook/releases/download/v0.4.15/mdbook-v0.4.15-x86_64-unknown-linux-gnu.tar.gz | tar -xz --directory=/tmp
