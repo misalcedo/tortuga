@@ -23,6 +23,16 @@ pub enum Value {
     FunctionReference(FunctionReference),
 }
 
+impl Value {
+    /// The absolute value (i.e. positive) of this value.
+    pub fn abs(self) -> Self {
+        match self {
+            Value::Number(a) => Value::Number(a.abs()),
+            _ => Self::Unit,
+        }
+    }
+}
+
 impl<I: Into<Value>> EpsilonOperator<I> for Value {
     type Output = Value;
 

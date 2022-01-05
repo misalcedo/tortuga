@@ -140,7 +140,7 @@ impl Interpret for Modulo {
         let mut value = self.head().execute(environment)?;
 
         for sum in self.tail() {
-            value %= sum.execute(environment)?;
+            value = value.abs() % sum.execute(environment)?.abs();
         }
 
         Ok(value)
@@ -326,6 +326,17 @@ fn compare_inequality(lhs: Value, inequality: &Inequality, rhs: Value) -> Value 
 mod tests {
     use super::*;
     use crate::runtime::Tolerance;
+
+    #[test]
+    fn modulo() {
+        let source = r###"
+            -5 % -2
+        "###;
+        assert_eq!(
+            Interpreter::build_then_run(source),
+            Ok(1.into())
+        );
+    }
 
     #[test]
     fn pythagorean_function() {

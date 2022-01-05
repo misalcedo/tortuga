@@ -11,6 +11,13 @@ use std::ops::{
 #[derive(Copy, Clone, Debug, Default, PartialEq, PartialOrd)]
 pub struct Number(f64);
 
+impl Number {
+    /// The absolute value (i.e. positive) of this value.
+    pub fn abs(self) -> Number {
+        Number(self.0.abs())
+    }
+}
+
 impl<I: Into<Number>> EpsilonOperator<I> for Number {
     type Output = Tolerance;
 
