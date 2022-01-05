@@ -20,12 +20,4 @@ jobs:
           git tag $TAG --force
           git push --tags --force
 
-          gh release view $TAG &> /dev/null
-          
-          if [ $? -eq 0 ]
-          then
-            echo "Release $TAG already exists."
-          else
-            echo "Creating release $TAG."
-            gh release create $TAG -d --notes $TAG
-          fi
+          gh release view $TAG &> /dev/null || gh release create $TAG -d --notes $TAG
