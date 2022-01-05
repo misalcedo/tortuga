@@ -11,3 +11,5 @@ pub const AUTHORS: &str = env!("CARGO_PKG_AUTHORS");
 
 /// A short description of Tortuga.
 pub const DESCRIPTION: &str = env!("CARGO_PKG_DESCRIPTION");
+
+const UNUSED  : u8 =   0    ;
