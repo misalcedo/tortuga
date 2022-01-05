@@ -332,10 +332,7 @@ mod tests {
         let source = r###"
             -5 % -2
         "###;
-        assert_eq!(
-            Interpreter::build_then_run(source),
-            Ok(1.into())
-        );
+        assert_eq!(Interpreter::build_then_run(source), Ok(1.into()));
     }
 
     #[test]
