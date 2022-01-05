@@ -15,9 +15,16 @@ jobs:
         uses: Swatinem/rust-cache@v1.3.0
       - uses: actions-rs/cargo@v1
         with:
-          command: fmt
-          args: ---all -- --check
+          command: fix
+          args: --all --all-features
       - uses: actions-rs/cargo@v1
         with:
-          command: clippy
-          args: --all --all-features -- -D warnings
+          command: fmt
+          args: ---all
+      - name: Upload formatting and lint fixes
+        run: |
+          git config user.name "Upload lint fixes from CI"
+          git config user.email ""
+          git add .
+          git commit -m "Automically fix lint failures and format code."
+          git push
