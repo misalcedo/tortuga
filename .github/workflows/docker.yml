@@ -1,6 +1,9 @@
 name: Docker
 
-on: [push, workflow_dispatch]
+on:
+  release:
+    types: [created, published]
+  workflow_dispatch: {}
 
 jobs:
   docker:
@@ -16,23 +19,10 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-      - name: Cache Cargo
-        uses: Swatinem/rust-cache@v1.3.0
-      - uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: --path . --all-features
       - name: Build and push
         run: |
-          docker build . -t ghcr.io/${{ github.repository }}:$(tortuga version)
-          docker push ghcr.io/${{ github.repository }}:$(tortuga version)
+          IMAGE=ghcr.io/${{ github.repository }}
+          TAG=$(cargo metadata --no-deps --quiet | jq -r '.packages[] | select(.name == "tortuga") | .version')
 
-          git config user.name "Add Tag from CI"
-          git config user.email ""
-          git tag -a "v$(tortuga version)" -m ""
-          if [ $? -eq 0 ]; then
-            git push --tags
-          fi
+          docker build . -t $IMAGE:$TAG -t $IMAGE:latest
+          docker push --all-tags $IMAGE
