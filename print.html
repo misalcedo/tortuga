@@ -170,9 +170,11 @@
 <p>All numbers in the Tortuga Programming Language are signed real numbers. Since factorial is only defined for non-negative integers, our implementation will round all real numbers to their nearest integer and report an error for non-negative numbers.</p>
 <h2 id="copy--paste"><a class="header" href="#copy--paste">Copy &amp; Paste</a></h2>
 <p>Create a file named <code>factorial.ta</code> with the following contents:</p>
-<pre><code class="language-tortuga">@round(@n) = round(n, n % 1)
-@round(@n, @remainder &gt;= 0.5) = 1 + n - (n % 1)
-@round(@n, @remainder &lt; 0.5) = n - (n % 1)
+<pre><code class="language-tortuga">@floor(@n) = n - (n % 1)
+
+@round(@n) = round(floor(n), n % 1)
+@round(@n, @remainder &gt;= 0.5) = 1 + n
+@round(@n, @remainder &lt; 0.5) = n
 
 @factorial(@n = 0) = 1
 @factorial(@n &gt; 0) = [
