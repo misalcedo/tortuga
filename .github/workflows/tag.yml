@@ -9,6 +9,7 @@ jobs:
     name: Define Tags for version in Cargo.toml
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v2
       - name: Create or Update Tag
         run: |
           git config user.name "Add Tag from CI"
