@@ -9,11 +9,11 @@ In this chapter we will implement [factorial](https://en.wikipedia.org/wiki/Fact
 Create a file named `factorial.ta` with the following contents:
 
 ```tortuga
-@floor(@n) = n - (n % 1)
+@floor(@n >= 0) = n - (n % 1)
 
-@round(@n) = round(floor(n), n % 1)
-@round(@n, @remainder >= 0.5) = 1 + n
-@round(@n, @remainder < 0.5) = n
+@round(@n >= 0) = round(floor(n), n % 1)
+@round(@n >= 0, @remainder >= 0.5) = 1 + n
+@round(@n >= 0, @remainder < 0.5) = n
 
 @factorial(@n = 0) = 1
 @factorial(@n > 0) = [
