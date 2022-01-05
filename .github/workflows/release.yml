@@ -37,7 +37,7 @@ jobs:
         with:
           command: build
           args: --bin tortuga --release --all-features
-      - name: Upload artifacts:
+      - name: Upload artifacts
         env:
           FILE: target/release/tortuga
           TARGET: {{ matrix.target }}
