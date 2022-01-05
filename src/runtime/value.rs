@@ -51,7 +51,7 @@ impl fmt::Display for Value {
             Value::Boolean(boolean) => write!(f, "{}", boolean),
             Value::Number(number) => write!(f, "{}", number),
             Value::Tolerance(tolerance) => write!(f, "{}", tolerance),
-            Value::FunctionReference(reference) => write!(f, "{}", reference),
+            Value::FunctionReference(reference) => write!(f, "@{}", reference),
         }
     }
 }
