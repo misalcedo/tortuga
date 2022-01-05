@@ -1,4 +1,4 @@
-# Tortuga Programming Language
+# Introduction
 Welcome to The Tortuga Programming Language, an introductory book about Tortuga.
 
 Tortuga is a functionally-oriented concurrent programming language. The runtime is a Rust program to provide performance and memory safety; the language compiles to WebAssembly. Using WebAssembly allows developers to utilize their favorite programming language to write extensions for the runtime.
