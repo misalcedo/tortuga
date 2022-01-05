@@ -53,10 +53,10 @@ jobs:
             ASSET=$ASSET.zip
 
             7z a $ASSET $FILE
-            gh release upload $TAG $ASSET
+            gh release upload $TAG $ASSET --clobber
           else
             ASSET=$ASSET.tar.gz
 
             tar czf $ASSET $FILE
-            gh release upload $TAG $ASSET
+            gh release upload $TAG $ASSET --clobber
           fi
