@@ -1,0 +1,22 @@
+name: Publish Book
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'docs/' ]
+  workflow_dispatch: {}
+
+jobs:
+  publish:
+    name: Publish Book to Github Pages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install mdbook
+        run: |
+          curl -sSL https://github.com/rust-lang/mdBook/releases/download/v0.4.15/mdbook-v0.4.15-x86_64-unknown-linux-gnu.tar.gz | tar -xz --directory=/tmp
+          /tmp/mdbook build docs
+      - uses: JamesIves/github-pages-deploy-action@4.1.8
+        with:
+          branch: gh-pages
+          folder: docs/book
