@@ -83,8 +83,7 @@ The associativity and precedence of the various operators in Tortuga are defined
 | 4          | Multiply                 | *      | X                | X                 |                 |
 | 4          | Divide                   | /      | X                |                   |                 |
 | 5          | Exponent                 | ^      |                  | X                 |                 |
-| 6          | Assignment               | =      |                  | X                 |                 |
-| 7          | Equality                 | =      | X                | X                 |                 |
+| 6          | Pattern Match            | =      |                  | X                 |                 |
 | 7          | Inequality               | <>     | X                | X                 |                 |
 | 7          | Less Than                | <      | X                | X                 |                 |
 | 7          | Less Than or Equal To    | <=     | X                | X                 |                 |
