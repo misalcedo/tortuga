@@ -52,7 +52,7 @@ jobs:
             FILE=$FILE.exe
             ASSET=$ASSET.zip
 
-            7z a $ASSET mdbook.exe
+            7z a $ASSET $FILE
             gh release upload $TAG $FILE
           else
             ASSET=$ASSET.tar.gz
