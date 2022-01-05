@@ -6,10 +6,13 @@ In this chapter we will implement [factorial](https://en.wikipedia.org/wiki/Fact
 Create a file named `factorial.ta` with the following contents:
 
 ```tortuga
-@integer(@n) = n - (n % 1)
+@round(@n) = round(n, n % 1)
+@round(@n, @remainder >= 0.5) = 1 + n - (n % 1)
+@round(@n, @remainder < 0.5) = n - (n % 1)
+
 @factorial(@n = 0) = 1
 @factorial(@n > 0) = [
-    @i = integer(n)
+    @i = round(n)
     i * factorial(i - 1)
 ]
 
