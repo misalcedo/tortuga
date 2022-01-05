@@ -71,8 +71,8 @@ NZ_DIGIT    = "1" ... "9" ;
 DIGIT       = "0" ... "9" ;
 ```
 
-# Associativity
-The associativity of the various operators in Tortuga are defined below.
+# Operators
+The associativity and precedence of the various operators in Tortuga are defined below.
 
 | Precedence | Operation                | Symbol | Left Associative | Right Associative | Non-Associative |
 |:-----------|:-------------------------|--------|------------------|-------------------|-----------------|
