@@ -47,10 +47,10 @@ jobs:
 
           if [ -f $FILE ]
           then
-            gh release upload $TAG $FILE#TARGET/$FILE
+            gh release upload $TAG $FILE#$TARGET/tortuga
           elif [ -f "$FILE.exe" ]
           then
-            gh release upload $TAG $FILE.exe#TARGET/$FILE.exe
+            gh release upload $TAG $FILE.exe#$TARGET/tortuga.exe
           else
             echo "Unable to upload binary to the $TAG release."
           fi
