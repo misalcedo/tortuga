@@ -32,7 +32,7 @@ The following are a set of design decisions for Tortuga roughly separated into c
 - Tortuga has no statements.
 - Tortuga has no expression or statement terminator.
 - Expressions may span more than one line.
-- Order of precedence follows the mathematical order (i.e., parentheses, exponentiation, multiplication and division, addition and substraction).
+- Order of precedence follows the mathematical order (i.e., parentheses, exponentiation, multiplication and division, addition and subtraction).
 - Comparisons (or variable refinements) have precedence over mathematical operations.
 
 ## Variables
@@ -75,13 +75,13 @@ The following are a set of design decisions for Tortuga roughly separated into c
 - Tortuga provides record definitions to provide a reusable way to pattern match on a record. 
 
 ## Processes
-- The corrency building block is a process.
-- Processs can do anything a function can do plus: receive messages, send messages and create other processes.
+- The building block for concurrency is a process.
+- Processes can do anything a function can do plus: receive messages, send messages and create other processes.
 - Tortuga has no synchronization or locking primitives.
 
 ## Standard Library
 - Provides mathematical primitives.
-- Provides concurrency building blocks (e.g. concenssus, 2-phase commit, etc.).
+- Provides concurrency building blocks (e.g. consensus, 2-phase commit, etc.).
 - Provides access to a key-value block store.
 - Provides a logging process.
 - Provides networking primitives (e.g. servers, clients, connections, TLS, TCP, UDP, etc.).

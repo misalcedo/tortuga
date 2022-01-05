@@ -5,7 +5,7 @@ Tortuga can be used in various ways. The most common is to download the compiled
 ## Download
 Each new version of Tortuga creates a [release](https://github.com/misalcedo/tortuga/releases) in the [repository](https://github.com/misalcedo/tortuga). A release contains compressed (`.tar.gz` and `.zip`) assets for Linux, macOS, and Windows.
 
-After you download the asset for your system, use the tools for your operating system to uncompress the assets into an executable. Then, place the executable in a directory that is part of your `PATH` environment variable.
+After you download the asset for your system, use the tools for your operating system to decompress the assets into an executable. Then, place the executable in a directory that is part of your `PATH` environment variable.
 
 ## Cargo
 Alternatively, you can install any version of tortuga from source using `cargo` with: 
