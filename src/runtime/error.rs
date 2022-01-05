@@ -15,7 +15,7 @@ pub enum RuntimeError {
     FunctionNotDefined(String),
     #[error("Expected value {0} to be of type {1}.")]
     UnexpectedType(Value, String),
-    #[error("No definition found for function @{0} with the given arguments: {}.", stringify_arguments(.1.as_slice()))]
+    #[error("No definition found for function {0} with the given arguments: {}.", stringify_arguments(.1.as_slice()))]
     NoMatchingDefinition(String, Vec<Value>),
 }
 

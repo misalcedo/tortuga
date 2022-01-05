@@ -27,6 +27,16 @@ use std::ops::Deref;
 ///
 /// assert_eq!(interpreter.run(program), Ok(16.into()));
 /// ```
+/// 
+/// ## Negative Numbers
+/// ```rust
+/// use tortuga::{Program, Interpreter, Value};
+///
+/// let program: Program = "-2 + -2#10".parse::<Program>().unwrap();
+/// let mut interpreter = Interpreter::default();
+///
+/// assert_eq!(interpreter.run(program), Ok(Value::from(-4)));
+/// ```
 ///
 /// ## Comparison
 /// ```rust
@@ -191,11 +201,17 @@ impl Interpret for Primary {
 
 impl Interpret for Number {
     fn execute(&self, _: &mut Environment) -> Result<Value, RuntimeError> {
-        Ok(self
-            .number()
-            .as_str()
-            .parse::<crate::runtime::Number>()
-            .map(Value::Number)?)
+        let mut number = self
+        .number()
+        .as_str()
+        .parse::<runtime::Number>()
+        .map(Value::Number)?;
+
+        if self.is_negative() {
+            number *= Value::from(-1.0);
+        }
+
+        Ok(number)
     }
 }
 
