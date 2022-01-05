@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Grammar - Tortuga Programming Language</title>
+        <title>Introduction - Tortuga Programming Language</title>
         <!-- Custom HTML head -->
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
@@ -75,7 +75,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="introduction.html">Introduction</a></li><li class="chapter-item expanded "><a href="getting-started.html"><strong aria-hidden="true">1.</strong> Getting Started</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.1.</strong> Installation</a></li><li class="chapter-item expanded "><a href="factorial.html"><strong aria-hidden="true">1.2.</strong> Factorial</a></li><li class="chapter-item expanded "><a href="cli.html"><strong aria-hidden="true">1.3.</strong> Command-Line Interface</a></li></ol></li><li class="chapter-item expanded "><a href="design.html"><strong aria-hidden="true">2.</strong> Design</a></li><li class="chapter-item expanded "><a href="grammar.html" class="active"><strong aria-hidden="true">3.</strong> Grammar</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="introduction.html" class="active">Introduction</a></li><li class="chapter-item expanded "><a href="getting-started.html"><strong aria-hidden="true">1.</strong> Getting Started</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.1.</strong> Installation</a></li><li class="chapter-item expanded "><a href="factorial.html"><strong aria-hidden="true">1.2.</strong> Factorial</a></li><li class="chapter-item expanded "><a href="cli.html"><strong aria-hidden="true">1.3.</strong> Command-Line Interface</a></li></ol></li><li class="chapter-item expanded "><a href="design.html"><strong aria-hidden="true">2.</strong> Design</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">3.</strong> Grammar</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -134,88 +134,18 @@
 
                 <div id="content" class="content">
                     <main>
-                        <p>This is the complete Extended Backus Normal Form (eBNF) grammar definition for Tortuga.</p>
-<h1 id="syntax-grammar"><a class="header" href="#syntax-grammar">Syntax Grammar</a></h1>
-<p>The syntactic grammar of <code>Tortuga</code> is used to parse a linear sequence of tokens into a nested syntax tree structure. The root of the grammar matches an entire <code>Tortuga</code> program (or a sequence of comparisons to make the interpreter more useful).</p>
-<pre><code class="language-ebnf">program     = expressions | comparisons EOF ;
-expressions = expression+ ;
-comparisons = expression comparison+ ;
-comparison  = comparator expression ;
-</code></pre>
-<h2 id="expression"><a class="header" href="#expression">Expression</a></h2>
-<p>A program is a series of expressions. Expressions produce values. <code>Tortuga</code> has a number of binary operators with different levels of precedence. Some grammars for languages do not directly encode the precedence relationships and specify that elsewhere. Here, we use a separate rule for each precedence level to make it explicit.</p>
-<pre><code class="language-ebnf">expression = assignment | arithmetic ;
-assignment = function &quot;=&quot; block ;
-block      = &quot;[&quot; expression expression+ &quot;]&quot; | expression ;
-
-arithmetic = epsilon ;
-epsilon    = modulo ( &quot;~&quot; modulo )? ;
-modulo     = sum ( &quot;%&quot; sum )* ;
-sum        = product ( ( &quot;+&quot; | &quot;-&quot;) product )* ;
-product    = power ( ( &quot;*&quot; | &quot;/&quot; ) power )* ;
-power      = primary ( &quot;^&quot; primary )* ;
-
-primary    = number | call | grouping ;
-number     = &quot;-&quot;? NUMBER ;
-call       = IDENTIFIER arguments* ;
-grouping   = &quot;(&quot; expression &quot;)&quot; ;
-</code></pre>
-<h2 id="pattern-rules"><a class="header" href="#pattern-rules">Pattern Rules</a></h2>
-<p>The grammar allows pattern-matching in function definitions instead of having built-in control flow. These rules define the allowed patterns.</p>
-<pre><code class="language-ebnf">pattern    = function | refinement | bounds ;
-function   = name parameters? ;
-refinement = name comparator arithmetic ;
-bounds     = arithmetic inequality name inequality arithmetic ;
-</code></pre>
-<h2 id="utility-rules"><a class="header" href="#utility-rules">Utility Rules</a></h2>
-<p>To keep the above rules a little cleaner, some grammar is split out into a few reused helper rules.</p>
-<pre><code class="language-ebnf">arguments  = &quot;(&quot; expression ( &quot;,&quot; expression )* &quot;)&quot; ;
-parameters = &quot;(&quot; pattern ( &quot;,&quot; pattern )* &quot;)&quot; ;
-
-name       = &quot;_&quot; | &quot;@&quot; IDENTIFIER ;
-inequality = &quot;&lt;&quot; | &quot;&lt;=&quot; | &quot;&gt;&quot; | &quot;&gt;=&quot; ;
-equality   = &quot;=&quot; | &quot;&lt;&gt;&quot; ;
-comparator = equality | inequality ;
-</code></pre>
-<h1 id="lexical-grammar"><a class="header" href="#lexical-grammar">Lexical Grammar</a></h1>
-<p>The lexical grammar is used during lexical analysis to group characters into tokens. Where the syntax is <a href="https://en.wikipedia.org/wiki/Context-free_grammar">context free</a>, the lexical grammar is <a href="https://en.wikipedia.org/wiki/Regular_grammar">regular</a> -- note that there are no recursive rules.</p>
-<pre><code class="language-ebnf">IDENTIFIER  = XID_START XID_CONTINUE* ;
-NUMBER      = NONZERO DIGIT? &quot;#&quot; ( &quot;0&quot; | NATURAL | REAL | FRACTION) ;
-NATURAL     = NZ_ALPHANUM ALPHANUM* ( &quot;.&quot; &quot;0&quot;? )? ;
-REAL        = NZ_ALPHANUM ALPHANUM* &quot;.&quot; ALPHANUM*? NZ_ALPHANUM ;
-FRACTION    = &quot;0&quot;? &quot;.&quot; ALPHANUM*? NZ_ALPHANUM ;
-
-NZ_ALPHANUM = NZ_DIGIT | ALPHA ;                
-ALPHANUM    = DIGIT | ALPHA ;
-ALPHA       = &quot;a&quot; ... &quot;z&quot; | &quot;A&quot; ... &quot;Z&quot; ;
-NZ_DIGIT    = &quot;1&quot; ... &quot;9&quot; ;
-DIGIT       = &quot;0&quot; ... &quot;9&quot; ;
-</code></pre>
-<h1 id="associativity"><a class="header" href="#associativity">Associativity</a></h1>
-<p>The associativity of the various operators in Tortuga are defined below.</p>
-<table><thead><tr><th style="text-align: left">Precedence</th><th style="text-align: left">Operation</th><th>Symbol</th><th>Left Associative</th><th>Right Associative</th><th>Non-Associative</th></tr></thead><tbody>
-<tr><td style="text-align: left">1</td><td style="text-align: left">Epsilon</td><td>~</td><td></td><td></td><td>X</td></tr>
-<tr><td style="text-align: left">2</td><td style="text-align: left">Modulo</td><td>%</td><td>X</td><td>X</td><td></td></tr>
-<tr><td style="text-align: left">3</td><td style="text-align: left">Add</td><td>+</td><td>X</td><td>X</td><td></td></tr>
-<tr><td style="text-align: left">3</td><td style="text-align: left">Subtract</td><td>-</td><td>X</td><td></td><td></td></tr>
-<tr><td style="text-align: left">4</td><td style="text-align: left">Multiply</td><td>*</td><td>X</td><td>X</td><td></td></tr>
-<tr><td style="text-align: left">4</td><td style="text-align: left">Divide</td><td>/</td><td>X</td><td></td><td></td></tr>
-<tr><td style="text-align: left">5</td><td style="text-align: left">Exponent</td><td>^</td><td></td><td>X</td><td></td></tr>
-<tr><td style="text-align: left">6</td><td style="text-align: left">Assignment</td><td>=</td><td></td><td>X</td><td></td></tr>
-<tr><td style="text-align: left">7</td><td style="text-align: left">Equality</td><td>=</td><td>X</td><td>X</td><td></td></tr>
-<tr><td style="text-align: left">7</td><td style="text-align: left">Inequality</td><td>&lt;&gt;</td><td>X</td><td>X</td><td></td></tr>
-<tr><td style="text-align: left">7</td><td style="text-align: left">Less Than</td><td>&lt;</td><td>X</td><td>X</td><td></td></tr>
-<tr><td style="text-align: left">7</td><td style="text-align: left">Less Than or Equal To</td><td>&lt;=</td><td>X</td><td>X</td><td></td></tr>
-<tr><td style="text-align: left">7</td><td style="text-align: left">Greater Than</td><td>&gt;</td><td>X</td><td>X</td><td></td></tr>
-<tr><td style="text-align: left">7</td><td style="text-align: left">Greater Than or Equal To</td><td>&gt;=</td><td>X</td><td>X</td><td></td></tr>
-</tbody></table>
+                        <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
+<p>Welcome to The Tortuga Programming Language, an introductory book about Tortuga.</p>
+<p>Tortuga is a functionally-oriented concurrent programming language. The runtime is a Rust program to provide performance and memory safety; the language compiles to WebAssembly. Using WebAssembly allows developers to utilize their favorite programming language to write extensions for the runtime.</p>
+<h2 id="who-is-tortuga-for"><a class="header" href="#who-is-tortuga-for">Who is Tortuga For</a></h2>
+<p>Tortuga is currently under active development and makes no guarantees about backwars compatibility. At this time, only use Tortuga for experimentation.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="design.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
-                                <i class="fa fa-angle-left"></i>
+                            <a rel="next" href="getting-started.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
                             </a>
                         <div style="clear: both"></div>
                     </nav>
@@ -223,8 +153,8 @@ DIGIT       = &quot;0&quot; ... &quot;9&quot; ;
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="design.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
-                        <i class="fa fa-angle-left"></i>
+                    <a rel="next" href="getting-started.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
 
