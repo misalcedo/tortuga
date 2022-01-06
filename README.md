@@ -16,12 +16,15 @@ For design goals, non-goals, grammar, and more see the [Tortuga Programming Lang
 ### Local Install
 To test the command-line interface, instal the crate locally from the root of the repository with:
 
-```bash
-cargo install tortuga --path ./
+```console
+cargo install --path ./
 ```
 
 ### Cargo Tests
-To run the unit and documentation tests, use `cargo test`.
+To run the unit and documentation tests, use:
+```console
+cargo test
+```
 
 ## Endianness
 While the system sends all numbers in network byte order (i.e., big endian), WebAssembly uses little-endian for its numbers. Therefore, the system will handle mapping the integers between the types of endianness. See <https://tools.ietf.org/html/draft-newman-network-byte-order-01>
