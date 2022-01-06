@@ -18,6 +18,8 @@ jobs:
         run: |
           TAG=v$(cargo metadata --no-deps --quiet | jq -r '.packages[] | select(.name == "tortuga") | .version')
 
+          git fetch --tags
+          
           if [ $(git tag -l $TAG) ]; then
             echo "Git tag $TAG already exists."
           else
