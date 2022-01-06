@@ -3,6 +3,8 @@ name: Add Tag
 on:
   push:
     branches: [ main ]
+    paths: [ "Cargo.toml" ]
+  workflow_dispatch: {}
 
 jobs:
   tag:
