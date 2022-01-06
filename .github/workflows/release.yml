@@ -31,6 +31,7 @@ jobs:
         with:
           toolchain: stable
           target: ${{ matrix.target }}
+          override: true
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v1.3.0
       - uses: actions-rs/cargo@v1
