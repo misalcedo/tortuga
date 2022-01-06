@@ -42,7 +42,7 @@ jobs:
         env:
           BUILD: ${{ matrix.build }}
           TARGET: ${{ matrix.target }}
-          DIR: target/${{ matrix.target }}
+          DIR: target/${{ matrix.target }}/release
           FILE: tortuga
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
