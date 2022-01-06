@@ -37,7 +37,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --bin tortuga --release --all-features
+          args: --bin tortuga --release --all-features --target ${{ matrix.target }}
       - name: Upload artifacts
         env:
           BUILD: ${{ matrix.build }}
