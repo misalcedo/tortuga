@@ -12,16 +12,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Create or Update Tag
+      - name: Create Tag
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git config user.name "Add Tag from CI"
-          git config user.email ""
-
           TAG=v$(cargo metadata --no-deps --quiet | jq -r '.packages[] | select(.name == "tortuga") | .version')
 
-          git tag $TAG --force
-          git push --tags --force
+          if [ $(git tag -l $TAG) ]; then
+            echo "Git tag $TAG already exists."
+          else
+            git config user.name "Add Tag from CI"
+            git config user.email ""
+            git tag $TAG
+            git push --tags
+          fi
 
           gh release view $TAG &> /dev/null || gh release create $TAG -d --notes $TAG
