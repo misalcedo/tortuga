@@ -52,7 +52,7 @@ jobs:
           
           pushd $DIR
 
-          if [ $BUILD -eq "windows" ]
+          if [ "$BUILD" = "windows" ]
           then
             FILE=$FILE.exe
             ASSET=$ASSET.zip
