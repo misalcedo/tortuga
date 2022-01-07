@@ -58,12 +58,11 @@ jobs:
             ASSET=$ASSET.zip
 
             7z a $ASSET $FILE
-            popd
-            gh release upload $TAG "$DIR/$ASSET" --clobber
           else
             ASSET=$ASSET.tar.gz
 
             tar czf $ASSET $FILE
-            popd
-            gh release upload $TAG "$DIR/$ASSET" --clobber
           fi
+
+          popd
+          gh release upload $TAG "$DIR/$ASSET" --clobber
