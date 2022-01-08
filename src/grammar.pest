@@ -4,12 +4,12 @@ Expression = { Match }
 
 Match       = { ( Pattern ~ "=" )? ~ Arithmetic }
 Pattern     = { Name ~ ( Numerical | Parameters )? | Destructure }
-Extended    = { Name ~ ( Numerical | Range | Refinement | Parameters )? | Destructure }
 Name        = { "_" | IDENTIFIER }
 Numerical   = { "." ~ ( "0" | Name ) }
 Refinement  = { ( INEQUALITY | "=" ) ~ Arithmetic }
-Destructure = { "{" ~ Extended ~ ( "," ~ Extended )* ~ ( "|" ~ Name )? ~ "}" }
-Parameters  = { "(" ~ Extended ~ ( "," ~ Extended )* ~ ")" }
+Destructure = { "{" ~ Parameter ~ ( "," ~ Parameter )* ~ ( "|" ~ Name )? ~ "}" }
+Parameters  = { "(" ~ Parameter ~ ( "," ~ Parameter )* ~ ")" }
+Parameter   = { Name ~ ( Numerical | Refinement | Parameters )? | Destructure }
 
 Arithmetic = { Epsilon }
 Epsilon    = { Modulo ~ ( EPSILON ~ Modulo )? }
