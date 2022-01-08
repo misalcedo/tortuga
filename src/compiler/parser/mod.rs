@@ -217,12 +217,9 @@ impl<'a, T: Tokens> Parser<'a, T> {
             arguments.push(self.parse_arguments()?);
         }
 
-        Ok(Call::new(
-            callee,
-            arguments,
-        ))
+        Ok(Call::new(callee, arguments))
     }
-    
+
     fn parse_primary(&mut self) -> Result<Primary, SyntacticalError> {
         let token = self.next_kind(&[
             Kind::Minus,
@@ -254,8 +251,10 @@ impl<'a, T: Tokens> Parser<'a, T> {
         }
     }
 
-
-    fn parse_identifier(&mut self, identifier: Token) -> Result<lexical::Identifier, SyntacticalError> {
+    fn parse_identifier(
+        &mut self,
+        identifier: Token,
+    ) -> Result<lexical::Identifier, SyntacticalError> {
         Ok(lexical::Identifier::new(self.source, identifier.lexeme()))
     }
 
