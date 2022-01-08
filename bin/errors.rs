@@ -15,4 +15,6 @@ pub enum CommandLineError {
     PromptError(#[from] rustyline::error::ReadlineError),
     #[error(transparent)]
     Runtime(#[from] tortuga::RuntimeError),
+    #[error(transparent)]
+    Parse(#[from] tortuga::peg::ParseError),
 }

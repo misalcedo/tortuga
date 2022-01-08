@@ -10,7 +10,7 @@ use run::run;
 
 use std::fs;
 use std::io::ErrorKind::BrokenPipe;
-use std::io::{stdout, Write};
+use std::io::stdout;
 use std::path::PathBuf;
 use tracing::{subscriber::set_global_default, Level};
 use tracing_log::LogTracer;
@@ -56,15 +56,18 @@ struct ParseCommand {
 }
 
 #[derive(Parser)]
+/// Parses a file using a PEG parser and prints the syntax tree.
+struct PrintCommand {
+    /// The path to the file to parse into an Abstract Syntax Tree.
+    filename: PathBuf,
+}
+
+#[derive(Parser)]
 /// Performs lexical analysis on a file and prints the annotated token sequence.
 struct ScanCommand {
     /// The path to the file to perform lexical analysis on.
     filename: PathBuf,
 }
-
-#[derive(Parser)]
-/// Print version information.
-struct VersionCommand {}
 
 #[derive(Subcommand)]
 enum Commands {
@@ -72,7 +75,7 @@ enum Commands {
     Run(RunCommand),
     Scan(ScanCommand),
     Parse(ParseCommand),
-    Version(VersionCommand),
+    Print(PrintCommand),
 }
 
 impl Default for Commands {
@@ -124,11 +127,15 @@ fn run_subcommand(arguments: Arguments) -> Result<(), CommandLineError> {
 
             parse_file(source.as_str())
         }
+        Commands::Print(command) => {
+            let source = fs::read_to_string(command.filename)?;
+
+            Ok(tortuga::peg::pretty_print(source.as_str(), stdout())?)
+        }
         Commands::Scan(command) => {
             let source = fs::read_to_string(command.filename)?;
 
             scan_file(source.as_str())
         }
-        Commands::Version(_) => Ok(writeln!(stdout(), "{}", tortuga::about::VERSION)?),
     }
 }

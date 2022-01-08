@@ -63,19 +63,3 @@ pub enum ParseError {
     #[error(transparent)]
     Validation(#[from] pest::error::Error<Rule>),
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parse() {
-        match PegParser::parse(Rule::NUMBER, "1#0.") {
-            Ok(_) => (),
-            Err(error) => {
-                eprintln!("{}", error);
-                panic!("Encountered an error.")
-            }
-        }
-    }
-}

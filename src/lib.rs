@@ -4,7 +4,7 @@ pub mod about;
 pub mod compiler;
 pub mod display;
 pub mod grammar;
-mod peg;
+pub mod peg;
 pub mod runtime;
 
 pub use about::*;

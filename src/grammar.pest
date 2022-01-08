@@ -1,7 +1,9 @@
 Program    = { SOI ~ Expression* ~ EOI }
 
-Expression = { NUMBER | IDENTIFIER }
+Expression = { Terminal }
 
+Terminal   = _{ NUMBER | IDENTIFIER | Tuple }
+Tuple      = @{ "{" ~ ( Terminal ~ ( "," ~ Terminal )* )? ~ "}" }
 IDENTIFIER = @{ XID_START ~ XID_CONTINUE* }
 
 NUMBER     = @{ RADIX? ~ ( REAL | FRACTION ) }
