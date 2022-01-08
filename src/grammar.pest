@@ -2,10 +2,14 @@ Program    = { SOI ~ (Expression{2, } | Comparison) ~ EOI }
 Comparison = { Expression ~ ( INEQUALITY ~ Expression )* }
 Expression = { Match }
 
-Match      = { ( Pattern ~ "=" )? ~ Arithmetic }
-Pattern    = { Name ~ ( ".0" | ( "." ~ Name ) | Parameters )? | "{" ~ IDENTIFIER ~ ( "," ~ IDENTIFIER )* ~ ( "|" ~ IDENTIFIER )? ~ "}" }
-Name       = { "_" | IDENTIFIER }
-Parameters = { "(" ~ Pattern ~ ( "," ~ Pattern )* ~ ")" }
+Match       = { ( Pattern ~ "=" )? ~ Arithmetic }
+Pattern     = { Name ~ ( Numerical | Parameters )? | Destructure }
+Extended    = { Name ~ ( Numerical | Range | Refinement | Parameters )? | Destructure }
+Name        = { "_" | IDENTIFIER }
+Numerical   = { "." ~ ( "0" | Name ) }
+Refinement  = { ( INEQUALITY | "=" ) ~ Arithmetic }
+Destructure = { "{" ~ Extended ~ ( "," ~ Extended )* ~ ( "|" ~ Name )? ~ "}" }
+Parameters  = { "(" ~ Extended ~ ( "," ~ Extended )* ~ ")" }
 
 Arithmetic = { Epsilon }
 Epsilon    = { Modulo ~ ( EPSILON ~ Modulo )? }
@@ -18,10 +22,11 @@ Power      = { Call ~ ( POWER ~ Call )* }
 Call       = { Terminal ~ Arguments* }
 Arguments  = { "(" ~ Expression ~ ( "," ~ Expression )* ~ ")" }
 
-Terminal   = _{ Number | IDENTIFIER | Tuple | Grouping }
+Terminal   = _{ Number | IDENTIFIER | Tuple | Range | Grouping }
 Tuple      = { "{" ~ ( Terminal ~ ( "," ~ Terminal )* )? ~ "}" }
 Grouping   = { "(" ~ Expression ~ ")" }
 Number     = { "-"? ~ NUMBER }
+Range      = { ( "(" | "[" ) ~ Arithmetic ~ "," ~ Arithmetic ~ ( ")" | "]" ) }
 IDENTIFIER = @{ XID_START ~ XID_CONTINUE* }
 NUMBER     = @{ RADIX? ~ REAL }
 
