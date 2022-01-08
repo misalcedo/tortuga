@@ -36,7 +36,7 @@ jobs:
         uses: Swatinem/rust-cache@v1.3.0
       - name: Install musl-tools
         if: ${{ matrix.build == 'linux' }}
-        run: apt-get update && apt-get install musl-tools -y
+        run: sudo apt-get update && sudo apt-get install musl-tools -y
       - uses: actions-rs/cargo@v1
         with:
           command: build
