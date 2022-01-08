@@ -13,12 +13,20 @@ use tortuga::Interpreter;
 fn benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("PPP Binary");
 
-    let inputs: Vec<String> = (0..10).into_iter().map(|v| format!(r###"
+    let inputs: Vec<String> = (0..10)
+        .into_iter()
+        .map(|v| {
+            format!(
+                r###"
         @fibonacci(@n <= 1) = n
         @fibonacci(@n) = fibonacci(n - 2) + fibonacci(n - 1)
         
         fibonacci({})
-    "###, v)).collect();
+    "###,
+                v
+            )
+        })
+        .collect();
 
     for input in inputs {
         group.bench_with_input(
