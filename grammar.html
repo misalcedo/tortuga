@@ -155,9 +155,9 @@ sum        = product ( ( &quot;+&quot; | &quot;-&quot;) product )* ;
 product    = power ( ( &quot;*&quot; | &quot;/&quot; ) power )* ;
 power      = primary ( &quot;^&quot; primary )* ;
 
-primary    = number | call | grouping ;
+call       = primary arguments* ;
+primary    = number | IDENTIFIER | grouping ;
 number     = &quot;-&quot;? NUMBER ;
-call       = IDENTIFIER arguments* ;
 grouping   = &quot;(&quot; expression &quot;)&quot; ;
 </code></pre>
 <h2 id="pattern-rules"><a class="header" href="#pattern-rules">Pattern Rules</a></h2>
