@@ -26,16 +26,15 @@ Arguments  = { "(" ~ Expression ~ ( "," ~ Expression )* ~ ")" }
 Terminal   = _{ Number | IDENTIFIER | Tuple | Range | Grouping }
 Tuple      = { "{" ~ ( Terminal ~ ( "," ~ Terminal )* )? ~ "}" }
 Grouping   = { "(" ~ Expression ~ ")" }
-Number     = { ZERO | "-"? ~ RADIX? ~ REAL }
+Number     = { ( "-" ~ !ZERO )? ~ RADIX? ~ REAL }
 Range      = { ( "(" | "[" ) ~ Arithmetic ~ "," ~ Arithmetic ~ ( ")" | "]" ) }
 IDENTIFIER = @{ XID_START ~ XID_CONTINUE* }
-NUMBER     = @{ RADIX? ~ REAL }
 
 ZERO       = @{ "0" | "0.0" | "0." | ".0" }
 RADIX      = @{ ASCII_NONZERO_DIGIT ~ ASCII_DIGIT? ~ "#" }
-REAL       = @{ WHOLE ~ ( "." ~ ("0" | FRACTIONAL)? )? | "0"? ~ "." ~ FRACTIONAL }
-WHOLE      = @{ ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* }
-FRACTIONAL = @{ ( ASCII_NONZERO_DIGIT | NONTRAILING_ZERO )+ }
+REAL       = @{ WHOLE ~ ( "." ~ FRACTIONAL? )? | "." ~ FRACTIONAL }
+WHOLE      = @{ "0" | ( ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* ) }
+FRACTIONAL = @{ "0" | ( ASCII_NONZERO_DIGIT | NONTRAILING_ZERO )+ }
 NONTRAILING_ZERO = { "0" ~ &ASCII_NONZERO_DIGIT }
 
 EPSILON    = { "~" }
