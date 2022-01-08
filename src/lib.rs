@@ -11,3 +11,8 @@ pub use compiler::{Kind, LexicalError, ParseNumberError, Parser, Scanner, Syntac
 pub use display::{PrettyPrinter, WithLexeme};
 pub use grammar::syntax::Program;
 pub use runtime::{Interpreter, RuntimeError, Value};
+
+use mimalloc::MiMalloc;
+
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
