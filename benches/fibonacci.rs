@@ -20,7 +20,7 @@ fn benchmarks(c: &mut Criterion) {
                 r###"
         @fibonacci(@n <= 1) = n
         @fibonacci(@n) = fibonacci(n - 2) + fibonacci(n - 1)
-        
+
         fibonacci({})
     "###,
                 v
@@ -29,8 +29,10 @@ fn benchmarks(c: &mut Criterion) {
         .collect();
 
     for input in inputs {
+        let id = input.trim().lines().last().expect("Empty input.").trim();
+        
         group.bench_with_input(
-            BenchmarkId::new(type_name::<Interpreter>(), input.as_str()),
+            BenchmarkId::new(type_name::<Interpreter>(), id),
             input.as_str(),
             |b, i| {
                 b.iter(|| Interpreter::build_then_run(i));
