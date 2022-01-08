@@ -36,7 +36,7 @@ pub fn pretty_print<'i, O: Write>(source: &str, mut output: O) -> Result<(), Par
             write!(output, "{0:>1$} ", "-", depth)?;
         }
 
-        write!(output, " {:?}", rule)?;
+        write!(output, "{:?}", rule)?;
 
         match children.len() {
             0 => writeln!(output, ": \"{}\"", text)?,
