@@ -189,11 +189,33 @@ impl Interpret for Power {
     }
 }
 
+impl Interpret for Call {
+    fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
+        let mut value = self.callee().execute(environment)?;
+
+        for arguments in self.arguments() {
+            let reference = FunctionReference::try_from(value)?;
+            let function = environment.function(&reference)?;
+            let mut values = Vec::new();
+
+            for argument in arguments.iter() {
+                values.push(argument.execute(environment)?);
+            }
+
+            value = function
+                .call(values.as_slice(), environment)?
+                .execute(environment)?;
+        }
+
+        Ok(value)
+    }
+}
+
 impl Interpret for Primary {
     fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
         match self {
             Primary::Number(number) => number.execute(environment),
-            Primary::Call(call) => call.execute(environment),
+            Primary::Identifier(identifier) => identifier.execute(environment),
             Primary::Grouping(grouping) => grouping.inner().execute(environment),
         }
     }
@@ -215,26 +237,9 @@ impl Interpret for Number {
     }
 }
 
-impl Interpret for Call {
+impl Interpret for lexical::Identifier {
     fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
-        let name = self.identifier().as_str();
-        let mut value = environment.value(name)?;
-
-        for arguments in self.arguments() {
-            let reference = FunctionReference::try_from(value)?;
-            let function = environment.function(&reference)?;
-            let mut values = Vec::new();
-
-            for argument in arguments.iter() {
-                values.push(argument.execute(environment)?);
-            }
-
-            value = function
-                .call(values.as_slice(), environment)?
-                .execute(environment)?;
-        }
-
-        Ok(value)
+        environment.value(self.as_str())
     }
 }
 
@@ -561,7 +566,6 @@ mod tests {
 
     #[test]
     fn anonymous() {
-        // Groupings are not callable, so this is not parsed correctly.
         let source = r###"
             @f(@x) = (_(@n) = x + 1)(x) + (_(@n) = n + 1)(x)
             f(1)
@@ -569,7 +573,7 @@ mod tests {
 
         assert_eq!(
             Interpreter::build_then_run(source),
-            Err(RuntimeError::FunctionNotDefined("x".to_string()))
+            Ok(4.into())
         );
     }
 }

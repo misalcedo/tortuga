@@ -345,11 +345,11 @@ impl<'a, StdOut: Write, StdErr: Write> PrettyPrinter<'a, StdOut, StdErr> {
     }
 
     fn print_power(&mut self, power: &Power) -> io::Result<()> {
-        self.print_primary(power.head())?;
+        self.print_call(power.head())?;
 
-        for primary in power.tail() {
+        for call in power.tail() {
             write!(self.std_out, " ^ ")?;
-            self.print_primary(primary)?;
+            self.print_call(call)?;
         }
 
         Ok(())
@@ -374,7 +374,7 @@ impl<'a, StdOut: Write, StdErr: Write> PrettyPrinter<'a, StdOut, StdErr> {
     fn print_primary(&mut self, primary: &Primary) -> io::Result<()> {
         match primary {
             Primary::Number(number) => self.print_number(number),
-            Primary::Call(call) => self.print_call(call),
+            Primary::Identifier(identifier) => self.print_identifier(identifier),
             Primary::Grouping(grouping) => self.print_grouping(grouping),
         }
     }
@@ -393,7 +393,7 @@ impl<'a, StdOut: Write, StdErr: Write> PrettyPrinter<'a, StdOut, StdErr> {
     }
 
     fn print_call(&mut self, call: &Call) -> io::Result<()> {
-        self.print_identifier(call.identifier())?;
+        self.print_primary(call.callee())?;
 
         for arguments in call.arguments() {
             self.print_arguments(arguments)?;

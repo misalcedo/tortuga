@@ -198,16 +198,31 @@ impl<'a, T: Tokens> Parser<'a, T> {
     }
 
     fn parse_power(&mut self) -> Result<Power, SyntacticalError> {
-        let lhs = self.parse_primary()?;
+        let lhs = self.parse_call()?;
         let mut rhs = Vec::new();
 
         while self.tokens.next_if_match(Kind::Caret).is_some() {
-            rhs.push(self.parse_primary()?);
+            rhs.push(self.parse_call()?);
         }
 
         Ok(List::new(lhs, rhs))
     }
 
+    fn parse_call(&mut self) -> Result<Call, SyntacticalError> {
+        let callee = self.parse_primary()?;
+
+        let mut arguments = Vec::new();
+
+        while let Some(true) = self.tokens.next_matches(Kind::LeftParenthesis) {
+            arguments.push(self.parse_arguments()?);
+        }
+
+        Ok(Call::new(
+            callee,
+            arguments,
+        ))
+    }
+    
     fn parse_primary(&mut self) -> Result<Primary, SyntacticalError> {
         let token = self.next_kind(&[
             Kind::Minus,
@@ -218,7 +233,7 @@ impl<'a, T: Tokens> Parser<'a, T> {
 
         match token.kind() {
             Kind::Minus | Kind::Number => self.parse_number(token).map(Primary::from),
-            Kind::Identifier => self.parse_call(token).map(Primary::from),
+            Kind::Identifier => self.parse_identifier(token).map(Primary::from),
             _ => self.parse_grouping(token).map(Primary::from),
         }
     }
@@ -239,17 +254,9 @@ impl<'a, T: Tokens> Parser<'a, T> {
         }
     }
 
-    fn parse_call(&mut self, identifier: Token) -> Result<Call, SyntacticalError> {
-        let mut arguments = Vec::new();
 
-        while let Some(true) = self.tokens.next_matches(Kind::LeftParenthesis) {
-            arguments.push(self.parse_arguments()?);
-        }
-
-        Ok(Call::new(
-            lexical::Identifier::new(self.source, identifier.lexeme()),
-            arguments,
-        ))
+    fn parse_identifier(&mut self, identifier: Token) -> Result<lexical::Identifier, SyntacticalError> {
+        Ok(lexical::Identifier::new(self.source, identifier.lexeme()))
     }
 
     fn parse_arguments(&mut self) -> Result<Arguments, SyntacticalError> {
