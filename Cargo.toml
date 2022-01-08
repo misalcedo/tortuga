@@ -16,8 +16,10 @@ required-features = ["cli"]
 
 [profile.release]
 lto = true
+debug = true
 
 [dev-dependencies]
+criterion = "0.3"
 env_logger = "0.9"
 test-log = { version = "0.2.8", features = ["trace"] }
 tracing = { version = "0.1", default-features = false }
@@ -26,6 +28,9 @@ tracing-subscriber = { version = "0.3", default-features = false, features = ["e
 [features]
 default = ["cli"]
 cli = ["clap", "colored", "mimalloc", "rustyline"]
+
+[target.'cfg(unix)'.dev-dependencies]
+pprof = { version = "0.6", features = ["criterion", "flamegraph", "protobuf"] }
 
 [dependencies]
 clap = { version = "3.0", features = ["derive"], optional = true }
@@ -40,3 +45,7 @@ tracing = "0.1"
 tracing-log = "0.1"
 tracing-subscriber = { version = "0.3", features = ["parking_lot"] }
 unicode-xid = "0.2"
+
+[[bench]]
+name = "fibonacci"
+harness = false
