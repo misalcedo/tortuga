@@ -18,6 +18,10 @@ use tracing_log::LogTracer;
 use crate::parse::parse_file;
 use crate::scan::scan_file;
 use clap::{AppSettings, Parser, Subcommand};
+use mimalloc::MiMalloc;
+
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
 
 #[derive(Parser)]
 #[clap(author, version, about)]

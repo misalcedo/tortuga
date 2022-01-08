@@ -25,14 +25,14 @@ tracing-subscriber = { version = "0.3", default-features = false, features = ["e
 
 [features]
 default = ["cli"]
-cli = ["clap", "colored", "rustyline"]
+cli = ["clap", "colored", "mimalloc", "rustyline"]
 
 [dependencies]
 clap = { version = "3.0", features = ["derive"], optional = true }
 colored = { version = "2.0.0", optional = true }
 lazy_static = "1.4"
 log = "0.4"
-mimalloc = "0.1.27"
+mimalloc = { version = "0.1.27", optional = true }
 rustyline = { version = "9", optional = true }
 regex = "1"
 thiserror = "1.0"
