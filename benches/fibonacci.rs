@@ -30,7 +30,7 @@ fn benchmarks(c: &mut Criterion) {
 
     for input in inputs {
         let id = input.trim().lines().last().expect("Empty input.").trim();
-        
+
         group.bench_with_input(
             BenchmarkId::new(type_name::<Interpreter>(), id),
             input.as_str(),
