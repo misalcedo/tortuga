@@ -40,7 +40,7 @@ pub fn pretty_print<'i, O: Write>(source: &str, mut output: O) -> Result<(), Par
 
         match children.len() {
             0 => writeln!(output, ": \"{}\"", text)?,
-            1 => write!(output, " →")?,
+            1 => write!(output, " → ")?,
             _ => {
                 children_depth += 2;
                 writeln!(output, "")?
