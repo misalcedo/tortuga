@@ -66,11 +66,16 @@ pub enum ParseError {
 
 #[cfg(test)]
 mod tests {
-    use super::pretty_print;
-    use std::io::sink;
+    use super::*;
 
     #[test]
     fn parse() {
-        assert!(pretty_print("1#0.", sink()).is_ok());
+        match PegParser::parse(Rule::NUMBER, "1#0.") {
+            Ok(_) => (),
+            Err(error) => {
+                eprintln!("{}", error);
+                panic!("Encountered an error.")
+            }
+        }
     }
 }
