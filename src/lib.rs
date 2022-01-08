@@ -4,8 +4,8 @@ pub mod about;
 pub mod compiler;
 pub mod display;
 pub mod grammar;
-pub mod runtime;
 mod peg;
+pub mod runtime;
 
 pub use about::*;
 pub use compiler::{Kind, LexicalError, ParseNumberError, Parser, Scanner, SyntacticalError};
