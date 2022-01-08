@@ -34,13 +34,13 @@ jobs:
           override: true
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v1.3.0
+      - name: Install musl-tools
+        if: ${{ matrix.build == 'linux' }}
+        run: apt-get update && apt-get install musl-tools -y
       - uses: actions-rs/cargo@v1
         with:
           command: build
           args: --bin tortuga --release --all-features --target ${{ matrix.target }}
-      - name: Upload artifacts
-        if: ${{ matrix.build == 'linux' }}
-        run: apt-get update && apt-get install musl-tools -y
       - name: Upload artifacts
         env:
           BUILD: ${{ matrix.build }}
