@@ -9,8 +9,8 @@ use prompt::run_prompt;
 use run::run;
 
 use std::fs;
-use std::io::ErrorKind::BrokenPipe;
 use std::io::stdout;
+use std::io::ErrorKind::BrokenPipe;
 use std::path::PathBuf;
 use tracing::{subscriber::set_global_default, Level};
 use tracing_log::LogTracer;
