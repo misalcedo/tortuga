@@ -26,16 +26,14 @@ Arguments  = { "(" ~ Expression ~ ( "," ~ Expression )* ~ ")" }
 Terminal   = _{ Number | IDENTIFIER | Tuple | Range | Grouping }
 Tuple      = { "{" ~ ( Terminal ~ ( "," ~ Terminal )* )? ~ "}" }
 Grouping   = { "(" ~ Expression ~ ")" }
-Number     = { ( "-" ~ !ZERO )? ~ RADIX? ~ REAL }
+Number     = { ( "-" ~ !ZERO )? ~ ( RADIX ~ REAL_BASE_36 | REAL ) }
 Range      = { ( "(" | "[" ) ~ Arithmetic ~ "," ~ Arithmetic ~ ( ")" | "]" ) }
 IDENTIFIER = @{ XID_START ~ XID_CONTINUE* }
 
-ZERO       = @{ "0" | "0.0" | "0." | ".0" }
-RADIX      = @{ ASCII_NONZERO_DIGIT ~ ASCII_DIGIT? ~ "#" }
-REAL       = @{ WHOLE ~ ( "." ~ FRACTIONAL? )? | "." ~ FRACTIONAL }
-WHOLE      = @{ "0" | ( ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* ) }
-FRACTIONAL = @{ "0" | ( ASCII_NONZERO_DIGIT | NONTRAILING_ZERO )+ }
-NONTRAILING_ZERO = { "0" ~ &ASCII_NONZERO_DIGIT }
+ZERO         = @{ "0" | "0.0" | "0." | ".0" }
+RADIX        = @{ ASCII_NONZERO_DIGIT ~ ASCII_DIGIT? ~ "#" }
+REAL         = @{ ASCII_DIGIT+ ~ ( "." ~ ASCII_DIGIT* )? | "." ~ ASCII_DIGIT+ }
+REAL_BASE_36 = @{ ASCII_ALPHANUMERIC+ ~ ( "." ~ ASCII_ALPHANUMERIC* )? | "." ~ ASCII_ALPHANUMERIC+ }
 
 EPSILON    = { "~" }
 MODULO     = { "%" }
