@@ -6,10 +6,10 @@ Match       = { ( Pattern ~ "=" )? ~ Arithmetic }
 Pattern     = { Name ~ ( Numerical | Parameters )? | Destructure }
 Name        = { "_" | IDENTIFIER }
 Numerical   = { "." ~ ( "0" | Name ) }
-Refinement  = { ( INEQUALITY | "=" ) ~ Arithmetic }
 Destructure = { "{" ~ Parameter ~ ( "," ~ Parameter )* ~ ( "|" ~ Name )? ~ "}" }
 Parameters  = { "(" ~ Parameter ~ ( "," ~ Parameter )* ~ ")" }
 Parameter   = { Name ~ ( Numerical | Refinement | Parameters )? | Destructure }
+Refinement  = { ( INEQUALITY | "=" ) ~ Arithmetic }
 
 Arithmetic = { Epsilon }
 Epsilon    = { Modulo ~ ( EPSILON ~ Modulo )? }
