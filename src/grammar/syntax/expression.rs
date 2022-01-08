@@ -88,12 +88,12 @@ pub enum MultiplyOrDivide {
     Divide(Power),
 }
 
-pub type Power = List<Primary>;
+pub type Power = List<Call>;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Primary {
     Number(Number),
-    Call(Call),
+    Identifier(Identifier),
     Grouping(Grouping),
 }
 
@@ -103,9 +103,9 @@ impl From<Number> for Primary {
     }
 }
 
-impl From<Call> for Primary {
-    fn from(call: Call) -> Self {
-        Primary::Call(call)
+impl From<Identifier> for Primary {
+    fn from(identifier: Identifier) -> Self {
+        Primary::Identifier(identifier)
     }
 }
 
@@ -140,22 +140,22 @@ impl Number {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Call {
-    identifier: lexical::Identifier,
+    callee: Primary,
     arguments: Vec<Arguments>,
 }
 
 impl Call {
     /// Creates a new instance of a `Call` grammar rule.
-    pub fn new(identifier: Identifier, arguments: Vec<Arguments>) -> Self {
+    pub fn new(callee: Primary, arguments: Vec<Arguments>) -> Self {
         Call {
-            identifier,
+            callee,
             arguments,
         }
     }
 
-    /// The [`lexical::Identifier`] of the function to [`Call`].
-    pub fn identifier(&self) -> &lexical::Identifier {
-        &self.identifier
+    /// The callee of the function to [`Call`].
+    pub fn callee(&self) -> &Primary {
+        &self.callee
     }
 
     /// The [`Arguments`] to invoke this function [`Call`] with.

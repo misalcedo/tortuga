@@ -25,9 +25,9 @@ sum        = product ( ( "+" | "-") product )* ;
 product    = power ( ( "*" | "/" ) power )* ;
 power      = primary ( "^" primary )* ;
 
-primary    = number | call | grouping ;
+call       = primary arguments* ;
+primary    = number | IDENTIFIER | grouping ;
 number     = "-"? NUMBER ;
-call       = IDENTIFIER arguments* ;
 grouping   = "(" expression ")" ;
 ```
 
