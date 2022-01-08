@@ -571,9 +571,6 @@ mod tests {
             f(1)
         "###;
 
-        assert_eq!(
-            Interpreter::build_then_run(source),
-            Ok(4.into())
-        );
+        assert_eq!(Interpreter::build_then_run(source), Ok(4.into()));
     }
 }

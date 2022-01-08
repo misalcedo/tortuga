@@ -147,10 +147,7 @@ pub struct Call {
 impl Call {
     /// Creates a new instance of a `Call` grammar rule.
     pub fn new(callee: Primary, arguments: Vec<Arguments>) -> Self {
-        Call {
-            callee,
-            arguments,
-        }
+        Call { callee, arguments }
     }
 
     /// The callee of the function to [`Call`].
