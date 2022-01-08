@@ -2,7 +2,7 @@ Program    = { SOI ~ (Expression{2, } | Comparison) ~ EOI }
 Comparison = { Expression ~ ( INEQUALITY ~ Expression )* }
 Expression = { Match }
 
-Match       = { ( Pattern ~ "=" )? ~ Arithmetic }
+Match       = { ( Pattern ~ "=" )? ~ Block }
 Pattern     = { Name ~ ( Numerical | Parameters )? | Destructure }
 Name        = { "_" | IDENTIFIER }
 Numerical   = { "." ~ ( "0" | Name ) }
@@ -11,6 +11,7 @@ Parameters  = { "(" ~ Parameter ~ ( "," ~ Parameter )* ~ ")" }
 Parameter   = { Name ~ ( Numerical | Refinement | Parameters )? | Destructure }
 Refinement  = { ( INEQUALITY | "=" ) ~ Arithmetic }
 
+Block      = { "[" ~ Expression+ ~ "]" | Arithmetic }
 Arithmetic = { Epsilon }
 Epsilon    = { Modulo ~ ( EPSILON ~ Modulo )? }
 Modulo     = { Sum ~ ( MODULO ~ Sum )* }
