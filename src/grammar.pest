@@ -1,16 +1,35 @@
-Program    = { SOI ~ Expression* ~ EOI }
+Program    = { SOI ~ (Expression{2, } | Comparison) ~ EOI }
+Comparison = { Expression ~ ( INEQUALITY ~ Expression )* }
+Expression = { Match }
 
-Expression = { Terminal }
+Match      = { ( Pattern ~ "=" )? ~ Arithmetic }
+Pattern    = { Name ~ ( ".0" | ( "." ~ Name ) | Parameters )? | "{" ~ IDENTIFIER ~ ( "," ~ IDENTIFIER )* ~ ( "|" ~ IDENTIFIER )? ~ "}" }
+Name       = { "_" | IDENTIFIER }
+Parameters = { "(" ~ Pattern ~ ( "," ~ Pattern )* ~ ")" }
 
-Terminal   = _{ NUMBER | IDENTIFIER | Tuple }
-Tuple      = @{ "{" ~ ( Terminal ~ ( "," ~ Terminal )* )? ~ "}" }
+Arithmetic = { Epsilon }
+Epsilon    = { Modulo ~ ( EPSILON ~ Modulo )? }
+Modulo     = { Sum ~ ( MODULO ~ Sum )* }
+Sum        = { Product ~ ( SUM ~ Product )* }
+Product    = { Power ~ ( PRODUCT ~ Power )* }
+Power      = { Call ~ ( POWER ~ Call )* }
+
+
+Call       = { Terminal ~ Arguments* }
+Arguments  = { "(" ~ Expression ~ ( "," ~ Expression )* ~ ")" }
+
+Terminal   = _{ Number | IDENTIFIER | Tuple | Grouping }
+Tuple      = { "{" ~ ( Terminal ~ ( "," ~ Terminal )* )? ~ "}" }
+Grouping   = { "(" ~ Expression ~ ")" }
+Number     = { "-"? ~ NUMBER }
 IDENTIFIER = @{ XID_START ~ XID_CONTINUE* }
+NUMBER     = @{ RADIX? ~ REAL }
 
-NUMBER     = @{ RADIX? ~ ( REAL | FRACTION ) }
 RADIX      = _{ ASCII_NONZERO_DIGIT ~ ASCII_DIGIT? ~ "#" }
-REAL       = _{ INTEGER ~ "." ~ ASCII_ALPHANUMERIC+ }
-INTEGER    = _{ ( ASCII_NONZERO_DIGIT | ASCII_ALPHA ) ~ ASCII_ALPHANUMERIC* }
-FRACTION   = _{ "0"? ~ "." ~ ASCII_ALPHANUMERIC* }
+REAL       = _{ ".0" | WHOLE ~ ( "." ~ FRACTIONAL )? }
+WHOLE      = _{ "0" | ( ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* ) }
+FRACTIONAL = _{ ( ASCII_NONZERO_DIGIT | NONTRAILING_ZERO )+ | "0"? }
+NONTRAILING_ZERO = _{ "0" ~ &ASCII_NONZERO_DIGIT }
 
 EPSILON    = { "~" }
 MODULO     = { "%" }
