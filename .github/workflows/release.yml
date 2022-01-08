@@ -39,7 +39,7 @@ jobs:
           command: build
           args: --bin tortuga --release --all-features --target ${{ matrix.target }}
       - name: Upload artifacts
-        if: matrix.build == "linux"
+        if: ${{ matrix.build == "linux" }}
         run: apt-get update && apt-get install musl-tools -y
       - name: Upload artifacts
         env:
