@@ -188,7 +188,7 @@
 </ul>
 <h2 id="scopes"><a class="header" href="#scopes">Scopes</a></h2>
 <ul>
-<li>Tortuga only has lexical scoping. Records do not have methods. Therefor every scope is static.</li>
+<li>Tortuga only has lexical scoping, therefore every scope is static.</li>
 </ul>
 <h2 id="modules"><a class="header" href="#modules">Modules</a></h2>
 <ul>
@@ -205,18 +205,18 @@
 <ul>
 <li>All functions in tortuga must return a value.</li>
 <li>Functions cannot have any side effect or mutate data or variables.</li>
-<li>Functions can only return a single value.</li>
+<li>Functions that use <code>[...]</code> block notation introduce a new scope.</li>
+<li>Functions can only return a single value. Use a tuple to return multiple values.</li>
 <li>Functions can call other functions.</li>
 </ul>
 <h2 id="procedures"><a class="header" href="#procedures">Procedures</a></h2>
 <ul>
-<li>Procedures may call functions or send messages (the only side-effect in the language).</li>
-<li>Processes can be instantiated only from a procedure.</li>
+<li>Procedures may call functions, other procedures or send messages (the only side-effect in the language).</li>
+<li>Processes can be spawned only from a procedure.</li>
 </ul>
-<h2 id="records"><a class="header" href="#records">Records</a></h2>
+<h2 id="tuples"><a class="header" href="#tuples">Tuples</a></h2>
 <ul>
-<li>Records are the core type in Tortuga to be used in place of classes. They are similar to Rust and Python tuples in that they are a sequence of unnamed fields. The fields are named through pattern matching.</li>
-<li>Tortuga provides record definitions to provide a reusable way to pattern match on a record. </li>
+<li>Tuples are the core type in Tortuga to be used in place of classes for grouping data. They are similar to Rust and Python tuples in that they are a sequence of unnamed fields. The fields are named through pattern matching.</li>
 </ul>
 <h2 id="processes"><a class="header" href="#processes">Processes</a></h2>
 <ul>
