@@ -2,7 +2,7 @@ Program    = { SOI ~ (Expression{2, } | Comparison) ~ EOI }
 Comparison = { Expression ~ ( INEQUALITY ~ Expression )* }
 Expression = { Match }
 
-Match       = { ( Pattern ~ "=" )? ~ Block }
+Match       = { ( Pattern ~ "=" ~ Block ) | Arithmetic }
 Pattern     = { Name ~ ( Numerical | Parameters )? | Destructure }
 Name        = { "_" | IDENTIFIER }
 Numerical   = { "." ~ ( "0" | Name ) }
