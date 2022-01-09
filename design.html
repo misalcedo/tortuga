@@ -140,7 +140,8 @@
 <ul>
 <li>Sending messages is the only language supported side-effect (i.e. statement).</li>
 <li>All functions are side-effect free.</li>
-<li>All variables are immutable.</li>
+<li>Variables are constant functions with no arguments.</li>
+<li>Functions may only be declared once.</li>
 <li>All data types are immutable.</li>
 <li>Compiler warnings are reserved exclusively for deprecated functionality to be removed in a future major version. The compiler can optionally fail when warning are found to ensure future compatibility.</li>
 <li>Compiler attempts to find as many errors in a single run as possible.</li>
@@ -154,36 +155,32 @@
 <li>Low-level (i.e., systems) programming.</li>
 <li>Object-Oriented Programming.</li>
 </ul>
-<h3 id="notes"><a class="header" href="#notes">Notes</a></h3>
-<ol>
-<li>Numbers with a radix portion always set their sign explicitly (default to positive when no sign is present) as the sign is part of the literal. Numbers without a radix, however, always set the sign to <code>None</code> to denote that the sign is not part of the literal; the sign is a separate token altogether.</li>
-</ol>
 <h2 id="data-types"><a class="header" href="#data-types">Data Types</a></h2>
 <ul>
 <li>Tortuga has no String type. String programming makes internationalization more difficult. Instead the standard library will provide a mechanism to map byte string triplets (key, language, and an optional region) into a different byte string.</li>
-<li>No null, nil, etc. All types are actual types.</li>
-<li>All numbers are float-like. The goal is to provide enough accuracy where Tortuga could be used to perform calculations for science or money. Space efficiency is not a goal.</li>
-<li>Tortuga has no boolean type. Instead it relies on pattern matching, comparisons and dynamic dispatch to perform boolean logic.</li>
+<li>No null, nil, etc. All types are concrete types.</li>
+<li>All numbers are float-like. The goal is to provide enough accuracy where Tortuga could be used to perform calculations for science or money. Space efficiency and speed are not goals for numerical operations, only accuracy and precision.</li>
+<li>Tortuga has no boolean type and no control flow. Instead it relies on pattern matching, comparisons and dynamic dispatch to perform control flow and on regular numbers for boolean logic.</li>
 <li>Numbers can be encoded in any radix up to and including 36 (e.g. 0-9, A-Z, a-z).</li>
-<li>Tortuga provides a fixed size binary sequence called a byte string. The string may be used as a buffer, resized, or modified via patches.</li>
+<li>Tortuga provides a fixed size binary sequence called a byte string. The string may be used as a buffer, resized, or modified via patches. Byte strings have an optional padding length to denot how much of the final byte is padding for bit sequences rather than byte sequences.</li>
+<li>Tortuga has a tuple type that can hold arbitrary types in each field. Tuple are callable with an index to extract a field. Also, tuples can be used as linked-lists (i.e. first and rest).</li>
+<li>Tortuga has a range type to that supports inclusive and exclusive bounds at the low and high end.</li>
 </ul>
 <h2 id="expressions"><a class="header" href="#expressions">Expressions</a></h2>
 <ul>
-<li>Tortuga has no statements.</li>
-<li>Tortuga has no expression or statement terminator.</li>
-<li>Expressions may span more than one line.</li>
+<li>Tortuga has no statements. Every operation returns a value. For example sending a message returns the sent message to allow sending the same message to multiple recipients.</li>
+<li>Tortuga has no expression or statement terminator (i.e., no semicolon at the end of a statement).</li>
+<li>Expressions may span more than one line at any point.</li>
 <li>Order of precedence follows the mathematical order (i.e., parentheses, exponentiation, multiplication and division, addition and subtraction).</li>
-<li>Comparisons (or variable refinements) have precedence over mathematical operations.</li>
+<li>Comparisons and pattern matching have a lower precedence than mathematical operations.</li>
 </ul>
-<h2 id="variables"><a class="header" href="#variables">Variables</a></h2>
+<h2 id="identifiers"><a class="header" href="#identifiers">Identifiers</a></h2>
 <ul>
-<li>Variables must start with an alphabetic unicode character.</li>
-<li>Variables must not end with an underscore.</li>
-<li>Variables may have alphanumeric or underscore characters in the middle.</li>
-<li>Variables are declared implicitly when assigned or refined. Most of the trade offs mentioned in Crafting Interpreters are avoided by having immutable variables that cannot be shadowed. If a new variable with the same name is introduced in an outer scope, the existing variable assignment can be treated as a compiler error (i.e., easily detected as an error). Also, modules are a single file and are the root scope so &quot;global&quot; variables are limited to the current file.</li>
+<li>Identifiers must start with a unicode character withe the <code>XID_START</code> property, followed by zero or more <code>XID_CONTINUE</code> characters.</li>
+<li>Variables are declared implicitly when in a pattern match. Most of the trade offs mentioned in Crafting Interpreters are avoided by having immutable variables that cannot be shadowed. If a new variable with the same name is introduced in an outer scope, the existing variable assignment can be treated as a compiler error (i.e., easily detected as an error). Also, modules are a single file and are the root scope so &quot;global&quot; variables are limited to the current file.</li>
 <li>Variables may not be mutated once assigned.</li>
 <li>Variables cannot shadow an existing variable in an enclosing lexical scope.</li>
-<li>Variables may not be used in mathematical operations until the are assigned to.</li>
+<li>Variables may not be used in mathematical operations until assigned to.</li>
 </ul>
 <h2 id="control-flow"><a class="header" href="#control-flow">Control Flow</a></h2>
 <ul>
