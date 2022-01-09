@@ -46,7 +46,7 @@ The following are a set of design decisions for Tortuga roughly separated into c
 - Tortuga has no built-in control flow. Instead programs must rely on recursion, pattern matching and dynamic dispatch.
 
 ## Scopes
-- Tortuga only has lexical scoping. Records do not have methods. Therefor every scope is static.
+- Tortuga only has lexical scoping, therefore every scope is static.
 
 ## Modules
 - A module in Tortuga defines a set of functions, variables and procedures.
@@ -61,16 +61,16 @@ The following are a set of design decisions for Tortuga roughly separated into c
 ## Functions
 - All functions in tortuga must return a value.
 - Functions cannot have any side effect or mutate data or variables.
-- Functions can only return a single value.
+- Functions that use `[...]` block notation introduce a new scope.
+- Functions can only return a single value. Use a tuple to return multiple values.
 - Functions can call other functions.
 
 ## Procedures
-- Procedures may call functions or send messages (the only side-effect in the language).
-- Processes can be instantiated only from a procedure.
+- Procedures may call functions, other procedures or send messages (the only side-effect in the language).
+- Processes can be spawned only from a procedure.
 
-## Records
-- Records are the core type in Tortuga to be used in place of classes. They are similar to Rust and Python tuples in that they are a sequence of unnamed fields. The fields are named through pattern matching.
-- Tortuga provides record definitions to provide a reusable way to pattern match on a record. 
+## Tuples
+- Tuples are the core type in Tortuga to be used in place of classes for grouping data. They are similar to Rust and Python tuples in that they are a sequence of unnamed fields. The fields are named through pattern matching.
 
 ## Processes
 - The building block for concurrency is a process.
