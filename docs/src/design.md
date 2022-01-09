@@ -4,7 +4,8 @@ The following are a set of design decisions for Tortuga roughly separated into c
 ## Goals
 - Sending messages is the only language supported side-effect (i.e. statement).
 - All functions are side-effect free.
-- All variables are immutable.
+- Variables are constant functions with no arguments.
+- Functions may only be declared once.
 - All data types are immutable.
 - Compiler warnings are reserved exclusively for deprecated functionality to be removed in a future major version. The compiler can optionally fail when warning are found to ensure future compatibility.
 - Compiler attempts to find as many errors in a single run as possible.
@@ -17,32 +18,29 @@ The following are a set of design decisions for Tortuga roughly separated into c
 - Low-level (i.e., systems) programming.
 - Object-Oriented Programming.
 
-### Notes
-1. Numbers with a radix portion always set their sign explicitly (default to positive when no sign is present) as the sign is part of the literal. Numbers without a radix, however, always set the sign to `None` to denote that the sign is not part of the literal; the sign is a separate token altogether.
-
 ##  Data Types
 - Tortuga has no String type. String programming makes internationalization more difficult. Instead the standard library will provide a mechanism to map byte string triplets (key, language, and an optional region) into a different byte string.
-- No null, nil, etc. All types are actual types.
-- All numbers are float-like. The goal is to provide enough accuracy where Tortuga could be used to perform calculations for science or money. Space efficiency is not a goal.
-- Tortuga has no boolean type. Instead it relies on pattern matching, comparisons and dynamic dispatch to perform boolean logic.
+- No null, nil, etc. All types are concrete types.
+- All numbers are float-like. The goal is to provide enough accuracy where Tortuga could be used to perform calculations for science or money. Space efficiency and speed are not goals for numerical operations, only accuracy and precision.
+- Tortuga has no boolean type and no control flow. Instead it relies on pattern matching, comparisons and dynamic dispatch to perform control flow and on regular numbers for boolean logic.
 - Numbers can be encoded in any radix up to and including 36 (e.g. 0-9, A-Z, a-z).
-- Tortuga provides a fixed size binary sequence called a byte string. The string may be used as a buffer, resized, or modified via patches.
+- Tortuga provides a fixed size binary sequence called a byte string. The string may be used as a buffer, resized, or modified via patches. Byte strings have an optional padding length to denot how much of the final byte is padding for bit sequences rather than byte sequences.
+- Tortuga has a tuple type that can hold arbitrary types in each field. Tuple are callable with an index to extract a field. Also, tuples can be used as linked-lists (i.e. first and rest).
+- Tortuga has a range type to that supports inclusive and exclusive bounds at the low and high end.
 
 ## Expressions
-- Tortuga has no statements.
-- Tortuga has no expression or statement terminator.
-- Expressions may span more than one line.
+- Tortuga has no statements. Every operation returns a value. For example sending a message returns the sent message to allow sending the same message to multiple recipients.
+- Tortuga has no expression or statement terminator (i.e., no semicolon at the end of a statement).
+- Expressions may span more than one line at any point.
 - Order of precedence follows the mathematical order (i.e., parentheses, exponentiation, multiplication and division, addition and subtraction).
-- Comparisons (or variable refinements) have precedence over mathematical operations.
+- Comparisons and pattern matching have a lower precedence than mathematical operations.
 
-## Variables
-- Variables must start with an alphabetic unicode character.
-- Variables must not end with an underscore.
-- Variables may have alphanumeric or underscore characters in the middle.
-- Variables are declared implicitly when assigned or refined. Most of the trade offs mentioned in Crafting Interpreters are avoided by having immutable variables that cannot be shadowed. If a new variable with the same name is introduced in an outer scope, the existing variable assignment can be treated as a compiler error (i.e., easily detected as an error). Also, modules are a single file and are the root scope so "global" variables are limited to the current file.
+## Identifiers
+- Identifiers must start with a unicode character withe the `XID_START` property, followed by zero or more `XID_CONTINUE` characters.
+- Variables are declared implicitly when in a pattern match. Most of the trade offs mentioned in Crafting Interpreters are avoided by having immutable variables that cannot be shadowed. If a new variable with the same name is introduced in an outer scope, the existing variable assignment can be treated as a compiler error (i.e., easily detected as an error). Also, modules are a single file and are the root scope so "global" variables are limited to the current file.
 - Variables may not be mutated once assigned.
 - Variables cannot shadow an existing variable in an enclosing lexical scope.
-- Variables may not be used in mathematical operations until the are assigned to.
+- Variables may not be used in mathematical operations until assigned to.
 
 ## Control Flow
 - Tortuga has no built-in control flow. Instead programs must rely on recursion, pattern matching and dynamic dispatch.
