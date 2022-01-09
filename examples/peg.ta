@@ -24,3 +24,13 @@ f(x.0) = [
 ]
 
 02 + .20
+
+factorial(n = 0) = 1
+factorial(n.0 > 0) = n * factorial(n - 1)
+
+fibonacci(n <= 1) = n
+fibonacci(n) = [
+    fibonacci(n - 2) + fibonacci(n - 1)
+]
+
+f(x) = 2*x^2 + 3*x - 5
