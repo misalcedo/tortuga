@@ -1,78 +1,69 @@
-Program       = { SOI ~ Expression* ~ EOI }
+Program            = { SOI ~ Expression* ~ EOI }
 
 // An entry-point for the REPL (Read-Evaluate-Print Loop).
-Continuation  = { SOI ~ Expression ~ ( COMPARATOR ~ Expression )* ~ EOI }
+Continuation       = { SOI ~ Expression ~ ( COMPARATOR ~ Expression )* ~ EOI }
 
-Expression    = { PatternMatch | Arithmetic }
-PatternMatch  = { Pattern ~ MATCH ~ Block }
-Block         = { Arithmetic | "[" ~ Expression+ ~ "]" }
+Expression         = { PatternMatch | Arithmetic }
+PatternMatch       = { Pattern ~ MATCH ~ Block }
+Block              = { Arithmetic | "[" ~ Expression+ ~ "]" }
 
-// Patterns:
-// * Any match: _
-// * Function: <Identifier> <Parameters>?
-// * Parameters: ( <Pattern>(, <Pattern>)* ) 
-// * Number: <Identifier>.(0 | <Identifier> | _)
-// * Interval: <OPEN_INTERVAL> <Number> <ENDPOINT_DELIMITER> <Number> <CLOSE_INTERVAL>
-// * Tuple: { <Fields> }
-// * Fields: <Pattern>(, <Pattern>)*
-// * List: { <Fields> | <Identifier> }
-Pattern       = { Anonymous | Function | NumberPattern | IntervalPattern | ListPattern | TuplePattern }
-Anonymous     = { ANONYMOUS }
-Function      = { Identifier ~ Parameters }
-Parameters    = { "(" ~ Parameter ~ ( "," ~ Parameter )* ~ ")" }
-Parameter     = { Refinement | Pattern }
+Pattern            = { Anonymous | IntervalPattern | ListPattern | TuplePattern | NumberPattern | Function }
+Anonymous          = { ANONYMOUS }
+Function           = { Identifier ~ Parameters? }
+Parameters         = { "(" ~ Parameter ~ ( "," ~ Parameter )* ~ ")" }
+Parameter          = { Refinement | Pattern }
 
-Refinement    = { NumberPattern ~ COMPARATOR ~ Arithmetic }
-NumberPattern = ${ Identifier ~ Fraction? }
-Fraction      = ${  "." ~ ("0" | Anonymous | Identifier) }
-IntervalPattern = { OPEN_INTERVAL ~ NumberPattern ~ ENDPOINT_DELIMITER ~ NumberPattern ~ CLOSE_INTERVAL }
-TuplePattern  = { "{" ~ FieldsPattern? ~ "}" }
-FieldsPattern = { Pattern ~ ( "," ~ Pattern )* }
-ListPattern   = { "{" ~ FieldsPattern ~ "|" ~ ( Identifier | Anonymous ) ~ "}" }
+Refinement         = { Numerical ~ COMPARATOR ~ Arithmetic }
+Numerical          = { NumberPattern | Identifier }
+NumberPattern      = ${ Identifier ~ "." ~ ("0" | Anonymous | Identifier) }
+IntervalPattern    = { OPEN_INTERVAL ~ Numerical ~ ENDPOINT_DELIMITER ~ Numerical ~ CLOSE_INTERVAL }
+TuplePattern       = { "{" ~ FieldsPattern? ~ "}" }
+FieldsPattern      = { Pattern ~ ( "," ~ Pattern )* }
+ListPattern        = { "{" ~ FieldsPattern ~ "|" ~ ( Identifier | Anonymous ) ~ "}" }
 
-Arithmetic    = { Epsilon }
-Epsilon       = { Modulo ~ ( EPSILON ~ Modulo )? }
-Modulo        = { Sum ~ ( MODULO ~ Sum )* }
-Sum           = { Product ~ ( SUM ~ Product )* }
-Product       = { Power ~ ( PRODUCT ~ Power )* }
-Power         = { Call ~ ( POWER ~ Call )* }
+Arithmetic         = { Epsilon }
+Epsilon            = { Modulo ~ ( EPSILON ~ Modulo )? }
+Modulo             = { Sum ~ ( MODULO ~ Sum )* }
+Sum                = { Product ~ ( SUM ~ Product )* }
+Product            = { Power ~ ( PRODUCT ~ Power )* }
+Power              = { Call ~ ( POWER ~ Call )* }
 
-Call          = { Terminal ~ Arguments* }
-Arguments     = { "(" ~ Expression ~ ( "," ~ Expression )* ~ ")" }
+Call               = { Terminal ~ Arguments* }
+Arguments          = { "(" ~ Expression ~ ( "," ~ Expression )* ~ ")" }
 
-Terminal      = { SignedNumber | Identifier | Tuple | Interval | Grouping }
-Tuple         = { "{" ~ Fields? ~ "}" }
-Fields        = { Terminal ~ ( "," ~ Terminal )* }
-Grouping      = { "(" ~ Expression ~ ")" }
-Identifier    = @{ IDENTIFIER }
-SignedNumber  = { ( "-" ~ !ZERO )? ~ Number }
-Number        = @{ ( RADIX ~ REAL_BASE_36 ) | REAL }
+Terminal           = { SignedNumber | Identifier | Tuple | Interval | Grouping }
+Tuple              = { "{" ~ Fields? ~ "}" }
+Fields             = { Terminal ~ ( "," ~ Terminal )* }
+Grouping           = { "(" ~ Expression ~ ")" }
+Identifier         = @{ IDENTIFIER }
+SignedNumber       = { ( "-" ~ !ZERO )? ~ Number }
+Number             = @{ ( RADIX ~ REAL_BASE_36 ) | REAL }
 
 // https://en.wikipedia.org/wiki/Interval_(mathematics)#Notations_for_intervals
-Interval      = { OPEN_INTERVAL ~ Endpoints ~ CLOSE_INTERVAL }
-Endpoints     = { Arithmetic ~ ENDPOINT_DELIMITER ~ Arithmetic }
+Interval           = { OPEN_INTERVAL ~ Endpoints ~ CLOSE_INTERVAL }
+Endpoints          = { Arithmetic ~ ENDPOINT_DELIMITER ~ Arithmetic }
 
 // Lexical grammar
-ZERO         = { "0" | "0.0" | "0." | ".0" }
-RADIX        = { ASCII_NONZERO_DIGIT ~ ASCII_DIGIT? ~ "#" }
-REAL         = { ASCII_DIGIT+ ~ ( "." ~ ASCII_DIGIT* )? | "." ~ ASCII_DIGIT+ }
-REAL_BASE_36 = { ASCII_ALPHANUMERIC+ ~ ( "." ~ ASCII_ALPHANUMERIC* )? | "." ~ ASCII_ALPHANUMERIC+ }
+ZERO               = { "0" | "0.0" | "0." | ".0" }
+RADIX              = { ASCII_NONZERO_DIGIT ~ ASCII_DIGIT? ~ "#" }
+REAL               = { ASCII_DIGIT+ ~ ( "." ~ ASCII_DIGIT* )? | "." ~ ASCII_DIGIT+ }
+REAL_BASE_36       = { ASCII_ALPHANUMERIC+ ~ ( "." ~ ASCII_ALPHANUMERIC* )? | "." ~ ASCII_ALPHANUMERIC+ }
 
-EPSILON        = { "~" }
-MODULO         = { "%" }
-SUM            = { "+" | "-" }
-PRODUCT        = { "*" | "/" }
-POWER          = { "^" }
+EPSILON            = { "~" }
+MODULO             = { "%" }
+SUM                = { "+" | "-" }
+PRODUCT            = { "*" | "/" }
+POWER              = { "^" }
 
-ANONYMOUS      = _{ "_" }
-IDENTIFIER     = _{ XID_START ~ XID_CONTINUE* }
-COMPARATOR     = _{ EQUALITY | INEQUALITY }
-INEQUALITY     = _{ "<>" | "<=" | ">=" | "<" | ">" }
-EQUALITY       = _{ MATCH }
-MATCH          = _{ "=" }
-OPEN_INTERVAL  = { "(" | "[" | "]" }
+ANONYMOUS          = _{ "_" }
+IDENTIFIER         = _{ XID_START ~ XID_CONTINUE* }
+COMPARATOR         = _{ EQUALITY | INEQUALITY }
+INEQUALITY         = _{ "<>" | "<=" | ">=" | "<" | ">" }
+EQUALITY           = _{ MATCH }
+MATCH              = _{ "=" }
+OPEN_INTERVAL      = { "(" | "[" | "]" }
 ENDPOINT_DELIMITER = { "," | ";" }
-CLOSE_INTERVAL = { ")" | "[" | "]" }
+CLOSE_INTERVAL     = { ")" | "[" | "]" }
 
-WHITESPACE     = _{ PATTERN_WHITE_SPACE }
-COMMENT        = _{ ";" ~ (!NEWLINE ~ ANY)* }
+WHITESPACE         = _{ PATTERN_WHITE_SPACE }
+COMMENT            = _{ ";" ~ (!NEWLINE ~ ANY)* }
