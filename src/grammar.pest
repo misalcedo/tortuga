@@ -1,7 +1,8 @@
-Program       = { SOI ~ ( Continuation | Expression* ) ~ EOI }
+Program       = { SOI ~ Expression* ~ EOI }
+Continuation  = { SOI ~ Expression ~ ( COMPARATOR ~ Expression )* ~ EOI }
 
 // Useful for a REPL (Read-Evaluate-Print Loop).
-Continuation  = { Expression ~ ( COMPARATOR ~ Expression )+ }
+Continuation  = {  }
 Expression    = { PatternMatch | Arithmetic }
 PatternMatch  = { Pattern ~ MATCH ~ Block }
 Block         = { Arithmetic | "[" ~ Expression+ ~ "]" }
@@ -30,21 +31,13 @@ Power         = { Call ~ ( POWER ~ Call )* }
 Call          = { Terminal ~ Arguments* }
 Arguments     = { "(" ~ Expression ~ ( "," ~ Expression )* ~ ")" }
 
-Terminal      = { SignedNumber | Identifier | Tuple | Interval | Bytes | Grouping }
+Terminal      = { SignedNumber | Identifier | Tuple | Interval | Grouping }
 Tuple         = { "{" ~ Fields? ~ "}" }
 Fields        = { Terminal ~ ( "," ~ Terminal )* }
 Grouping      = { "(" ~ Expression ~ ")" }
 Identifier    = @{ IDENTIFIER }
 SignedNumber  = { ( "-" ~ !ZERO )? ~ Number }
 Number        = @{ ( RADIX ~ REAL_BASE_36 ) | REAL }
-
-Bytes         = { "\"" ~ Byte* ~ "\"" }
-Byte          = _{ "0" | DecimalByte | BinaryByte | CodePointByte | HexByte }
-HexByte       = @{ "16#"? ~ ASCII_HEX_DIGIT{2} }
-DecimalByte   = @{ "10#" ~ ASCII_NONZERO_DIGIT ~ ASCII_DIGIT{0, 2} }
-BinaryByte    = @{ "2#" ~ ("0" | "1" ){8} }
-CodePointByte = @{ "'" ~ CodePoint ~ "'" }
-CodePoint     = { "\\n" | "\\r" | "\\t" | "\\0" | ANY }
 
 // https://en.wikipedia.org/wiki/Interval_(mathematics)#Notations_for_intervals
 Interval      = { OPEN_INTERVAL ~ Endpoints ~ CLOSE_INTERVAL }
