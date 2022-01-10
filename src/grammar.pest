@@ -1,47 +1,67 @@
-Program    = { SOI ~ (Expression{2, } | Comparison) ~ EOI }
-Comparison = { Expression ~ ( INEQUALITY ~ Expression )* }
-Expression = { Match }
+Program       = { SOI ~ ( Continuation | Expression* ) ~ EOI }
 
-Match       = { ( Pattern ~ "=" ~ Block ) | Arithmetic }
-Pattern     = { Name ~ ( Numerical | Parameters )? | Destructure }
-Name        = { "_" | IDENTIFIER }
-Numerical   = { "." ~ ( "0" | Name ) }
-Destructure = { "{" ~ Parameter ~ ( "," ~ Parameter )* ~ ( "|" ~ Name )? ~ "}" }
-Parameters  = { "(" ~ Parameter ~ ( "," ~ Parameter )* ~ ")" }
-Parameter   = { Name ~ ( Numerical | Refinement | Parameters )? | Destructure }
-Refinement  = { ( INEQUALITY | "=" ) ~ Arithmetic }
+// Useful for a REPL (Read-Evaluate-Print Loop).
+Continuation  = { Expression ~ ( COMPARATOR ~ Expression )+ }
+Expression    = { PatternMatch | Arithmetic }
+PatternMatch  = { Pattern ~ MATCH ~ Block }
+Block         = { Arithmetic | "[" ~ Expression+ ~ "]" }
 
-Block      = { "[" ~ Expression+ ~ "]" | Arithmetic }
-Arithmetic = { Epsilon }
-Epsilon    = { Modulo ~ ( EPSILON ~ Modulo )? }
-Modulo     = { Sum ~ ( MODULO ~ Sum )* }
-Sum        = { Product ~ ( SUM ~ Product )* }
-Product    = { Power ~ ( PRODUCT ~ Power )* }
-Power      = { Call ~ ( POWER ~ Call )* }
+Pattern       = { Anonymous | Function | NumberPattern | ListPattern | TuplePattern }
+Anonymous     = { ANONYMOUS }
+Function      = { Identifier ~ Parameters }
+Parameters    = { "(" ~ Parameter ~ ( "," ~ Parameter )* ~ ")" }
+Parameter     = { Refinement | Pattern }
 
+Refinement    = { NumberPattern ~ COMPARATOR ~ Arithmetic }
+NumberPattern = ${ Identifier ~ Fraction? }
+Fraction      = ${  "." ~ ("0" | Anonymous | Identifier) }
 
-Call       = { Terminal ~ Arguments* }
-Arguments  = { "(" ~ Expression ~ ( "," ~ Expression )* ~ ")" }
+TuplePattern  = { "{" ~ FieldsPattern? ~ "}" }
+FieldsPattern = { Pattern ~ ( "," ~ Pattern )* }
+ListPattern   = { "{" ~ FieldsPattern ~ "|" ~ ( Identifier | Anonymous ) ~ "}" }
 
-Terminal   = _{ Number | IDENTIFIER | Tuple | Range | Grouping }
-Tuple      = { "{" ~ ( Terminal ~ ( "," ~ Terminal )* )? ~ "}" }
-Grouping   = { "(" ~ Expression ~ ")" }
-Number     = { ( "-" ~ !ZERO )? ~ ( RADIX ~ REAL_BASE_36 | REAL ) }
-Range      = { ( "(" | "[" ) ~ Arithmetic ~ "," ~ Arithmetic ~ ( ")" | "]" ) }
-IDENTIFIER = @{ XID_START ~ XID_CONTINUE* }
+Arithmetic    = { Epsilon }
+Epsilon       = { Modulo ~ ( EPSILON ~ Modulo )? }
+Modulo        = { Sum ~ ( MODULO ~ Sum )* }
+Sum           = { Product ~ ( SUM ~ Product )* }
+Product       = { Power ~ ( PRODUCT ~ Power )* }
+Power         = { Call ~ ( POWER ~ Call )* }
 
-ZERO         = @{ "0" | "0.0" | "0." | ".0" }
-RADIX        = @{ ASCII_NONZERO_DIGIT ~ ASCII_DIGIT? ~ "#" }
-REAL         = @{ ASCII_DIGIT+ ~ ( "." ~ ASCII_DIGIT* )? | "." ~ ASCII_DIGIT+ }
-REAL_BASE_36 = @{ ASCII_ALPHANUMERIC+ ~ ( "." ~ ASCII_ALPHANUMERIC* )? | "." ~ ASCII_ALPHANUMERIC+ }
+Call          = { Terminal ~ Arguments* }
+Arguments     = { "(" ~ Expression ~ ( "," ~ Expression )* ~ ")" }
 
-EPSILON    = { "~" }
-MODULO     = { "%" }
-SUM        = { "+" | "-" }
-PRODUCT    = { "*" | "/" }
-POWER      = { "^" }
-INEQUALITY = { "<>" | "<=" | ">=" | "<" | ">" }
-EQUALITY   = { "=" }
+Terminal      = { SignedNumber | Identifier | Tuple | Interval | Grouping }
+Tuple         = { "{" ~ Fields? ~ "}" }
+Fields        = { Terminal ~ ( "," ~ Terminal )* }
+Grouping      = { "(" ~ Expression ~ ")" }
+Identifier    = @{ IDENTIFIER }
+SignedNumber  = { ( "-" ~ !ZERO )? ~ Number }
+Number        = @{ ( RADIX ~ REAL_BASE_36 ) | REAL }
 
-WHITESPACE = _{ PATTERN_WHITE_SPACE }
-COMMENT    = _{ ";" ~ (!NEWLINE ~ ANY)* }
+// https://en.wikipedia.org/wiki/Interval_(mathematics)#Notations_for_intervals
+Interval      = { OPEN_INTERVAL ~ Endpoints ~ CLOSE_INTERVAL }
+Endpoints     = { Arithmetic ~ ( "," | ";" ) ~ Arithmetic }
+
+// Lexical grammar
+ZERO         = { "0" | "0.0" | "0." | ".0" }
+RADIX        = { ASCII_NONZERO_DIGIT ~ ASCII_DIGIT? ~ "#" }
+REAL         = { ASCII_DIGIT+ ~ ( "." ~ ASCII_DIGIT* )? | "." ~ ASCII_DIGIT+ }
+REAL_BASE_36 = { ASCII_ALPHANUMERIC+ ~ ( "." ~ ASCII_ALPHANUMERIC* )? | "." ~ ASCII_ALPHANUMERIC+ }
+
+EPSILON        = { "~" }
+MODULO         = { "%" }
+SUM            = { "+" | "-" }
+PRODUCT        = { "*" | "/" }
+POWER          = { "^" }
+
+ANONYMOUS      = _{ "_" }
+IDENTIFIER     = _{ XID_START ~ XID_CONTINUE* }
+COMPARATOR     = _{ EQUALITY | INEQUALITY }
+INEQUALITY     = _{ "<>" | "<=" | ">=" | "<" | ">" }
+EQUALITY       = _{ MATCH }
+MATCH          = _{ "=" }
+OPEN_INTERVAL  = { "(" | "[" | "]" }
+CLOSE_INTERVAL = { ")" | "[" | "]" }
+
+WHITESPACE     = _{ PATTERN_WHITE_SPACE }
+COMMENT        = _{ ";" ~ (!NEWLINE ~ ANY)* }
