@@ -38,9 +38,11 @@ Identifier    = @{ IDENTIFIER }
 SignedNumber  = { ( "-" ~ !ZERO )? ~ Number }
 Number        = @{ ( RADIX ~ REAL_BASE_36 ) | REAL }
 
-Bytes         = { "\"" ~ ( "0" | DecimalByte | HexByte | CodePointByte )* ~ "\"" }
-HexByte       = @{ "16#"? ~ ASCII_ALPHANUMERIC{2} }
-DecimalByte   = @{ "8#" ~ ASCII_NONZERO_DIGIT ~ ASCII_DIGIT{0, 2} }
+Bytes         = { "\"" ~ Byte* ~ "\"" }
+Byte          = _{ "0" | DecimalByte | BinaryByte | CodePointByte | HexByte }
+HexByte       = @{ "16#"? ~ ASCII_HEX_DIGIT{2} }
+DecimalByte   = @{ "10#" ~ ASCII_NONZERO_DIGIT ~ ASCII_DIGIT{0, 2} }
+BinaryByte    = @{ "2#" ~ ("0" | "1" ){8} }
 CodePointByte = @{ "'" ~ CodePoint ~ "'" }
 CodePoint     = { "\\n" | "\\r" | "\\t" | "\\0" | ANY }
 
