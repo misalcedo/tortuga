@@ -5,21 +5,21 @@ Continuation       = { SOI ~ Expression ~ ( COMPARATOR ~ Expression )* ~ EOI }
 
 Expression         = { PatternMatch | Arithmetic }
 PatternMatch       = { Pattern ~ MATCH ~ Block }
-Block              = { Arithmetic | "[" ~ Expression+ ~ "]" }
+Block              = { Expression | "[" ~ Expression+ ~ "]" }
 
-Pattern            = { Anonymous | IntervalPattern | ListPattern | TuplePattern | NumberPattern | Function }
-Anonymous          = { ANONYMOUS }
-Function           = { Identifier ~ Parameters? }
+Pattern            = { IntervalPattern | ListPattern | TuplePattern | NumberPattern | Function }
+Name               = { Identifier | ANONYMOUS }
+Function           = { Name ~ Parameters? }
 Parameters         = { "(" ~ Parameter ~ ( "," ~ Parameter )* ~ ")" }
 Parameter          = { Refinement | Pattern }
 
 Refinement         = { Numerical ~ COMPARATOR ~ Arithmetic }
-Numerical          = { NumberPattern | Identifier }
-NumberPattern      = ${ Identifier ~ "." ~ ("0" | Anonymous | Identifier) }
+Numerical          = { NumberPattern | Name }
+NumberPattern      = ${ Name ~ "." ~ ("0" | Name) }
 IntervalPattern    = { OPEN_INTERVAL ~ Numerical ~ ENDPOINT_DELIMITER ~ Numerical ~ CLOSE_INTERVAL }
 TuplePattern       = { "{" ~ FieldsPattern? ~ "}" }
 FieldsPattern      = { Pattern ~ ( "," ~ Pattern )* }
-ListPattern        = { "{" ~ FieldsPattern ~ "|" ~ ( Identifier | Anonymous ) ~ "}" }
+ListPattern        = { "{" ~ FieldsPattern ~ "|" ~ Name ~ "}" }
 
 Arithmetic         = { Epsilon }
 Epsilon            = { Modulo ~ ( EPSILON ~ Modulo )? }
