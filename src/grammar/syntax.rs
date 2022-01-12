@@ -20,13 +20,13 @@ pub enum Expression {
     Identifier(Identifier),
     Interval(Box<Interval>),
     Grouping(Box<Expression>),
-    PatternMatch(Box<PatternMatch>)
+    PatternMatch(Box<PatternMatch>),
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct PatternMatch {
     pub pattern: Pattern,
-    pub block: Block
+    pub block: Block,
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
@@ -36,7 +36,7 @@ pub enum Pattern {
     Number(NumberPattern),
     Interval(IntervalPattern),
     Tuple(TuplePattern),
-    List(Box<ListPattern>)
+    List(Box<ListPattern>),
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
@@ -46,7 +46,7 @@ pub struct TuplePattern(pub Vec<Pattern>);
 pub struct ListPattern {
     pub head: Pattern,
     pub others: Vec<Pattern>,
-    pub rest: Name
+    pub rest: Name,
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
@@ -62,32 +62,32 @@ pub enum EndpointPattern {
 pub struct Refinement {
     pub lhs: NumberPattern,
     pub comparator: Comparator,
-    pub rhs: Expression    
+    pub rhs: Expression,
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum NumberPattern {
     Real(Name),
     Natural(Name),
-    Parts(Name, Name)
+    Parts(Name, Name),
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Function {
     pub name: Name,
-    pub parameters: Vec<Pattern>
+    pub parameters: Vec<Pattern>,
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Block {
     pub first: Expression,
-    pub rest: Vec<Expression>
+    pub rest: Vec<Expression>,
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct FunctionCall {
     pub callee: Expression,
-    pub arguments: Vec<Expression>
+    pub arguments: Vec<Expression>,
 }
 
 #[derive(Clone, Debug, Default, Hash, PartialEq, Eq)]
@@ -96,7 +96,7 @@ pub struct Tuple(pub Vec<Expression>);
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Number {
     pub negative: bool,
-    pub value: String
+    pub value: String,
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
@@ -115,7 +115,7 @@ pub enum Endpoint {
 pub struct Operation {
     pub lhs: Expression,
     pub operator: Operator,
-    pub rhs: Expression
+    pub rhs: Expression,
 }
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
@@ -132,7 +132,7 @@ pub enum Operator {
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum Continuation {
     Expression(Expression),
-    Comparison(Box<Comparison>)
+    Comparison(Box<Comparison>),
 }
 
 impl Default for Continuation {
@@ -145,7 +145,7 @@ impl Default for Continuation {
 pub struct Comparison {
     pub lhs: Expression,
     pub comparator: Comparator,
-    pub rhs: Continuation
+    pub rhs: Continuation,
 }
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
@@ -155,5 +155,5 @@ pub enum Comparator {
     LessThanOrEqualTo,
     GreaterThanOrEqualTo,
     Equal,
-    NotEqual
+    NotEqual,
 }

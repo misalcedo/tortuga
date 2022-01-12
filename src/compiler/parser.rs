@@ -11,24 +11,24 @@ use pest::Parser as PEG;
 use std::str::FromStr;
 
 /// A Parser Expression Grammar parser that is auto-generated.
-/// 
+///
 /// ## Examples
-/// 
+///
 /// ### Program
 /// ```rust
 /// use tortuga::Program;
-/// 
+///
 /// let program: Program = "1 + 2".parse().unwrap();
-/// 
+///
 /// assert_eq!(program, Program::default());
 /// ```
-/// 
+///
 /// ### Continuation
 /// /// ```rust
 /// use tortuga::Continuation;
-/// 
+///
 /// let continuation: Continuation = "1 + 2 <= 5".parse().unwrap();
-/// 
+///
 /// assert_eq!(continuation, Continuation::default());
 /// ```
 #[derive(pest_derive::Parser)]
@@ -61,9 +61,12 @@ mod tests {
 
     #[test]
     fn parse_example() {
-        assert_eq!(include_str!("../../examples/peg.ta")
-            .parse::<Program>().unwrap(), 
-             Program::default());
+        assert_eq!(
+            include_str!("../../examples/peg.ta")
+                .parse::<Program>()
+                .unwrap(),
+            Program::default()
+        );
     }
 
     #[test]
