@@ -1,6 +1,6 @@
 //! Valid values in the Tortuga runtime.
 
-use crate::runtime::{RuntimeError, EpsilonOperator, Number, Tolerance};
+use crate::runtime::{EpsilonOperator, Number, RuntimeError, Tolerance};
 use std::any::type_name;
 use std::cmp::Ordering;
 use std::convert::TryFrom;

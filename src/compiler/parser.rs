@@ -1,7 +1,7 @@
 //! Parse a sequence of tokens into a syntax tree.
-//! 
+//!
 //! Relies on a Parser Expression Grammar to generate a parser for the language.
-//! 
+//!
 //! See <https://en.wikipedia.org/wiki/Parsing_expression_grammar>
 
 use crate::grammar::syntax::*;

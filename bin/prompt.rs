@@ -10,8 +10,8 @@ use rustyline::line_buffer::LineBuffer;
 use rustyline::validate::{ValidationContext, ValidationResult, Validator};
 use rustyline::{error::ReadlineError, Editor, Helper};
 use std::io::{stderr, stdout, Write};
-use tortuga::Program;
 use tortuga::about;
+use tortuga::Program;
 use tracing::error;
 
 struct PromptHelper;
