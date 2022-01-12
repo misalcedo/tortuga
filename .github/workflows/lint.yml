@@ -1,23 +1,30 @@
 name: Linters
 
-on: [ push ]
+on: [ push, workflow_dispatch ]
+
+env:
+  CARGO_TERM_COLOR: always
 
 jobs:
-  rustfmt:
-    name: Formatter
+  lint:
+    name: Lint & Format
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+          components: rustfmt, clippy
+          override: true
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v1.3.0
-      - uses: actions-rs/cargo@v1
+      - name: Lint
+        uses: actions-rs/cargo@v1
         with:
           command: fix
           args: --all-features
-      - uses: actions-rs/cargo@v1
+      - name: Format
+        uses: actions-rs/cargo@v1
         with:
           command: fmt
       - name: Upload formatting and lint fixes

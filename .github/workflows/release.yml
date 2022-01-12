@@ -37,20 +37,21 @@ jobs:
       - name: Install musl-tools
         if: ${{ matrix.build == 'linux' }}
         run: sudo apt-get update && sudo apt-get install musl-tools -y
-      - uses: actions-rs/cargo@v1
+      - name: Build binary
+        uses: actions-rs/cargo@v1
         with:
           command: build
           args: --bin tortuga --release --all-features --target ${{ matrix.target }}
       - name: Upload artifacts
         env:
           BUILD: ${{ matrix.build }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TARGET: ${{ matrix.target }}
           DIR: target/${{ matrix.target }}/release
           FILE: tortuga
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
-          TAG=v$(cargo metadata --no-deps --quiet | jq -r '.packages[] | select(.name == "tortuga") | .version')
+          TAG=v$(cargo metadata --no-deps --quiet | jq -r '.packages[0] | .version')
           ASSET="$FILE-$TAG-$TARGET"
           
           pushd $DIR
