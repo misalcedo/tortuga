@@ -1,7 +1,6 @@
 //! Representation of numbers within the Tortuga runtime.
 
-use crate::runtime::epsilon::EpsilonOperator;
-use crate::runtime::Tolerance;
+use crate::runtime::{EpsilonOperator, Tolerance};
 use std::fmt;
 use std::ops::{
     Add, AddAssign, BitXor, BitXorAssign, Div, DivAssign, Mul, MulAssign, Rem, RemAssign, Sub,

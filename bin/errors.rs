@@ -16,5 +16,5 @@ pub enum CommandLineError {
     #[error(transparent)]
     Runtime(#[from] tortuga::RuntimeError),
     #[error(transparent)]
-    Parse(#[from] tortuga::peg::ParseError),
+    Parse(#[from] tortuga::SyntacticalError),
 }

@@ -11,7 +11,7 @@ use rustyline::validate::{ValidationContext, ValidationResult, Validator};
 use rustyline::{error::ReadlineError, Editor, Helper};
 use std::io::{stderr, stdout, Write};
 use tortuga::Program;
-use tortuga::{about, Interpreter};
+use tortuga::about;
 use tracing::error;
 
 struct PromptHelper;
@@ -93,7 +93,6 @@ impl Validator for PromptHelper {
 /// Runs the read-evaluate-print loop.
 pub fn run_prompt() -> Result<(), CommandLineError> {
     let mut user = Prompt::default();
-    let mut interpreter = Interpreter::default();
 
     println!("{} {}", about::PROGRAM.green(), about::VERSION);
     println!("{}", "Press Ctrl-C to exit.".yellow().bold());
@@ -105,7 +104,7 @@ pub fn run_prompt() -> Result<(), CommandLineError> {
             Some(input) if input.trim().is_empty() => continue,
             Some(input) => {
                 match input.as_str().parse::<Program>() {
-                    Ok(program) => match interpreter.run(program) {
+                    Ok(program) => match Ok::<Program, &'static str>(program) {
                         Ok(value) => writeln!(stdout(), "=> {}", value)?,
                         Err(error) => writeln!(stderr(), "=> {}", error)?,
                     },

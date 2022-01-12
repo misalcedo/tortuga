@@ -8,18 +8,18 @@ use criterion::{BenchmarkId, Criterion};
 use pprof::criterion::{Output, PProfProfiler};
 
 use std::any::type_name;
-use tortuga::Interpreter;
+use tortuga::Program;
 
 fn benchmarks(c: &mut Criterion) {
-    let mut group = c.benchmark_group("PPP Binary");
+    let mut group = c.benchmark_group("Fibonnaci");
 
     let inputs: Vec<String> = (0..10)
         .into_iter()
         .map(|v| {
             format!(
                 r###"
-        @fibonacci(@n <= 1) = n
-        @fibonacci(@n) = fibonacci(n - 2) + fibonacci(n - 1)
+        fibonacci(n <= 1) = n
+        fibonacci(n) = fibonacci(n - 2) + fibonacci(n - 1)
 
         fibonacci({})
     "###,
@@ -32,10 +32,10 @@ fn benchmarks(c: &mut Criterion) {
         let id = input.trim().lines().last().expect("Empty input.").trim();
 
         group.bench_with_input(
-            BenchmarkId::new(type_name::<Interpreter>(), id),
+            BenchmarkId::new(type_name::<Program>(), id),
             input.as_str(),
             |b, i| {
-                b.iter(|| Interpreter::build_then_run(i));
+                b.iter(|| i.parse::<Program>());
             },
         );
     }

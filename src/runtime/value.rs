@@ -1,9 +1,6 @@
 //! Valid values in the Tortuga runtime.
 
-use crate::runtime::environment::FunctionReference;
-use crate::runtime::epsilon::EpsilonOperator;
-use crate::runtime::{Number, Tolerance};
-use crate::RuntimeError;
+use crate::runtime::{RuntimeError, EpsilonOperator, Number, Tolerance};
 use std::any::type_name;
 use std::cmp::Ordering;
 use std::convert::TryFrom;
@@ -12,6 +9,9 @@ use std::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitXor, BitXorAssign, Div, DivAssign, Mul, MulAssign,
     Rem, RemAssign, Sub, SubAssign,
 };
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct FunctionReference(usize);
 
 /// A value that may be created by a literal, or returned from a function.
 #[derive(Copy, Clone, Debug)]
@@ -51,7 +51,7 @@ impl fmt::Display for Value {
             Value::Boolean(boolean) => write!(f, "{}", boolean),
             Value::Number(number) => write!(f, "{}", number),
             Value::Tolerance(tolerance) => write!(f, "{}", tolerance),
-            Value::FunctionReference(reference) => write!(f, "@{}", reference),
+            Value::FunctionReference(reference) => write!(f, "@{}", reference.0),
         }
     }
 }

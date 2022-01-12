@@ -2,13 +2,10 @@
 
 pub mod about;
 pub mod compiler;
-pub mod display;
 pub mod grammar;
-pub mod peg;
 pub mod runtime;
 
 pub use about::*;
-pub use compiler::{Kind, LexicalError, ParseNumberError, Parser, Scanner, SyntacticalError};
-pub use display::{PrettyPrinter, WithLexeme};
+pub use compiler::{ParseNumberError, SyntacticalError};
 pub use grammar::syntax::Program;
-pub use runtime::{Interpreter, RuntimeError, Value};
+pub use runtime::{Number, RuntimeError, Value};

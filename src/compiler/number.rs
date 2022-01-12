@@ -10,10 +10,6 @@ use lazy_static::lazy_static;
 use regex::{Captures, Match, Regex};
 use std::str::FromStr;
 
-/// Base 10 (i.e. decimal). The default base for all numbers.
-pub const DECIMAL: u32 = 10;
-
-/// The largest supported radix for numbers with an explicit base.
 pub const MAX_RADIX: u32 = 36;
 
 const DEFAULT_NUMBER_PART: &str = "0";
