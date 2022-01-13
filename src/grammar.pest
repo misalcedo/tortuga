@@ -3,6 +3,7 @@ Program            = { SOI ~ Expression* ~ EOI }
 // An entry-point for the REPL (Read-Evaluate-Print Loop).
 Continuation       = { SOI ~ Expression ~ ( COMPARATOR ~ Expression )* ~ EOI }
 
+ConstantExpression = { Arithmetic }
 Expression         = { PatternMatch | Arithmetic }
 PatternMatch       = { Pattern ~ MATCH ~ Block }
 Block              = { Expression | "[" ~ Expression+ ~ "]" }
@@ -13,7 +14,7 @@ Function           = { Name ~ Parameters? }
 Parameters         = { "(" ~ Parameter ~ ( "," ~ Parameter )* ~ ")" }
 Parameter          = { Refinement | Pattern }
 
-Refinement         = { Numerical ~ COMPARATOR ~ Arithmetic }
+Refinement         = { Numerical ~ COMPARATOR ~ ConstantExpression }
 Numerical          = { NumberPattern | Name }
 NumberPattern      = ${ Name ~ "." ~ ("0" | Name) }
 IntervalPattern    = { OPEN_INTERVAL ~ Numerical ~ ENDPOINT_DELIMITER ~ Numerical ~ CLOSE_INTERVAL }
@@ -41,7 +42,7 @@ Number             = @{ ( RADIX ~ REAL_BASE_36 ) | REAL }
 
 // https://en.wikipedia.org/wiki/Interval_(mathematics)#Notations_for_intervals
 Interval           = { OPEN_INTERVAL ~ Endpoints ~ CLOSE_INTERVAL }
-Endpoints          = { Arithmetic ~ ENDPOINT_DELIMITER ~ Arithmetic }
+Endpoints          = { Expression ~ ENDPOINT_DELIMITER ~ Expression }
 
 // Lexical grammar
 ZERO               = { "0" | "0.0" | "0." | ".0" }

@@ -21,6 +21,7 @@ pub enum Expression {
     Interval(Box<Interval>),
     Grouping(Box<Expression>),
     PatternMatch(Box<PatternMatch>),
+    Constant(Box<Expression>)
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
