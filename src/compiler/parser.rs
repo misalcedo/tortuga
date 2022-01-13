@@ -7,7 +7,9 @@
 use crate::grammar::syntax::*;
 use crate::SyntacticalError;
 
+use pest::iterators::{Pair, Pairs};
 use pest::Parser as PEG;
+use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
 
 /// A Parser Expression Grammar parser that is auto-generated.
@@ -35,13 +37,39 @@ use std::str::FromStr;
 #[grammar = "grammar.pest"]
 struct Parser;
 
+impl Display for Rule {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+fn new_program(mut pairs: Pairs<Rule>) -> Result<Program, SyntacticalError> {
+    let mut program = Program::default();
+
+    while pairs.peek().is_some() {
+        program.0.push(new_expressions(&mut pairs)?);
+    }
+
+    Ok(program)
+}
+
+fn new_expressions(pairs: &mut Pairs<Rule>) -> Result<Expression, SyntacticalError> {
+    pairs.next();
+    Ok(Expression::Tuple(Box::new(Tuple::default())))
+}
+
 impl FromStr for Program {
     type Err = SyntacticalError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let _pairs = Parser::parse(Rule::Program, s)?;
+        let program = Parser::parse(Rule::Program, s)?
+            .next()
+            .ok_or(Self::Err::Incomplete)?;
 
-        Ok(Program::default())
+        match program.as_rule() {
+            Rule::Program => new_program(program.into_inner()),
+            rule => Err(Self::Err::NoMatch(rule)),
+        }
     }
 }
 

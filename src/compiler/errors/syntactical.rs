@@ -8,6 +8,8 @@ use crate::compiler::parser::Rule;
 pub enum SyntacticalError {
     #[error("Reached the end of file prematurely; unable to complete parsing a grammar rule.")]
     Incomplete,
+    #[error("Unexpected rule {0}.")]
+    NoMatch(Rule),
     #[error(transparent)]
     PEG(#[from] pest::error::Error<Rule>),
 }
