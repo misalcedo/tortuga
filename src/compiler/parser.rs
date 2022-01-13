@@ -7,7 +7,7 @@
 use crate::grammar::syntax::*;
 use crate::SyntacticalError;
 
-use pest::iterators::{Pair, Pairs};
+use pest::iterators::Pairs;
 use pest::Parser as PEG;
 use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
