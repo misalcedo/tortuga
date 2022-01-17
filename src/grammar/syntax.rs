@@ -132,15 +132,6 @@ pub enum Operator {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub struct Continuation(pub Expression);
-
-impl Default for Continuation {
-    fn default() -> Self {
-        Continuation(Expression::Tuple(Box::new(Tuple::default())))
-    }
-}
-
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Comparison {
     pub lhs: Expression,
     pub comparator: Comparator,

@@ -1,11 +1,7 @@
 Program            = { SOI ~ Expression* ~ EOI }
 
-// An entry-point for the REPL (Read-Evaluate-Print Loop).
-Continuation       = { SOI ~ Expression ~ ( COMPARATOR ~ Expression )* ~ EOI }
-
-ConstantExpression = { Arithmetic }
-Expression         = { PatternMatch | Arithmetic }
-PatternMatch       = { Pattern ~ MATCH ~ Block }
+Expression         = { Binding | Arithmetic }
+Binding            = { Pattern ~ MATCH ~ Block }
 Block              = { Expression | "[" ~ Expression+ ~ "]" }
 
 Pattern            = { IntervalPattern | ListPattern | TuplePattern | NumberPattern | Function }
@@ -14,7 +10,8 @@ Function           = { Name ~ Parameters? }
 Parameters         = { "(" ~ Parameter ~ ( "," ~ Parameter )* ~ ")" }
 Parameter          = { Refinement | Pattern }
 
-Refinement         = { Numerical ~ COMPARATOR ~ ConstantExpression }
+Refinement         = { Numerical ~ COMPARATOR ~ Constant }
+Constant           = { Arithmetic }
 Numerical          = { NumberPattern | Name }
 NumberPattern      = ${ Name ~ "." ~ ("0" | Name) }
 IntervalPattern    = { OPEN_INTERVAL ~ Numerical ~ ENDPOINT_DELIMITER ~ Numerical ~ CLOSE_INTERVAL }
