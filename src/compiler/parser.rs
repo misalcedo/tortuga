@@ -60,11 +60,7 @@ fn new_operation(pairs: &mut Pairs<Rule>) -> Result<Expression, SyntacticalError
         let operator = new_operator(pairs)?;
         let rhs = new_expression(pairs)?;
 
-        lhs = Expression::Operation(Box::new(Operation {
-            lhs,
-            operator,
-            rhs
-        }));
+        lhs = Expression::Operation(Box::new(Operation { lhs, operator, rhs }));
     }
 
     Ok(lhs)
@@ -80,7 +76,7 @@ fn new_comparison(pairs: &mut Pairs<Rule>) -> Result<Expression, SyntacticalErro
         lhs = Expression::Comparison(Box::new(Comparison {
             lhs,
             comparator,
-            rhs
+            rhs,
         }));
     }
 
@@ -89,7 +85,7 @@ fn new_comparison(pairs: &mut Pairs<Rule>) -> Result<Expression, SyntacticalErro
 
 fn new_operator(pairs: &mut Pairs<Rule>) -> Result<Operator, SyntacticalError> {
     let pair = pairs.next().ok_or(SyntacticalError::Incomplete)?;
-    
+
     match pair.as_str() {
         "+" => Ok(Operator::Add),
         "-" => Ok(Operator::Subtract),
@@ -104,7 +100,7 @@ fn new_operator(pairs: &mut Pairs<Rule>) -> Result<Operator, SyntacticalError> {
 
 fn new_comparator(pairs: &mut Pairs<Rule>) -> Result<Comparator, SyntacticalError> {
     let pair = pairs.next().ok_or(SyntacticalError::Incomplete)?;
-    
+
     match pair.as_str() {
         "=" => Ok(Comparator::Equal),
         "<" => Ok(Comparator::LessThan),
