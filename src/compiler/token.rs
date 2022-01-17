@@ -83,6 +83,10 @@ pub enum Kind {
     Underscore,
     /// @
     At,
+    /// !
+    Exclamation,
+    /// |
+    VerticalPipe,
 
     // Delimiters
     LeftParenthesis,
@@ -114,6 +118,8 @@ impl Display for Kind {
             Kind::Comma => f.write_char(','),
             Kind::Underscore => f.write_char('_'),
             Kind::At => f.write_char('@'),
+            Kind::Exclamation => f.write_char('!'),
+            Kind::VerticalPipe => f.write_char('|'),
             Kind::LeftParenthesis => f.write_char('('),
             Kind::RightParenthesis => f.write_char(')'),
             Kind::LeftBrace => f.write_char('{'),
