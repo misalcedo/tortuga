@@ -14,6 +14,7 @@ pub type Name = Option<Identifier>;
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum Expression {
     Operation(Box<Operation>),
+    Comparison(Box<Comparison>),
     Tuple(Box<Tuple>),
     Number(Number),
     FunctionCall(Box<FunctionCall>),
@@ -131,14 +132,11 @@ pub enum Operator {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub enum Continuation {
-    Expression(Expression),
-    Comparison(Box<Comparison>),
-}
+pub struct Continuation(pub Expression);
 
 impl Default for Continuation {
     fn default() -> Self {
-        Continuation::Expression(Expression::Tuple(Box::new(Tuple::default())))
+        Continuation(Expression::Tuple(Box::new(Tuple::default())))
     }
 }
 
@@ -146,7 +144,7 @@ impl Default for Continuation {
 pub struct Comparison {
     pub lhs: Expression,
     pub comparator: Comparator,
-    pub rhs: Continuation,
+    pub rhs: Expression,
 }
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
