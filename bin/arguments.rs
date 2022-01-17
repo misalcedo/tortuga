@@ -1,11 +1,11 @@
-use std::fs::File;
-use std::io::{Read, stdin};
-use clap::{AppSettings, Args, Parser, Subcommand};
-use std::path::PathBuf;
-use tracing::Level;
-use tracing::subscriber::set_global_default;
-use tracing_log::LogTracer;
 use crate::CommandLineError;
+use clap::{AppSettings, Args, Parser, Subcommand};
+use std::fs::File;
+use std::io::{stdin, Read};
+use std::path::PathBuf;
+use tracing::subscriber::set_global_default;
+use tracing::Level;
+use tracing_log::LogTracer;
 
 #[derive(Clone, Debug, Eq, Parser, PartialEq)]
 #[clap(author, version, about)]
@@ -36,7 +36,7 @@ pub struct Input {
     pub path: Option<PathBuf>,
     /// An inline expression to use as input.
     #[clap(short, long, conflicts_with("path"), forbid_empty_values(true))]
-    pub expression: String
+    pub expression: String,
 }
 
 impl ToString for Input {
@@ -48,7 +48,15 @@ impl ToString for Input {
         let mut buffer = String::new();
         let result = match self.path.as_ref() {
             None => stdin().read_to_string(&mut buffer),
-            Some(path) => File::open(path).expect(format!("Unable to open file at {}.", path.as_os_str().to_string_lossy()).as_str()).read_to_string(&mut buffer)
+            Some(path) => File::open(path)
+                .expect(
+                    format!(
+                        "Unable to open file at {}.",
+                        path.as_os_str().to_string_lossy()
+                    )
+                    .as_str(),
+                )
+                .read_to_string(&mut buffer),
         };
 
         result.expect("Unable to read input to a string.");
@@ -110,21 +118,21 @@ pub struct PromptCommand;
 /// Compile and run a file.
 pub struct RunCommand {
     #[clap(flatten)]
-    pub input: Input
+    pub input: Input,
 }
 
 #[derive(Clone, Debug, Eq, Parser, PartialEq)]
 /// Parses a file and prints the syntax tree.
 pub struct ParseCommand {
     #[clap(flatten)]
-    pub input: Input
+    pub input: Input,
 }
 
 #[derive(Clone, Debug, Eq, Parser, PartialEq)]
 /// Performs lexical analysis on a file and prints the annotated token sequence.
 pub struct ScanCommand {
     #[clap(flatten)]
-    pub input: Input
+    pub input: Input,
 }
 
 /// The sub-command to execute.

@@ -11,10 +11,10 @@ use run::run;
 
 use std::io::ErrorKind::BrokenPipe;
 
+use crate::arguments::{Arguments, Commands};
 use crate::parse::parse_file;
 use crate::scan::scan_file;
 use mimalloc::MiMalloc;
-use crate::arguments::{Arguments, Commands};
 
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
@@ -37,14 +37,8 @@ fn execute() -> Result<(), CommandLineError> {
 fn run_subcommand(arguments: Arguments) -> Result<(), CommandLineError> {
     match arguments.command.unwrap_or_default() {
         Commands::Prompt(_) => run_prompt(),
-        Commands::Run(command) => {
-            run(command.input.to_string().as_str())
-        }
-        Commands::Parse(command) => {
-            parse_file(command.input.to_string().as_str())
-        }
-        Commands::Scan(command) => {
-            scan_file(command.input.to_string().as_str())
-        }
+        Commands::Run(command) => run(command.input.to_string().as_str()),
+        Commands::Parse(command) => parse_file(command.input.to_string().as_str()),
+        Commands::Scan(command) => scan_file(command.input.to_string().as_str()),
     }
 }
