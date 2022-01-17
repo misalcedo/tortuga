@@ -31,7 +31,7 @@ impl<'a> Lexeme<'a> {
     pub fn new<S: Into<Location>>(start: S, lexeme: &'a str) -> Self {
         Lexeme {
             start: start.into(),
-            lexeme
+            lexeme,
         }
     }
 

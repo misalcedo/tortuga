@@ -1,9 +1,9 @@
 //! Errors that may occur during lexical analysis.
 
 use crate::compiler::{Lexeme, Location};
+use crate::Kind;
 use std::fmt;
 use std::fmt::{Display, Formatter};
-use crate::Kind;
 
 /// An error that occurred during lexical analysis of a specific lexeme.
 /// After an error is encountered, the scanner may continue to analyze the lexeme.

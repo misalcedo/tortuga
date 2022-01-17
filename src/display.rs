@@ -105,7 +105,10 @@ impl<StdOut: Write, StdErr: Write> PrettyPrinter<StdOut, StdErr> {
             SyntacticalError::NoMatch(token) => {
                 self.print_error_prefix("NoMatch")?;
                 write!(self.std_err, "No grammar rule matched the token: ")?;
-                print_token_to(Token::new(Lexeme::new(*token.start(), token.as_str()), *token.kind()), &mut self.std_err)
+                print_token_to(
+                    Token::new(Lexeme::new(*token.start(), token.as_str()), *token.kind()),
+                    &mut self.std_err,
+                )
             }
             SyntacticalError::Lexical(error) => self.print_lexical_error(error),
         }

@@ -230,15 +230,9 @@ impl<'a, T: Tokens<'a>> Parser<'a, T> {
             Kind::Minus => {
                 let number = self.next_kind(Kind::Number)?;
 
-                Ok(Number::new(
-                    true,
-                    lexical::Number::new(number.as_str()),
-                ))
+                Ok(Number::new(true, lexical::Number::new(number.as_str())))
             }
-            _ => Ok(Number::new(
-                false,
-                lexical::Number::new(token.as_str()),
-            )),
+            _ => Ok(Number::new(false, lexical::Number::new(token.as_str()))),
         }
     }
 
@@ -296,9 +290,7 @@ impl<'a, T: Tokens<'a>> Parser<'a, T> {
             Kind::At => {
                 let identifier = self.next_kind(Kind::Identifier)?;
 
-                Ok(Name::from(lexical::Identifier::new(
-                    identifier.as_str()
-                )))
+                Ok(Name::from(lexical::Identifier::new(identifier.as_str())))
             }
             _ => Ok(Name::Anonymous),
         }

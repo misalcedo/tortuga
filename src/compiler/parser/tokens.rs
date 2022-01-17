@@ -268,7 +268,10 @@ mod tests {
 
     #[test]
     fn next_matches_invalid() {
-        let tokens = vec![Err(LexicalError::new(Lexeme::new(Location::default(), "."), ErrorKind::Number))];
+        let tokens = vec![Err(LexicalError::new(
+            Lexeme::new(Location::default(), "."),
+            ErrorKind::Number,
+        ))];
         let mut peekable = tokens.into_iter().peekable();
 
         assert_eq!(peekable.next_matches(Kind::At), Some(false))
