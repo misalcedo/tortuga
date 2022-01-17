@@ -6,7 +6,7 @@ use tortuga::{PrettyPrinter, Program};
 
 /// Pretty print the syntax tree for the given source.
 pub fn parse_file(source: &str) -> Result<(), CommandLineError> {
-    let mut printer = PrettyPrinter::new(source, stdout(), stderr());
+    let mut printer = PrettyPrinter::new(stdout(), stderr());
 
     match source.parse::<Program>() {
         Ok(program) => printer.print_program(&program)?,

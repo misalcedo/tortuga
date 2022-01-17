@@ -7,7 +7,6 @@ use crate::compiler::{Kind, Token};
 use crate::grammar::lexical;
 use crate::grammar::syntax::*;
 use crate::{Scanner, SyntacticalError};
-use std::iter::Peekable;
 use std::str::FromStr;
 use tokens::Tokens;
 
@@ -36,21 +35,11 @@ const INEQUALITY_KINDS: &[Kind] = &[
 ///
 /// assert!("(2 + 2#10) ^ 2 = 16".parse::<Program>().is_ok());
 /// ```
-pub struct Parser<'a, T: Tokens> {
-    source: &'a str,
-    tokens: T,
+pub struct Parser<'a, T: Tokens<'a>> {
+    tokens: &'a mut T,
 }
 
-impl<'a> From<&'a str> for Parser<'a, Peekable<Scanner<'a>>> {
-    fn from(source: &'a str) -> Self {
-        Parser {
-            source,
-            tokens: Scanner::from(source).peekable(),
-        }
-    }
-}
-
-impl<'a, T: Tokens> Parser<'a, T> {
+impl<'a, T: Tokens<'a>> Parser<'a, T> {
     /// Advances the token sequence and returns the next value if the token is one of the expected [`Kind`]s.
     ///
     /// Returns [`Err`] when at the end of the sequence,
@@ -58,14 +47,15 @@ impl<'a, T: Tokens> Parser<'a, T> {
     fn next_kind<Matcher: TokenMatcher>(
         &mut self,
         matcher: Matcher,
-    ) -> Result<Token, SyntacticalError> {
+    ) -> Result<Token<'a>, SyntacticalError> {
         match self.tokens.next_matches(matcher) {
             Some(true) => self.tokens.next_token(),
             Some(false) => Err(SyntacticalError::NoMatch(
                 self.tokens
                     .peek_token()
                     .copied()
-                    .ok_or(SyntacticalError::Incomplete)?,
+                    .ok_or(SyntacticalError::Incomplete)?
+                    .into(),
             )),
             None => Err(SyntacticalError::Incomplete),
         }
@@ -239,14 +229,15 @@ impl<'a, T: Tokens> Parser<'a, T> {
         match token.kind() {
             Kind::Minus => {
                 let number = self.next_kind(Kind::Number)?;
+
                 Ok(Number::new(
                     true,
-                    lexical::Number::new(self.source, number.lexeme()),
+                    lexical::Number::new(number.as_str()),
                 ))
             }
             _ => Ok(Number::new(
                 false,
-                lexical::Number::new(self.source, token.lexeme()),
+                lexical::Number::new(token.as_str()),
             )),
         }
     }
@@ -255,7 +246,7 @@ impl<'a, T: Tokens> Parser<'a, T> {
         &mut self,
         identifier: Token,
     ) -> Result<lexical::Identifier, SyntacticalError> {
-        Ok(lexical::Identifier::new(self.source, identifier.lexeme()))
+        Ok(lexical::Identifier::new(identifier.as_str()))
     }
 
     fn parse_arguments(&mut self) -> Result<Arguments, SyntacticalError> {
@@ -306,8 +297,7 @@ impl<'a, T: Tokens> Parser<'a, T> {
                 let identifier = self.next_kind(Kind::Identifier)?;
 
                 Ok(Name::from(lexical::Identifier::new(
-                    self.source,
-                    identifier.lexeme(),
+                    identifier.as_str()
                 )))
             }
             _ => Ok(Name::Anonymous),
@@ -402,7 +392,12 @@ impl FromStr for Program {
     type Err = SyntacticalError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Parser::from(s).parse()
+        let mut scanner = Scanner::from(s).peekable();
+        let parser = Parser {
+            tokens: &mut scanner,
+        };
+
+        parser.parse()
     }
 }
 

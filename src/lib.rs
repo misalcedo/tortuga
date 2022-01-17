@@ -8,6 +8,6 @@ pub mod runtime;
 
 pub use about::*;
 pub use compiler::{Kind, LexicalError, ParseNumberError, Parser, Scanner, SyntacticalError};
-pub use display::{PrettyPrinter, WithLexeme};
+pub use display::PrettyPrinter;
 pub use grammar::syntax::Program;
 pub use runtime::{Interpreter, RuntimeError, Value};

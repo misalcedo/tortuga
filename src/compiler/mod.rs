@@ -16,4 +16,4 @@ pub use lexeme::Lexeme;
 pub use location::Location;
 pub use parser::Parser;
 pub use scanner::Scanner;
-pub use token::{Kind, Token};
+pub use token::{Kind, OwnedToken, Token};

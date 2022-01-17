@@ -1,24 +1,23 @@
 //! Pretty print Tortuga [`Program`]s and errors.
 
-use crate::compiler::Token;
+use crate::compiler::{Lexeme, Token};
 use crate::grammar::*;
-use crate::{runtime, Kind, LexicalError, SyntacticalError, WithLexeme};
+use crate::{runtime, Kind, LexicalError, SyntacticalError};
 use colored::*;
 use std::fmt::Display;
 use std::io::{self, Write};
 
 /// A printer to standard out for Tortuga programs.
-pub struct PrettyPrinter<'a, StdOut: Write, StdErr: Write> {
-    source: &'a str,
+pub struct PrettyPrinter<StdOut: Write, StdErr: Write> {
     std_out: StdOut,
     std_err: StdErr,
     nesting: usize,
     spaces: usize,
 }
 
-fn print_token_to<W: Write>(source: &str, token: Token, mut write: W) -> io::Result<()> {
+fn print_token_to<W: Write>(token: Token<'_>, mut write: W) -> io::Result<()> {
     let kind = token.kind().to_string();
-    let lexeme = token.as_display(source).to_string();
+    let lexeme = token.as_str().to_string();
     let start = token.lexeme().start().to_string();
 
     match token.kind() {
@@ -56,11 +55,10 @@ fn print_token_to<W: Write>(source: &str, token: Token, mut write: W) -> io::Res
     Ok(())
 }
 
-impl<'a, StdOut: Write, StdErr: Write> PrettyPrinter<'a, StdOut, StdErr> {
+impl<StdOut: Write, StdErr: Write> PrettyPrinter<StdOut, StdErr> {
     /// Create a new pretty printer.
-    pub fn new(source: &'a str, std_out: StdOut, std_err: StdErr) -> Self {
+    pub fn new(std_out: StdOut, std_err: StdErr) -> Self {
         PrettyPrinter {
-            source,
             std_out,
             std_err,
             nesting: 0,
@@ -94,7 +92,7 @@ impl<'a, StdOut: Write, StdErr: Write> PrettyPrinter<'a, StdOut, StdErr> {
 
     /// Prints a [`Token`] to this [`PrettyPrinter`]'s `std_out` [`Write`]r.
     pub fn print_token(&mut self, token: Token) -> io::Result<()> {
-        print_token_to(self.source, token, &mut self.std_out)
+        print_token_to(token, &mut self.std_out)
     }
 
     /// Prints a [`SyntacticalError`] to this [`PrettyPrinter`]'s `std_err` [`Write`]r.
@@ -107,7 +105,7 @@ impl<'a, StdOut: Write, StdErr: Write> PrettyPrinter<'a, StdOut, StdErr> {
             SyntacticalError::NoMatch(token) => {
                 self.print_error_prefix("NoMatch")?;
                 write!(self.std_err, "No grammar rule matched the token: ")?;
-                print_token_to(self.source, token, &mut self.std_err)
+                print_token_to(Token::new(Lexeme::new(*token.start(), token.as_str()), *token.kind()), &mut self.std_err)
             }
             SyntacticalError::Lexical(error) => self.print_lexical_error(error),
         }
@@ -116,8 +114,8 @@ impl<'a, StdOut: Write, StdErr: Write> PrettyPrinter<'a, StdOut, StdErr> {
     /// Prints a [`LexicalError`] to this [`PrettyPrinter`]'s `std_err` [`Write`]r.
     pub fn print_lexical_error(&mut self, error: LexicalError) -> io::Result<()> {
         let kind = error.kind();
-        let lexeme = error.as_display(self.source).to_string();
-        let start = error.lexeme().start().to_string();
+        let lexeme = error.as_str().to_string();
+        let start = error.start().to_string();
 
         self.print_error_prefix(kind)?;
 
@@ -212,7 +210,7 @@ impl<'a, StdOut: Write, StdErr: Write> PrettyPrinter<'a, StdOut, StdErr> {
     }
 
     fn print_identifier(&mut self, identifier: &lexical::Identifier) -> io::Result<()> {
-        write!(self.std_out, "{}", identifier.as_display(self.source))
+        write!(self.std_out, "{}", identifier.as_str())
     }
 
     fn print_parameters(&mut self, parameters: &[Pattern]) -> io::Result<()> {
@@ -384,7 +382,7 @@ impl<'a, StdOut: Write, StdErr: Write> PrettyPrinter<'a, StdOut, StdErr> {
             write!(self.std_out, "-")?;
         }
 
-        let lexeme = number.number().lexeme().extract_from(self.source);
+        let lexeme = number.number().as_str();
         let value: runtime::Number = lexeme
             .parse()
             .map_err(|_| io::Error::from(io::ErrorKind::InvalidData))?;

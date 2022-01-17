@@ -1,50 +1,93 @@
-//! Lexical `Token`s for Tortuga.
+//! Lexical [`Token`]s for the Tortuga Programming Language.
 
-use crate::compiler::Lexeme;
-use crate::WithLexeme;
+use crate::compiler::{Lexeme, Location};
 use std::fmt::{self, Display, Formatter, Write};
 
-/// A lexical token is a pair of a `Lexeme` and a `Kind`.
+/// A lexical token is a pair of a [`Lexeme`] and a [`Kind`].
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub struct Token {
-    lexeme: Lexeme,
+pub struct Token<'a> {
+    lexeme: Lexeme<'a>,
     kind: Kind,
 }
 
-impl Display for Token {
+/// A lexical token is a pair of a [`Lexeme`] and a [`Kind`].
+#[derive(Clone, Debug, PartialEq)]
+pub struct OwnedToken {
+    start: Location,
+    lexeme: String,
+    kind: Kind,
+}
+
+impl OwnedToken {
+    /// Creates a new instance of a [`Token`] with the given [`Lexeme`] and [`Kind`].
+    pub fn new<K: Into<Kind>>(lexeme: &Lexeme<'_>, kind: K) -> Self {
+        OwnedToken {
+            start: *lexeme.start(),
+            lexeme: lexeme.as_str().to_string(),
+            kind: kind.into(),
+        }
+    }
+
+    /// The start [`Location`] of this [`OwnedToken`].
+    pub fn start(&self) -> &Location {
+        &self.start
+    }
+
+    /// This [`OwnedToken`]'s variant.
+    pub fn kind(&self) -> &Kind {
+        &self.kind
+    }
+
+    /// A [`str`] representing this [`OwnedToken`] in the input.
+    pub fn as_str(&self) -> &str {
+        self.lexeme.as_str()
+    }
+}
+
+impl From<Token<'_>> for OwnedToken {
+    fn from(token: Token<'_>) -> Self {
+        OwnedToken::new(&token.lexeme, token.kind)
+    }
+}
+
+impl Display for OwnedToken {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{} token on {}", self.kind, self.start)
+    }
+}
+
+impl Display for Token<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{} token on {}", self.kind, self.lexeme)
     }
 }
 
-impl Token {
-    /// Creates a new instance of a `Token` with the given `Lexeme` and attribute.
-    pub fn new<L: Into<Lexeme>, K: Into<Kind>>(lexeme: L, kind: K) -> Self {
+impl<'a> Token<'a> {
+    /// Creates a new instance of a [`Token`] with the given [`Lexeme`] and [`Kind`].
+    pub fn new<L: Into<Lexeme<'a>>, K: Into<Kind>>(lexeme: L, kind: K) -> Self {
         Token {
             lexeme: lexeme.into(),
             kind: kind.into(),
         }
     }
 
-    /// The actual text this `Token` represents in the input.
+    /// The actual text this [`Token`] represents in the input.
     pub fn lexeme(&self) -> &Lexeme {
         &self.lexeme
     }
 
-    /// This `Token`'s variant.
+    /// This [`Token`]'s variant.
     pub fn kind(&self) -> &Kind {
         &self.kind
     }
-}
 
-impl WithLexeme for Token {
-    fn lexeme(&self) -> &Lexeme {
-        &self.lexeme
+    /// A [`str`] representing this [`Token`] in the input.
+    pub fn as_str(&self) -> &'a str {
+        self.lexeme.as_str()
     }
 }
 
-/// The variants of the `Token`s and their associated attributes.
-/// Rust does not support
+/// The variants of the [`Token`]s and their associated attributes.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Kind {
     Number,

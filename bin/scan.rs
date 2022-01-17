@@ -6,7 +6,7 @@ use tortuga::{PrettyPrinter, Scanner};
 
 /// Pretty print the sequence of tokens for the given source.
 pub fn scan_file(source: &str) -> Result<(), CommandLineError> {
-    let mut printer = PrettyPrinter::new(source, stdout(), stderr());
+    let mut printer = PrettyPrinter::new(stdout(), stderr());
 
     for (index, result) in Scanner::from(source).enumerate() {
         match result {

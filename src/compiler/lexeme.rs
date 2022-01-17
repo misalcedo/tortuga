@@ -1,65 +1,58 @@
 //! A lexeme is an excerpt of text from the source code to be compiled.
-//! Lexeme's in the tortuga compiler are denoted by their start and end `Location`s.
+//! Lexeme's in the tortuga compiler are denoted by their start and end [`Location`]s.
 
 use crate::compiler::Location;
 use std::fmt::{self, Display, Formatter};
 
-/// A combination of a `Location` and a length in bytes.
-/// Used to slice a source file to just the excerpt that is this `Lexeme`.
+/// An excerpt of the input and the [`Location`] of the start of the excerpt.
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd)]
-pub struct Lexeme {
+pub struct Lexeme<'a> {
     start: Location,
-    end: Location,
+    lexeme: &'a str,
 }
 
-impl Display for Lexeme {
+impl Display for Lexeme<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         self.start.fmt(f)
     }
 }
 
-impl<L: Into<Location>> From<L> for Lexeme {
-    fn from(end: L) -> Self {
+impl<'a> From<&'a str> for Lexeme<'a> {
+    fn from(lexeme: &'a str) -> Self {
         Lexeme {
             start: Location::default(),
-            end: end.into(),
+            lexeme,
         }
     }
 }
 
-impl Lexeme {
+impl<'a> Lexeme<'a> {
     /// Creates a new instance of a `Lexeme` with the given start and end `Location`s.
-    pub fn new<S: Into<Location>, E: Into<Location>>(start: S, end: E) -> Self {
+    pub fn new<S: Into<Location>>(start: S, lexeme: &'a str) -> Self {
         Lexeme {
             start: start.into(),
-            end: end.into(),
+            lexeme
         }
     }
 
-    /// The start `Location` of this `Lexeme`.
+    /// The start [`Location`] of this [`Lexeme`].
     pub fn start(&self) -> &Location {
         &self.start
     }
 
-    /// The length in bytes of this `Lexeme`.
+    /// The length in bytes of this [`Lexeme`].
     pub fn len(&self) -> usize {
-        self.end.offset() - self.start.offset()
+        self.lexeme.len()
     }
 
-    /// Tests whether this `Lexeme` has a length of 0.
+    /// Tests whether this [`Lexeme`] has a length of 0.
     pub fn is_empty(&self) -> bool {
-        self.len() == 0
+        self.lexeme.is_empty()
     }
 
-    /// Extracts this `Lexeme` from the given input.
-    ///
-    /// ## Panic
-    /// Panics when the given input is shorter than the offset plus length of this `Lexeme`.
-    pub fn extract_from<'a>(&self, input: &'a str) -> &'a str {
-        let start = self.start.offset();
-        let end = self.end.offset();
-
-        &input[start..end]
+    /// A [`str`] representing this [`Lexeme`] in the input.
+    pub fn as_str(&self) -> &'a str {
+        self.lexeme
     }
 }
 
@@ -70,23 +63,19 @@ mod tests {
     #[test]
     fn index_source() {
         let start = Location::new(1, 8, 7);
-        let end = Location::new(1, 13, 12);
-        let lexeme = Lexeme::new(start, end);
         let input = "Hello, World!";
+        let lexeme = Lexeme::new(start, &input[start.offset()..]);
 
-        assert_eq!(lexeme.len(), 5);
+        assert_eq!(lexeme.len(), 6);
         assert!(!lexeme.is_empty());
-        assert_eq!(lexeme.extract_from(input), "World");
-        assert_eq!(lexeme, Lexeme::new("Hello, ", "Hello, World"));
+        assert_eq!(lexeme, Lexeme::new("Hello, ", "World!"));
     }
 
     #[test]
     fn empty() {
-        let lexeme = Lexeme::new(Location::default(), Location::default());
-        let input = "Hello, World!";
+        let lexeme = Lexeme::new(Location::default(), "");
 
         assert_eq!(lexeme.len(), 0);
         assert!(lexeme.is_empty());
-        assert_eq!(lexeme.extract_from(input), "");
     }
 }

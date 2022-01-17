@@ -1,6 +1,6 @@
 //! Errors that may occur during syntax analysis.
 
-use crate::compiler::Token;
+use crate::compiler::OwnedToken;
 use crate::LexicalError;
 
 /// An error that occurred while generating a syntax tree from a sequence of tokens.
@@ -10,7 +10,7 @@ pub enum SyntacticalError {
     #[error("Reached the end of file prematurely; unable to complete parsing a grammar rule.")]
     Incomplete,
     #[error("No grammar rule matched the {0}.")]
-    NoMatch(Token),
+    NoMatch(OwnedToken),
     #[error(transparent)]
     Lexical(#[from] LexicalError),
 }
