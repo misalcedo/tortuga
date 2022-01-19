@@ -31,7 +31,7 @@ impl<'a> From<&'a str> for Lexeme<'a> {
     fn from(lexeme: &'a str) -> Self {
         Lexeme {
             start: Location::default(),
-            lexeme,
+            lexeme: lexeme.into(),
         }
     }
 }
