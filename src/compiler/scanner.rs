@@ -76,7 +76,7 @@ impl<'a> Scanner<'a> {
     }
 
     fn lexeme(&mut self) -> &'a str {
-        self.input.peek_lexeme().as_str()
+        self.input.peek_lexeme()
     }
 
     fn skip_comment(&mut self) {

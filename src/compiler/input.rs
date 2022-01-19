@@ -126,19 +126,20 @@ impl<'a, I: Iterator<Item = char>> Input<'a, I> {
 
     /// Advances the `Input` to start a new `Lexeme` and returns the scanned `Lexeme`.
     pub fn advance(&mut self) -> Lexeme<'a> {
+        let start = self.start;
         let lexeme = self.peek_lexeme();
 
         self.start = self.end;
 
-        lexeme
+        Lexeme::new(start, lexeme)
     }
 
     /// Gets the lexeme starting at this [`Input`]'s start [`Location`] (inclusive) until this [`Input`]'s end [`Location`] (exclusive).
-    pub fn peek_lexeme(&self) -> Lexeme<'a> {
+    pub fn peek_lexeme(&self) -> &'a str {
         let start = self.start.offset();
         let end = self.end.offset();
 
-        Lexeme::new(self.start, &self.source[start..end])
+        &self.source[start..end]
     }
 }
 
@@ -234,7 +235,7 @@ mod tests {
         input.advance();
         input.next_if_eq('b');
 
-        let actual = input.peek_lexeme();
+        let actual = Lexeme::new(input.start, input.peek_lexeme());
         let expected = Lexeme::new(Location::default() + "a", "b");
 
         assert_eq!(actual, expected);

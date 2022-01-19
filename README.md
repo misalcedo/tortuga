@@ -14,7 +14,7 @@ For design goals, non-goals, grammar, and more see the [Tortuga Programming Lang
 
 ## Testing
 ### Local Install
-To test the command-line interface, instal the crate locally from the root of the repository with:
+To test the command-line interface, install the crate locally from the root of the repository with:
 
 ```console
 cargo install --path ./

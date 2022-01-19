@@ -4,7 +4,7 @@ use crate::compiler::{Lexeme, Location};
 use std::fmt::{self, Display, Formatter, Write};
 
 /// A lexical token is a pair of a [`Lexeme`] and a [`Kind`].
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Token<'a> {
     lexeme: Lexeme<'a>,
     kind: Kind,
@@ -82,7 +82,7 @@ impl<'a> Token<'a> {
     }
 
     /// A [`str`] representing this [`Token`] in the input.
-    pub fn as_str(&self) -> &'a str {
+    pub fn as_str(&self) -> &str {
         self.lexeme.as_str()
     }
 }

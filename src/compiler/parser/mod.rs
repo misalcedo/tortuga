@@ -53,7 +53,7 @@ impl<'a, T: Tokens<'a>> Parser<'a, T> {
             Some(false) => Err(SyntacticalError::NoMatch(
                 self.tokens
                     .peek_token()
-                    .copied()
+                    .cloned()
                     .ok_or(SyntacticalError::Incomplete)?
                     .into(),
             )),

@@ -2,18 +2,28 @@
 //! Lexeme's in the tortuga compiler are denoted by their start and end [`Location`]s.
 
 use crate::compiler::Location;
+use std::borrow::Cow;
 use std::fmt::{self, Display, Formatter};
 
 /// An excerpt of the input and the [`Location`] of the start of the excerpt.
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Lexeme<'a> {
     start: Location,
-    lexeme: &'a str,
+    lexeme: Cow<'a, str>,
 }
 
 impl Display for Lexeme<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        self.start.fmt(f)
+        write!(f, "{}", self.start)
+    }
+}
+
+impl From<String> for Lexeme<'_> {
+    fn from(lexeme: String) -> Self {
+        Lexeme {
+            start: Location::default(),
+            lexeme: lexeme.into(),
+        }
     }
 }
 
@@ -31,7 +41,7 @@ impl<'a> Lexeme<'a> {
     pub fn new<S: Into<Location>>(start: S, lexeme: &'a str) -> Self {
         Lexeme {
             start: start.into(),
-            lexeme,
+            lexeme: lexeme.into(),
         }
     }
 
@@ -51,14 +61,25 @@ impl<'a> Lexeme<'a> {
     }
 
     /// A [`str`] representing this [`Lexeme`] in the input.
-    pub fn as_str(&self) -> &'a str {
-        self.lexeme
+    pub fn as_str(&self) -> &str {
+        &self.lexeme
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn lexeme_owned_or_borrowed() {
+        let input = "Hello, World!";
+        let lexeme_str = Lexeme::from(input);
+        let lexeme_string = Lexeme::from(input.to_string());
+
+        assert_eq!(lexeme_str.as_str(), input);
+        assert_eq!(lexeme_string.as_str(), input);
+        assert_eq!(lexeme_str, lexeme_string);
+    }
 
     #[test]
     fn index_source() {
