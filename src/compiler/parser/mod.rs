@@ -8,8 +8,8 @@ use crate::grammar::lexical;
 use crate::grammar::syntax::*;
 use crate::{Scanner, SyntacticalError};
 use std::str::FromStr;
-use tracing::{debug, error};
 use tokens::Tokens;
+use tracing::{debug, error};
 
 const COMPARISON_KINDS: &[Kind] = &[
     Kind::LessThan,
@@ -38,12 +38,15 @@ const INEQUALITY_KINDS: &[Kind] = &[
 /// ```
 pub struct Parser<'a> {
     tokens: Tokens<'a>,
-    errors: Vec<SyntacticalError>
+    errors: Vec<SyntacticalError>,
 }
 
 impl<'a> From<Tokens<'a>> for Parser<'a> {
     fn from(tokens: Tokens<'a>) -> Self {
-        Parser { tokens, errors: Vec::new() }
+        Parser {
+            tokens,
+            errors: Vec::new(),
+        }
     }
 }
 
@@ -94,7 +97,6 @@ impl<'a> Parser<'a> {
 
             Err(SyntacticalError::Multiple)
         }
-
     }
 
     fn parse_expressions(&mut self, expression: Expression) -> Result<Program, SyntacticalError> {
@@ -146,12 +148,12 @@ impl<'a> Parser<'a> {
             match self.parse_expression_not_synchronized() {
                 Err(error) if error.is_complete() => {
                     debug!("Entered panic mode while parsing an expression (Error: {error}).");
-    
+
                     self.errors.push(error);
                     self.tokens.backtrack();
                     self.tokens.next_token()?;
-                } 
-                result => return result
+                }
+                result => return result,
             }
         }
     }
