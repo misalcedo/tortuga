@@ -8,6 +8,7 @@ use crate::grammar::lexical;
 use crate::grammar::syntax::*;
 use crate::{Scanner, SyntacticalError};
 use std::str::FromStr;
+use tracing::{debug, error};
 use tokens::Tokens;
 
 const COMPARISON_KINDS: &[Kind] = &[
@@ -37,11 +38,12 @@ const INEQUALITY_KINDS: &[Kind] = &[
 /// ```
 pub struct Parser<'a> {
     tokens: Tokens<'a>,
+    errors: Vec<SyntacticalError>
 }
 
 impl<'a> From<Tokens<'a>> for Parser<'a> {
     fn from(tokens: Tokens<'a>) -> Self {
-        Parser { tokens }
+        Parser { tokens, errors: Vec::new() }
     }
 }
 
@@ -71,7 +73,7 @@ impl<'a> Parser<'a> {
     pub fn parse(mut self) -> Result<Program, SyntacticalError> {
         let expression = self.parse_expression()?;
 
-        match self.tokens.peek_kind() {
+        let result = match self.tokens.peek_kind() {
             Some(
                 Kind::LessThan
                 | Kind::GreaterThan
@@ -81,7 +83,18 @@ impl<'a> Parser<'a> {
                 | Kind::NotEqual,
             ) => self.parse_comparisons(expression),
             _ => self.parse_expressions(expression),
+        };
+
+        if self.errors.is_empty() {
+            result
+        } else {
+            for error in self.errors {
+                error!("{error}");
+            }
+
+            Err(SyntacticalError::Multiple)
         }
+
     }
 
     fn parse_expressions(&mut self, expression: Expression) -> Result<Program, SyntacticalError> {
@@ -125,7 +138,26 @@ impl<'a> Parser<'a> {
         Ok(operator)
     }
 
+    // Expressions are the synchronization point for panic mode.
     fn parse_expression(&mut self) -> Result<Expression, SyntacticalError> {
+        self.tokens.mark();
+
+        loop {
+            match self.parse_expression_not_synchronized() {
+                Err(error) if error.is_complete() => {
+                    debug!("Entered panic mode while parsing an expression (Error: {error}).");
+    
+                    self.errors.push(error);
+                    self.tokens.backtrack();
+                    self.tokens.next_token()?;
+                } 
+                result => return result
+            }
+        }
+    }
+
+    // Expressions are the synchronization point for panic mode.
+    fn parse_expression_not_synchronized(&mut self) -> Result<Expression, SyntacticalError> {
         if let Some(true) = self.tokens.next_matches(NAME_KINDS) {
             self.parse_assignment().map(Expression::from)
         } else {
@@ -391,7 +423,7 @@ impl FromStr for Program {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let tokens = Tokens::try_from(Scanner::from(s))?;
-        let parser = Parser { tokens };
+        let parser = Parser::from(tokens);
 
         parser.parse()
     }
@@ -404,6 +436,13 @@ mod tests {
     #[test]
     fn parse_number() {
         assert!("2".parse::<Program>().is_ok());
+    }
+
+    #[test]
+    fn parse_with_panic() {
+        let result = "+x".parse::<Program>();
+
+        assert_eq!(result, Err(SyntacticalError::Multiple));
     }
 
     #[test]

@@ -100,7 +100,11 @@ impl<StdOut: Write, StdErr: Write> PrettyPrinter<StdOut, StdErr> {
         match error {
             SyntacticalError::Incomplete => {
                 self.print_error_prefix("EOF")?;
-                writeln!(self.std_err, "{}", error)
+                writeln!(self.std_err, "{error}")
+            }
+            SyntacticalError::Multiple => {
+                self.print_error_prefix("Multiple")?;
+                writeln!(self.std_err, "{error}")
             }
             SyntacticalError::NoMatch(token) => {
                 self.print_error_prefix("NoMatch")?;
