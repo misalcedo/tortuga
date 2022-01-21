@@ -138,7 +138,11 @@ impl<'a> Tokens<'a> {
 
 impl<'a> From<Vec<Token<'a>>> for Tokens<'a> {
     fn from(tokens: Vec<Token<'a>>) -> Self {
-        Tokens { tokens, offset: 0, marker: None }
+        Tokens {
+            tokens,
+            offset: 0,
+            marker: None,
+        }
     }
 }
 
@@ -153,11 +157,11 @@ mod tests {
         let mut tokens = new_tokens();
 
         tokens.next().unwrap();
-        
+
         let expected = tokens.clone();
-        
+
         tokens.backtrack();
-        
+
         assert_eq!(tokens, expected);
     }
 
@@ -168,10 +172,10 @@ mod tests {
         tokens.next().unwrap();
 
         let expected = tokens.clone();
-        
+
         tokens.mark();
         tokens.backtrack();
-        
+
         assert_eq!(tokens, expected);
     }
 
