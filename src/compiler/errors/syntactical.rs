@@ -11,8 +11,8 @@ pub enum SyntacticalError {
     Incomplete,
     #[error("No grammar rule matched the {0}.")]
     NoMatch(OwnedToken),
-    #[error(transparent)]
-    Lexical(#[from] LexicalError),
+    #[error("Encountered one or more lexical errors.")]
+    Lexical(Vec<LexicalError>),
 }
 
 impl SyntacticalError {

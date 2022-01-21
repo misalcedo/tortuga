@@ -35,11 +35,17 @@ const INEQUALITY_KINDS: &[Kind] = &[
 ///
 /// assert!("(2 + 2#10) ^ 2 = 16".parse::<Program>().is_ok());
 /// ```
-pub struct Parser<'a, T: Tokens<'a>> {
-    tokens: &'a mut T,
+pub struct Parser<'a> {
+    tokens: Tokens<'a>,
 }
 
-impl<'a, T: Tokens<'a>> Parser<'a, T> {
+impl<'a> From<Tokens<'a>> for Parser<'a> {
+    fn from(tokens: Tokens<'a>) -> Self {
+        Parser { tokens }
+    }
+}
+
+impl<'a> Parser<'a> {
     /// Advances the token sequence and returns the next value if the token is one of the expected [`Kind`]s.
     ///
     /// Returns [`Err`] when at the end of the sequence,
@@ -52,7 +58,7 @@ impl<'a, T: Tokens<'a>> Parser<'a, T> {
             Some(true) => self.tokens.next_token(),
             Some(false) => Err(SyntacticalError::NoMatch(
                 self.tokens
-                    .peek_token()
+                    .peek()
                     .cloned()
                     .ok_or(SyntacticalError::Incomplete)?
                     .into(),
@@ -384,10 +390,8 @@ impl FromStr for Program {
     type Err = SyntacticalError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut scanner = Scanner::from(s).peekable();
-        let parser = Parser {
-            tokens: &mut scanner,
-        };
+        let tokens = Tokens::try_from(Scanner::from(s))?;
+        let parser = Parser { tokens };
 
         parser.parse()
     }

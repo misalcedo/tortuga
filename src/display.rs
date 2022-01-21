@@ -110,7 +110,13 @@ impl<StdOut: Write, StdErr: Write> PrettyPrinter<StdOut, StdErr> {
                     &mut self.std_err,
                 )
             }
-            SyntacticalError::Lexical(error) => self.print_lexical_error(error),
+            SyntacticalError::Lexical(errors) => {
+                for error in errors {
+                    self.print_lexical_error(error)?;
+                }
+
+                Ok(())
+            }
         }
     }
 

@@ -6,19 +6,10 @@ use std::borrow::Cow;
 use std::fmt::{self, Display, Formatter};
 
 /// An excerpt of the input and the [`Location`] of the start of the excerpt.
-#[derive(Debug, Default, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Lexeme<'a> {
     start: Location,
     lexeme: Cow<'a, str>,
-}
-
-impl Clone for Lexeme<'_> {
-    fn clone(&self) -> Lexeme<'static> {
-        Lexeme {
-            start: self.start,
-            lexeme: Cow::Owned(self.to_string()),
-        }
-    }
 }
 
 impl Display for Lexeme<'_> {
@@ -46,6 +37,14 @@ impl<'a> From<&'a str> for Lexeme<'a> {
 }
 
 impl<'a> Lexeme<'a> {
+    /// Creates an owned clone of this [`Lexeme`].
+    pub fn to_owned(&self) -> Lexeme<'static> {
+        Lexeme {
+            start: self.start,
+            lexeme: Cow::Owned::<'static>(self.lexeme.to_string()),
+        }
+    }
+
     /// Creates a new instance of a `Lexeme` with the given start and end `Location`s.
     pub fn new<S: Into<Location>>(start: S, lexeme: &'a str) -> Self {
         Lexeme {
