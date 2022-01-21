@@ -91,7 +91,7 @@ impl<'a> Parser<'a> {
         if self.errors.is_empty() {
             result
         } else {
-            for error in self.errors {
+            for error in self.errors.into_iter().rev() {
                 error!("{error}");
             }
 
