@@ -6,26 +6,24 @@ use crate::compiler::unicode::UnicodeProperties;
 use crate::compiler::{Input, Kind, LexicalError, Token};
 use std::str::Chars;
 
-type LexicalResult = Result<Token, LexicalError>;
+type LexicalResult<'a> = Result<Token<'a>, LexicalError>;
 
 /// A lexical analyzer with 1 character of lookahead.
 #[derive(Clone, Debug)]
 pub struct Scanner<'a> {
-    source: &'a str,
-    input: Input<Chars<'a>>,
+    input: Input<'a, Chars<'a>>,
 }
 
 impl<'a> From<&'a str> for Scanner<'a> {
     fn from(source: &'a str) -> Scanner<'a> {
         Scanner {
-            source,
             input: source.into(),
         }
     }
 }
 
 impl<'a> Iterator for Scanner<'a> {
-    type Item = LexicalResult;
+    type Item = LexicalResult<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -49,6 +47,8 @@ impl<'a> Iterator for Scanner<'a> {
                 '}' => self.new_token(Kind::RightBrace),
                 ',' => self.new_token(Kind::Comma),
                 '@' => self.new_token(Kind::At),
+                '!' => self.new_token(Kind::Exclamation),
+                '|' => self.new_token(Kind::VerticalPipe),
                 ';' => {
                     self.skip_comment();
                     continue;
@@ -67,23 +67,23 @@ impl<'a> Iterator for Scanner<'a> {
 }
 
 impl<'a> Scanner<'a> {
-    fn new_token(&mut self, kind: Kind) -> Result<Token, LexicalError> {
+    fn new_token(&mut self, kind: Kind) -> Result<Token<'a>, LexicalError> {
         Ok(Token::new(self.input.advance(), kind))
     }
 
-    fn new_error(&mut self, kind: ErrorKind) -> Result<Token, LexicalError> {
+    fn new_error(&mut self, kind: ErrorKind) -> Result<Token<'a>, LexicalError> {
         Err(LexicalError::new(self.input.advance(), kind))
     }
 
-    fn lexeme(&mut self) -> &str {
-        self.input.peek_lexeme().extract_from(self.source)
+    fn lexeme(&mut self) -> &'a str {
+        self.input.peek_lexeme()
     }
 
     fn skip_comment(&mut self) {
         while self.input.next_unless_eq('\n').is_some() {}
     }
 
-    fn scan_less_than(&mut self) -> LexicalResult {
+    fn scan_less_than(&mut self) -> LexicalResult<'a> {
         let kind = if self.input.next_if_eq('=').is_some() {
             Kind::LessThanOrEqualTo
         } else if self.input.next_if_eq('>').is_some() {
@@ -95,7 +95,7 @@ impl<'a> Scanner<'a> {
         self.new_token(kind)
     }
 
-    fn scan_greater_than(&mut self) -> LexicalResult {
+    fn scan_greater_than(&mut self) -> LexicalResult<'a> {
         let kind = if self.input.next_if_eq('=').is_some() {
             Kind::GreaterThanOrEqualTo
         } else {
@@ -105,7 +105,7 @@ impl<'a> Scanner<'a> {
         self.new_token(kind)
     }
 
-    fn scan_fractional_number(&mut self) -> LexicalResult {
+    fn scan_fractional_number(&mut self) -> LexicalResult<'a> {
         self.scan_digits(DECIMAL);
 
         let number = self.lexeme();
@@ -117,7 +117,7 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    fn scan_number(&mut self) -> LexicalResult {
+    fn scan_number(&mut self) -> LexicalResult<'a> {
         let mut base = DECIMAL;
 
         self.scan_digits(base);
@@ -144,12 +144,12 @@ impl<'a> Scanner<'a> {
         while self.input.next_digit(radix).is_some() {}
     }
 
-    fn scan_identifier(&mut self) -> LexicalResult {
+    fn scan_identifier(&mut self) -> LexicalResult<'a> {
         while self.input.next_if(|c| c.is_xid_continue()).is_some() {}
         self.new_token(Kind::Identifier)
     }
 
-    fn scan_invalid(&mut self) -> LexicalResult {
+    fn scan_invalid(&mut self) -> LexicalResult<'a> {
         while self
             .input
             .next_if(|c| {
@@ -202,6 +202,8 @@ mod tests {
         validate(Kind::Comma);
         validate(Kind::Underscore);
         validate(Kind::At);
+        validate(Kind::Exclamation);
+        validate(Kind::VerticalPipe);
         validate(Kind::LeftParenthesis);
         validate(Kind::RightParenthesis);
         validate(Kind::LeftBrace);
@@ -215,7 +217,7 @@ mod tests {
         let input = "\u{0E01EF}\u{0E01EF}\u{0E01EF}\u{0E01EF} +";
         let mut scanner: Scanner<'_> = input.into();
 
-        let bad = Location::from(&input[..input.len() - 2]);
+        let bad = &input[..input.len() - 2];
 
         assert_eq!(
             scanner.next(),
@@ -228,7 +230,7 @@ mod tests {
         assert_eq!(
             scanner.next(),
             Some(Ok(Token::new(
-                Lexeme::new(&input[..input.len() - 1], input),
+                Lexeme::new(&input[..input.len() - 1], "+"),
                 Kind::Plus
             )))
         );
@@ -339,7 +341,7 @@ mod tests {
         );
         assert_eq!(
             scanner.next(),
-            Some(Ok(Token::new(Lexeme::new("#", input), Kind::Number)))
+            Some(Ok(Token::new(Lexeme::new("#", "1.0"), Kind::Number)))
         );
         assert_eq!(scanner.next(), None);
     }
@@ -359,7 +361,7 @@ mod tests {
         assert_eq!(
             scanner.next(),
             Some(Err(LexicalError::new(
-                Lexeme::new("#", input),
+                Lexeme::new("#", "."),
                 ErrorKind::Number
             )))
         );
@@ -379,7 +381,7 @@ mod tests {
         assert_eq!(
             scanner.next(),
             Some(Ok(Token::new(
-                Lexeme::new(&input[..input.len() - 2], input),
+                Lexeme::new(&input[..input.len() - 2], "42"),
                 Kind::Number
             )))
         );
@@ -407,7 +409,7 @@ mod tests {
         );
         assert_eq!(
             scanner.next(),
-            Some(Ok(Token::new(Lexeme::new("2", input), Kind::Identifier)))
+            Some(Ok(Token::new(Lexeme::new("2", "x"), Kind::Identifier)))
         );
         assert_eq!(scanner.next(), None);
     }

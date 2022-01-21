@@ -44,5 +44,5 @@ jobs:
           path: |
             ./target/release/tortuga
             ./target/release/tortuga.exe
-          if-no-files-found: error
+          if-no-files-found: ignore
           retention-days: 0

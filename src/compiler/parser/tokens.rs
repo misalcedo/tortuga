@@ -2,7 +2,6 @@
 
 use crate::compiler::{Kind, Token};
 use crate::{LexicalError, SyntacticalError};
-use std::iter::Peekable;
 
 /// Determines whether a token matches a given pattern.
 pub trait TokenMatcher {
@@ -46,58 +45,103 @@ impl<const N: usize> TokenMatcher for &[Kind; N] {
     }
 }
 
-/// A sequence of tokens from Lexical Analysis.
-pub trait Tokens {
-    /// Advances the sequence and returns the next [`Token`].
-    fn next_token(&mut self) -> Result<Token, SyntacticalError>;
+/// An iterator sequence of tokens obtained through Lexical Analysis.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Tokens<'a> {
+    offset: usize,
+    marker: Option<usize>,
+    tokens: Vec<Token<'a>>,
+}
 
-    /// Peeks at the next [`Token`] in the sequence without advancing.
-    fn peek_token(&mut self) -> Option<&Token>;
+impl<'a> Tokens<'a> {
+    pub fn try_from<I>(input: I) -> Result<Self, SyntacticalError>
+    where
+        I: Iterator<Item = Result<Token<'a>, LexicalError>>,
+    {
+        let mut errors = Vec::new();
+        let mut tokens = Vec::new();
 
-    /// Gets the next `Token` if it the given `Matcher` returns [`true`]. Otherwise, returns [`None`].
-    /// The underlying `Token` sequence is only advanced on a [`Some`] return value.
-    fn next_if_match<Matcher: TokenMatcher>(&mut self, matcher: Matcher) -> Option<Token> {
-        if matcher.matches(self.peek_token()?) {
-            self.next_token().ok()
+        for result in input {
+            match result {
+                Ok(token) => tokens.push(token),
+                Err(error) => errors.push(error),
+            }
+        }
+
+        if errors.is_empty() {
+            Ok(Tokens::from(tokens))
         } else {
-            None
+            Err(SyntacticalError::Lexical(errors))
         }
     }
 
-    /// Peeks the next `Token`'s `Kind`, if one is present.
-    fn peek_kind(&mut self) -> Option<&Kind> {
-        Some(self.peek_token()?.kind())
+    /// Marks the current offset as a backtracking point.
+    /// Backtracking is only possible when an offset has been marked.
+    pub fn mark(&mut self) {
+        self.marker = Some(self.offset);
+    }
+
+    /// Moves the offset back to the marked point.
+    /// If no offset was marked, backtracking does nothing.
+    pub fn backtrack(&mut self) {
+        if let Some(offset) = self.marker.take() {
+            self.offset = offset;
+        }
+    }
+
+    fn next(&mut self) -> Option<Token<'a>> {
+        let token = self.tokens.get(self.offset);
+
+        if token.is_some() {
+            self.offset += 1;
+        }
+
+        token.cloned()
+    }
+
+    /// Peeks at the next [`Token`] in the sequence without advancing.
+    pub fn peek(&self) -> Option<&Token<'a>> {
+        self.tokens.get(self.offset)
+    }
+
+    pub fn next_token(&mut self) -> Result<Token<'a>, SyntacticalError> {
+        self.next().ok_or(SyntacticalError::Incomplete)
     }
 
     /// Tests whether the next `Token`'s `Kind` is the expected one.
     /// Returns [`None`] on an empty sequence.
     /// Does not advance the sequence.
-    fn next_matches<Matcher: TokenMatcher>(&mut self, matcher: Matcher) -> Option<bool>;
-
-    /// Tests whether the `Token` stream has any more tokens without consuming any.
-    fn has_next(&mut self) -> bool {
-        self.next_matches(true).is_some()
-    }
-}
-
-impl<I: Iterator<Item = Result<Token, LexicalError>>> Tokens for Peekable<I> {
-    fn next_token(&mut self) -> Result<Token, SyntacticalError> {
-        self.next()
-            .ok_or(SyntacticalError::Incomplete)?
-            .map_err(SyntacticalError::Lexical)
+    pub fn next_matches<Matcher: TokenMatcher>(&self, matcher: Matcher) -> Option<bool> {
+        Some(matcher.matches(self.peek()?))
     }
 
-    fn peek_token(&mut self) -> Option<&Token> {
-        match self.peek().map(Result::as_ref).transpose() {
-            Ok(token) => token,
-            Err(_) => None,
+    /// Gets the next `Token` if it the given `Matcher` returns [`true`]. Otherwise, returns [`None`].
+    /// The underlying `Token` sequence is only advanced on a [`Some`] return value.
+    pub fn next_if_match<Matcher: TokenMatcher>(&mut self, matcher: Matcher) -> Option<Token<'a>> {
+        if matcher.matches(self.peek()?) {
+            self.next()
+        } else {
+            None
         }
     }
 
-    fn next_matches<Matcher: TokenMatcher>(&mut self, matcher: Matcher) -> Option<bool> {
-        match self.peek()? {
-            Ok(token) => Some(matcher.matches(token)),
-            Err(_) => Some(false),
+    /// Peeks the next [`Token`]'s [`Kind`], if one is present.
+    pub fn peek_kind(&self) -> Option<Kind> {
+        Some(*self.peek()?.kind())
+    }
+
+    /// Tests whether the `Token` stream has any more tokens without consuming any.
+    pub fn has_next(&self) -> bool {
+        self.offset < self.tokens.len()
+    }
+}
+
+impl<'a> From<Vec<Token<'a>>> for Tokens<'a> {
+    fn from(tokens: Vec<Token<'a>>) -> Self {
+        Tokens {
+            tokens,
+            offset: 0,
+            marker: None,
         }
     }
 }
@@ -109,176 +153,171 @@ mod tests {
     use crate::compiler::Lexeme;
 
     #[test]
-    fn has_next_when_empty() {
-        let tokens: Vec<Result<Token, LexicalError>> = vec![];
-        let mut peekable = tokens.into_iter().peekable();
+    fn backtrack_unmarked() {
+        let mut tokens = new_tokens();
 
-        assert!(!peekable.has_next());
+        tokens.next().unwrap();
+
+        let expected = tokens.clone();
+
+        tokens.backtrack();
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn backtrack_marked() {
+        let mut tokens = new_tokens();
+
+        tokens.next().unwrap();
+
+        let expected = tokens.clone();
+
+        tokens.mark();
+        tokens.backtrack();
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn has_next_when_empty() {
+        let tokens = Tokens::default();
+
+        assert!(!tokens.has_next());
     }
 
     #[test]
     fn has_next_with_tokens() {
         let tokens = new_tokens();
-        let mut peekable = tokens.into_iter().peekable();
 
-        assert!(peekable.has_next());
+        assert!(tokens.has_next());
     }
 
     #[test]
     fn has_next_with_tokens_peeked() {
         let tokens = new_tokens();
-        let mut peekable = tokens.into_iter().peekable();
 
-        peekable.peek().unwrap();
+        tokens.peek().unwrap();
 
-        assert!(peekable.has_next());
+        assert!(tokens.has_next());
     }
 
     #[test]
     fn next_matches_when_empty() {
-        let tokens: Vec<Result<Token, LexicalError>> = vec![];
-        let mut peekable = tokens.into_iter().peekable();
+        let tokens = Tokens::default();
 
-        assert_eq!(peekable.next_matches(Kind::Number), None);
+        assert_eq!(tokens.next_matches(Kind::Number), None);
     }
 
     #[test]
     fn next_matches_with_tokens() {
         let tokens = new_tokens();
-        let mut peekable = tokens.into_iter().peekable();
 
-        assert_eq!(peekable.next_matches(Kind::Number), Some(true));
-        assert_eq!(peekable.next_matches(Kind::Identifier), Some(false));
+        assert_eq!(tokens.next_matches(Kind::Number), Some(true));
+        assert_eq!(tokens.next_matches(Kind::Identifier), Some(false));
     }
 
     #[test]
     fn next_matches_with_tokens_peeked() {
         let tokens = new_tokens();
-        let mut peekable = tokens.into_iter().peekable();
 
-        peekable.peek().unwrap();
+        tokens.peek().unwrap();
 
-        assert_eq!(peekable.next_matches(Kind::Number), Some(true));
-        assert_eq!(peekable.next_matches(Kind::Identifier), Some(false));
+        assert_eq!(tokens.next_matches(Kind::Number), Some(true));
+        assert_eq!(tokens.next_matches(Kind::Identifier), Some(false));
     }
 
     #[test]
     fn next_if_match_when_expected_empty() {
-        let tokens = new_tokens();
-        let mut peekable = tokens.into_iter().peekable();
+        let mut tokens = new_tokens();
 
-        assert_eq!(peekable.next_if_match(&[][..]), None);
+        assert_eq!(tokens.next_if_match(&[][..]), None);
     }
 
     #[test]
     fn next_if_match_when_empty() {
-        let tokens: Vec<Result<Token, LexicalError>> = vec![];
-        let mut peekable = tokens.into_iter().peekable();
+        let mut tokens = Tokens::default();
 
-        assert_eq!(peekable.next_if_match(&[Kind::Number]), None);
+        assert_eq!(tokens.next_if_match(&[Kind::Number]), None);
     }
 
     #[test]
     fn next_if_match_with_tokens() {
-        let tokens = new_tokens();
-        let mut peekable = tokens.into_iter().peekable();
+        let mut tokens = new_tokens();
 
         assert_eq!(
-            peekable.next_if_match(&[Kind::Number]),
+            tokens.next_if_match(&[Kind::Number]),
             Some(Token::new("1", Kind::Number))
         );
     }
 
     #[test]
     fn next_if_match_with_tokens_peeked() {
-        let tokens = new_tokens();
-        let mut peekable = tokens.into_iter().peekable();
+        let mut tokens = new_tokens();
 
-        peekable.peek().unwrap();
+        tokens.peek().unwrap();
 
         assert_eq!(
-            peekable.next_if_match(&[Kind::Number]),
+            tokens.next_if_match(&[Kind::Number]),
             Some(Token::new("1", Kind::Number))
         );
     }
 
     #[test]
     fn peek_kind_empty() {
-        let tokens: Vec<Result<Token, LexicalError>> = vec![];
-        let mut peekable = tokens.into_iter().peekable();
+        let tokens = Tokens::from(vec![]);
 
-        assert_eq!(peekable.peek_kind(), None);
+        assert_eq!(tokens.peek_kind(), None);
     }
 
     #[test]
     fn peek_kind_with_tokens() {
         let tokens = new_tokens();
-        let mut peekable = tokens.into_iter().peekable();
 
-        assert_eq!(peekable.peek_kind(), Some(&Kind::Number));
+        assert_eq!(tokens.peek_kind(), Some(Kind::Number));
     }
 
     #[test]
     fn peek_kind_then_next() {
-        let tokens = new_tokens();
-        let mut peekable = tokens.into_iter().peekable();
+        let mut tokens = new_tokens();
 
-        peekable.next().unwrap().unwrap();
-        peekable.peek_kind().unwrap();
+        tokens.next().unwrap();
+        tokens.peek_kind().unwrap();
 
         assert_eq!(
-            peekable.next(),
-            Some(Ok(Token::new(Lexeme::new("1", "1+"), Kind::Plus)))
+            tokens.next(),
+            Some(Token::new(Lexeme::new("1", "1+"), Kind::Plus))
         );
     }
 
     #[test]
     fn peek_kind_multiple() {
-        let tokens = new_tokens();
-        let mut peekable = tokens.into_iter().peekable();
+        let mut tokens = new_tokens();
 
-        assert_eq!(peekable.peek_kind().copied(), peekable.peek_kind().copied());
-
-        assert_eq!(peekable.next(), Some(Ok(Token::new("1", Kind::Number))));
+        assert_eq!(tokens.peek_kind(), tokens.peek_kind());
+        assert_eq!(tokens.next(), Some(Token::new("1", Kind::Number)));
     }
 
     #[test]
-    fn next_if_match_invalid() {
-        let tokens = vec![Err(LexicalError::new("|", ErrorKind::Invalid))];
-        let mut peekable = tokens.into_iter().peekable();
+    fn invalid_tokens() {
+        let tokens =
+            Tokens::try_from(vec![Err(LexicalError::new("|", ErrorKind::Invalid))].into_iter());
 
-        assert_eq!(peekable.next_if_match(&[Kind::Number]), None)
+        assert_eq!(
+            tokens,
+            Err(SyntacticalError::Lexical(vec![LexicalError::new(
+                "|",
+                ErrorKind::Invalid
+            )]))
+        )
     }
 
-    #[test]
-    fn peek_kind_invalid() {
-        let tokens = vec![Err(LexicalError::new("|", ErrorKind::Invalid))];
-        let mut peekable = tokens.into_iter().peekable();
-
-        assert_eq!(peekable.peek_kind(), None)
-    }
-
-    #[test]
-    fn has_next_invalid() {
-        let tokens = vec![Err(LexicalError::new(".", ErrorKind::Number))];
-        let mut peekable = tokens.into_iter().peekable();
-
-        assert!(peekable.has_next())
-    }
-
-    #[test]
-    fn next_matches_invalid() {
-        let tokens = vec![Err(LexicalError::new(".", ErrorKind::Number))];
-        let mut peekable = tokens.into_iter().peekable();
-
-        assert_eq!(peekable.next_matches(Kind::At), Some(false))
-    }
-
-    fn new_tokens() -> Vec<Result<Token, LexicalError>> {
+    fn new_tokens() -> Tokens<'static> {
         vec![
-            Ok(Token::new("1", Kind::Number)),
-            Ok(Token::new(Lexeme::new("1", "1+"), Kind::Plus)),
-            Ok(Token::new(Lexeme::new("1+", "1+1"), Kind::Number)),
+            Token::new("1", Kind::Number),
+            Token::new(Lexeme::new("1", "1+"), Kind::Plus),
+            Token::new(Lexeme::new("1+", "1+1"), Kind::Number),
         ]
+        .into()
     }
 }

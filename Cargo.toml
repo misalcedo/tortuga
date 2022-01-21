@@ -1,11 +1,11 @@
 [package]
 name = "tortuga"
 description = "Compiler and runtime for the Tortuga programming language."
-version = "0.5.4"
+version = "0.5.5"
 authors = ["Miguel D. Salcedo <miguel@salcedo.cc>"]
-edition = "2018"
+edition = "2021"
 license = "Apache-2.0"
-homepage = "https://github.com/misalcedo/tortuga"
+homepage = "https://tortuga.salcedo.cc"
 repository = "https://github.com/misalcedo/tortuga"
 documentation = "https://docs.rs/tortuga"
 
@@ -27,7 +27,7 @@ tracing-subscriber = { version = "0.3", default-features = false, features = ["e
 
 [features]
 default = ["cli"]
-cli = ["clap", "colored", "mimalloc", "rustyline"]
+cli = ["clap", "colored", "mimalloc", "rustyline", "tracing-log", "tracing-subscriber"]
 
 [target.'cfg(unix)'.dev-dependencies]
 pprof = { version = "0.6", features = ["criterion", "flamegraph", "protobuf"] }
@@ -42,8 +42,8 @@ rustyline = { version = "9", optional = true }
 regex = "1"
 thiserror = "1.0"
 tracing = "0.1"
-tracing-log = "0.1"
-tracing-subscriber = { version = "0.3", features = ["parking_lot"] }
+tracing-log = { version = "0.1", optional = true }
+tracing-subscriber = { version = "0.3", optional = true }
 unicode-xid = "0.2"
 
 [[bench]]

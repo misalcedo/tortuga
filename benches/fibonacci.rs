@@ -11,7 +11,7 @@ use std::any::type_name;
 use tortuga::Interpreter;
 
 fn benchmarks(c: &mut Criterion) {
-    let mut group = c.benchmark_group("PPP Binary");
+    let mut group = c.benchmark_group("Tortuga Fibonnaci");
 
     let inputs: Vec<String> = (0..10)
         .into_iter()

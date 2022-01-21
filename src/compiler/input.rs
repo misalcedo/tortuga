@@ -6,16 +6,18 @@ use std::str::Chars;
 
 /// Iterates input with 1 Unicode code point of lookahead.
 #[derive(Clone, Debug)]
-pub struct Input<I: Iterator<Item = char>> {
+pub struct Input<'a, I: Iterator<Item = char>> {
+    source: &'a str,
     start: Location,
     end: Location,
     peeked: Option<char>,
     characters: I,
 }
 
-impl<'a> From<&'a str> for Input<Chars<'a>> {
+impl<'a> From<&'a str> for Input<'a, Chars<'a>> {
     fn from(source: &'a str) -> Self {
         Input {
+            source,
             start: Location::default(),
             end: Location::default(),
             peeked: None,
@@ -24,7 +26,7 @@ impl<'a> From<&'a str> for Input<Chars<'a>> {
     }
 }
 
-impl<I: Iterator<Item = char>> Iterator for Input<I> {
+impl<I: Iterator<Item = char>> Iterator for Input<'_, I> {
     type Item = char;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -40,7 +42,7 @@ impl<I: Iterator<Item = char>> Iterator for Input<I> {
     }
 }
 
-impl<I: Iterator<Item = char>> Input<I> {
+impl<'a, I: Iterator<Item = char>> Input<'a, I> {
     /// Lookahead by 1 Unicode code point without advancing the `Location` of the current `Lexeme`.
     pub fn peek(&mut self) -> Option<char> {
         if self.peeked.is_none() {
@@ -123,17 +125,21 @@ impl<I: Iterator<Item = char>> Input<I> {
     }
 
     /// Advances the `Input` to start a new `Lexeme` and returns the scanned `Lexeme`.
-    pub fn advance(&mut self) -> Lexeme {
+    pub fn advance(&mut self) -> Lexeme<'a> {
         let start = self.start;
+        let lexeme = self.peek_lexeme();
 
         self.start = self.end;
 
-        Lexeme::new(start, self.end)
+        Lexeme::new(start, lexeme)
     }
 
-    /// Gets the lexeme starting at this `Input`'s start `Location` (inclusive) until this `Input`'s end `Location` (exclusive).
-    pub fn peek_lexeme(&mut self) -> Lexeme {
-        Lexeme::new(self.start, self.end)
+    /// Gets the lexeme starting at this [`Input`]'s start [`Location`] (inclusive) until this [`Input`]'s end [`Location`] (exclusive).
+    pub fn peek_lexeme(&self) -> &'a str {
+        let start = self.start.offset();
+        let end = self.end.offset();
+
+        &self.source[start..end]
     }
 }
 
@@ -229,8 +235,8 @@ mod tests {
         input.advance();
         input.next_if_eq('b');
 
-        let actual = input.peek_lexeme();
-        let expected = Lexeme::new(Location::default() + "a", Location::default() + "ab");
+        let actual = Lexeme::new(input.start, input.peek_lexeme());
+        let expected = Lexeme::new(Location::default() + "a", "b");
 
         assert_eq!(actual, expected);
         assert_eq!(input.advance(), expected);
@@ -251,15 +257,15 @@ mod tests {
         let third = input.advance();
 
         assert_eq!(first, Lexeme::new(Location::default(), "ab"));
-        assert_eq!(second, Lexeme::new("ab", "abc"));
-        assert_eq!(third, Lexeme::new("abc", "abc"));
+        assert_eq!(second, Lexeme::new("ab", "c"));
+        assert_eq!(third, Lexeme::new("abc", ""));
     }
 
     #[test]
     fn lexeme_when_empty() {
         assert_eq!(
             Input::from("abc").advance(),
-            Lexeme::new(Location::default(), Location::default())
+            Lexeme::new(Location::default(), "")
         );
     }
 

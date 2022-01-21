@@ -7,9 +7,9 @@ use crate::compiler::{Kind, Token};
 use crate::grammar::lexical;
 use crate::grammar::syntax::*;
 use crate::{Scanner, SyntacticalError};
-use std::iter::Peekable;
 use std::str::FromStr;
 use tokens::Tokens;
+use tracing::{debug, error};
 
 const COMPARISON_KINDS: &[Kind] = &[
     Kind::LessThan,
@@ -36,21 +36,21 @@ const INEQUALITY_KINDS: &[Kind] = &[
 ///
 /// assert!("(2 + 2#10) ^ 2 = 16".parse::<Program>().is_ok());
 /// ```
-pub struct Parser<'a, T: Tokens> {
-    source: &'a str,
-    tokens: T,
+pub struct Parser<'a> {
+    tokens: Tokens<'a>,
+    errors: Vec<SyntacticalError>,
 }
 
-impl<'a> From<&'a str> for Parser<'a, Peekable<Scanner<'a>>> {
-    fn from(source: &'a str) -> Self {
+impl<'a> From<Tokens<'a>> for Parser<'a> {
+    fn from(tokens: Tokens<'a>) -> Self {
         Parser {
-            source,
-            tokens: Scanner::from(source).peekable(),
+            tokens,
+            errors: Vec::new(),
         }
     }
 }
 
-impl<'a, T: Tokens> Parser<'a, T> {
+impl<'a> Parser<'a> {
     /// Advances the token sequence and returns the next value if the token is one of the expected [`Kind`]s.
     ///
     /// Returns [`Err`] when at the end of the sequence,
@@ -58,14 +58,15 @@ impl<'a, T: Tokens> Parser<'a, T> {
     fn next_kind<Matcher: TokenMatcher>(
         &mut self,
         matcher: Matcher,
-    ) -> Result<Token, SyntacticalError> {
+    ) -> Result<Token<'a>, SyntacticalError> {
         match self.tokens.next_matches(matcher) {
             Some(true) => self.tokens.next_token(),
             Some(false) => Err(SyntacticalError::NoMatch(
                 self.tokens
-                    .peek_token()
-                    .copied()
-                    .ok_or(SyntacticalError::Incomplete)?,
+                    .peek()
+                    .cloned()
+                    .ok_or(SyntacticalError::Incomplete)?
+                    .into(),
             )),
             None => Err(SyntacticalError::Incomplete),
         }
@@ -75,7 +76,7 @@ impl<'a, T: Tokens> Parser<'a, T> {
     pub fn parse(mut self) -> Result<Program, SyntacticalError> {
         let expression = self.parse_expression()?;
 
-        match self.tokens.peek_kind() {
+        let result = match self.tokens.peek_kind() {
             Some(
                 Kind::LessThan
                 | Kind::GreaterThan
@@ -85,6 +86,16 @@ impl<'a, T: Tokens> Parser<'a, T> {
                 | Kind::NotEqual,
             ) => self.parse_comparisons(expression),
             _ => self.parse_expressions(expression),
+        };
+
+        if self.errors.is_empty() {
+            result
+        } else {
+            for error in self.errors.into_iter().rev() {
+                error!("{error}");
+            }
+
+            Err(SyntacticalError::Multiple)
         }
     }
 
@@ -129,7 +140,26 @@ impl<'a, T: Tokens> Parser<'a, T> {
         Ok(operator)
     }
 
+    // Expressions are the synchronization point for panic mode.
     fn parse_expression(&mut self) -> Result<Expression, SyntacticalError> {
+        self.tokens.mark();
+
+        loop {
+            match self.parse_expression_not_synchronized() {
+                Err(error) if error.is_complete() => {
+                    debug!("Entered panic mode while parsing an expression (Error: {error}).");
+
+                    self.errors.push(error);
+                    self.tokens.backtrack();
+                    self.tokens.next_token()?;
+                }
+                result => return result,
+            }
+        }
+    }
+
+    // Expressions are the synchronization point for panic mode.
+    fn parse_expression_not_synchronized(&mut self) -> Result<Expression, SyntacticalError> {
         if let Some(true) = self.tokens.next_matches(NAME_KINDS) {
             self.parse_assignment().map(Expression::from)
         } else {
@@ -239,15 +269,10 @@ impl<'a, T: Tokens> Parser<'a, T> {
         match token.kind() {
             Kind::Minus => {
                 let number = self.next_kind(Kind::Number)?;
-                Ok(Number::new(
-                    true,
-                    lexical::Number::new(self.source, number.lexeme()),
-                ))
+
+                Ok(Number::new(true, lexical::Number::new(number.as_str())))
             }
-            _ => Ok(Number::new(
-                false,
-                lexical::Number::new(self.source, token.lexeme()),
-            )),
+            _ => Ok(Number::new(false, lexical::Number::new(token.as_str()))),
         }
     }
 
@@ -255,7 +280,7 @@ impl<'a, T: Tokens> Parser<'a, T> {
         &mut self,
         identifier: Token,
     ) -> Result<lexical::Identifier, SyntacticalError> {
-        Ok(lexical::Identifier::new(self.source, identifier.lexeme()))
+        Ok(lexical::Identifier::new(identifier.as_str()))
     }
 
     fn parse_arguments(&mut self) -> Result<Arguments, SyntacticalError> {
@@ -305,10 +330,7 @@ impl<'a, T: Tokens> Parser<'a, T> {
             Kind::At => {
                 let identifier = self.next_kind(Kind::Identifier)?;
 
-                Ok(Name::from(lexical::Identifier::new(
-                    self.source,
-                    identifier.lexeme(),
-                )))
+                Ok(Name::from(lexical::Identifier::new(identifier.as_str())))
             }
             _ => Ok(Name::Anonymous),
         }
@@ -402,7 +424,10 @@ impl FromStr for Program {
     type Err = SyntacticalError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Parser::from(s).parse()
+        let tokens = Tokens::try_from(Scanner::from(s))?;
+        let parser = Parser::from(tokens);
+
+        parser.parse()
     }
 }
 
@@ -413,6 +438,13 @@ mod tests {
     #[test]
     fn parse_number() {
         assert!("2".parse::<Program>().is_ok());
+    }
+
+    #[test]
+    fn parse_with_panic() {
+        let result = "+x".parse::<Program>();
+
+        assert_eq!(result, Err(SyntacticalError::Multiple));
     }
 
     #[test]
