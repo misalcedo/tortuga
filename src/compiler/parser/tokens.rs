@@ -49,6 +49,7 @@ impl<const N: usize> TokenMatcher for &[Kind; N] {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Tokens<'a> {
     offset: usize,
+    marker: Option<usize>,
     tokens: Vec<Token<'a>>,
 }
 
@@ -71,6 +72,20 @@ impl<'a> Tokens<'a> {
             Ok(Tokens::from(tokens))
         } else {
             Err(SyntacticalError::Lexical(errors))
+        }
+    }
+
+    /// Marks the current offset as a backtracking point.
+    /// Backtracking is only possible when an offset has been marked.
+    pub fn mark(&mut self) {
+        self.marker = Some(self.offset);
+    }
+
+    /// Moves the offset back to the marked point.
+    /// If no offset was marked, backtracking does nothing.
+    pub fn backtrack(&mut self) {
+        if let Some(offset) = self.marker.take() {
+            self.offset = offset;
         }
     }
 
@@ -123,7 +138,7 @@ impl<'a> Tokens<'a> {
 
 impl<'a> From<Vec<Token<'a>>> for Tokens<'a> {
     fn from(tokens: Vec<Token<'a>>) -> Self {
-        Tokens { tokens, offset: 0 }
+        Tokens { tokens, offset: 0, marker: None }
     }
 }
 
@@ -132,6 +147,33 @@ mod tests {
     use super::*;
     use crate::compiler::errors::lexical::ErrorKind;
     use crate::compiler::Lexeme;
+
+    #[test]
+    fn backtrack_unmarked() {
+        let mut tokens = new_tokens();
+
+        tokens.next().unwrap();
+        
+        let expected = tokens.clone();
+        
+        tokens.backtrack();
+        
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn backtrack_marked() {
+        let mut tokens = new_tokens();
+
+        tokens.next().unwrap();
+
+        let expected = tokens.clone();
+        
+        tokens.mark();
+        tokens.backtrack();
+        
+        assert_eq!(tokens, expected);
+    }
 
     #[test]
     fn has_next_when_empty() {
