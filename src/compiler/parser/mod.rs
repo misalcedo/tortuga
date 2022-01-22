@@ -97,6 +97,10 @@ impl<'a> Parser<'a> {
         if self.errors.is_empty() {
             result
         } else {
+            if let Err(error) = result {
+                error!("{error}");
+            }
+
             for error in self.errors.into_iter().rev() {
                 error!("{error}");
             }
