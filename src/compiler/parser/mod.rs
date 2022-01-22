@@ -178,90 +178,88 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_arithmetic(&mut self) -> Result<Arithmetic, SyntacticalError> {
+    fn parse_arithmetic(&mut self) -> Result<Expression, SyntacticalError> {
         Ok(self.parse_epsilon()?.into())
     }
 
-    fn parse_epsilon(&mut self) -> Result<Epsilon, SyntacticalError> {
+    fn parse_epsilon(&mut self) -> Result<Expression, SyntacticalError> {
         let lhs = self.parse_modulo()?;
-        let mut rhs = None;
 
         if self.tokens.next_if_match(Kind::Tilde).is_some() {
-            rhs = Some(self.parse_modulo()?);
+            let rhs = self.parse_modulo()?;
+            Ok(Operation::new(lhs, Operator::Tolerance, rhs).into())
+        } else {
+            Ok(lhs)
         }
-
-        Ok(Epsilon::new(lhs, rhs))
     }
 
-    fn parse_modulo(&mut self) -> Result<Modulo, SyntacticalError> {
-        let head = self.parse_sum()?;
-        let mut tail = Vec::new();
+    fn parse_modulo(&mut self) -> Result<Expression, SyntacticalError> {
+        let mut lhs = self.parse_sum()?;
 
         while self.tokens.next_if_match(Kind::Percent).is_some() {
-            tail.push(self.parse_sum()?);
+            let rhs = self.parse_sum()?;
+
+            lhs = Operation::new(lhs, Operator::Modulo, rhs).into();
         }
 
-        Ok(List::new(head, tail))
+        Ok(lhs)
     }
 
-    fn parse_sum(&mut self) -> Result<Sum, SyntacticalError> {
-        let head = self.parse_product()?;
-        let mut tail = Vec::new();
+    fn parse_sum(&mut self) -> Result<Expression, SyntacticalError> {
+        let mut lhs = self.parse_sum()?;
 
         while let Some(token) = self.tokens.next_if_match(&[Kind::Plus, Kind::Minus]) {
-            let rhs = self.parse_product()?;
-            let operation = match token.kind() {
-                Kind::Plus => AddOrSubtract::Add(rhs),
-                _ => AddOrSubtract::Subtract(rhs),
+            let rhs = self.parse_sum()?;
+            let operator = match token.kind() {
+                Kind::Minus => Operator::Subtract,
+                _ => Operator::Add,
             };
 
-            tail.push(operation);
+            lhs = Operation::new(lhs, operator, rhs).into();
         }
 
-        Ok(List::new(head, tail))
+        Ok(lhs)
     }
 
-    fn parse_product(&mut self) -> Result<Product, SyntacticalError> {
-        let head = self.parse_power()?;
-        let mut tail = Vec::new();
+    fn parse_product(&mut self) -> Result<Expression, SyntacticalError> {
+        let mut lhs = self.parse_power()?;
 
         while let Some(token) = self.tokens.next_if_match(&[Kind::Star, Kind::Slash]) {
             let rhs = self.parse_power()?;
-            let operation = match token.kind() {
-                Kind::Star => MultiplyOrDivide::Multiply(rhs),
-                _ => MultiplyOrDivide::Divide(rhs),
+            let operator = match token.kind() {
+                Kind::Slash => Operator::Divide,
+                _ => Operator::Multiply,
             };
 
-            tail.push(operation);
+            lhs = Operation::new(lhs, operator, rhs).into();
         }
 
-        Ok(List::new(head, tail))
+        Ok(lhs)
     }
 
-    fn parse_power(&mut self) -> Result<Power, SyntacticalError> {
-        let lhs = self.parse_call()?;
-        let mut rhs = Vec::new();
+    fn parse_power(&mut self) -> Result<Expression, SyntacticalError> {
+        let mut lhs = self.parse_call()?;
 
-        while self.tokens.next_if_match(Kind::Caret).is_some() {
-            rhs.push(self.parse_call()?);
+        while let Some(token) = self.tokens.next_if_match(Kind::Caret) {
+            let rhs = self.parse_call()?;
+            lhs = Operation::new(lhs, Operator::Exponent, rhs).into();
         }
 
-        Ok(List::new(lhs, rhs))
+        Ok(lhs)
     }
 
-    fn parse_call(&mut self) -> Result<Call, SyntacticalError> {
-        let callee = self.parse_primary()?;
-
-        let mut arguments = Vec::new();
+    fn parse_call(&mut self) -> Result<Expression, SyntacticalError> {
+        let mut expression = self.parse_primary()?;
 
         while let Some(true) = self.tokens.next_matches(Kind::LeftParenthesis) {
-            arguments.push(self.parse_arguments()?);
+            let arguments = self.parse_arguments()?;
+            expression = Call::new(expression, arguments).into();
         }
 
-        Ok(Call::new(callee, arguments))
+        Ok(expression.into())
     }
 
-    fn parse_primary(&mut self) -> Result<Primary, SyntacticalError> {
+    fn parse_primary(&mut self) -> Result<Expression, SyntacticalError> {
         let token = self.next_kind(&[
             Kind::Minus,
             Kind::Number,
@@ -270,9 +268,9 @@ impl<'a> Parser<'a> {
         ])?;
 
         match token.kind() {
-            Kind::Minus | Kind::Number => self.parse_number(token).map(Primary::from),
-            Kind::Identifier => self.parse_identifier(token).map(Primary::from),
-            _ => self.parse_grouping(token).map(Primary::from),
+            Kind::Minus | Kind::Number => self.parse_number(token).map(Expression::from),
+            Kind::Identifier => self.parse_identifier(token).map(Expression::from),
+            _ => self.parse_grouping(token).map(Expression::from),
         }
     }
 

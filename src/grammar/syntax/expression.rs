@@ -12,13 +12,41 @@ pub type Expressions = List<Expression>;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Expression {
-    Arithmetic(Box<Arithmetic>),
+    Number(Number),
+    Identifier(Identifier),
+    Grouping(Box<Grouping>),
+    Call(Box<Call>),
+    Operation(Box<Operation>),
     Assignment(Box<Assignment>),
 }
 
-impl From<Arithmetic> for Expression {
-    fn from(arithmetic: Arithmetic) -> Self {
-        Expression::Arithmetic(Box::new(arithmetic))
+impl From<Number> for Expression {
+    fn from(number: Number) -> Self {
+        Expression::Number(number)
+    }
+}
+
+impl From<Identifier> for Expression {
+    fn from(identifier: Identifier) -> Self {
+        Expression::Identifier(identifier)
+    }
+}
+
+impl From<Operation> for Expression {
+    fn from(operation: Operation) -> Self {
+        Expression::Operation(Box::new(operation))
+    }
+}
+
+impl From<Call> for Expression {
+    fn from(call: Call) -> Self {
+        Expression::Call(Box::new(call))
+    }
+}
+
+impl From<Grouping> for Expression {
+    fn from(grouping: Grouping) -> Self {
+        Expression::Grouping(Box::new(grouping))
     }
 }
 
@@ -29,90 +57,27 @@ impl From<Assignment> for Expression {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Arithmetic(Epsilon);
+pub struct Operation {
+    pub lhs: Expression,
+    pub operator: Operator,
+    pub rhs: Expression,
+}
 
-impl Arithmetic {
-    /// The [`Epsilon`] grammar rule wrapped by this [`Arithmetic`] rule.
-    pub fn epsilon(&self) -> &Epsilon {
-        &self.0
+impl Operation {
+    pub fn new(lhs: Expression, operator: Operator, rhs: Expression) -> Self {
+        Operation { lhs, operator, rhs }
     }
 }
 
-impl From<Epsilon> for Arithmetic {
-    fn from(epsilon: Epsilon) -> Self {
-        Arithmetic(epsilon)
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Epsilon {
-    lhs: Modulo,
-    rhs: Option<Modulo>,
-}
-
-impl Epsilon {
-    /// Creates a new instance of the `epsilon` grammar rule.
-    pub fn new(lhs: Modulo, rhs: Option<Modulo>) -> Self {
-        Epsilon { lhs, rhs }
-    }
-
-    /// The left-hand side of this `Epsilon` operation.
-    pub fn lhs(&self) -> &Modulo {
-        &self.lhs
-    }
-
-    /// The right-hand side of this `Epsilon` operation.
-    pub fn rhs(&self) -> Option<&Modulo> {
-        self.rhs.as_ref()
-    }
-}
-
-pub type Modulo = List<Sum>;
-
-pub type Sum = List<Product, AddOrSubtract>;
-
-/// The operator and right-hand side for the `sum` grammar rule.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum AddOrSubtract {
-    /// +
-    Add(Product),
-    /// -
-    Subtract(Product),
-}
-pub type Product = List<Power, MultiplyOrDivide>;
-
-/// The operator and right-hand side for the `product` grammar rule.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum MultiplyOrDivide {
-    Multiply(Power),
-    Divide(Power),
-}
-
-pub type Power = List<Call>;
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Primary {
-    Number(Number),
-    Identifier(Identifier),
-    Grouping(Grouping),
-}
-
-impl From<Number> for Primary {
-    fn from(number: Number) -> Self {
-        Primary::Number(number)
-    }
-}
-
-impl From<Identifier> for Primary {
-    fn from(identifier: Identifier) -> Self {
-        Primary::Identifier(identifier)
-    }
-}
-
-impl From<Grouping> for Primary {
-    fn from(grouping: Grouping) -> Self {
-        Primary::Grouping(grouping)
-    }
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum Operator {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Exponent,
+    Modulo,
+    Tolerance,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -140,23 +105,23 @@ impl Number {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Call {
-    callee: Primary,
-    arguments: Vec<Arguments>,
+    callee: Expression,
+    arguments: Arguments,
 }
 
 impl Call {
     /// Creates a new instance of a `Call` grammar rule.
-    pub fn new(callee: Primary, arguments: Vec<Arguments>) -> Self {
+    pub fn new(callee: Expression, arguments: Arguments) -> Self {
         Call { callee, arguments }
     }
 
     /// The callee of the function to [`Call`].
-    pub fn callee(&self) -> &Primary {
+    pub fn callee(&self) -> &Expression {
         &self.callee
     }
 
     /// The [`Arguments`] to invoke this function [`Call`] with.
-    pub fn arguments(&self) -> &[Arguments] {
+    pub fn arguments(&self) -> &Arguments {
         &self.arguments
     }
 }
