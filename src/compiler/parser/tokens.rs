@@ -49,7 +49,7 @@ impl<const N: usize> TokenMatcher for &[Kind; N] {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Tokens<'a> {
     offset: usize,
-    marker: Option<usize>,
+    marker: Vec<usize>,
     tokens: Vec<Token<'a>>,
 }
 
@@ -78,13 +78,13 @@ impl<'a> Tokens<'a> {
     /// Marks the current offset as a backtracking point.
     /// Backtracking is only possible when an offset has been marked.
     pub fn mark(&mut self) {
-        self.marker = Some(self.offset);
+        self.marker.push(self.offset);
     }
 
     /// Moves the offset back to the marked point.
     /// If no offset was marked, backtracking does nothing.
     pub fn backtrack(&mut self) {
-        if let Some(offset) = self.marker.take() {
+        if let Some(offset) = self.marker.pop() {
             self.offset = offset;
         }
     }
@@ -154,7 +154,7 @@ impl<'a> From<Vec<Token<'a>>> for Tokens<'a> {
         Tokens {
             tokens,
             offset: 0,
-            marker: None,
+            marker: Vec::new(),
         }
     }
 }
@@ -182,6 +182,7 @@ mod tests {
     fn backtrack_marked() {
         let mut tokens = new_tokens();
 
+        tokens.mark();
         tokens.next().unwrap();
 
         let expected = tokens.clone();
@@ -190,6 +191,10 @@ mod tests {
         tokens.backtrack();
 
         assert_eq!(tokens, expected);
+
+        tokens.backtrack();
+
+        assert_eq!(tokens, new_tokens());
     }
 
     #[test]
