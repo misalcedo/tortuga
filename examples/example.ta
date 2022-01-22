@@ -1,27 +1,27 @@
 2 + -2#101.1 ; hello
 
-@x = @y(@x, @y) = [
-  @i = x^2 + y^2
+x = y(x, y) = [
+  i = x^2 + y^2
   i^0.5
 ]
 
 x(1, 2)
 
-@exp(@base, @exponent) = base ^ exponent
-@sqrt(@n < 0) = sqrt(-1 * n)
-@sqrt(@n >= 0) = exp(n, .5)
+exp(base, exponent) = base ^ exponent
+sqrt(n < 0) = sqrt(-1 * n)
+sqrt(n >= 0) = exp(n, .5)
 
-@pass_fail(@worst, @best) = [
-  @passing = (best - worst) * 0.65
+pass_fail(worst, best) = [
+  passing = (best - worst) * 0.65
 
-  @validate(@grade >= passing) = 1
-  @validate(@grade) = [
+  validate(grade >= passing) = 1
+  validate(grade) = [
     0 * 0
     0 ^ 2
   ]
 ]
 pass_fail(0, 100)(30)
 
-_(0 <= @n <= 100) = 1
+_(0 <= n <= 100) = 1
 
 ; sqrt(25) = 5 = 2 + 3
