@@ -184,7 +184,11 @@ impl<StdOut: Write, StdErr: Write> PrettyPrinter<StdOut, StdErr> {
     fn print_expression(&mut self, expression: &Expression) -> io::Result<()> {
         match expression {
             Expression::Assignment(assignment) => self.print_assignment(assignment)?,
-            Expression::Arithmetic(arithmetic) => self.print_arithmetic(arithmetic)?,
+            Expression::Call(call) => self.print_call(call)?,
+            Expression::Operation(operation) => self.print_operation(operation)?,
+            Expression::Grouping(grouping) => self.print_grouping(grouping)?,
+            Expression::Identifier(identifier) => self.print_identifier(identifier)?,
+            Expression::Number(number) => self.print_number(number)?,
         }
 
         Ok(())
@@ -257,15 +261,15 @@ impl<StdOut: Write, StdErr: Write> PrettyPrinter<StdOut, StdErr> {
     fn print_refinement(&mut self, refinement: &Refinement) -> io::Result<()> {
         self.print_name(refinement.name())?;
         self.print_comparator(refinement.comparator())?;
-        self.print_arithmetic(refinement.constraint())
+        self.print_expression(refinement.constraint())
     }
 
     fn print_bounds(&mut self, bounds: &Bounds) -> io::Result<()> {
-        self.print_arithmetic(bounds.left().constraint())?;
+        self.print_expression(bounds.left().constraint())?;
         self.print_inequality(bounds.left().inequality())?;
         self.print_name(bounds.name())?;
         self.print_inequality(bounds.right().inequality())?;
-        self.print_arithmetic(bounds.right().constraint())
+        self.print_expression(bounds.right().constraint())
     }
 
     fn print_inequality(&mut self, inequality: &Inequality) -> io::Result<()> {
@@ -296,98 +300,22 @@ impl<StdOut: Write, StdErr: Write> PrettyPrinter<StdOut, StdErr> {
         }
     }
 
-    fn print_arithmetic(&mut self, arithmetic: &Arithmetic) -> io::Result<()> {
-        self.print_epsilon(arithmetic.epsilon())
-    }
+    fn print_operation(&mut self, operation: &Operation) -> io::Result<()> {
+        self.print_expression(operation.lhs())?;
 
-    fn print_epsilon(&mut self, epsilon: &Epsilon) -> io::Result<()> {
-        self.print_modulo(epsilon.lhs())?;
+        let operator = match operation.operator() {
+            Operator::Add => "+",
+            Operator::Subtract => "-",
+            Operator::Multiply => "*",
+            Operator::Divide => "/",
+            Operator::Exponent => "^",
+            Operator::Modulo => "%",
+            Operator::Tolerance => "~",
+        };
 
-        if let Some(rhs) = epsilon.rhs() {
-            write!(self.std_out, " ~ ")?;
-            self.print_modulo(rhs)?;
-        }
+        write!(self.std_out, " {operator} ")?;
 
-        Ok(())
-    }
-
-    fn print_modulo(&mut self, modulo: &Modulo) -> io::Result<()> {
-        self.print_sum(modulo.head())?;
-
-        for sum in modulo.tail() {
-            write!(self.std_out, " % ")?;
-            self.print_sum(sum)?;
-        }
-
-        Ok(())
-    }
-
-    fn print_sum(&mut self, sum: &Sum) -> io::Result<()> {
-        self.print_product(sum.head())?;
-
-        for add_or_subtract in sum.tail() {
-            self.print_add_or_subtract(add_or_subtract)?;
-        }
-
-        Ok(())
-    }
-
-    fn print_product(&mut self, product: &Product) -> io::Result<()> {
-        self.print_power(product.head())?;
-
-        for multiply_or_divide in product.tail() {
-            self.print_multiply_or_divide(multiply_or_divide)?;
-        }
-
-        Ok(())
-    }
-
-    fn print_add_or_subtract(&mut self, add_or_subtract: &AddOrSubtract) -> io::Result<()> {
-        match add_or_subtract {
-            AddOrSubtract::Add(product) => {
-                write!(self.std_out, " + ")?;
-                self.print_product(product)
-            }
-            AddOrSubtract::Subtract(product) => {
-                write!(self.std_out, " - ")?;
-                self.print_product(product)
-            }
-        }
-    }
-
-    fn print_power(&mut self, power: &Power) -> io::Result<()> {
-        self.print_call(power.head())?;
-
-        for call in power.tail() {
-            write!(self.std_out, " ^ ")?;
-            self.print_call(call)?;
-        }
-
-        Ok(())
-    }
-
-    fn print_multiply_or_divide(
-        &mut self,
-        multiply_or_divide: &MultiplyOrDivide,
-    ) -> io::Result<()> {
-        match multiply_or_divide {
-            MultiplyOrDivide::Multiply(power) => {
-                write!(self.std_out, " * ")?;
-                self.print_power(power)
-            }
-            MultiplyOrDivide::Divide(power) => {
-                write!(self.std_out, " / ")?;
-                self.print_power(power)
-            }
-        }
-    }
-
-    fn print_primary(&mut self, primary: &Primary) -> io::Result<()> {
-        match primary {
-            Primary::Number(number) => self.print_number(number),
-            Primary::Identifier(identifier) => self.print_identifier(identifier),
-            Primary::Grouping(grouping) => self.print_grouping(grouping),
-        }
+        self.print_expression(operation.rhs())
     }
 
     fn print_number(&mut self, number: &Number) -> io::Result<()> {
@@ -404,13 +332,8 @@ impl<StdOut: Write, StdErr: Write> PrettyPrinter<StdOut, StdErr> {
     }
 
     fn print_call(&mut self, call: &Call) -> io::Result<()> {
-        self.print_primary(call.callee())?;
-
-        for arguments in call.arguments() {
-            self.print_arguments(arguments)?;
-        }
-
-        Ok(())
+        self.print_expression(call.callee())?;
+        self.print_arguments(call.arguments())
     }
 
     fn print_arguments(&mut self, arguments: &Arguments) -> io::Result<()> {

@@ -206,10 +206,10 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_sum(&mut self) -> Result<Expression, SyntacticalError> {
-        let mut lhs = self.parse_sum()?;
+        let mut lhs = self.parse_product()?;
 
         while let Some(token) = self.tokens.next_if_match(&[Kind::Plus, Kind::Minus]) {
-            let rhs = self.parse_sum()?;
+            let rhs = self.parse_product()?;
             let operator = match token.kind() {
                 Kind::Minus => Operator::Subtract,
                 _ => Operator::Add,
@@ -240,7 +240,7 @@ impl<'a> Parser<'a> {
     fn parse_power(&mut self) -> Result<Expression, SyntacticalError> {
         let mut lhs = self.parse_call()?;
 
-        while let Some(token) = self.tokens.next_if_match(Kind::Caret) {
+        while self.tokens.next_if_match(Kind::Caret).is_some() {
             let rhs = self.parse_call()?;
             lhs = Operation::new(lhs, Operator::Exponent, rhs).into();
         }

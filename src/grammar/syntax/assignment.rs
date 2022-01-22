@@ -1,7 +1,7 @@
 //! Grammar rules for function declarations and pattern matching.
 
 use crate::grammar::lexical::Identifier;
-use crate::grammar::syntax::{Arithmetic, Comparator, Expression, List};
+use crate::grammar::syntax::{Comparator, Expression, List};
 use std::fmt::{self, Display, Formatter, Write};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -142,22 +142,22 @@ pub struct Bounds {
 }
 
 impl Bounds {
-    /// Create a new `Bounds` pattern.
+    /// Create a new [`Bounds`] pattern.
     pub fn new(left: Bound, name: Name, right: Bound) -> Self {
         Bounds { left, name, right }
     }
 
-    /// The left `Bound` on this `Bounds` pattern.
+    /// The left [`Bound`] on this [`Bounds`] pattern.
     pub fn left(&self) -> &Bound {
         &self.left
     }
 
-    /// The `Name` of this `Bounds`.
+    /// The `Name` of this [`Bounds`].
     pub fn name(&self) -> &Name {
         &self.name
     }
 
-    /// The right `Bound` on this `Bounds` pattern.
+    /// The right [`Bound`] on this [`Bounds`] pattern.
     pub fn right(&self) -> &Bound {
         &self.right
     }
@@ -166,13 +166,13 @@ impl Bounds {
 /// The singular bound on a `range` pattern.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Bound {
-    constraint: Arithmetic,
+    constraint: Expression,
     inequality: Inequality,
 }
 
 impl Bound {
-    /// Create a new `Bound` pattern.
-    pub fn new(constraint: Arithmetic, inequality: Inequality) -> Self {
+    /// Create a new [`Bound`] pattern.
+    pub fn new(constraint: Expression, inequality: Inequality) -> Self {
         Bound {
             constraint,
             inequality,
@@ -180,7 +180,7 @@ impl Bound {
     }
 
     /// The constraint this pattern matches.
-    pub fn constraint(&self) -> &Arithmetic {
+    pub fn constraint(&self) -> &Expression {
         &self.constraint
     }
 
@@ -213,12 +213,12 @@ impl fmt::Display for Inequality {
 pub struct Refinement {
     name: Name,
     comparator: Comparator,
-    constraint: Arithmetic,
+    constraint: Expression,
 }
 
 impl Refinement {
-    /// Creates a new instance of a `Refinement`.
-    pub fn new(name: Name, comparator: Comparator, constraint: Arithmetic) -> Self {
+    /// Creates a new instance of a [`Refinement`].
+    pub fn new(name: Name, comparator: Comparator, constraint: Expression) -> Self {
         Refinement {
             name,
             comparator,
@@ -226,18 +226,18 @@ impl Refinement {
         }
     }
 
-    /// The `Name` defined when this pattern matches.
+    /// The [`Name`] defined when this pattern matches.
     pub fn name(&self) -> &Name {
         &self.name
     }
 
-    /// The comparison operator use by this `Refinement`.
+    /// The comparison operator use by this [`Refinement`].
     pub fn comparator(&self) -> &Comparator {
         &self.comparator
     }
 
-    /// The `Arithmetic` value used to constrain the name defined by this `Refinement`.
-    pub fn constraint(&self) -> &Arithmetic {
+    /// The [`Expression`] value used to constrain the name defined by this `Refinement`.
+    pub fn constraint(&self) -> &Expression {
         &self.constraint
     }
 }

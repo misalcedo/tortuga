@@ -6,7 +6,7 @@ use crate::{runtime, Program, RuntimeError};
 use std::convert::TryFrom;
 use std::ops::Deref;
 
-/// Interprets a Tortuga [`Program`] and returns the [`Value`].
+/// Interprets a Tortuga [`Program`] and returns the [`Value`] by walking the syntax tree.
 ///
 /// # Example
 /// ## Build then run
@@ -98,15 +98,13 @@ impl Interpret for Expressions {
 impl Interpret for Expression {
     fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
         match self {
-            Self::Arithmetic(arithmetic) => arithmetic.execute(environment),
             Self::Assignment(assignment) => assignment.execute(environment),
+            Self::Call(call) => call.execute(environment),
+            Self::Operation(operation) => operation.execute(environment),
+            Self::Grouping(grouping) => grouping.execute(environment),
+            Self::Identifier(identifier) => identifier.execute(environment),
+            Self::Number(number) => number.execute(environment),
         }
-    }
-}
-
-impl Interpret for Arithmetic {
-    fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
-        self.epsilon().execute(environment)
     }
 }
 
@@ -123,69 +121,20 @@ impl Interpret for Assignment {
     }
 }
 
-impl Interpret for Epsilon {
+impl Interpret for Operation {
     fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
-        let mut value = self.lhs().execute(environment)?;
+        let lhs = self.lhs().execute(environment)?;
+        let rhs = self.rhs().execute(environment)?;
 
-        if let Some(rhs) = self.rhs() {
-            value = value.epsilon(rhs.execute(environment)?);
+        match self.operator() {
+            Operator::Add => Ok(lhs + rhs),
+            Operator::Subtract => Ok(lhs - rhs),
+            Operator::Multiply => Ok(lhs * rhs),
+            Operator::Divide => Ok(lhs / rhs),
+            Operator::Exponent => Ok(lhs ^ rhs),
+            Operator::Modulo => Ok(lhs.abs() % rhs.abs()),
+            Operator::Tolerance => Ok(lhs.epsilon(rhs)),
         }
-
-        Ok(value)
-    }
-}
-
-impl Interpret for Modulo {
-    fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
-        let mut value = self.head().execute(environment)?;
-
-        for sum in self.tail() {
-            value = value.abs() % sum.execute(environment)?.abs();
-        }
-
-        Ok(value)
-    }
-}
-
-impl Interpret for Sum {
-    fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
-        let mut value = self.head().execute(environment)?;
-
-        for add_or_subtract in self.tail() {
-            match add_or_subtract {
-                AddOrSubtract::Add(rhs) => value += rhs.execute(environment)?,
-                AddOrSubtract::Subtract(rhs) => value -= rhs.execute(environment)?,
-            }
-        }
-
-        Ok(value)
-    }
-}
-
-impl Interpret for Product {
-    fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
-        let mut value = self.head().execute(environment)?;
-
-        for multiply_or_divide in self.tail() {
-            match multiply_or_divide {
-                MultiplyOrDivide::Multiply(rhs) => value *= rhs.execute(environment)?,
-                MultiplyOrDivide::Divide(rhs) => value /= rhs.execute(environment)?,
-            }
-        }
-
-        Ok(value)
-    }
-}
-
-impl Interpret for Power {
-    fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
-        let mut value = self.head().execute(environment)?;
-
-        for sum in self.tail() {
-            value ^= sum.execute(environment)?;
-        }
-
-        Ok(value)
     }
 }
 
@@ -193,31 +142,25 @@ impl Interpret for Call {
     fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
         let mut value = self.callee().execute(environment)?;
 
-        for arguments in self.arguments() {
-            let reference = FunctionReference::try_from(value)?;
-            let function = environment.function(&reference)?;
-            let mut values = Vec::new();
+        let reference = FunctionReference::try_from(value)?;
+        let function = environment.function(&reference)?;
+        let mut values = Vec::new();
 
-            for argument in arguments.iter() {
-                values.push(argument.execute(environment)?);
-            }
-
-            value = function
-                .call(values.as_slice(), environment)?
-                .execute(environment)?;
+        for argument in self.arguments().iter() {
+            values.push(argument.execute(environment)?);
         }
+
+        value = function
+            .call(values.as_slice(), environment)?
+            .execute(environment)?;
 
         Ok(value)
     }
 }
 
-impl Interpret for Primary {
+impl Interpret for Grouping {
     fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
-        match self {
-            Primary::Number(number) => number.execute(environment),
-            Primary::Identifier(identifier) => identifier.execute(environment),
-            Primary::Grouping(grouping) => grouping.inner().execute(environment),
-        }
+        self.inner().execute(environment)
     }
 }
 

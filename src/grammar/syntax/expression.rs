@@ -67,6 +67,18 @@ impl Operation {
     pub fn new(lhs: Expression, operator: Operator, rhs: Expression) -> Self {
         Operation { lhs, operator, rhs }
     }
+
+    pub fn lhs(&self) -> &Expression {
+        &self.lhs
+    }
+
+    pub fn operator(&self) -> &Operator {
+        &self.operator
+    }
+
+    pub fn rhs(&self) -> &Expression {
+        &self.rhs
+    }
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
