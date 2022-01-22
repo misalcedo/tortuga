@@ -26,6 +26,12 @@ const INEQUALITY_KINDS: &[Kind] = &[
     Kind::LessThanOrEqualTo,
     Kind::GreaterThanOrEqualTo,
 ];
+const SYNC_KINDS: &[Kind] = &[
+    Kind::Minus,
+    Kind::Number,
+    Kind::Identifier,
+    Kind::LeftParenthesis,
+];
 
 /// A recursive descent LL(1) parser for the syntax grammar.
 /// Parses a sequence of `Token`s into syntax tree.
@@ -151,7 +157,8 @@ impl<'a> Parser<'a> {
 
                     self.errors.push(error);
                     self.tokens.backtrack();
-                    self.tokens.next_token()?;
+
+                    while self.tokens.next_unless_match(SYNC_KINDS).is_some() {}
                 }
                 result => return result,
             }

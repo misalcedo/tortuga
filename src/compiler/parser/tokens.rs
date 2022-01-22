@@ -125,6 +125,19 @@ impl<'a> Tokens<'a> {
         }
     }
 
+    /// Gets the next `Token` if it the given `Matcher` returns [`false`]. Otherwise, returns [`None`].
+    /// The underlying `Token` sequence is only advanced on a [`Some`] return value.
+    pub fn next_unless_match<Matcher: TokenMatcher>(
+        &mut self,
+        matcher: Matcher,
+    ) -> Option<Token<'a>> {
+        if matcher.matches(self.peek()?) {
+            None
+        } else {
+            self.next()
+        }
+    }
+
     /// Peeks the next [`Token`]'s [`Kind`], if one is present.
     pub fn peek_kind(&self) -> Option<Kind> {
         Some(*self.peek()?.kind())
@@ -261,6 +274,39 @@ mod tests {
             tokens.next_if_match(&[Kind::Number]),
             Some(Token::new("1", Kind::Number))
         );
+    }
+
+    #[test]
+    fn next_unless_match_when_expected_empty() {
+        let mut tokens = new_tokens();
+
+        assert_eq!(
+            tokens.next_unless_match(&[][..]),
+            Some(Token::new("1", Kind::Number))
+        );
+    }
+
+    #[test]
+    fn next_unless_match_when_empty() {
+        let mut tokens = Tokens::default();
+
+        assert_eq!(tokens.next_unless_match(&[Kind::Number]), None);
+    }
+
+    #[test]
+    fn next_unless_match_with_tokens() {
+        let mut tokens = new_tokens();
+
+        assert_eq!(tokens.next_unless_match(&[Kind::Number]), None);
+    }
+
+    #[test]
+    fn next_unless_match_with_tokens_peeked() {
+        let mut tokens = new_tokens();
+
+        tokens.peek().unwrap();
+
+        assert_eq!(tokens.next_unless_match(&[Kind::Number]), None);
     }
 
     #[test]
