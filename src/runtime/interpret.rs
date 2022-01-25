@@ -108,14 +108,7 @@ impl Interpret for Expression {
 
 impl Interpret for Binding {
     fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
-        let function = runtime::Function::new(self, environment);
-
-        if self.pattern().parameters().is_empty() {
-            let value = function.call(&[], environment)?.execute(environment)?;
-            environment.define_value(function.name(), value)
-        } else {
-            environment.define_function(function)
-        }
+        Ok(Value::Unit)
     }
 }
 

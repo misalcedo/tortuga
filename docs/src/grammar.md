@@ -1,57 +1,54 @@
 This is the complete Extended Backus Normal Form (eBNF) grammar definition for Tortuga.
 
 # Syntax Grammar
-The syntactic grammar of `Tortuga` is used to parse a linear sequence of tokens into a nested syntax tree structure. The root of the grammar matches an entire `Tortuga` program (or a sequence of comparisons to make the interpreter more useful).
+The syntactic grammar of `Tortuga` is used to parse a linear sequence of tokens into a nested syntax tree structure. The root of the grammar matches an entire `Tortuga` program.
 
 ```ebnf
-program     = expressions | comparisons EOF ;
-expressions = expression+ ;
-comparisons = expression comparison+ ;
-comparison  = comparator expression ;
+program = expression+ EOF ;
 ```
 
 ## Expression
 A program is a series of expressions. Expressions produce values. `Tortuga` has a number of binary operators with different levels of precedence. Some grammars for languages do not directly encode the precedence relationships and specify that elsewhere. Here, we use a separate rule for each precedence level to make it explicit.
 
+NOTE: The result of the fuse operation for `X.Y` is equivalent to `(X - (X % 1)) + (Y % 1)`.
+
 ```ebnf
-expression = assignment | arithmetic ;
-assignment = function "=" block ;
+expression = binding ;
+binding    = arithmetic ( conditions? "=" block )? ;
 block      = "[" expression expression+ "]" | expression ;
 
-arithmetic = epsilon ;
-epsilon    = modulo ( "~" modulo )? ;
+arithmetic = tolerance ;
+tolerance  = modulo ( "~" modulo )? ;
 modulo     = sum ( "%" sum )* ;
 sum        = product ( ( "+" | "-") product )* ;
 product    = power ( ( "*" | "/" ) power )* ;
-power      = primary ( "^" primary )* ;
+power      = fuse ( "^" fuse )* ;
+fuse       = call ( "." call )? ;
 
 call       = primary arguments* ;
-primary    = number | IDENTIFIER | grouping ;
+arguments  = "(" expression ( "," expression )* ")" ;
+
+primary    = number | identifier | tuple | interval | grouping ; 
 number     = "-"? NUMBER ;
+identifier = IDENTIFIER | "_" ;
+tuple      = "{" ( list | fields )? "}" ;
+list       = expression "|" expression ;
+fields     = expression ( "," expression )* ;
+interval   = ( "(" | "[" ) expression ENDPOINTS expression ( "]" | ")" )
+           | "]" expression ENDPOINTS ( "]" | "[" ) ;
 grouping   = "(" expression ")" ;
 ```
 
-## Pattern Rules
-The grammar allows pattern-matching in function definitions instead of having built-in control flow. These rules define the allowed patterns.
+## Conditions
+The grammar allows conditions on arguments in function definitions instead of having built-in control flow. See [Multi-methods](https://en.wikipedia.org/wiki/Multiple_dispatch) for more details. These rules define the allowed conditions.
 
 ```ebnf
-pattern    = function | refinement | bounds ;
-function   = name parameters? ;
-refinement = name comparator arithmetic ;
-bounds     = arithmetic inequality name inequality arithmetic ;
-```
+conditions = "?" condition ( ";" condition )* ;
+condition  = identifier comparator expression ;
 
-## Utility Rules
-To keep the above rules a little cleaner, some grammar is split out into a few reused helper rules.
-
-```ebnf
-arguments  = "(" expression ( "," expression )* ")" ;
-parameters = "(" pattern ( "," pattern )* ")" ;
-
-name       = "_" | "@" IDENTIFIER ;
-inequality = "<" | "<=" | ">" | ">=" ;
-equality   = "=" | "<>" ;
 comparator = equality | inequality ;
+equality   = "=" ;
+inequality = "<" | "<=" | ">" | ">=" | "<>" ;
 ```
 
 # Lexical Grammar
@@ -64,6 +61,7 @@ NATURAL     = NZ_ALPHANUM ALPHANUM* ( "." "0"? )? ;
 REAL        = NZ_ALPHANUM ALPHANUM* "." ALPHANUM*? NZ_ALPHANUM ;
 FRACTION    = "0"? "." ALPHANUM*? NZ_ALPHANUM ;
 
+ENDPOINTS   = "," | ";" ;
 NZ_ALPHANUM = NZ_DIGIT | ALPHA ;                
 ALPHANUM    = DIGIT | ALPHA ;
 ALPHA       = "a" ... "z" | "A" ... "Z" ;
@@ -76,16 +74,17 @@ The associativity and precedence of the various operators in Tortuga are defined
 
 | Precedence | Operation                | Symbol | Left Associative | Right Associative | Non-Associative |
 |:-----------|:-------------------------|--------|------------------|-------------------|-----------------|
-| 1          | Epsilon                  | ~      |                  |                   | X               |
-| 2          | Modulo                   | %      | X                | X                 |                 |
-| 3          | Add                      | +      | X                | X                 |                 |
-| 3          | Subtract                 | -      | X                |                   |                 |
-| 4          | Multiply                 | *      | X                | X                 |                 |
-| 4          | Divide                   | /      | X                |                   |                 |
-| 5          | Exponent                 | ^      |                  | X                 |                 |
-| 6          | Pattern Match            | =      |                  | X                 |                 |
-| 7          | Inequality               | <>     | X                | X                 |                 |
-| 7          | Less Than                | <      | X                | X                 |                 |
-| 7          | Less Than or Equal To    | <=     | X                | X                 |                 |
-| 7          | Greater Than             | >      | X                | X                 |                 |
-| 7          | Greater Than or Equal To | >=     | X                | X                 |                 |
+| 10         | Inequality               | <>     | X                | X                 |                 |
+| 10         | Less Than                | <      | X                | X                 |                 |
+| 10         | Less Than or Equal To    | <=     | X                | X                 |                 |
+| 10         | Greater Than             | >      | X                | X                 |                 |
+| 10         | Greater Than or Equal To | >=     | X                | X                 |                 |
+| 20         | Pattern Match            | =      |                  | X                 |                 |
+| 30         | Modulo                   | %      | X                | X                 |                 |
+| 40         | Add                      | +      | X                | X                 |                 |
+| 40         | Subtract                 | -      | X                |                   |                 |
+| 50         | Multiply                 | *      | X                | X                 |                 |
+| 50         | Divide                   | /      | X                |                   |                 |
+| 60         | Exponent                 | ^      |                  | X                 |                 |
+| 70         | Tolerance                | ~      |                  |                   | X               |
+| 80         | Fuse                     | .      |                  |                   | X               |

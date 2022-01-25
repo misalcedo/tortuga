@@ -13,13 +13,7 @@ pub struct Declaration(Vec<Pattern>, Environment, Block);
 impl Declaration {
     /// Create a new [`Declaration`].
     pub fn new(binding: &Binding, environment: &Environment) -> Self {
-        let parameters = binding.pattern().parameters();
-
-        Declaration(
-            parameters.to_vec(),
-            environment.clone(),
-            binding.block().clone(),
-        )
+        Declaration(Vec::default(), environment.clone(), binding.block().clone())
     }
 
     pub fn call(
@@ -88,7 +82,7 @@ impl Function {
     /// Creates a new instance of a runtime [`Function`].
     pub fn new(binding: &Binding, environment: &Environment) -> Self {
         Function {
-            name: binding.pattern().name().as_str().map(String::from),
+            name: None,
             declarations: vec![Declaration::new(binding, environment)],
         }
     }
