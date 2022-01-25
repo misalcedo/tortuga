@@ -5,23 +5,23 @@ use crate::grammar::syntax::{Comparator, Expression, List};
 use std::fmt::{self, Display, Formatter, Write};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Assignment {
-    function: Expression,
+pub struct Binding {
+    pattern: Expression,
     block: Block,
 }
 
-impl Assignment {
-    /// Creates a new `assignment` grammar rule.
-    pub fn new(function: Expression, block: Block) -> Self {
-        Assignment { function, block }
+impl Binding {
+    /// Creates a new `binding` grammar rule.
+    pub fn new(pattern: Expression, block: Block) -> Self {
+        Binding { pattern, block }
     }
 
-    /// Get the `function` defined by this `Assignment`.
-    pub fn function(&self) -> &Function {
-        &self.function
+    /// Get the `pattern` defined by this [`Binding`].
+    pub fn pattern(&self) -> &Expression {
+        &self.pattern
     }
 
-    /// Get the code block to be executed on a call to this `Assignment`'s `function`.
+    /// Get the code block to match the pattern with for this [`Binding`].
     pub fn block(&self) -> &Block {
         &self.block
     }

@@ -152,10 +152,7 @@ impl<StdOut: Write, StdErr: Write> PrettyPrinter<StdOut, StdErr> {
 
     /// Prints a [`Program`] to this [`PrettyPrinter`]'s `std_out` [`Write`]r.
     pub fn print_program(&mut self, program: &Program) -> io::Result<()> {
-        match program {
-            Program::Expressions(expressions) => self.print_expressions(expressions),
-            Program::Comparisons(comparisons) => self.print_comparisons(comparisons),
-        }
+        self.print_expressions(program.expressions())
     }
 
     fn print_expressions(&mut self, expressions: &Expressions) -> io::Result<()> {
@@ -183,7 +180,8 @@ impl<StdOut: Write, StdErr: Write> PrettyPrinter<StdOut, StdErr> {
 
     fn print_expression(&mut self, expression: &Expression) -> io::Result<()> {
         match expression {
-            Expression::Assignment(assignment) => self.print_assignment(assignment)?,
+            Expression::Binding(binding) => self.print_binding(binding)?,
+            Expression::Tuple(tuple) => self.print_tuple(tuple)?,
             Expression::Call(call) => self.print_call(call)?,
             Expression::Operation(operation) => self.print_operation(operation)?,
             Expression::Grouping(grouping) => self.print_grouping(grouping)?,
@@ -203,10 +201,30 @@ impl<StdOut: Write, StdErr: Write> PrettyPrinter<StdOut, StdErr> {
         write!(self.std_out, " {} ", comparator)
     }
 
-    fn print_assignment(&mut self, assignment: &Assignment) -> io::Result<()> {
-        self.print_function(assignment.function())?;
+    fn print_binding(&mut self, binding: &Binding) -> io::Result<()> {
+        self.print_expression(binding.pattern())?;
         write!(self.std_out, " = ")?;
-        self.print_block(assignment.block())
+        self.print_block(binding.block())
+    }
+
+    fn print_tuple(&mut self, tuple: &Tuple) -> io::Result<()> {
+        if tuple.is_empty() {
+            write!(self.std_out, "{{}}")
+        } else {
+            write!(self.std_out, "{{")?;
+
+            let mut iterator = tuple.fields().iter().peekable();
+
+            while let Some(field) = iterator.next() {
+                if iterator.peek().is_some() {
+                    write!(self.std_out, ", ")?;
+                }
+
+                self.print_expression(field)?;
+            }
+
+            write!(self.std_out, "}}")
+        }
     }
 
     fn print_function(&mut self, function: &Function) -> io::Result<()> {

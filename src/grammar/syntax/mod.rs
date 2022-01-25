@@ -1,11 +1,11 @@
 //! The Abstract Syntax Tree (AST) of the complete grammar definition for Tortuga.
 
-mod assignment;
+mod binding;
 mod comparison;
 mod expression;
 mod list;
 
-pub use assignment::*;
+pub use binding::*;
 pub use comparison::*;
 pub use expression::*;
 pub use list::List;

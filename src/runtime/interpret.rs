@@ -95,7 +95,8 @@ impl Interpret for Expressions {
 impl Interpret for Expression {
     fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
         match self {
-            Self::Assignment(assignment) => assignment.execute(environment),
+            Self::Binding(binding) => binding.execute(environment),
+            Self::Tuple(tuple) => tuple.execute(environment),
             Self::Call(call) => call.execute(environment),
             Self::Operation(operation) => operation.execute(environment),
             Self::Grouping(grouping) => grouping.execute(environment),
@@ -105,16 +106,28 @@ impl Interpret for Expression {
     }
 }
 
-impl Interpret for Assignment {
+impl Interpret for Binding {
     fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
         let function = runtime::Function::new(self, environment);
 
-        if self.function().parameters().is_empty() {
+        if self.pattern().parameters().is_empty() {
             let value = function.call(&[], environment)?.execute(environment)?;
             environment.define_value(function.name(), value)
         } else {
             environment.define_function(function)
         }
+    }
+}
+
+impl Interpret for Tuple {
+    fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
+        let mut fields = Vec::new();
+
+        for field in self.fields() {
+            fields.push(field.execute(environment)?);
+        }
+
+        Ok(Value::Unit)
     }
 }
 

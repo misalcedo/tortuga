@@ -80,19 +80,7 @@ impl<'a> Parser<'a> {
 
     /// Generate a syntax tree rooted at a `Program` for this `Parser`'s sequence of tokens.
     pub fn parse(mut self) -> Result<Program, SyntacticalError> {
-        let expression = self.parse_expression()?;
-
-        let result = match self.tokens.peek_kind() {
-            Some(
-                Kind::LessThan
-                | Kind::GreaterThan
-                | Kind::LessThanOrEqualTo
-                | Kind::GreaterThanOrEqualTo
-                | Kind::Equal
-                | Kind::NotEqual,
-            ) => self.parse_comparisons(expression),
-            _ => self.parse_expressions(expression),
-        };
+        let result = self.parse_expressions();
 
         if self.errors.is_empty() {
             result
@@ -109,7 +97,8 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_expressions(&mut self, expression: Expression) -> Result<Program, SyntacticalError> {
+    fn parse_expressions(&mut self) -> Result<Program, SyntacticalError> {
+        let expression = self.parse_expression()?;
         let mut expressions = Vec::new();
 
         while self.tokens.has_next() {
@@ -119,7 +108,10 @@ impl<'a> Parser<'a> {
         Ok(List::new(expression, expressions).into())
     }
 
-    fn parse_comparisons(&mut self, expression: Expression) -> Result<Program, SyntacticalError> {
+    fn parse_comparisons(
+        &mut self,
+        expression: Expression,
+    ) -> Result<Comparisons, SyntacticalError> {
         let head = self.parse_comparison()?;
         let mut comparisons = Vec::new();
 
@@ -127,7 +119,7 @@ impl<'a> Parser<'a> {
             comparisons.push(self.parse_comparison()?);
         }
 
-        Ok(Comparisons::new(expression, List::new(head, comparisons)).into())
+        Ok(Comparisons::new(expression, List::new(head, comparisons)))
     }
 
     fn parse_comparison(&mut self) -> Result<Comparison, SyntacticalError> {
@@ -313,7 +305,7 @@ impl<'a> Parser<'a> {
 
         if self.tokens.next_if_match(Kind::Equal).is_some() {
             let block = self.parse_block()?;
-            Ok(Assignment::new(pattern, block).into())        
+            Ok(Binding::new(pattern, block).into())
         } else {
             Ok(pattern)
         }

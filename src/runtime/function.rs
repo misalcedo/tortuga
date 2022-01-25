@@ -1,6 +1,6 @@
 //! Runtime representation of a function.
 
-use crate::grammar::{self, Assignment, Block, Pattern};
+use crate::grammar::{self, Binding, Block, Pattern};
 use crate::runtime::interpret::Interpret;
 use crate::runtime::Environment;
 use crate::{RuntimeError, Value};
@@ -12,13 +12,13 @@ pub struct Declaration(Vec<Pattern>, Environment, Block);
 
 impl Declaration {
     /// Create a new [`Declaration`].
-    pub fn new(assignment: &Assignment, environment: &Environment) -> Self {
-        let parameters = assignment.function().parameters();
+    pub fn new(binding: &Binding, environment: &Environment) -> Self {
+        let parameters = binding.pattern().parameters();
 
         Declaration(
             parameters.to_vec(),
             environment.clone(),
-            assignment.block().clone(),
+            binding.block().clone(),
         )
     }
 
@@ -86,10 +86,10 @@ impl Interpret for CallResult {
 
 impl Function {
     /// Creates a new instance of a runtime [`Function`].
-    pub fn new(assignment: &Assignment, environment: &Environment) -> Self {
+    pub fn new(binding: &Binding, environment: &Environment) -> Self {
         Function {
-            name: assignment.function().name().as_str().map(String::from),
-            declarations: vec![Declaration::new(assignment, environment)],
+            name: binding.pattern().name().as_str().map(String::from),
+            declarations: vec![Declaration::new(binding, environment)],
         }
     }
 

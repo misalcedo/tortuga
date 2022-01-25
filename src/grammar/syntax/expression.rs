@@ -6,7 +6,7 @@
 
 use crate::grammar::lexical;
 use crate::grammar::lexical::Identifier;
-use crate::grammar::syntax::{Assignment, List, Name};
+use crate::grammar::syntax::{Binding, List, Name};
 
 pub type Expressions = List<Expression>;
 
@@ -14,15 +14,22 @@ pub type Expressions = List<Expression>;
 pub enum Expression {
     Number(Number),
     Name(Name),
+    Tuple(Tuple),
     Grouping(Box<Grouping>),
     Call(Box<Call>),
     Operation(Box<Operation>),
-    Assignment(Box<Assignment>),
+    Binding(Box<Binding>),
 }
 
 impl From<Number> for Expression {
     fn from(number: Number) -> Self {
         Expression::Number(number)
+    }
+}
+
+impl From<Tuple> for Expression {
+    fn from(tuple: Tuple) -> Self {
+        Expression::Tuple(tuple)
     }
 }
 
@@ -56,9 +63,9 @@ impl From<Grouping> for Expression {
     }
 }
 
-impl From<Assignment> for Expression {
-    fn from(assignment: Assignment) -> Self {
-        Expression::Assignment(Box::new(assignment))
+impl From<Binding> for Expression {
+    fn from(binding: Binding) -> Self {
+        Expression::Binding(Box::new(binding))
     }
 }
 
@@ -118,6 +125,25 @@ impl Number {
     /// Tests whether this `Number` represents a negative value.
     pub fn number(&self) -> &lexical::Number {
         &self.number
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Tuple {
+    fields: Vec<Expression>,
+}
+
+impl Tuple {
+    pub fn len(&self) -> usize {
+        self.fields.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.fields.is_empty()
+    }
+
+    pub fn fields(&self) -> &[Expression] {
+        self.fields.as_slice()
     }
 }
 
