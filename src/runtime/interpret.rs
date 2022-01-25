@@ -107,7 +107,7 @@ impl Interpret for Expression {
 }
 
 impl Interpret for Binding {
-    fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
+    fn execute(&self, _environment: &mut Environment) -> Result<Value, RuntimeError> {
         Ok(Value::Unit)
     }
 }
