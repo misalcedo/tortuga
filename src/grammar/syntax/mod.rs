@@ -13,19 +13,18 @@ pub use list::List;
 /// The syntactic grammar of `Tortuga` is used to parse a linear sequence of tokens into a nested syntax tree structure.
 /// The root of the grammar matches an entire `Tortuga` program (or a sequence of comparisons to make the interpreter more useful).
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Program {
-    Expressions(Expressions),
-    Comparisons(Comparisons),
+pub struct Program {
+    expressions: Expressions,
 }
 
 impl From<Expressions> for Program {
     fn from(expressions: Expressions) -> Self {
-        Program::Expressions(expressions)
+        Program { expressions }
     }
 }
 
-impl From<Comparisons> for Program {
-    fn from(comparisons: Comparisons) -> Self {
-        Program::Comparisons(comparisons)
+impl Program {
+    pub fn expressions(&self) -> &Expressions {
+        &self.expressions
     }
 }

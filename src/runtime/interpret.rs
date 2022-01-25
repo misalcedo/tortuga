@@ -76,10 +76,7 @@ pub trait Interpret {
 
 impl Interpret for Program {
     fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
-        match self {
-            Self::Expressions(expressions) => expressions.execute(environment),
-            Self::Comparisons(comparisons) => comparisons.execute(environment),
-        }
+        self.expressions().execute(environment)
     }
 }
 
