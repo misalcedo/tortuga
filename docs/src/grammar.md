@@ -28,7 +28,7 @@ fuse       = call ( "." call )? ;
 call       = primary arguments* ;
 arguments  = "(" expression ( "," expression )* ")" ;
 
-primary    = number | identifier | tuple | interval | grouping ; 
+primary    = number | identifier | tuple | interval | grouping | length ; 
 number     = "-"? NUMBER ;
 identifier = IDENTIFIER | "_" ;
 tuple      = "{" ( list | fields )? "}" ;
@@ -37,6 +37,7 @@ fields     = expression ( "," expression )* ;
 interval   = ( "(" | "[" ) expression ENDPOINTS expression ( "]" | ")" )
            | "]" expression ENDPOINTS ( "]" | "[" ) ;
 grouping   = "(" expression ")" ;
+length     = "|" expression "|" ;
 ```
 
 ## Conditions
