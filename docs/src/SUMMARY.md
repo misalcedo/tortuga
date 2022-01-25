@@ -13,3 +13,4 @@
 
 - [Design](design.md)
 - [Grammar](grammar.md)
+- [Patterns](patterns.md)
