@@ -102,7 +102,7 @@ impl Interpret for Expression {
             Self::Call(call) => call.execute(environment),
             Self::Operation(operation) => operation.execute(environment),
             Self::Grouping(grouping) => grouping.execute(environment),
-            Self::Identifier(identifier) => identifier.execute(environment),
+            Self::Name(name) => name.execute(environment),
             Self::Number(number) => number.execute(environment),
         }
     }
@@ -177,6 +177,15 @@ impl Interpret for Number {
         }
 
         Ok(number)
+    }
+}
+
+impl Interpret for Name {
+    fn execute(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
+        match self {
+            Name::Identified(identifier) => identifier.execute(environment),
+            Name::Anonymous => Ok(Value::Boolean(true)),
+        }
     }
 }
 

@@ -187,7 +187,7 @@ impl<StdOut: Write, StdErr: Write> PrettyPrinter<StdOut, StdErr> {
             Expression::Call(call) => self.print_call(call)?,
             Expression::Operation(operation) => self.print_operation(operation)?,
             Expression::Grouping(grouping) => self.print_grouping(grouping)?,
-            Expression::Identifier(identifier) => self.print_identifier(identifier)?,
+            Expression::Name(name) => self.print_name(name)?,
             Expression::Number(number) => self.print_number(number)?,
         }
 
@@ -219,10 +219,7 @@ impl<StdOut: Write, StdErr: Write> PrettyPrinter<StdOut, StdErr> {
     fn print_name(&mut self, name: &Name) -> io::Result<()> {
         match name {
             Name::Anonymous => write!(self.std_out, "_"),
-            Name::Identified(identifier) => {
-                write!(self.std_out, "@")?;
-                self.print_identifier(identifier)
-            }
+            Name::Identified(identifier) => self.print_identifier(identifier),
         }
     }
 

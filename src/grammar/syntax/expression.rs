@@ -6,14 +6,14 @@
 
 use crate::grammar::lexical;
 use crate::grammar::lexical::Identifier;
-use crate::grammar::syntax::{Assignment, List};
+use crate::grammar::syntax::{Assignment, List, Name};
 
 pub type Expressions = List<Expression>;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Expression {
     Number(Number),
-    Identifier(Identifier),
+    Name(Name),
     Grouping(Box<Grouping>),
     Call(Box<Call>),
     Operation(Box<Operation>),
@@ -28,7 +28,13 @@ impl From<Number> for Expression {
 
 impl From<Identifier> for Expression {
     fn from(identifier: Identifier) -> Self {
-        Expression::Identifier(identifier)
+        Expression::Name(identifier.into())
+    }
+}
+
+impl From<Name> for Expression {
+    fn from(name: Name) -> Self {
+        Expression::Name(name)
     }
 }
 

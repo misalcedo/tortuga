@@ -19,7 +19,7 @@ const COMPARISON_KINDS: &[Kind] = &[
     Kind::Equal,
     Kind::NotEqual,
 ];
-const NAME_KINDS: &[Kind] = &[Kind::At, Kind::Underscore];
+const NAME_KINDS: &[Kind] = &[Kind::Identifier, Kind::Underscore];
 const INEQUALITY_KINDS: &[Kind] = &[
     Kind::LessThan,
     Kind::GreaterThan,
@@ -155,7 +155,7 @@ impl<'a> Parser<'a> {
         self.tokens.mark();
 
         loop {
-            match self.parse_expression_not_synchronized() {
+            match self.parse_assignment() {
                 Err(error) if error.is_complete() => {
                     debug!("Entered panic mode while parsing an expression (Error: {error}).");
 
@@ -166,15 +166,6 @@ impl<'a> Parser<'a> {
                 }
                 result => return result,
             }
-        }
-    }
-
-    // Expressions are the synchronization point for panic mode.
-    fn parse_expression_not_synchronized(&mut self) -> Result<Expression, SyntacticalError> {
-        if let Some(true) = self.tokens.next_matches(NAME_KINDS) {
-            self.parse_assignment().map(Expression::from)
-        } else {
-            self.parse_arithmetic().map(Expression::from)
         }
     }
 
@@ -264,12 +255,14 @@ impl<'a> Parser<'a> {
             Kind::Minus,
             Kind::Number,
             Kind::Identifier,
+            Kind::Underscore,
             Kind::LeftParenthesis,
         ])?;
 
         match token.kind() {
             Kind::Minus | Kind::Number => self.parse_number(token).map(Expression::from),
             Kind::Identifier => self.parse_identifier(token).map(Expression::from),
+            Kind::Underscore => Ok(Expression::from(Name::Anonymous)),
             _ => self.parse_grouping(token).map(Expression::from),
         }
     }
@@ -315,14 +308,15 @@ impl<'a> Parser<'a> {
         Ok(expression.into())
     }
 
-    fn parse_assignment(&mut self) -> Result<Assignment, SyntacticalError> {
-        let function = self.parse_function()?;
+    fn parse_assignment(&mut self) -> Result<Expression, SyntacticalError> {
+        let pattern = self.parse_arithmetic()?;
 
-        self.next_kind(Kind::Equal)?;
-
-        let block = self.parse_block()?;
-
-        Ok(Assignment::new(function, block))
+        if self.tokens.next_if_match(Kind::Equal).is_some() {
+            let block = self.parse_block()?;
+            Ok(Assignment::new(pattern, block).into())        
+        } else {
+            Ok(pattern)
+        }
     }
 
     fn parse_function(&mut self) -> Result<Function, SyntacticalError> {

@@ -6,13 +6,13 @@ use std::fmt::{self, Display, Formatter, Write};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Assignment {
-    function: Function,
+    function: Expression,
     block: Block,
 }
 
 impl Assignment {
     /// Creates a new `assignment` grammar rule.
-    pub fn new(function: Function, block: Block) -> Self {
+    pub fn new(function: Expression, block: Block) -> Self {
         Assignment { function, block }
     }
 
