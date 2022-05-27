@@ -2,6 +2,7 @@
 
 pub mod about;
 pub mod compiler;
+pub mod message;
 
 #[cfg(feature = "cli")]
 pub mod display;
