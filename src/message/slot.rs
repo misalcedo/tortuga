@@ -3,9 +3,9 @@ use std::mem;
 
 #[derive(Copy, Debug)]
 pub enum Slot<const BYTES: usize> {
-  Empty,
-  Available(Envelope<BYTES>),
-  Occupied(Envelope<BYTES>)
+    Empty,
+    Available(Envelope<BYTES>),
+    Occupied(Envelope<BYTES>),
 }
 
 impl<const BYTES: usize> Default for Slot<BYTES> {
@@ -19,7 +19,7 @@ impl<const BYTES: usize> Clone for Slot<BYTES> {
         match self {
             Self::Empty => Self::Empty,
             Self::Available(envelope) => Self::Available(*envelope),
-            Self::Occupied(envelope) => Self::Occupied(*envelope)
+            Self::Occupied(envelope) => Self::Occupied(*envelope),
         }
     }
 }
@@ -68,6 +68,5 @@ impl<const BYTES: usize> Slot<BYTES> {
                 *self = Self::Available(envelope);
             }
         }
-        
     }
 }

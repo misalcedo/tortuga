@@ -1,4 +1,4 @@
-use std::convert::{AsRef, AsMut};
+use std::convert::{AsMut, AsRef};
 
 #[derive(Copy, Debug)]
 pub struct Envelope<const BYTES: usize> {
@@ -7,13 +7,17 @@ pub struct Envelope<const BYTES: usize> {
 
 impl<const BYTES: usize> Default for Envelope<BYTES> {
     fn default() -> Self {
-        Self { message: [0; BYTES] }
+        Self {
+            message: [0; BYTES],
+        }
     }
 }
 
 impl<const BYTES: usize> Clone for Envelope<BYTES> {
     fn clone(&self) -> Self {
-        Self { message: self.message }
+        Self {
+            message: self.message,
+        }
     }
 }
 
