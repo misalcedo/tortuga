@@ -40,3 +40,35 @@ impl<const BYTES: usize> Envelope<BYTES> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn clear_message() {
+        const SIZE: usize = 512;
+        const FIRST: usize = 0;
+        const LAST: usize = SIZE - 1;
+
+        let mut envelope = Envelope::<SIZE>::default();
+
+        {
+            let message = envelope.as_mut();
+            message[FIRST] = 42;
+            message[LAST] = 1;
+        }
+        {
+            let message = envelope.as_ref();
+            assert_eq!(message[FIRST], 42);
+            assert_eq!(message[LAST], 1);
+        }
+
+        envelope.clear();
+
+        {
+            let message = envelope.as_ref();
+            assert!(message.iter().all(|x| *x == 0));
+        }
+    }
+}

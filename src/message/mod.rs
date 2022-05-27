@@ -87,11 +87,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn empty_case() {
+    fn null_case() {
         let mut queue = PooledCircularQueue::<0, 512>::default();
         let envelope = queue.create();
 
         assert!(!queue.push(envelope));
+        assert!(queue.pop().is_none());
+        assert!(queue.peek().is_none());
+    }
+
+    #[test]
+    fn empty_case() {
+        let mut queue = PooledCircularQueue::<5, 512>::default();
+        let envelope = queue.create();
+
         assert!(queue.pop().is_none());
         assert!(queue.peek().is_none());
     }
@@ -124,32 +133,5 @@ mod tests {
 
         assert!(queue.peek().is_none());
         assert!(queue.push(envelope));
-    }
-
-    #[test]
-    fn clear_message() {
-        const SIZE: usize = 512;
-        const FIRST: usize = 0;
-        const LAST: usize = SIZE - 1;
-
-        let mut envelope = Envelope::<SIZE>::default();
-
-        {
-            let message = envelope.as_mut();
-            message[FIRST] = 42;
-            message[LAST] = 1;
-        }
-        {
-            let message = envelope.as_ref();
-            assert_eq!(message[FIRST], 42);
-            assert_eq!(message[LAST], 1);
-        }
-
-        envelope.clear();
-
-        {
-            let message = envelope.as_ref();
-            assert!(message.iter().all(|x| *x == 0));
-        }
     }
 }
