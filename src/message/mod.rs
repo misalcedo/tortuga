@@ -99,7 +99,7 @@ mod tests {
     #[test]
     fn empty_case() {
         let mut queue = PooledCircularQueue::<5, 512>::default();
-        let envelope = queue.create();
+        let _envelope = queue.create();
 
         assert!(queue.pop().is_none());
         assert!(queue.peek().is_none());
