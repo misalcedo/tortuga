@@ -1,5 +1,5 @@
+use std::convert::{AsMut, AsRef};
 use std::mem;
-use std::convert::{AsRef, AsMut};
 
 #[derive(Copy, Debug)]
 struct Envelope<const BYTES: usize> {
@@ -8,13 +8,17 @@ struct Envelope<const BYTES: usize> {
 
 impl<const BYTES: usize> Default for Envelope<BYTES> {
     fn default() -> Self {
-        Self { message: [0; BYTES] }
+        Self {
+            message: [0; BYTES],
+        }
     }
 }
 
 impl<const BYTES: usize> Clone for Envelope<BYTES> {
     fn clone(&self) -> Self {
-        Self { message: self.message }
+        Self {
+            message: self.message,
+        }
     }
 }
 
@@ -40,9 +44,9 @@ impl<const BYTES: usize> Envelope<BYTES> {
 
 #[derive(Copy, Debug)]
 enum Slot<const BYTES: usize> {
-  Empty,
-  Available(Envelope<BYTES>),
-  Occupied(Envelope<BYTES>)
+    Empty,
+    Available(Envelope<BYTES>),
+    Occupied(Envelope<BYTES>),
 }
 
 impl<const BYTES: usize> Default for Slot<BYTES> {
@@ -56,7 +60,7 @@ impl<const BYTES: usize> Clone for Slot<BYTES> {
         match self {
             Self::Empty => Self::Empty,
             Self::Available(envelope) => Self::Available(*envelope),
-            Self::Occupied(envelope) => Self::Occupied(*envelope)
+            Self::Occupied(envelope) => Self::Occupied(*envelope),
         }
     }
 }
@@ -105,25 +109,23 @@ impl<const BYTES: usize> Slot<BYTES> {
                 *self = Self::Available(envelope);
             }
         }
-        
     }
 }
 
 #[derive(Debug)]
 struct PooledCircularQueue<const SLOTS: usize, const BYTES: usize> {
     slots: [Slot<BYTES>; SLOTS],
-    current: usize
+    current: usize,
 }
 
 impl<const SLOTS: usize, const BYTES: usize> Default for PooledCircularQueue<SLOTS, BYTES> {
     fn default() -> Self {
         Self {
             slots: [Slot::default(); SLOTS],
-            current: 0
+            current: 0,
         }
     }
 }
-
 
 impl<const SLOTS: usize, const BYTES: usize> PooledCircularQueue<SLOTS, BYTES> {
     pub fn len(&self) -> usize {
@@ -131,7 +133,9 @@ impl<const SLOTS: usize, const BYTES: usize> PooledCircularQueue<SLOTS, BYTES> {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.slots.iter().all(|slot| !matches!(slot, Slot::Occupied(_)) )
+        self.slots
+            .iter()
+            .all(|slot| !matches!(slot, Slot::Occupied(_)))
     }
 
     const fn next(&self) -> usize {
@@ -145,7 +149,8 @@ impl<const SLOTS: usize, const BYTES: usize> PooledCircularQueue<SLOTS, BYTES> {
     }
 
     pub fn create(&mut self) -> Envelope<BYTES> {
-        self.slots.get_mut(self.current)
+        self.slots
+            .get_mut(self.current)
             .and_then(|slot| slot.take())
             .unwrap_or_default()
     }
@@ -171,9 +176,9 @@ impl<const SLOTS: usize, const BYTES: usize> PooledCircularQueue<SLOTS, BYTES> {
             slot @ Slot::Occupied(_) => {
                 let envelope = slot.vacate();
                 self.current = (self.current + 1) % SLOTS;
-                
+
                 envelope
-            },
+            }
         }
     }
 
@@ -192,7 +197,7 @@ mod tests {
     #[test]
     fn empty_case() {
         let mut queue = PooledCircularQueue::<0, 512>::default();
-        let mut envelope = queue.create();
+        let envelope = queue.create();
 
         assert!(!queue.push(envelope));
         assert!(queue.pop().is_none());
@@ -220,14 +225,13 @@ mod tests {
         let message = queue.peek().unwrap();
         assert_eq!(message.as_ref()[FIRST], 42);
         assert_eq!(message.as_ref()[LAST], 1);
-    
+
         let message = queue.pop().unwrap();
         assert_eq!(message.as_ref()[FIRST], 42);
         assert_eq!(message.as_ref()[LAST], 1);
 
         assert!(queue.peek().is_none());
         assert!(queue.push(envelope));
-
     }
 
     #[test]
