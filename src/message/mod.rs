@@ -139,7 +139,7 @@ mod tests {
         const FIRST: usize = 0;
 
         let mut queue = PooledCircularQueue::<1, BYTES>::default();
-        
+
         assert!(queue.push(Envelope::new([1])));
         assert!(queue.push(Envelope::new([2])));
 
