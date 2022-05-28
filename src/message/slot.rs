@@ -48,6 +48,7 @@ impl<const BYTES: usize> Slot<BYTES> {
         }
     }
 
+    #[must_use = "The slot may be occupied."]
     pub fn insert(&mut self, envelope: Envelope<BYTES>) -> bool {
         match self {
             Self::Occupied(_) => false,
@@ -55,6 +56,13 @@ impl<const BYTES: usize> Slot<BYTES> {
                 *self = Slot::Occupied(envelope);
                 true
             }
+        }
+    }
+
+    pub fn peek(&self) -> Option<&Envelope<BYTES>> {
+        match self {
+            Slot::Empty | Slot::Available(_) => None,
+            Slot::Occupied(envelope) => Some(envelope),
         }
     }
 
