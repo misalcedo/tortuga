@@ -23,6 +23,13 @@ impl<const SLOTS: usize, const BYTES: usize> Default for PooledCircularQueue<SLO
 
 impl<const SLOTS: usize, const BYTES: usize> PooledCircularQueue<SLOTS, BYTES> {
     pub fn len(&self) -> usize {
+        self.slots
+            .iter()
+            .filter(|slot| matches!(slot, Slot::Occupied(_)))
+            .count()
+    }
+
+    pub fn capacity(&self) -> usize {
         SLOTS
     }
 
@@ -135,10 +142,11 @@ mod tests {
 
     #[test]
     fn unpooled_case() {
+        const SLOTS: usize = 10;
         const BYTES: usize = 1;
         const FIRST: usize = 0;
 
-        let mut queue = PooledCircularQueue::<1, BYTES>::default();
+        let mut queue = PooledCircularQueue::<SLOTS, BYTES>::default();
 
         assert!(queue.push(Envelope::new([1])));
         assert!(queue.push(Envelope::new([2])));
@@ -152,6 +160,8 @@ mod tests {
 
         assert!(queue.push(Envelope::new([5])));
         assert!(queue.push(Envelope::new([6])));
+        assert_eq!(queue.len(), 4);
+        assert_eq!(queue.capacity(), SLOTS);
 
         assert_eq!(queue.peek().unwrap().as_ref()[FIRST], 3);
         assert_eq!(queue.pop().unwrap().as_ref()[FIRST], 3);
