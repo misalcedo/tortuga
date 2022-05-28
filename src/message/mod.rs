@@ -7,14 +7,16 @@ use slot::Slot;
 #[derive(Debug)]
 struct PooledCircularQueue<const SLOTS: usize, const BYTES: usize> {
     slots: [Slot<BYTES>; SLOTS],
-    current: usize,
+    next_push: usize,
+    next_pop: usize,
 }
 
 impl<const SLOTS: usize, const BYTES: usize> Default for PooledCircularQueue<SLOTS, BYTES> {
     fn default() -> Self {
         Self {
             slots: [Slot::default(); SLOTS],
-            current: 0,
+            next_push: 0,
+            next_pop: 0,
         }
     }
 }
@@ -30,10 +32,6 @@ impl<const SLOTS: usize, const BYTES: usize> PooledCircularQueue<SLOTS, BYTES> {
             .all(|slot| !matches!(slot, Slot::Occupied(_)))
     }
 
-    const fn next(&self) -> usize {
-        (self.current + 1) % SLOTS
-    }
-
     pub fn clear(&mut self) {
         for slot in self.slots.iter_mut() {
             slot.clear();
@@ -42,32 +40,32 @@ impl<const SLOTS: usize, const BYTES: usize> PooledCircularQueue<SLOTS, BYTES> {
 
     pub fn create(&mut self) -> Envelope<BYTES> {
         self.slots
-            .get_mut(self.current)
+            .get_mut(self.next_push)
             .and_then(|slot| slot.take())
             .unwrap_or_default()
     }
 
     #[must_use = "There may not be enough space to push to the queue."]
     pub fn push(&mut self, envelope: Envelope<BYTES>) -> bool {
-        match self.slots.get_mut(self.current) {
+        match self.slots.get_mut(self.next_push) {
             None | Some(Slot::Occupied(_)) => false,
             Some(slot @ Slot::Empty) => {
-                self.current = (self.current + 1) % SLOTS;
+                self.next_push = (self.next_push + 1) % SLOTS;
                 slot.insert(envelope)
             }
             Some(slot @ Slot::Available(_)) => {
-                self.current = (self.current + 1) % SLOTS;
+                self.next_push = (self.next_push + 1) % SLOTS;
                 slot.insert(envelope)
             }
         }
     }
 
     pub fn pop(&mut self) -> Option<Envelope<BYTES>> {
-        match self.slots.get_mut(self.current)? {
+        match self.slots.get_mut(self.next_push)? {
             Slot::Empty | Slot::Available(_) => None,
             slot @ Slot::Occupied(_) => {
                 let envelope = slot.vacate();
-                self.current = (self.current + 1) % SLOTS;
+                self.next_push = (self.next_push + 1) % SLOTS;
 
                 envelope
             }
@@ -75,7 +73,7 @@ impl<const SLOTS: usize, const BYTES: usize> PooledCircularQueue<SLOTS, BYTES> {
     }
 
     pub fn peek(&mut self) -> Option<&Envelope<BYTES>> {
-        match self.slots.get(self.current)? {
+        match self.slots.get(self.next_push)? {
             Slot::Empty | Slot::Available(_) => None,
             Slot::Occupied(envelope) => Some(envelope),
         }
@@ -133,5 +131,33 @@ mod tests {
 
         assert!(queue.peek().is_none());
         assert!(queue.push(envelope));
+    }
+
+    #[test]
+    fn unpooled_case() {
+        const BYTES: usize = 1;
+        const FIRST: usize = 0;
+
+        let mut queue = PooledCircularQueue::<1, BYTES>::default();
+        
+        assert!(queue.push(Envelope::new([1])));
+        assert!(queue.push(Envelope::new([2])));
+
+        assert_eq!(queue.pop().unwrap().as_ref()[FIRST], 1);
+        assert!(queue.push(Envelope::new([3])));
+        assert_eq!(queue.pop().unwrap().as_ref()[FIRST], 2);
+        assert!(queue.push(Envelope::new([4])));
+
+        assert_eq!(queue.peek().unwrap().as_ref()[FIRST], 3);
+
+        assert!(queue.push(Envelope::new([5])));
+        assert!(queue.push(Envelope::new([6])));
+
+        assert_eq!(queue.peek().unwrap().as_ref()[FIRST], 3);
+        assert_eq!(queue.pop().unwrap().as_ref()[FIRST], 3);
+        assert_eq!(queue.pop().unwrap().as_ref()[FIRST], 4);
+        assert_eq!(queue.pop().unwrap().as_ref()[FIRST], 5);
+        assert_eq!(queue.pop().unwrap().as_ref()[FIRST], 6);
+        assert!(queue.pop().is_none());
     }
 }

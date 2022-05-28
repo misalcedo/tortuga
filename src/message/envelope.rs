@@ -34,6 +34,10 @@ impl<const BYTES: usize> AsMut<[u8]> for Envelope<BYTES> {
 }
 
 impl<const BYTES: usize> Envelope<BYTES> {
+    pub fn new(message: [u8; BYTES]) -> Self {
+        Self { message }
+    }
+
     pub fn clear(&mut self) {
         for x in self.message.iter_mut() {
             *x = 0;
