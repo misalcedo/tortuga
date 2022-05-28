@@ -1,6 +1,8 @@
 mod envelope;
 mod slot;
 
+use std::env;
+
 use envelope::Envelope;
 use slot::Slot;
 
@@ -64,6 +66,18 @@ impl<const SLOTS: usize, const BYTES: usize> PooledCircularQueue<SLOTS, BYTES> {
         }
 
         inserted
+    }
+
+    #[must_use = "There may not be enough space to push to the queue."]
+    pub fn push_pooled<F>(&mut self, mutator: F) -> bool
+    where
+        F: FnOnce(&mut Envelope<BYTES>)
+    {
+        let mut envelope = self.create();
+        
+        mutator(&mut envelope);
+
+        self.push(envelope)
     }
 
     pub fn pop(&mut self) -> Option<Envelope<BYTES>> {
@@ -136,6 +150,47 @@ mod tests {
     }
 
     #[test]
+    fn pooled_case() {
+        const SLOTS: usize = 4;
+        const BYTES: usize = 1;
+        const FIRST: usize = 0;
+
+        let mut queue = PooledCircularQueue::<SLOTS, BYTES>::default();
+
+        assert_eq!(queue.len(), 0);
+        assert_eq!(queue.capacity(), SLOTS);
+        assert!(queue.is_empty());
+        
+        assert!(queue.push_pooled(|e| e.as_mut()[FIRST] = 1));
+        assert!(queue.push_pooled(|e| e.as_mut()[FIRST] = 2));
+
+        assert!(!queue.is_empty());
+        assert_eq!(queue.len(), 2);
+        assert_eq!(queue.capacity(), SLOTS);
+
+        assert_eq!(queue.pop().unwrap().as_ref()[FIRST], 1);
+        assert!(queue.push_pooled(|e| e.as_mut()[FIRST] = 3));
+        assert_eq!(queue.pop().unwrap().as_ref()[FIRST], 2);
+        assert!(queue.push_pooled(|e| e.as_mut()[FIRST] = 4));
+
+        assert_eq!(queue.peek().unwrap().as_ref()[FIRST], 3);
+
+        assert!(queue.push_pooled(|e| e.as_mut()[FIRST] = 5));
+        assert!(queue.push_pooled(|e| e.as_mut()[FIRST] = 6));
+
+        assert_eq!(queue.len(), 4);
+        assert_eq!(queue.capacity(), SLOTS);
+
+        assert_eq!(queue.peek().unwrap().as_ref()[FIRST], 3);
+
+        assert_eq!(queue.pop().unwrap().as_ref()[FIRST], 3);
+        assert_eq!(queue.pop().unwrap().as_ref()[FIRST], 4);
+        assert_eq!(queue.pop().unwrap().as_ref()[FIRST], 5);
+        assert_eq!(queue.pop().unwrap().as_ref()[FIRST], 6);
+        assert!(queue.pop().is_none());
+    }
+
+    #[test]
     fn unpooled_case() {
         const SLOTS: usize = 4;
         const BYTES: usize = 1;
@@ -168,7 +223,7 @@ mod tests {
         assert_eq!(queue.capacity(), SLOTS);
 
         assert_eq!(queue.peek().unwrap().as_ref()[FIRST], 3);
-        
+
         assert_eq!(queue.pop().unwrap().as_ref()[FIRST], 3);
         assert_eq!(queue.pop().unwrap().as_ref()[FIRST], 4);
         assert_eq!(queue.pop().unwrap().as_ref()[FIRST], 5);
