@@ -45,6 +45,14 @@ impl<const BYTES: usize> Envelope<BYTES> {
     }
 }
 
+impl<const BYTES: usize> PartialEq for Envelope<BYTES> {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_ref().iter().eq(other.as_ref().iter())
+    }
+}
+
+impl<const BYTES: usize> Eq for Envelope<BYTES> {}
+
 #[cfg(test)]
 mod tests {
     use super::*;

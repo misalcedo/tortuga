@@ -24,6 +24,14 @@ impl<const BYTES: usize> Clone for Slot<BYTES> {
     }
 }
 
+impl<const BYTES: usize> PartialEq for Slot<BYTES> {
+    fn eq(&self, other: &Self) -> bool {
+        mem::discriminant(self) == mem::discriminant(other) && self.peek() == other.peek()
+    }
+}
+
+impl<const BYTES: usize> Eq for Slot<BYTES> {}
+
 impl<const BYTES: usize> Slot<BYTES> {
     pub fn empty(&mut self) -> Option<Envelope<BYTES>> {
         match mem::replace(self, Self::Empty) {
