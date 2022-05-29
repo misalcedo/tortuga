@@ -1,5 +1,3 @@
-use std::env;
-
 use super::envelope::Envelope;
 use super::slot::Slot;
 
@@ -7,14 +5,14 @@ use super::slot::Slot;
 struct PooledCircularQueue<const SLOTS: usize, const BYTES: usize> {
     next_push: usize,
     next_pop: usize,
-    slots: [Slot<BYTES>; SLOTS]
+    slots: [Slot<BYTES>; SLOTS],
 }
 
 pub struct IntoIter<const SLOTS: usize, const BYTES: usize>(PooledCircularQueue<SLOTS, BYTES>);
 
 pub struct Iter<'a, const SLOTS: usize, const BYTES: usize> {
     next_pop: usize,
-    queue: &'a PooledCircularQueue<SLOTS, BYTES>
+    queue: &'a PooledCircularQueue<SLOTS, BYTES>,
 }
 
 impl<const SLOTS: usize, const BYTES: usize> Default for PooledCircularQueue<SLOTS, BYTES> {
@@ -75,10 +73,10 @@ impl<const SLOTS: usize, const BYTES: usize> PooledCircularQueue<SLOTS, BYTES> {
     #[must_use = "There may not be enough space to push to the queue."]
     pub fn push_pooled<F>(&mut self, mutator: F) -> bool
     where
-        F: FnOnce(&mut Envelope<BYTES>)
+        F: FnOnce(&mut Envelope<BYTES>),
     {
         let mut envelope = self.create();
-        
+
         mutator(&mut envelope);
 
         self.push(envelope)
@@ -104,7 +102,10 @@ impl<const SLOTS: usize, const BYTES: usize> PooledCircularQueue<SLOTS, BYTES> {
     }
 
     pub fn iter(&self) -> Iter<'_, SLOTS, BYTES> {
-        Iter { next_pop: self.next_pop, queue: self }
+        Iter {
+            next_pop: self.next_pop,
+            queue: self,
+        }
     }
 }
 
@@ -119,7 +120,7 @@ impl<const SLOTS: usize, const BYTES: usize> IntoIterator for PooledCircularQueu
 
 impl<const SLOTS: usize, const BYTES: usize> Iterator for IntoIter<SLOTS, BYTES> {
     type Item = Envelope<BYTES>;
-    
+
     fn next(&mut self) -> Option<Self::Item> {
         self.0.pop()
     }
@@ -241,7 +242,7 @@ mod tests {
         assert_eq!(queue.len(), 0);
         assert_eq!(queue.capacity(), SLOTS);
         assert!(queue.is_empty());
-        
+
         assert!(queue.push_pooled(|e| e.as_mut()[FIRST] = 1));
         assert!(queue.push_pooled(|e| e.as_mut()[FIRST] = 2));
 
@@ -283,7 +284,6 @@ mod tests {
         for item in queue {
             assert_eq!(item.as_ref()[FIRST], 7);
         }
-
     }
 
     #[test]
@@ -297,7 +297,7 @@ mod tests {
         assert_eq!(queue.len(), 0);
         assert_eq!(queue.capacity(), SLOTS);
         assert!(queue.is_empty());
-        
+
         assert!(queue.push(Envelope::new([1])));
         assert!(queue.push(Envelope::new([2])));
 
