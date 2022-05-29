@@ -10,12 +10,12 @@ struct PooledCircularQueue<const SLOTS: usize, const BYTES: usize> {
 }
 
 pub struct IntoIter<const SLOTS: usize, const BYTES: usize> {
-    queue: PooledCircularQueue<SLOTS, BYTES>
+    queue: PooledCircularQueue<SLOTS, BYTES>,
 }
 
 pub struct Iter<'a, const SLOTS: usize, const BYTES: usize> {
     offset: usize,
-    queue: &'a PooledCircularQueue<SLOTS, BYTES>
+    queue: &'a PooledCircularQueue<SLOTS, BYTES>,
 }
 
 impl<const SLOTS: usize, const BYTES: usize> Default for PooledCircularQueue<SLOTS, BYTES> {
@@ -111,7 +111,10 @@ impl<const SLOTS: usize, const BYTES: usize> PooledCircularQueue<SLOTS, BYTES> {
     }
 
     pub fn iter(&self) -> Iter<'_, SLOTS, BYTES> {
-        Iter { offset: 0, queue: self }
+        Iter {
+            offset: 0,
+            queue: self,
+        }
     }
 }
 
@@ -124,7 +127,9 @@ impl<const SLOTS: usize, const BYTES: usize> IntoIterator for PooledCircularQueu
     }
 }
 
-impl<'a, const SLOTS: usize, const BYTES: usize> IntoIterator for &'a PooledCircularQueue<SLOTS, BYTES> {
+impl<'a, const SLOTS: usize, const BYTES: usize> IntoIterator
+    for &'a PooledCircularQueue<SLOTS, BYTES>
+{
     type Item = &'a Envelope<BYTES>;
     type IntoIter = Iter<'a, SLOTS, BYTES>;
 
@@ -232,7 +237,6 @@ mod tests {
             message[FIRST] = 42;
             message[LAST] = 1;
         }
-
 
         assert_eq!(queue.pop(), None);
         assert!(queue.push(envelope));
@@ -347,7 +351,7 @@ mod tests {
         const BYTES: usize = 1;
 
         let mut queue = PooledCircularQueue::<SLOTS, BYTES>::default();
-        
+
         assert_eq!(queue.len(), 0);
         assert_eq!(queue.capacity(), SLOTS);
         assert!(queue.is_empty());
