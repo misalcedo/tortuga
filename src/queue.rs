@@ -17,53 +17,32 @@ pub struct Queue<T> {
 unsafe impl<T: Send> Send for Queue<T> {}
 unsafe impl<T: Sync> Sync for Queue<T> {}
 
-impl<T> Default for Queue<T> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl<T> Queue<T> {
-    pub fn new() -> Self {
+    pub fn new(capacity: usize) -> Self {
         assert!(mem::size_of::<T>() != 0, "We're not ready to handle ZSTs");
         Self {
             pointer: NonNull::dangling(),
             length: 0,
-            capacity: 0,
+            capacity,
             _marker: PhantomData,
         }
     }
 
-    fn grow(&mut self) {
-        let (new_capacity, new_layout) = if self.capacity == 0 {
-            (1, Layout::array::<T>(1).unwrap())
-        } else {
-            // This can't overflow since self.capacity <= isize::MAX.
-            let new_capacity = 2 * self.capacity;
-
-            // `Layout::array` checks that the number of bytes is <= usize::MAX,
-            // but this is redundant since old_layout.size() <= isize::MAX,
-            // so the `unwrap` should never fail.
-            let new_layout = Layout::array::<T>(new_capacity).unwrap();
-            (new_capacity, new_layout)
-        };
-
+    fn allocate(&mut self) {
+        // `Layout::array` checks that the number of bytes is <= usize::MAX,
+        // but this is redundant since old_layout.size() <= isize::MAX,
+        // so the `unwrap` should never fail.
+        let layout = Layout::array::<T>(1).unwrap();
+        
         // Ensure that the new allocation doesn't exceed `isize::MAX` bytes.
-        assert!(new_layout.size() <= isize::MAX as usize, "Allocation too large");
+        assert!(layout.size() <= isize::MAX as usize, "Allocation too large");
 
-        let new_pointer = if self.capacity == 0 {
-            unsafe { alloc::alloc(new_layout) }
-        } else {
-            let old_layout = Layout::array::<T>(self.capacity).unwrap();
-            let old_pointer = self.pointer.as_ptr() as *mut u8;
-            unsafe { alloc::realloc(old_pointer, old_layout, new_layout.size()) }
-        };
+        let pointer = unsafe { alloc::alloc(layout) };
 
-        // If allocation fails, `new_pointer` will be null, in which case we abort.
-        self.pointer = match NonNull::new(new_pointer as *mut T) {
+        // If allocation fails, `pointer` will be null, in which case we abort.
+        self.pointer = match NonNull::new(pointer as *mut T) {
             Some(p) => p,
-            None => alloc::handle_alloc_error(new_layout),
+            None => alloc::handle_alloc_error(layout),
         };
-        self.capacity = new_capacity;
     }
 }
