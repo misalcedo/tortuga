@@ -3,6 +3,7 @@
 pub mod about;
 pub mod compiler;
 pub mod message;
+pub mod queue;
 
 #[cfg(feature = "cli")]
 pub mod display;
