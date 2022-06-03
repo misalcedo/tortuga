@@ -122,13 +122,35 @@ mod tests {
         assert!(queue.push([1]));
         assert!(!queue.push([2]));
 
-        assert_eq!(queue.peek().unwrap(), &[1]);
-        assert_eq!(queue.peek().unwrap(), &[1]);
+        assert_eq!(queue.peek(), Some(&[1]));
+        assert_eq!(queue.peek(), Some(&[1]));
 
         assert_eq!(queue.pop().unwrap(), [1]);
         assert_eq!(queue.peek(), None);
         assert_eq!(queue.len(), 0);
         assert!(queue.push([2]));
+        assert_eq!(queue.len(), 1);
+    }
+
+    #[test]
+    fn basic_queue() {
+        let mut queue = Queue::<[u8;1]>::new(2);
+
+        assert_eq!(queue.len(), 0);
+        assert_eq!(queue.pop(), None);
+        assert!(queue.push([1]));
+        assert!(queue.push([2]));
+
+        assert_eq!(queue.peek().unwrap(), &[1]);
+        assert_eq!(queue.peek().unwrap(), &[1]);
+
+        assert_eq!(queue.len(), 2);
+        assert_eq!(queue.pop(), Some([1]));
+        assert_eq!(queue.peek(), Some(&[2]));
+        assert_eq!(queue.len(), 1);
+        assert_eq!(queue.pop().unwrap(), [2]);
+        assert_eq!(queue.len(), 0);
+        assert!(queue.push([3]));
         assert_eq!(queue.len(), 1);
     }
 }
