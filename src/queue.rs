@@ -45,12 +45,6 @@ impl<T> Queue<T> {
     }
 
     pub fn len(&self) -> usize {
-        // To calculate length:
-        // if head is less than tail, tail - head
-        // else capacity - (head - tail)
-
-        // Essentially the below, but need to handle overflow and sign
-        // ((self.tail - self.head) + self.capacity) % self.capacity
         self.length
     }
 
