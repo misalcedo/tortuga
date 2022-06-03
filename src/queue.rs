@@ -1,6 +1,7 @@
 //! A cyclical queue for structures that re-uses allocated structures.
 //! Useful when the items are expensive to allocate.
 //! Heavily inspired by https://doc.rust-lang.org/nomicon/vec/vec.html
+//! May want to use `Vec::with_capacity` instead of allocating myself.
 
 use std::alloc::{self, Layout};
 use std::marker::PhantomData;
@@ -11,6 +12,8 @@ pub struct Queue<T> {
     pointer: NonNull<T>,
     capacity: usize,
     length: usize,
+    head: usize,
+    tail: usize,
     _marker: PhantomData<T>,
 }
 
@@ -35,11 +38,19 @@ impl<T> Queue<T> {
             pointer,
             capacity,
             length: 0,
+            head: 0,
+            tail: 0,
             _marker: PhantomData,
         }
     }
 
     pub fn len(&self) -> usize {
+        // To calculate length:
+        // if head is less than tail, tail - head
+        // else capacity - (head - tail)
+
+        // Essentially the below, but need to handle overflow and sign
+        // ((self.tail - self.head) + self.capacity) % self.capacity
         self.length
     }
 
@@ -53,30 +64,39 @@ impl<T> Queue<T> {
 
     pub fn clear(&mut self) {
         self.length = 0;
+        self.head = 0;
+        self.tail = 0;
     }
 
+    // enqueue
     pub fn push(&mut self, element: T) -> bool {
         if self.length == self.capacity {
             return false;
         }
 
         unsafe {
-            ptr::write(self.pointer.as_ptr().add(self.length), element);
+            ptr::write(self.pointer.as_ptr().add(self.tail), element);
         }
     
         // Can't fail, we'll OOM first.
         self.length += 1;
+        self.tail = (self.tail + 1) % self.capacity;
 
         true
     }
 
+    // dequeue
     pub fn pop(&mut self) -> Option<T> {
         if self.length == 0 {
             None
         } else {
+            let offset = self.head;
+
             self.length -= 1;
+            self.head = (self.head + 1) % self.capacity;
+
             unsafe {
-                Some(ptr::read(self.pointer.as_ptr().add(self.length)))
+                Some(ptr::read(self.pointer.as_ptr().add(offset)))
             }
         }
     }
@@ -86,7 +106,7 @@ impl<T> Queue<T> {
             None
         } else {
             unsafe {
-                self.pointer.as_ptr().add(self.length - 1).as_ref()
+                self.pointer.as_ptr().add(self.head).as_ref()
             }
         }
     }
