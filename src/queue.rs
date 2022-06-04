@@ -4,17 +4,15 @@
 //! May want to use `Vec::with_capacity` instead of allocating myself.
 
 use std::alloc::{self, Layout};
-use std::marker::PhantomData;
 use std::mem;
 use std::ptr::{self, NonNull};
 
 pub struct Queue<T> {
-    pointer: NonNull<T>,
+    pointer: Option<NonNull<T>>,
     capacity: usize,
     length: usize,
     head: usize,
-    tail: usize,
-    _marker: PhantomData<T>,
+    tail: usize
 }
 
 unsafe impl<T: Send> Send for Queue<T> {}
@@ -22,26 +20,41 @@ unsafe impl<T: Sync> Sync for Queue<T> {}
 
 impl<T> Queue<T> {
     pub fn new(capacity: usize) -> Self {
-        assert!(mem::size_of::<T>() != 0, "We're not ready to handle ZSTs");
-        
-        let layout = Layout::array::<T>(capacity).unwrap();
+        let (pointer, capacity) = if mem::size_of::<T>() == 0 {
+            // `NonNull::dangling()` is our "zero-sized allocation"
+            // No need to limit capacity for Zero-sized types since we can hold infinite of nothing.
+            (Some(NonNull::dangling()), usize::MAX)
+        } else if capacity == 0 {
+            // `NonNull::dangling()` is our "zero-sized allocation"
+            (Some(NonNull::dangling()), capacity)
+        } else {
+            (None, capacity)
+        };
+
+        Self {
+            pointer,
+            capacity, 
+            length: 0,
+            head: 0,
+            tail: 0
+        }    
+    }
+
+    // Fallible allocation.
+    fn allocate(&mut self) -> Option<NonNull<T>> {
+        // since we set the capacity to usize::MAX when T has size 0,
+        // getting to here necessarily means the queue needs to be allocated.
+        assert!(mem::size_of::<T>() != 0, "capacity overflow");
+
+        let layout = Layout::array::<T>(self.capacity).ok()?;
         
         // Ensure that the new allocation doesn't exceed `isize::MAX` bytes.
         assert!(layout.size() <= isize::MAX as usize, "Allocation too large");
 
         let pointer = unsafe { alloc::alloc(layout) };
 
-        // If allocation fails, `pointer` will be null, in which case we abort.
-        let pointer = NonNull::new(pointer as *mut T).unwrap_or_else(|| alloc::handle_alloc_error(layout));
-
-        Self {
-            pointer,
-            capacity,
-            length: 0,
-            head: 0,
-            tail: 0,
-            _marker: PhantomData,
-        }
+        // If allocation fails, `pointer` will be null.
+        NonNull::new(pointer as *mut T)
     }
 
     pub fn len(&self) -> usize {
@@ -62,25 +75,32 @@ impl<T> Queue<T> {
         self.tail = 0;
     }
 
-    // enqueue
     pub fn push(&mut self, element: T) -> bool {
+        self.enqueue(element).is_some()
+    }
+
+    fn enqueue(&mut self, element: T) -> Option<()> {
         if self.length == self.capacity {
-            return false;
+            return None;
+        }
+
+        if self.pointer.is_none() {
+            self.pointer = self.allocate();
         }
 
         unsafe {
-            ptr::write(self.pointer.as_ptr().add(self.tail), element);
+            ptr::write(self.pointer?.as_ptr().add(self.tail), element);
         }
     
         // Can't fail, we'll OOM first.
         self.length += 1;
         self.tail = (self.tail + 1) % self.capacity;
 
-        true
+        Some(())
     }
 
     // dequeue
-    pub fn pop(&mut self) -> Option<T> {
+    pub fn pop(&mut self) -> Option<T> {        
         if self.length == 0 {
             None
         } else {
@@ -90,7 +110,7 @@ impl<T> Queue<T> {
             self.head = (self.head + 1) % self.capacity;
 
             unsafe {
-                Some(ptr::read(self.pointer.as_ptr().add(offset)))
+                Some(ptr::read(self.pointer?.as_ptr().add(offset)))
             }
         }
     }
@@ -100,7 +120,22 @@ impl<T> Queue<T> {
             None
         } else {
             unsafe {
-                self.pointer.as_ptr().add(self.head).as_ref()
+                self.pointer?.as_ptr().add(self.head).as_ref()
+            }
+        }
+    }
+}
+
+impl<T> Drop for Queue<T> {
+    fn drop(&mut self) {
+        // empty the queue in case T is Drop 
+        while let Some(_) = self.pop() {}
+
+        if self.capacity != 0 && mem::size_of::<T>() != 0 {
+            if let (Some(pointer), Ok(layout)) = (self.pointer, Layout::array::<T>(self.capacity)) {
+                unsafe {
+                    alloc::dealloc(pointer.as_ptr() as *mut u8, layout);
+                }
             }
         }
     }
