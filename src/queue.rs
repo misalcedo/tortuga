@@ -12,7 +12,7 @@ pub struct Queue<T> {
     capacity: usize,
     length: usize,
     head: usize,
-    tail: usize
+    tail: usize,
 }
 
 unsafe impl<T: Send> Send for Queue<T> {}
@@ -33,11 +33,11 @@ impl<T> Queue<T> {
 
         Self {
             pointer,
-            capacity, 
+            capacity,
             length: 0,
             head: 0,
-            tail: 0
-        }    
+            tail: 0,
+        }
     }
 
     // Fallible allocation.
@@ -47,7 +47,7 @@ impl<T> Queue<T> {
         assert!(mem::size_of::<T>() != 0, "capacity overflow");
 
         let layout = Layout::array::<T>(self.capacity).ok()?;
-        
+
         // Ensure that the new allocation doesn't exceed `isize::MAX` bytes.
         assert!(layout.size() <= isize::MAX as usize, "Allocation too large");
 
@@ -91,7 +91,7 @@ impl<T> Queue<T> {
         unsafe {
             ptr::write(self.pointer?.as_ptr().add(self.tail), element);
         }
-    
+
         // Can't fail, we'll OOM first.
         self.length += 1;
         self.tail = (self.tail + 1) % self.capacity;
@@ -100,7 +100,7 @@ impl<T> Queue<T> {
     }
 
     // dequeue
-    pub fn pop(&mut self) -> Option<T> {        
+    pub fn pop(&mut self) -> Option<T> {
         if self.length == 0 {
             None
         } else {
@@ -109,9 +109,7 @@ impl<T> Queue<T> {
             self.length -= 1;
             self.head = (self.head + 1) % self.capacity;
 
-            unsafe {
-                Some(ptr::read(self.pointer?.as_ptr().add(offset)))
-            }
+            unsafe { Some(ptr::read(self.pointer?.as_ptr().add(offset))) }
         }
     }
 
@@ -119,16 +117,14 @@ impl<T> Queue<T> {
         if self.length == 0 {
             None
         } else {
-            unsafe {
-                self.pointer?.as_ptr().add(self.head).as_ref()
-            }
+            unsafe { self.pointer?.as_ptr().add(self.head).as_ref() }
         }
     }
 }
 
 impl<T> Drop for Queue<T> {
     fn drop(&mut self) {
-        // empty the queue in case T is Drop 
+        // empty the queue in case T is Drop
         while let Some(_) = self.pop() {}
 
         if self.capacity != 0 && mem::size_of::<T>() != 0 {
@@ -164,7 +160,7 @@ mod tests {
 
     #[test]
     fn base_case() {
-        let mut queue = Queue::<[u8;1]>::new(1);
+        let mut queue = Queue::<[u8; 1]>::new(1);
 
         assert_eq!(queue.len(), 0);
         assert_eq!(queue.pop(), None);
@@ -183,7 +179,7 @@ mod tests {
 
     #[test]
     fn basic_queue() {
-        let mut queue = Queue::<[u8;1]>::new(2);
+        let mut queue = Queue::<[u8; 1]>::new(2);
 
         assert_eq!(queue.len(), 0);
         assert_eq!(queue.pop(), None);
