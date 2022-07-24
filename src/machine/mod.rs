@@ -2,23 +2,92 @@ mod closure;
 mod code;
 mod error;
 mod frame;
+mod identifier;
 mod operations;
 mod value;
 
 pub use code::Code;
+pub use error::{ErrorKind, RuntimeError};
 pub use frame::CallFrame;
+pub use identifier::Identifier;
 pub use value::Value;
-use crate::machine::error::RuntimeError;
 
 #[derive(Clone, Debug, Default)]
-pub struct VirtualMachine {
+pub struct VirtualMachine<Courier> {
+    courier: Courier,
+    mailbox: Vec<Value>,
+    code: Code,
     stack: Vec<Value>,
-    frames: Vec<CallFrame>
+    frames: Vec<CallFrame>,
 }
 
-impl VirtualMachine {
-    pub fn run(&mut self, _code: Code) -> Result<Value, RuntimeError> {
-        Err(RuntimeError {})
+pub trait Courier {
+    fn deliver(&self, to: Identifier, message: Value);
+}
+
+impl Courier for () {
+    fn deliver(&self, to: Identifier, message: Value) {
+        println!("Deliver {:?} to {:?}", message, to);
+    }
+}
+
+type RuntimeResult<T> = Result<T, RuntimeError>;
+type OperationResult = RuntimeResult<()>;
+
+impl<C: Courier> VirtualMachine<C> {
+    const OPERATIONS_TABLE: [fn(&mut VirtualMachine<C>) -> OperationResult; 2] =
+        [VirtualMachine::pop, VirtualMachine::send];
+
+    pub fn process(&mut self) -> Result<Value, RuntimeError> {
+        self.frames.push(CallFrame {});
+        self.stack.push(Value::Closure);
+
+        let operation = Self::OPERATIONS_TABLE
+            .get(0)
+            .ok_or_else(|| RuntimeError::from(ErrorKind::UnsupportedOperation(0)))?;
+
+        operation(self)?;
+
+        if self.stack.is_empty() {
+            Ok(Value::Closure)
+        } else {
+            Err(ErrorKind::Crash.into())
+        }
+    }
+
+    pub fn deliver(&mut self, value: Value) {
+        self.mailbox.push(value);
+    }
+
+    /// Pops the top of the stack and drops the value.
+    pub fn pop(&mut self) -> OperationResult {
+        self.stack.pop();
+
+        Ok(())
+    }
+
+    /// Sends a message to the identifier at the top of the value stack.
+    pub fn send(&mut self) -> OperationResult {
+        let identifier = self.pop_identifier()?;
+        let message = self.pop_value()?;
+
+        self.courier.deliver(identifier, message);
+
+        Ok(())
+    }
+
+    /// Pops a generic value from the stack.
+    fn pop_value(&mut self) -> RuntimeResult<Value> {
+        self.stack
+            .pop()
+            .ok_or_else(|| RuntimeError::from(ErrorKind::EmptyStack))
+    }
+
+    /// Pops an identifier from the value stack.
+    fn pop_identifier(&mut self) -> RuntimeResult<Identifier> {
+        self.pop_value()?
+            .try_into()
+            .map_err(|value| RuntimeError::from(ErrorKind::ExpectedIdentifier(value)))
     }
 }
 
@@ -28,8 +97,12 @@ mod tests {
 
     #[test]
     fn empty() {
-        let result = VirtualMachine::default().run(Code::default());
+        let mut machine: VirtualMachine<()> = VirtualMachine::default();
 
-        assert_eq!(result, Err(RuntimeError {}))
+        machine.deliver(Value::default());
+
+        let result = machine.process();
+
+        assert_eq!(result, Ok(Value::Closure))
     }
 }

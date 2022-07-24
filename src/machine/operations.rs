@@ -12,6 +12,7 @@ pub enum Operations {
     Multiply,
     Divide,
     Call,
+    Send,
     Closure,
     Return,
 }
