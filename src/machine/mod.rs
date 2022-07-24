@@ -32,11 +32,15 @@ impl<C: Courier> VirtualMachine<C> {
 
     pub fn process(&mut self) -> Result<Value, RuntimeError> {
         self.frames.push(CallFrame {});
+        self.stack.push(Value::Number);
+        self.stack.push(Value::Identifier);
         self.stack.push(Value::Closure);
 
-        let operation = Self::OPERATIONS_TABLE
-            .get(0)
-            .ok_or_else(|| RuntimeError::from(ErrorKind::UnsupportedOperation(0)))?;
+        let operation = self.get_operation(0)?;
+
+        operation(self)?;
+
+        let operation = self.get_operation(1)?;
 
         operation(self)?;
 
@@ -45,6 +49,16 @@ impl<C: Courier> VirtualMachine<C> {
         } else {
             Err(ErrorKind::Crash.into())
         }
+    }
+
+    /// Get the operation for the given operation code.
+    fn get_operation(
+        &self,
+        index: usize,
+    ) -> RuntimeResult<&fn(&mut VirtualMachine<C>) -> OperationResult> {
+        Self::OPERATIONS_TABLE
+            .get(index)
+            .ok_or_else(|| RuntimeError::from(ErrorKind::UnsupportedOperation(index)))
     }
 
     pub fn deliver(&mut self, value: Value) {

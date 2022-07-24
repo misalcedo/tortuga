@@ -18,7 +18,7 @@ pub enum ErrorKind {
     Crash,
     EmptyStack,
     ExpectedIdentifier(Value),
-    UnsupportedOperation(u8),
+    UnsupportedOperation(usize),
 }
 
 impl Display for RuntimeError {
