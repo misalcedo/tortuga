@@ -1,5 +1,6 @@
 mod closure;
 mod code;
+mod courier;
 mod error;
 mod frame;
 mod identifier;
@@ -7,6 +8,7 @@ mod operations;
 mod value;
 
 pub use code::Code;
+pub use courier::Courier;
 pub use error::{ErrorKind, RuntimeError};
 pub use frame::CallFrame;
 pub use identifier::Identifier;
@@ -19,16 +21,6 @@ pub struct VirtualMachine<Courier> {
     code: Code,
     stack: Vec<Value>,
     frames: Vec<CallFrame>,
-}
-
-pub trait Courier {
-    fn deliver(&self, to: Identifier, message: Value);
-}
-
-impl Courier for () {
-    fn deliver(&self, to: Identifier, message: Value) {
-        println!("Deliver {:?} to {:?}", message, to);
-    }
 }
 
 type RuntimeResult<T> = Result<T, RuntimeError>;
