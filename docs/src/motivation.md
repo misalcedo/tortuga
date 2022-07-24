@@ -1,0 +1,1 @@
+Most programming languages and their environments have a degree of [accidental complexity](https://en.wikipedia.org/wiki/No_Silver_Bullet).

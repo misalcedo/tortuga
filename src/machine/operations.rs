@@ -1,0 +1,17 @@
+pub enum Operations {
+    Constant,
+    Pop,
+    GetLocal,
+    DefineLocal,
+    GetCapture,
+    Equal,
+    Greater,
+    Less,
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Call,
+    Closure,
+    Return,
+}
