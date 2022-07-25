@@ -8,4 +8,4 @@ pub mod walk;
 pub use compiler::{Kind, LexicalError, ParseNumberError, Parser, Scanner, SyntacticalError};
 
 pub use grammar::syntax::Program;
-pub use walk::{BinaryEmitter, Walk};
+pub use walk::{BinaryEmitter, Walker};

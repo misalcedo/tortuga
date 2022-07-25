@@ -1,3 +1,4 @@
+//! Representation of numbers within Tortuga.
 //! Parse a number lexeme into a runtime `Number`.
 //! Also, used to validate the lexical structure of a number.
 //! Numbers in Tortuga cannot have leading 0s in the radix or integer portion,
@@ -5,9 +6,9 @@
 //! Also, the radix for a number cannot be more than 2 digits.
 
 use crate::compiler::errors::ParseNumberError;
-use crate::runtime::Number;
 use lazy_static::lazy_static;
 use regex::{Captures, Match, Regex};
+use std::fmt;
 use std::str::FromStr;
 
 /// Base 10 (i.e. decimal). The default base for all numbers.
@@ -37,6 +38,21 @@ lazy_static! {
         "###
     )
     .expect("Invalid regular expression for NUMBER token.");
+}
+
+#[derive(Copy, Clone, Debug, Default, PartialEq, PartialOrd)]
+pub struct Number(f64);
+
+impl fmt::Display for Number {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl<I: Into<f64>> From<I> for Number {
+    fn from(value: I) -> Self {
+        Number(value.into())
+    }
 }
 
 impl FromStr for Number {

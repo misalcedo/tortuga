@@ -8,3 +8,7 @@ name = "tortugac"
 path = "bin/main.rs"
 
 [dependencies]
+lazy_static = "1"
+regex = "1"
+thiserror = "1.0"
+tracing = "0.1"

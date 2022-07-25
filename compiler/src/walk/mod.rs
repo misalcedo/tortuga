@@ -4,7 +4,8 @@ mod emitter;
 
 use crate::Program;
 pub use emitter::BinaryEmitter;
+use std::convert::Infallible;
 
-pub trait Walker<T> {
-    fn walk(&mut self, program: Program) -> T;
+pub trait Walker<R = Self, E = Infallible> {
+    fn walk(self, program: Program) -> Result<R, E>;
 }
