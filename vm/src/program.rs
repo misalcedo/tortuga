@@ -1,4 +1,4 @@
 #[derive(Clone, Debug, Default, PartialEq)]
-pub struct Code {
+pub struct Program {
     bytes: Vec<u8>,
 }

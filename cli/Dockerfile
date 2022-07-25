@@ -1,7 +1,7 @@
 FROM rust:alpine as builder
 WORKDIR /usr/src/app
 RUN apk add libc-dev
-COPY . .
+COPY .. .
 RUN cargo install --path .
 
 FROM scratch
