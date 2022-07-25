@@ -3,10 +3,9 @@
 pub mod compiler;
 
 pub mod grammar;
-pub mod walker;
+pub mod walk;
 
-pub use about::*;
 pub use compiler::{Kind, LexicalError, ParseNumberError, Parser, Scanner, SyntacticalError};
 
 pub use grammar::syntax::Program;
-pub use runtime::{Interpreter, RuntimeError, Value};
+pub use walk::Walk;
