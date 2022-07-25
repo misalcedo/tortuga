@@ -1,45 +1,16 @@
-use std::convert::Infallible;
+mod error;
+
+use error::Error;
 use std::io::ErrorKind::BrokenPipe;
 use std::path::PathBuf;
 use std::{env, fs};
 use tortugac::walk::Walker;
-use tortugac::{Program, SyntacticalError};
+use tortugac::Program;
+use tracing::subscriber::set_global_default;
+use tracing::Level;
 
-/// The name of the command-line interface executable.
-pub const PROGRAM: &str = env!("CARGO_CRATE_NAME");
 pub const INPUT_EXTENSION: &'static str = "ta";
 pub const OUTPUT_EXTENSION: &'static str = "tb";
-
-enum Error {
-    IO(std::io::Error),
-    Text(&'static str),
-    Syntax(SyntacticalError),
-    Infallible,
-}
-
-impl From<std::io::Error> for Error {
-    fn from(error: std::io::Error) -> Self {
-        Error::IO(error)
-    }
-}
-
-impl From<&'static str> for Error {
-    fn from(error: &'static str) -> Self {
-        Error::Text(error)
-    }
-}
-
-impl From<SyntacticalError> for Error {
-    fn from(error: SyntacticalError) -> Self {
-        Error::Syntax(error)
-    }
-}
-
-impl From<Infallible> for Error {
-    fn from(_: Infallible) -> Self {
-        Error::Infallible
-    }
-}
 
 type CompilerResult = Result<(), Error>;
 
@@ -55,13 +26,20 @@ fn main() {
         Err(Error::IO(error)) => eprintln!("{error}"),
         Err(Error::Text(error)) => eprintln!("{error}"),
         Err(Error::Syntax(error)) => eprintln!("{error}"),
+        Err(Error::Tracing(error)) => eprintln!("Unable to set global tracing subscriber: {error}"),
     }
 }
 
 fn compile(mut arguments: env::Args) -> CompilerResult {
+    let collector = tracing_subscriber::fmt()
+        .with_max_level(Level::INFO)
+        .finish();
+
+    set_global_default(collector)?;
+
     match arguments.next() {
         Some(file_name) if arguments.len() == 0 => compile_file(file_name),
-        _ => Err("Usage: {PROGRAM} [path]".into()),
+        _ => Err("Usage: tortugac [path]".into()),
     }
 }
 

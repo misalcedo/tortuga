@@ -2,6 +2,7 @@
 
 use crate::compiler::OwnedToken;
 use crate::LexicalError;
+use std::fmt::Display;
 
 /// An error that occurred while generating a syntax tree from a sequence of tokens.
 /// After an error is encountered, the parser may continue to generate a tree in panic mode.
@@ -13,8 +14,23 @@ pub enum SyntacticalError {
     NoMatch(OwnedToken),
     #[error("Encountered multiple syntax errors.")]
     Multiple,
-    #[error("Encountered one or more lexical errors.")]
+    #[error("Encountered one or more lexical errors: {}", display_slice(&.0[..], "\n\t"))]
     Lexical(Vec<LexicalError>),
+}
+
+fn display_slice<D: Display>(items: &[D], separator: &str) -> String {
+    let mut iterator = items.iter().peekable();
+    let mut accumulator = String::from(separator);
+
+    while let Some(item) = iterator.next() {
+        accumulator.push_str(item.to_string().as_str());
+
+        if iterator.peek().is_some() {
+            accumulator.push_str(separator);
+        }
+    }
+
+    accumulator
 }
 
 impl SyntacticalError {
