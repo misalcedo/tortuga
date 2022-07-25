@@ -1,8 +1,8 @@
 //! Valid values in the Tortuga runtime.
 
-use crate::runtime::environment::FunctionReference;
-use crate::runtime::epsilon::EpsilonOperator;
-use crate::runtime::{Number, Tolerance};
+use crate::walker::environment::FunctionReference;
+use crate::walker::epsilon::EpsilonOperator;
+use crate::walker::{Number, Tolerance};
 use crate::RuntimeError;
 use std::any::type_name;
 use std::cmp::Ordering;

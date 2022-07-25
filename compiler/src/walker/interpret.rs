@@ -1,8 +1,8 @@
 //! An interpreter used in the CLI prompt.
 
 use crate::grammar::*;
-use crate::runtime::{Environment, EpsilonOperator, FunctionReference, Value};
-use crate::{runtime, Program, RuntimeError};
+use crate::walker::{Environment, EpsilonOperator, FunctionReference, Value};
+use crate::{walker, Program, RuntimeError};
 use std::convert::TryFrom;
 use std::ops::Deref;
 

@@ -1,8 +1,8 @@
 //! Runtime representation of a function.
 
 use crate::grammar::{self, Assignment, Block, Pattern};
-use crate::runtime::interpret::Interpret;
-use crate::runtime::Environment;
+use crate::walker::interpret::Interpret;
+use crate::walker::Environment;
 use crate::{RuntimeError, Value};
 use std::fmt::{self, Display, Formatter, Write};
 

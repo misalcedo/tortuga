@@ -1,6 +1,6 @@
 //! A scope used to determine the runtime value of a function.
 
-use crate::runtime::Function;
+use crate::walker::Function;
 use crate::{RuntimeError, Value};
 use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::HashMap;

@@ -1,6 +1,6 @@
 //! Representation of epsilon ranges within the Tortuga runtime.
 
-use crate::runtime::Number;
+use crate::walker::Number;
 use std::fmt;
 use std::ops::{
     Add, AddAssign, BitXor, BitXorAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign,
