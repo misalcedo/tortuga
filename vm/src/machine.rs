@@ -1,15 +1,16 @@
-pub use crate::error::{ErrorKind, RuntimeError};
-pub use crate::CallFrame;
-pub use crate::Courier;
-pub use crate::Identifier;
-pub use crate::Program;
-pub use crate::Value;
+use crate::error::{ErrorKind, RuntimeError};
+use crate::CallFrame;
+use crate::Closure;
+use crate::Courier;
+use crate::Identifier;
+use crate::Program;
+use crate::Value;
 
 #[derive(Clone, Debug, Default)]
 pub struct VirtualMachine<Courier> {
     courier: Courier,
     mailbox: Vec<Value>,
-    code: Code,
+    code: Program,
     stack: Vec<Value>,
     frames: Vec<CallFrame>,
 }
@@ -23,9 +24,9 @@ impl<C: Courier> VirtualMachine<C> {
 
     pub fn process(&mut self) -> Result<Value, RuntimeError> {
         self.frames.push(CallFrame {});
-        self.stack.push(Value::Number);
-        self.stack.push(Value::Identifier);
-        self.stack.push(Value::Closure);
+        self.stack.push(Value::default());
+        self.stack.push(Value::Identifier(Identifier::default()));
+        self.stack.push(Value::Closure(Closure::default()));
 
         let operation = self.get_operation(0)?;
 
@@ -36,13 +37,12 @@ impl<C: Courier> VirtualMachine<C> {
         operation(self)?;
 
         if self.stack.is_empty() {
-            Ok(Value::Closure)
+            Ok(Value::Closure(Closure::default()))
         } else {
             Err(ErrorKind::Crash.into())
         }
     }
 
-    /// Get the operation for the given operation code.
     fn get_operation(
         &self,
         index: usize,
@@ -56,14 +56,12 @@ impl<C: Courier> VirtualMachine<C> {
         self.mailbox.push(value);
     }
 
-    /// Pops the top of the stack and drops the value.
     pub fn pop(&mut self) -> OperationResult {
         self.stack.pop();
 
         Ok(())
     }
 
-    /// Sends a message to the identifier at the top of the value stack.
     pub fn send(&mut self) -> OperationResult {
         let identifier = self.pop_identifier()?;
         let message = self.pop_value()?;
@@ -73,14 +71,12 @@ impl<C: Courier> VirtualMachine<C> {
         Ok(())
     }
 
-    /// Pops a generic value from the stack.
     fn pop_value(&mut self) -> RuntimeResult<Value> {
         self.stack
             .pop()
             .ok_or_else(|| RuntimeError::from(ErrorKind::EmptyStack))
     }
 
-    /// Pops an identifier from the value stack.
     fn pop_identifier(&mut self) -> RuntimeResult<Identifier> {
         self.pop_value()?
             .try_into()
@@ -100,6 +96,6 @@ mod tests {
 
         let result = machine.process();
 
-        assert_eq!(result, Ok(Value::Closure))
+        assert_eq!(result, Ok(Value::Closure(Closure::default())))
     }
 }

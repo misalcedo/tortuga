@@ -1,8 +1,8 @@
-use crate::machine::Value;
+use crate::Value;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct RuntimeError {
     kind: ErrorKind,
 }
@@ -13,7 +13,7 @@ impl From<ErrorKind> for RuntimeError {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ErrorKind {
     Crash,
     EmptyStack,

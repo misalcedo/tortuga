@@ -1,4 +1,4 @@
-use crate::machine::{Identifier, Value};
+use crate::{Identifier, Value};
 
 pub trait Courier {
     fn deliver(&self, to: Identifier, message: Value);
