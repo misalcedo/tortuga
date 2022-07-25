@@ -10,6 +10,18 @@ impl Display for Number {
     }
 }
 
+impl From<f64> for Number {
+    fn from(number: f64) -> Self {
+        Number(number)
+    }
+}
+
+impl From<i32> for Number {
+    fn from(number: i32) -> Self {
+        Number(number as f64)
+    }
+}
+
 macro_rules! impl_operator_for_number {
     ($t:ident, $f:ident, $op:tt) => {
         impl $t for Number {

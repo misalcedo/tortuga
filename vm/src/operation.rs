@@ -1,9 +1,11 @@
+#[repr(u8)]
 pub enum Operations {
     Constant,
     Pop,
     GetLocal,
     DefineLocal,
     GetCapture,
+    Compare,
     Equal,
     Greater,
     Less,
@@ -11,8 +13,12 @@ pub enum Operations {
     Subtract,
     Multiply,
     Divide,
+    Remainder,
     Call,
     Send,
     Closure,
     Return,
+    Branch,
+    BranchIfZero,
+    BranchIfNonZero,
 }

@@ -1,3 +1,5 @@
+extern crate core;
+
 mod closure;
 mod courier;
 mod error;
@@ -14,6 +16,7 @@ pub use courier::Courier;
 pub(crate) use frame::CallFrame;
 pub use identifier::Identifier;
 pub use number::Number;
+pub(crate) use operation::Operations;
 pub use program::Program;
 pub use value::Value;
 

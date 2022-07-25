@@ -15,10 +15,13 @@ impl From<ErrorKind> for RuntimeError {
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ErrorKind {
-    Crash,
     EmptyStack,
     ExpectedIdentifier(Value),
+    ExpectedNumber(Value),
     UnsupportedOperation(usize),
+    UnsupportedTypes(Value, Value),
+    InvalidOperand(usize, usize), // expected actual
+    NoSuchConstant(usize),
 }
 
 impl Display for RuntimeError {
