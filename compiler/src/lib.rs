@@ -1,8 +1,12 @@
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
-    }
-}
+//! Public interface of the tortuga compiler.
+
+pub mod compiler;
+
+pub mod grammar;
+pub mod walker;
+
+pub use about::*;
+pub use compiler::{Kind, LexicalError, ParseNumberError, Parser, Scanner, SyntacticalError};
+
+pub use grammar::syntax::Program;
+pub use runtime::{Interpreter, RuntimeError, Value};

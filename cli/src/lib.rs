@@ -7,7 +7,6 @@ pub mod compiler;
 pub mod display;
 
 pub mod grammar;
-pub mod machine;
 pub mod runtime;
 
 pub use about::*;
