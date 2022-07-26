@@ -3,13 +3,23 @@ mod operators;
 mod wrappers;
 
 use crate::{Closure, Identifier, Number};
+use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 
-#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Value {
     Number(Number),
     Closure(Closure),
     Identifier(Identifier),
+}
+
+impl PartialOrd for Value {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match (self, other) {
+            (Self::Number(a), Self::Number(b)) => a.partial_cmp(b),
+            _ => None,
+        }
+    }
 }
 
 impl Default for Value {

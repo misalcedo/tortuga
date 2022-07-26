@@ -16,6 +16,7 @@ pub use courier::Courier;
 pub(crate) use frame::CallFrame;
 pub use identifier::Identifier;
 pub use number::Number;
+#[cfg(test)]
 pub(crate) use operation::Operations;
 pub use program::Program;
 pub use value::Value;
