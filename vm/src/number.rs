@@ -1,3 +1,4 @@
+use crate::Value;
 use std::fmt::{Display, Formatter};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Rem, RemAssign, Sub, SubAssign};
 
@@ -10,17 +11,25 @@ impl Display for Number {
     }
 }
 
-impl From<f64> for Number {
-    fn from(number: f64) -> Self {
-        Number(number)
-    }
+macro_rules! impl_from_for_number {
+    ($t:ident, $v:ident, $e:expr) => {
+        impl From<$t> for Number {
+            fn from($v: $t) -> Self {
+                Number($e)
+            }
+        }
+
+        impl From<$t> for Value {
+            fn from($v: $t) -> Self {
+                Value::Number(Number($e))
+            }
+        }
+    };
 }
 
-impl From<i32> for Number {
-    fn from(number: i32) -> Self {
-        Number(number as f64)
-    }
-}
+impl_from_for_number!(f64, number, number);
+impl_from_for_number!(i32, number, number as f64);
+impl_from_for_number!(bool, number, if number { 1.0 } else { 0.0 });
 
 macro_rules! impl_operator_for_number {
     ($t:ident, $f:ident, $op:tt) => {

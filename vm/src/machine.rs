@@ -97,48 +97,35 @@ impl<C: Courier> VirtualMachine<C> {
     }
 
     fn compare_operation(&mut self) -> OperationResult {
-        let b = self.pop_value()?;
-        let a = self.pop_value()?;
+        let value = self.compare()?;
 
-        match a.partial_cmp(&b) {
-            Some(Ordering::Less) => Ok(self.stack.push(Value::from(Number::from(-1)))),
-            Some(Ordering::Equal) => Ok(self.stack.push(Value::from(Number::from(0)))),
-            Some(Ordering::Greater) => Ok(self.stack.push(Value::from(Number::from(1)))),
-            None => Err(ErrorKind::UnsupportedTypes(a, b).into()),
-        }
+        self.stack.push(value);
+
+        Ok(())
     }
 
     fn equal_operation(&mut self) -> OperationResult {
-        let b = self.pop_value()?;
-        let a = self.pop_value()?;
+        let value = Value::from(self.compare()? == Value::from(0));
 
-        match a.partial_cmp(&b) {
-            Some(Ordering::Equal) => Ok(self.stack.push(Value::from(Number::from(1)))),
-            Some(_) => Ok(self.stack.push(Value::from(Number::from(0)))),
-            None => Err(ErrorKind::UnsupportedTypes(a, b).into()),
-        }
+        self.stack.push(value);
+
+        Ok(())
     }
 
     fn greater_operation(&mut self) -> OperationResult {
-        let b = self.pop_value()?;
-        let a = self.pop_value()?;
+        let value = Value::from(self.compare()? == Value::from(1));
 
-        match a.partial_cmp(&b) {
-            Some(Ordering::Greater) => Ok(self.stack.push(Value::from(Number::from(1)))),
-            Some(_) => Ok(self.stack.push(Value::from(Number::from(0)))),
-            None => Err(ErrorKind::UnsupportedTypes(a, b).into()),
-        }
+        self.stack.push(value);
+
+        Ok(())
     }
 
     fn less_operation(&mut self) -> OperationResult {
-        let b = self.pop_value()?;
-        let a = self.pop_value()?;
+        let value = Value::from(self.compare()? == Value::from(-1));
 
-        match a.partial_cmp(&b) {
-            Some(Ordering::Less) => Ok(self.stack.push(Value::from(Number::from(1)))),
-            Some(_) => Ok(self.stack.push(Value::from(Number::from(0)))),
-            None => Err(ErrorKind::UnsupportedTypes(a, b).into()),
-        }
+        self.stack.push(value);
+
+        Ok(())
     }
 
     fn add_operation(&mut self) -> OperationResult {
@@ -283,6 +270,18 @@ impl<C: Courier> VirtualMachine<C> {
             .try_into()
             .map_err(|value| ErrorKind::ExpectedNumber(value).into())
     }
+
+    fn compare(&mut self) -> Result<Value, RuntimeError> {
+        let b = self.pop_value()?;
+        let a = self.pop_value()?;
+
+        match a.partial_cmp(&b) {
+            Some(Ordering::Less) => Ok(Value::from(-1)),
+            Some(Ordering::Equal) => Ok(Value::from(0)),
+            Some(Ordering::Greater) => Ok(Value::from(1)),
+            None => Err(ErrorKind::UnsupportedTypes(a, b).into()),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -291,7 +290,7 @@ mod tests {
     use crate::{Number, Operations};
 
     #[test]
-    fn empty() {
+    fn add() {
         let code = Program::new(
             vec![
                 Operations::Constant as u8,
@@ -300,12 +299,34 @@ mod tests {
                 1,
                 Operations::Add as u8,
             ],
-            vec![Number::from(1.0).into(), Number::from(2.0).into()],
+            vec![Value::from(1.0), Value::from(2.0)],
         );
         let mut machine: VirtualMachine<()> = VirtualMachine::new(code, ());
         let message = Value::default();
         let result = machine.process(message);
 
-        assert_eq!(result, Ok(Some(Value::from(Number::from(3.0)))));
+        assert_eq!(result, Ok(Some(Value::from(3.0))));
+    }
+
+    #[test]
+    fn compare() {
+        let code = Program::new(
+            vec![
+                Operations::Constant as u8,
+                0,
+                Operations::Constant as u8,
+                1,
+                Operations::Constant as u8,
+                2,
+                Operations::Compare as u8,
+                Operations::Equal as u8,
+            ],
+            vec![Value::from(1.0), Value::from(42.0), Value::from(2.0)],
+        );
+        let mut machine: VirtualMachine<()> = VirtualMachine::new(code, ());
+        let message = Value::default();
+        let result = machine.process(message);
+
+        assert_eq!(result, Ok(Some(Value::from(true))));
     }
 }
