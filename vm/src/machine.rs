@@ -66,7 +66,9 @@ impl<C: Courier> VirtualMachine<C> {
             operation(self)?;
         }
 
-        Ok(self.stack.pop())
+        let stack = self.stack.len();
+
+        Ok(self.stack.pop().filter(|_| stack > 2))
     }
 
     fn constant_operation(&mut self) -> OperationResult {
@@ -209,15 +211,33 @@ impl<C: Courier> VirtualMachine<C> {
     }
 
     fn branch_operation(&mut self) -> OperationResult {
-        todo!()
+        let jump = self.read_u32()? as usize;
+
+        self.cursor += jump;
+
+        Ok(())
     }
 
     fn branch_if_zero_operation(&mut self) -> OperationResult {
-        todo!()
+        let jump = self.read_u32()? as usize;
+        let condition = self.pop_number()? == Number::from(0);
+
+        if condition {
+            self.cursor += jump;
+        }
+
+        Ok(())
     }
 
     fn branch_if_non_zero_operation(&mut self) -> OperationResult {
-        todo!()
+        let jump = self.read_u32()? as usize;
+        let condition = self.pop_number()? != Number::from(0);
+
+        if condition {
+            self.cursor += jump;
+        }
+
+        Ok(())
     }
 
     fn get_operation(&mut self) -> RuntimeResult<&fn(&mut VirtualMachine<C>) -> OperationResult> {
@@ -238,6 +258,15 @@ impl<C: Courier> VirtualMachine<C> {
 
     fn read_byte(&mut self) -> RuntimeResult<u8> {
         Ok(self.read::<u8>()?[0])
+    }
+
+    fn read_u32(&mut self) -> RuntimeResult<u32> {
+        let operand = self.read::<u32>()?;
+        let bytes = operand
+            .try_into()
+            .expect("VirtualMachine::read already validated the operand length in bytes but still failed to create an array.");
+
+        Ok(u32::from_le_bytes(bytes))
     }
 
     fn read<T>(&mut self) -> RuntimeResult<&[u8]> {
@@ -287,7 +316,7 @@ impl<C: Courier> VirtualMachine<C> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Number, Operations};
+    use crate::Operations;
 
     #[test]
     fn add() {
@@ -328,5 +357,102 @@ mod tests {
         let result = machine.process(message);
 
         assert_eq!(result, Ok(Some(Value::from(true))));
+    }
+
+    #[test]
+    fn less_and_greater() {
+        let code = Program::new(
+            vec![
+                Operations::Constant as u8,
+                0,
+                Operations::Constant as u8,
+                1,
+                Operations::Constant as u8,
+                2,
+                Operations::Greater as u8,
+                Operations::Less as u8,
+            ],
+            vec![Value::from(2.0), Value::from(42.0), Value::from(1.0)],
+        );
+        let mut machine: VirtualMachine<()> = VirtualMachine::new(code, ());
+        let message = Value::default();
+        let result = machine.process(message);
+
+        assert_eq!(result, Ok(Some(Value::from(false))));
+    }
+
+    #[test]
+    fn unconditional_branch() {
+        let code = Program::new(
+            vec![
+                Operations::Branch as u8,
+                2,
+                0,
+                0,
+                0,
+                Operations::Constant as u8,
+                0,
+                Operations::Constant as u8,
+                1,
+            ],
+            vec![Value::from(1.0), Value::from(42.0)],
+        );
+        let mut machine: VirtualMachine<()> = VirtualMachine::new(code, ());
+        let message = Value::default();
+        let result = machine.process(message);
+
+        assert_eq!(result, Ok(Some(Value::from(42.0))));
+    }
+
+    #[test]
+    fn branch_if_zero() {
+        let code = Program::new(
+            vec![
+                Operations::Constant as u8,
+                0,
+                Operations::BranchIfZero as u8,
+                2,
+                0,
+                0,
+                0,
+                Operations::Constant as u8,
+                1,
+                Operations::Constant as u8,
+                0,
+                Operations::Pop as u8,
+            ],
+            vec![Value::from(1.0), Value::from(42.0)],
+        );
+        let mut machine: VirtualMachine<()> = VirtualMachine::new(code, ());
+        let message = Value::default();
+        let result = machine.process(message);
+
+        assert_eq!(result, Ok(Some(Value::from(42.0))));
+    }
+
+    #[test]
+    fn branch_if_non_zero() {
+        let code = Program::new(
+            vec![
+                Operations::Constant as u8,
+                0,
+                Operations::BranchIfNonZero as u8,
+                2,
+                0,
+                0,
+                0,
+                Operations::Constant as u8,
+                0,
+                Operations::Constant as u8,
+                1,
+                Operations::Pop as u8,
+            ],
+            vec![Value::from(1.0), Value::from(42.0)],
+        );
+        let mut machine: VirtualMachine<()> = VirtualMachine::new(code, ());
+        let message = Value::default();
+        let result = machine.process(message);
+
+        assert_eq!(result, Ok(None));
     }
 }
