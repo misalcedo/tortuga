@@ -85,15 +85,15 @@ impl<C: Courier> VirtualMachine<C> {
     }
 
     fn get_local_operation(&mut self) -> OperationResult {
-        Ok(())
+        todo!()
     }
 
     fn define_local_operation(&mut self) -> OperationResult {
-        Ok(())
+        todo!()
     }
 
     fn get_capture_operation(&mut self) -> OperationResult {
-        Ok(())
+        todo!()
     }
 
     fn compare_operation(&mut self) -> OperationResult {
@@ -188,7 +188,7 @@ impl<C: Courier> VirtualMachine<C> {
     }
 
     fn call_operation(&mut self) -> OperationResult {
-        Ok(())
+        todo!()
     }
 
     fn send_operation(&mut self) -> OperationResult {
@@ -201,23 +201,23 @@ impl<C: Courier> VirtualMachine<C> {
     }
 
     fn closure_operation(&mut self) -> OperationResult {
-        Ok(())
+        todo!()
     }
 
     fn return_operation(&mut self) -> OperationResult {
-        Ok(())
+        todo!()
     }
 
     fn branch_operation(&mut self) -> OperationResult {
-        Ok(())
+        todo!()
     }
 
     fn branch_if_zero_operation(&mut self) -> OperationResult {
-        Ok(())
+        todo!()
     }
 
     fn branch_if_non_zero_operation(&mut self) -> OperationResult {
-        Ok(())
+        todo!()
     }
 
     fn get_operation(&mut self) -> RuntimeResult<&fn(&mut VirtualMachine<C>) -> OperationResult> {
