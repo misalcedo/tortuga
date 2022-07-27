@@ -273,10 +273,10 @@ impl<C: Courier> VirtualMachine<C> {
     fn exit_function(&mut self) -> RuntimeResult<Option<Value>> {
         let frame = self
             .frames
-            .last()
+            .pop()
             .ok_or_else(|| RuntimeError::from(ErrorKind::EmptyCallFrames))?;
         let values = frame.values();
-        let result = if self.stack[frame].len() > values {
+        let result = if self.stack[&frame].len() > values {
             self.stack.pop()
         } else {
             None
@@ -288,7 +288,7 @@ impl<C: Courier> VirtualMachine<C> {
             }
         }
 
-        self.frames.pop();
+        self.cursor = frame.return_to();
 
         Ok(result)
     }
