@@ -1,6 +1,5 @@
-use crate::{Closure, Function, Value};
-use std::ops::{Index, IndexMut};
-use std::slice::SliceIndex;
+use crate::{Function, Value};
+use std::ops::Index;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct CallFrame {

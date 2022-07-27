@@ -12,17 +12,6 @@ macro_rules! impl_try_from_value {
                 }
             }
         }
-
-        impl<'a> TryFrom<&'a Value> for &'a $t {
-            type Error = &'a Value;
-
-            fn try_from(value: &'a Value) -> Result<Self, Self::Error> {
-                match value {
-                    Value::$t(inner) => Ok(inner),
-                    _ => Err(value),
-                }
-            }
-        }
     };
 }
 

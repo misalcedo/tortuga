@@ -4,7 +4,6 @@ pub enum Operations {
     Pop,
     GetLocal,
     GetCapture,
-    Compare,
     Equal,
     Greater,
     Less,

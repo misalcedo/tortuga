@@ -21,12 +21,11 @@ type RuntimeResult<T> = Result<T, RuntimeError>;
 type OperationResult = RuntimeResult<()>;
 
 impl<C: Courier> VirtualMachine<C> {
-    const OPERATIONS_TABLE: [fn(&mut VirtualMachine<C>) -> OperationResult; 20] = [
+    const OPERATIONS_TABLE: [fn(&mut VirtualMachine<C>) -> OperationResult; 19] = [
         Self::constant_operation,
         Self::pop_operation,
         Self::get_local_operation,
         Self::get_capture_operation,
-        Self::compare_operation,
         Self::equal_operation,
         Self::greater_operation,
         Self::less_operation,
@@ -105,16 +104,8 @@ impl<C: Courier> VirtualMachine<C> {
         Ok(())
     }
 
-    fn compare_operation(&mut self) -> OperationResult {
-        let value = self.compare()?;
-
-        self.stack.push(value);
-
-        Ok(())
-    }
-
     fn equal_operation(&mut self) -> OperationResult {
-        let value = Value::from(self.compare()? == Value::from(0));
+        let value = Value::from(self.compare()? == 0);
 
         self.stack.push(value);
 
@@ -122,7 +113,7 @@ impl<C: Courier> VirtualMachine<C> {
     }
 
     fn greater_operation(&mut self) -> OperationResult {
-        let value = Value::from(self.compare()? == Value::from(1));
+        let value = Value::from(self.compare()? == 1);
 
         self.stack.push(value);
 
@@ -130,7 +121,7 @@ impl<C: Courier> VirtualMachine<C> {
     }
 
     fn less_operation(&mut self) -> OperationResult {
-        let value = Value::from(self.compare()? == Value::from(-1));
+        let value = Value::from(self.compare()? == -1);
 
         self.stack.push(value);
 
@@ -197,7 +188,11 @@ impl<C: Courier> VirtualMachine<C> {
     }
 
     fn call_operation(&mut self) -> OperationResult {
-        todo!()
+        let function = self.get_function()?;
+
+        self.enter_function(function)?;
+
+        Ok(())
     }
 
     fn send_operation(&mut self) -> OperationResult {
@@ -210,12 +205,7 @@ impl<C: Courier> VirtualMachine<C> {
     }
 
     fn closure_operation(&mut self) -> OperationResult {
-        let slot = self.read_byte()? as usize;
-        let function = self
-            .code
-            .function(slot)
-            .ok_or_else(|| RuntimeError::from(ErrorKind::NoSuchFunction(slot)))?
-            .clone();
+        let function = self.get_function()?;
 
         let mut captures = Vec::with_capacity(function.captures());
         for _ in 0..function.captures() {
@@ -273,15 +263,23 @@ impl<C: Courier> VirtualMachine<C> {
     }
 
     fn enter_function(&mut self, function: Function) -> RuntimeResult<()> {
-        let values = function.values();
+        let locals = function.locals();
+        let has_captures = function.captures() > 0;
         let length = self.stack.len();
         let start_stack = length
-            .checked_sub(values)
-            .ok_or_else(|| RuntimeError::from(ErrorKind::IncorrectCall(values, length)))?;
+            .checked_sub(locals)
+            .ok_or_else(|| RuntimeError::from(ErrorKind::IncorrectCall(locals, length)))?;
         let start_frame = function.start();
         let frame = CallFrame::new(self.cursor, start_stack, function);
 
         self.frames.push(frame);
+
+        if has_captures {
+            let closure = self.get_current_closure()?;
+
+            self.stack.extend_from_slice(closure.captures());
+        }
+
         self.cursor = start_frame;
 
         Ok(())
@@ -392,16 +390,32 @@ impl<C: Courier> VirtualMachine<C> {
             .map_err(|value| ErrorKind::ExpectedNumber(value).into())
     }
 
-    fn compare(&mut self) -> Result<Value, RuntimeError> {
+    fn compare(&mut self) -> Result<i8, RuntimeError> {
         let b = self.pop_value()?;
         let a = self.pop_value()?;
 
         match a.partial_cmp(&b) {
-            Some(Ordering::Less) => Ok(Value::from(-1)),
-            Some(Ordering::Equal) => Ok(Value::from(0)),
-            Some(Ordering::Greater) => Ok(Value::from(1)),
+            Some(Ordering::Less) => Ok(-1),
+            Some(Ordering::Equal) => Ok(0),
+            Some(Ordering::Greater) => Ok(1),
             None => Err(ErrorKind::UnsupportedTypes(a, b).into()),
         }
+    }
+
+    fn get_function(&mut self) -> RuntimeResult<Function> {
+        let slot = self.read_byte()? as usize;
+        let function = self
+            .code
+            .function(slot)
+            .ok_or_else(|| RuntimeError::from(ErrorKind::NoSuchFunction(slot)))?;
+
+        Ok(*function)
+    }
+
+    fn get_current_closure(&mut self) -> RuntimeResult<Closure> {
+        self.get_local(0)?
+            .try_into()
+            .map_err(|value| ErrorKind::ExpectedClosure(value).into())
     }
 }
 
@@ -440,7 +454,7 @@ mod tests {
                 1,
                 Operations::Constant as u8,
                 2,
-                Operations::Compare as u8,
+                Operations::Greater as u8,
                 Operations::Equal as u8,
             ],
             vec![Value::from(1.0), Value::from(42.0), Value::from(2.0)],
