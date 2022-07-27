@@ -210,7 +210,24 @@ impl<C: Courier> VirtualMachine<C> {
     }
 
     fn closure_operation(&mut self) -> OperationResult {
-        todo!()
+        let slot = self.read_byte()? as usize;
+        let function = self
+            .code
+            .function(slot)
+            .ok_or_else(|| RuntimeError::from(ErrorKind::NoSuchFunction(slot)))?
+            .clone();
+
+        let mut captures = Vec::with_capacity(function.captures());
+        for _ in 0..function.captures() {
+            let index = self.read_byte()? as usize;
+            let value = self.get_local(index)?;
+
+            captures.push(value);
+        }
+
+        self.stack.push(Closure::new(function, captures).into());
+
+        Ok(())
     }
 
     fn return_operation(&mut self) -> OperationResult {

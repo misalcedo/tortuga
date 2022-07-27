@@ -25,6 +25,7 @@ pub enum ErrorKind {
     UnsupportedTypes(Value, Value),
     InvalidOperand(usize, usize), // expected, actual
     NoSuchConstant(usize),
+    NoSuchFunction(usize),
     IncorrectCall(usize, usize), // expected, actual,
     ReturnOutsideFunction,
 }
