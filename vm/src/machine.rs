@@ -276,8 +276,9 @@ impl<C: Courier> VirtualMachine<C> {
 
         if has_captures {
             let closure = self.get_current_closure()?;
+            let captures = Vec::from(closure);
 
-            self.stack.extend_from_slice(closure.captures());
+            self.stack.extend(captures);
         }
 
         self.cursor = start_frame;

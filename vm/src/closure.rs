@@ -23,6 +23,12 @@ impl Default for Closure {
     }
 }
 
+impl From<Closure> for Vec<Value> {
+    fn from(closure: Closure) -> Self {
+        closure.captures
+    }
+}
+
 impl Closure {
     pub fn new(function: Function, captures: Vec<Value>) -> Self {
         Closure { function, captures }
