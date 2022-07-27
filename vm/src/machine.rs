@@ -70,9 +70,7 @@ impl<C: Courier> VirtualMachine<C> {
             operation(self)?;
         }
 
-        let stack = self.stack.len();
-
-        Ok(self.stack.pop().filter(|_| stack > 2))
+        self.exit_function(&function)
     }
 
     fn constant_operation(&mut self) -> OperationResult {
@@ -255,6 +253,29 @@ impl<C: Courier> VirtualMachine<C> {
         self.frames.push(frame);
 
         Ok(())
+    }
+
+    fn exit_function(&mut self, function: &Function) -> RuntimeResult<Option<Value>> {
+        let values = function.values();
+        let frame = self
+            .frames
+            .last()
+            .ok_or_else(|| RuntimeError::from(ErrorKind::EmptyCallFrames))?;
+        let result = if self.stack[frame].len() > values {
+            self.stack.pop()
+        } else {
+            None
+        };
+
+        for _ in 0..values {
+            if self.stack.pop().is_none() {
+                return Err(ErrorKind::EmptyStack.into());
+            }
+        }
+
+        self.frames.pop();
+
+        Ok(result)
     }
 
     fn get_operation(&mut self) -> RuntimeResult<&fn(&mut VirtualMachine<C>) -> OperationResult> {
