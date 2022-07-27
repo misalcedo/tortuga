@@ -1,9 +1,13 @@
-#[repr(u8)]
+pub type LocalOffset = u8;
+pub type CaptureOffset = u8;
+pub type ConstantIndex = u8;
+pub type FunctionIndex = u8;
+
 pub enum Operations {
-    Constant,
+    Constant(ConstantIndex),
     Pop,
-    GetLocal,
-    GetCapture,
+    GetLocal(LocalOffset),
+    GetCapture(CaptureOffset),
     Equal,
     Greater,
     Less,
@@ -12,9 +16,9 @@ pub enum Operations {
     Multiply,
     Divide,
     Remainder,
-    Call,
+    Call(FunctionIndex),
     Send,
-    Closure,
+    Closure(FunctionIndex, Vec<CaptureOffset>),
     Return,
     Branch,
     BranchIfZero,
