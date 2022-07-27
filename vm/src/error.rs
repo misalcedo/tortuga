@@ -2,7 +2,7 @@ use crate::Value;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct RuntimeError {
     kind: ErrorKind,
 }
@@ -13,15 +13,17 @@ impl From<ErrorKind> for RuntimeError {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ErrorKind {
     EmptyStack,
     ExpectedIdentifier(Value),
     ExpectedNumber(Value),
+    ExpectedClosure(Value),
     UnsupportedOperation(usize),
     UnsupportedTypes(Value, Value),
-    InvalidOperand(usize, usize), // expected actual
+    InvalidOperand(usize, usize), // expected, actual
     NoSuchConstant(usize),
+    IncorrectCall(usize, usize), // expected, actual,
 }
 
 impl Display for RuntimeError {

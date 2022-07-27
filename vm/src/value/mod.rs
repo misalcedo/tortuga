@@ -6,7 +6,7 @@ use crate::{Closure, Identifier, Number};
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     Number(Number),
     Closure(Closure),

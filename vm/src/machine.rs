@@ -1,10 +1,10 @@
 use crate::error::{ErrorKind, RuntimeError};
-use crate::Closure;
 use crate::Courier;
 use crate::Identifier;
 use crate::Program;
 use crate::Value;
 use crate::{CallFrame, Number};
+use crate::{Closure, Function};
 use std::cmp::Ordering;
 use std::mem::size_of;
 
@@ -55,10 +55,14 @@ impl<C: Courier> VirtualMachine<C> {
         }
     }
 
-    pub fn process(&mut self, value: Value) -> Result<Option<Value>, RuntimeError> {
-        self.frames.push(CallFrame::default());
-        self.stack.push(Closure::default().into());
+    pub fn process(&mut self, value: Value) -> RuntimeResult<Option<Value>> {
+        let function = Function::default();
+        let closure = Closure::new(function, Vec::new());
+
+        self.stack.push(closure.into());
         self.stack.push(value);
+
+        self.enter_function(&function)?;
 
         while self.cursor < self.code.len() {
             let operation = self.get_operation()?;
@@ -240,6 +244,19 @@ impl<C: Courier> VirtualMachine<C> {
         Ok(())
     }
 
+    fn enter_function(&mut self, function: &Function) -> RuntimeResult<()> {
+        let values = function.values();
+        let length = self.stack.len();
+        let start_stack = length
+            .checked_sub(values)
+            .ok_or_else(|| RuntimeError::from(ErrorKind::IncorrectCall(values, length)))?;
+        let frame = CallFrame::new(self.cursor, start_stack, function.start());
+
+        self.frames.push(frame);
+
+        Ok(())
+    }
+
     fn get_operation(&mut self) -> RuntimeResult<&fn(&mut VirtualMachine<C>) -> OperationResult> {
         let operation = self.read_byte()? as usize;
 
@@ -262,9 +279,7 @@ impl<C: Courier> VirtualMachine<C> {
 
     fn read_u32(&mut self) -> RuntimeResult<u32> {
         let operand = self.read::<u32>()?;
-        let bytes = operand
-            .try_into()
-            .expect("VirtualMachine::read already validated the operand length in bytes but still failed to create an array.");
+        let bytes = [operand[0], operand[1], operand[2], operand[3]];
 
         Ok(u32::from_le_bytes(bytes))
     }
@@ -329,6 +344,7 @@ mod tests {
                 Operations::Add as u8,
             ],
             vec![Value::from(1.0), Value::from(2.0)],
+            vec![],
         );
         let mut machine: VirtualMachine<()> = VirtualMachine::new(code, ());
         let message = Value::default();
@@ -351,6 +367,7 @@ mod tests {
                 Operations::Equal as u8,
             ],
             vec![Value::from(1.0), Value::from(42.0), Value::from(2.0)],
+            vec![],
         );
         let mut machine: VirtualMachine<()> = VirtualMachine::new(code, ());
         let message = Value::default();
@@ -373,6 +390,7 @@ mod tests {
                 Operations::Less as u8,
             ],
             vec![Value::from(2.0), Value::from(42.0), Value::from(1.0)],
+            vec![],
         );
         let mut machine: VirtualMachine<()> = VirtualMachine::new(code, ());
         let message = Value::default();
@@ -396,6 +414,7 @@ mod tests {
                 1,
             ],
             vec![Value::from(1.0), Value::from(42.0)],
+            vec![],
         );
         let mut machine: VirtualMachine<()> = VirtualMachine::new(code, ());
         let message = Value::default();
@@ -422,6 +441,7 @@ mod tests {
                 Operations::Pop as u8,
             ],
             vec![Value::from(1.0), Value::from(42.0)],
+            vec![],
         );
         let mut machine: VirtualMachine<()> = VirtualMachine::new(code, ());
         let message = Value::default();
@@ -448,6 +468,7 @@ mod tests {
                 Operations::Pop as u8,
             ],
             vec![Value::from(1.0), Value::from(42.0)],
+            vec![],
         );
         let mut machine: VirtualMachine<()> = VirtualMachine::new(code, ());
         let message = Value::default();
