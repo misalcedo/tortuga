@@ -1,6 +1,7 @@
 //! Walk the Abstract Syntax Tree.
 
 mod emitter;
+mod operation;
 
 use crate::Program;
 pub use emitter::BinaryEmitter;

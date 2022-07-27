@@ -8,7 +8,6 @@ mod function;
 mod identifier;
 mod machine;
 mod number;
-mod operation;
 mod program;
 mod value;
 
@@ -18,8 +17,6 @@ pub(crate) use frame::CallFrame;
 pub use function::Function;
 pub use identifier::Identifier;
 pub use number::Number;
-#[cfg(test)]
-pub(crate) use operation::Operations;
 pub use program::Program;
 pub use value::Value;
 

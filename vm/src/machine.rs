@@ -423,18 +423,11 @@ impl<C: Courier> VirtualMachine<C> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Operations;
 
     #[test]
     fn add() {
         let code = Program::new(
-            vec![
-                Operations::Constant as u8,
-                0,
-                Operations::Constant as u8,
-                1,
-                Operations::Add as u8,
-            ],
+            vec![0, 0, 0, 1, 7],
             vec![Value::from(1.0), Value::from(2.0)],
             vec![],
         );
@@ -448,16 +441,7 @@ mod tests {
     #[test]
     fn compare() {
         let code = Program::new(
-            vec![
-                Operations::Constant as u8,
-                0,
-                Operations::Constant as u8,
-                1,
-                Operations::Constant as u8,
-                2,
-                Operations::Greater as u8,
-                Operations::Equal as u8,
-            ],
+            vec![0, 0, 0, 1, 0, 2, 5, 4],
             vec![Value::from(1.0), Value::from(42.0), Value::from(2.0)],
             vec![],
         );
@@ -471,16 +455,7 @@ mod tests {
     #[test]
     fn less_and_greater() {
         let code = Program::new(
-            vec![
-                Operations::Constant as u8,
-                0,
-                Operations::Constant as u8,
-                1,
-                Operations::Constant as u8,
-                2,
-                Operations::Greater as u8,
-                Operations::Less as u8,
-            ],
+            vec![0, 0, 0, 1, 0, 2, 5, 6],
             vec![Value::from(2.0), Value::from(42.0), Value::from(1.0)],
             vec![],
         );
@@ -494,17 +469,7 @@ mod tests {
     #[test]
     fn unconditional_branch() {
         let code = Program::new(
-            vec![
-                Operations::Branch as u8,
-                2,
-                0,
-                0,
-                0,
-                Operations::Constant as u8,
-                0,
-                Operations::Constant as u8,
-                1,
-            ],
+            vec![16, 2, 0, 0, 0, 0, 0, 0, 1],
             vec![Value::from(1.0), Value::from(42.0)],
             vec![],
         );
@@ -518,20 +483,7 @@ mod tests {
     #[test]
     fn branch_if_zero() {
         let code = Program::new(
-            vec![
-                Operations::Constant as u8,
-                0,
-                Operations::BranchIfZero as u8,
-                2,
-                0,
-                0,
-                0,
-                Operations::Constant as u8,
-                1,
-                Operations::Constant as u8,
-                0,
-                Operations::Pop as u8,
-            ],
+            vec![0, 0, 17, 2, 0, 0, 0, 0, 1, 0, 0, 1],
             vec![Value::from(1.0), Value::from(42.0)],
             vec![],
         );
@@ -545,20 +497,7 @@ mod tests {
     #[test]
     fn branch_if_non_zero() {
         let code = Program::new(
-            vec![
-                Operations::Constant as u8,
-                0,
-                Operations::BranchIfNonZero as u8,
-                2,
-                0,
-                0,
-                0,
-                Operations::Constant as u8,
-                0,
-                Operations::Constant as u8,
-                1,
-                Operations::Pop as u8,
-            ],
+            vec![0, 0, 18, 2, 0, 0, 0, 0, 0, 0, 1, 1],
             vec![Value::from(1.0), Value::from(42.0)],
             vec![],
         );
