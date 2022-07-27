@@ -233,7 +233,7 @@ impl<C: Courier> VirtualMachine<C> {
     }
 
     fn branch_operation(&mut self) -> OperationResult {
-        let jump = self.read_u32()? as usize;
+        let jump = self.read_u16()? as usize;
 
         self.cursor += jump;
 
@@ -241,7 +241,7 @@ impl<C: Courier> VirtualMachine<C> {
     }
 
     fn branch_if_zero_operation(&mut self) -> OperationResult {
-        let jump = self.read_u32()? as usize;
+        let jump = self.read_u16()? as usize;
         let condition = self.pop_number()? == Number::from(0);
 
         if condition {
@@ -252,7 +252,7 @@ impl<C: Courier> VirtualMachine<C> {
     }
 
     fn branch_if_non_zero_operation(&mut self) -> OperationResult {
-        let jump = self.read_u32()? as usize;
+        let jump = self.read_u16()? as usize;
         let condition = self.pop_number()? != Number::from(0);
 
         if condition {
@@ -329,11 +329,11 @@ impl<C: Courier> VirtualMachine<C> {
         Ok(self.read::<u8>()?[0])
     }
 
-    fn read_u32(&mut self) -> RuntimeResult<u32> {
-        let operand = self.read::<u32>()?;
-        let bytes = [operand[0], operand[1], operand[2], operand[3]];
+    fn read_u16(&mut self) -> RuntimeResult<u16> {
+        let operand = self.read::<u16>()?;
+        let bytes = [operand[0], operand[1]];
 
-        Ok(u32::from_le_bytes(bytes))
+        Ok(u16::from_le_bytes(bytes))
     }
 
     fn read<T>(&mut self) -> RuntimeResult<&[u8]> {
@@ -469,7 +469,7 @@ mod tests {
     #[test]
     fn unconditional_branch() {
         let code = Program::new(
-            vec![16, 2, 0, 0, 0, 0, 0, 0, 1],
+            vec![16, 2, 0, 0, 0, 0, 1],
             vec![Value::from(1.0), Value::from(42.0)],
             vec![],
         );
@@ -483,7 +483,7 @@ mod tests {
     #[test]
     fn branch_if_zero() {
         let code = Program::new(
-            vec![0, 0, 17, 2, 0, 0, 0, 0, 1, 0, 0, 1],
+            vec![0, 0, 17, 2, 0, 0, 1, 0, 0, 1],
             vec![Value::from(1.0), Value::from(42.0)],
             vec![],
         );
@@ -497,7 +497,7 @@ mod tests {
     #[test]
     fn branch_if_non_zero() {
         let code = Program::new(
-            vec![0, 0, 18, 2, 0, 0, 0, 0, 0, 0, 1, 1],
+            vec![0, 0, 18, 2, 0, 0, 0, 0, 1, 1],
             vec![Value::from(1.0), Value::from(42.0)],
             vec![],
         );
