@@ -20,7 +20,7 @@ pub enum Operations {
     Send,
     Closure(FunctionIndex, Vec<CaptureOffset>),
     Return,
-    Branch,
-    BranchIfZero,
-    BranchIfNonZero,
+    Branch(u32),
+    BranchIfZero(u32),
+    BranchIfNonZero(u32),
 }
