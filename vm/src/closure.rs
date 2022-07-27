@@ -28,14 +28,6 @@ impl Closure {
         Closure { function, captures }
     }
 
-    pub fn start(&self) -> usize {
-        self.function.start()
-    }
-
-    pub fn locals(&self) -> usize {
-        self.function.locals()
-    }
-
     pub fn captures(&self) -> &[Value] {
         &self.captures[..]
     }

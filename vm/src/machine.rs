@@ -21,11 +21,10 @@ type RuntimeResult<T> = Result<T, RuntimeError>;
 type OperationResult = RuntimeResult<()>;
 
 impl<C: Courier> VirtualMachine<C> {
-    const OPERATIONS_TABLE: [fn(&mut VirtualMachine<C>) -> OperationResult; 21] = [
+    const OPERATIONS_TABLE: [fn(&mut VirtualMachine<C>) -> OperationResult; 20] = [
         Self::constant_operation,
         Self::pop_operation,
         Self::get_local_operation,
-        Self::define_local_operation,
         Self::get_capture_operation,
         Self::compare_operation,
         Self::equal_operation,
@@ -89,15 +88,21 @@ impl<C: Courier> VirtualMachine<C> {
     }
 
     fn get_local_operation(&mut self) -> OperationResult {
-        todo!()
-    }
+        let slot = self.read_byte()? as usize;
+        let value = self.get_local(slot)?;
 
-    fn define_local_operation(&mut self) -> OperationResult {
-        todo!()
+        self.stack.push(value);
+
+        Ok(())
     }
 
     fn get_capture_operation(&mut self) -> OperationResult {
-        todo!()
+        let slot = self.read_byte()? as usize;
+        let value = self.get_capture(slot)?;
+
+        self.stack.push(value);
+
+        Ok(())
     }
 
     fn compare_operation(&mut self) -> OperationResult {
@@ -326,6 +331,30 @@ impl<C: Courier> VirtualMachine<C> {
         } else {
             Err(ErrorKind::InvalidOperand(size, operand.len()).into())
         }
+    }
+
+    fn get_local(&mut self, index: usize) -> RuntimeResult<Value> {
+        let frame = self
+            .frames
+            .last()
+            .ok_or_else(|| RuntimeError::from(ErrorKind::EmptyCallFrames))?;
+        let value = self.stack[frame]
+            .get(index)
+            .ok_or_else(|| RuntimeError::from(ErrorKind::CorruptedFrame))?;
+
+        Ok(value.clone())
+    }
+
+    fn get_capture(&mut self, index: usize) -> RuntimeResult<Value> {
+        let frame = self
+            .frames
+            .last()
+            .ok_or_else(|| RuntimeError::from(ErrorKind::EmptyCallFrames))?;
+        let value = self.stack[frame]
+            .get(frame.locals() + index)
+            .ok_or_else(|| RuntimeError::from(ErrorKind::CorruptedFrame))?;
+
+        Ok(value.clone())
     }
 
     fn pop_value(&mut self) -> RuntimeResult<Value> {

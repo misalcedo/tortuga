@@ -17,6 +17,7 @@ impl From<ErrorKind> for RuntimeError {
 pub enum ErrorKind {
     EmptyStack,
     EmptyCallFrames,
+    CorruptedFrame,
     ExpectedIdentifier(Value),
     ExpectedNumber(Value),
     ExpectedClosure(Value),

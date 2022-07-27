@@ -3,7 +3,6 @@ pub enum Operations {
     Constant,
     Pop,
     GetLocal,
-    DefineLocal,
     GetCapture,
     Compare,
     Equal,

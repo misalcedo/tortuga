@@ -37,7 +37,7 @@ impl Function {
     }
 
     pub fn locals(&self) -> usize {
-        self.locals
+        self.locals + 1
     }
 
     pub fn captures(&self) -> usize {
@@ -45,6 +45,6 @@ impl Function {
     }
 
     pub fn values(&self) -> usize {
-        self.locals + self.captures + 1
+        self.locals + self.captures
     }
 }

@@ -22,6 +22,10 @@ impl CallFrame {
         self.return_to
     }
 
+    pub fn locals(&self) -> usize {
+        self.function.locals()
+    }
+
     pub fn values(&self) -> usize {
         self.function.values()
     }
