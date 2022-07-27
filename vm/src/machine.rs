@@ -62,7 +62,7 @@ impl<C: Courier> VirtualMachine<C> {
         self.stack.push(closure.into());
         self.stack.push(value);
 
-        self.enter_function(&function)?;
+        self.enter_function(function)?;
 
         while self.cursor < self.code.len() {
             let operation = self.get_operation()?;
@@ -70,7 +70,7 @@ impl<C: Courier> VirtualMachine<C> {
             operation(self)?;
         }
 
-        self.exit_function(&function)
+        self.exit_function()
     }
 
     fn constant_operation(&mut self) -> OperationResult {
@@ -209,7 +209,15 @@ impl<C: Courier> VirtualMachine<C> {
     }
 
     fn return_operation(&mut self) -> OperationResult {
-        todo!()
+        if let Some(result) = self.exit_function()? {
+            self.stack.push(result);
+        }
+
+        if self.frames.is_empty() {
+            Err(ErrorKind::ReturnOutsideFunction.into())
+        } else {
+            Ok(())
+        }
     }
 
     fn branch_operation(&mut self) -> OperationResult {
@@ -242,25 +250,27 @@ impl<C: Courier> VirtualMachine<C> {
         Ok(())
     }
 
-    fn enter_function(&mut self, function: &Function) -> RuntimeResult<()> {
+    fn enter_function(&mut self, function: Function) -> RuntimeResult<()> {
         let values = function.values();
         let length = self.stack.len();
         let start_stack = length
             .checked_sub(values)
             .ok_or_else(|| RuntimeError::from(ErrorKind::IncorrectCall(values, length)))?;
-        let frame = CallFrame::new(self.cursor, start_stack, function.start());
+        let start_frame = function.start();
+        let frame = CallFrame::new(self.cursor, start_stack, function);
 
         self.frames.push(frame);
+        self.cursor = start_frame;
 
         Ok(())
     }
 
-    fn exit_function(&mut self, function: &Function) -> RuntimeResult<Option<Value>> {
-        let values = function.values();
+    fn exit_function(&mut self) -> RuntimeResult<Option<Value>> {
         let frame = self
             .frames
             .last()
             .ok_or_else(|| RuntimeError::from(ErrorKind::EmptyCallFrames))?;
+        let values = frame.values();
         let result = if self.stack[frame].len() > values {
             self.stack.pop()
         } else {

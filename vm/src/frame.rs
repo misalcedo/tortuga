@@ -1,4 +1,4 @@
-use crate::{Closure, Value};
+use crate::{Closure, Function, Value};
 use std::ops::{Index, IndexMut};
 use std::slice::SliceIndex;
 
@@ -6,15 +6,15 @@ use std::slice::SliceIndex;
 pub struct CallFrame {
     return_to: usize,
     start_stack: usize,
-    start_frame: usize,
+    function: Function,
 }
 
 impl CallFrame {
-    pub fn new(return_to: usize, start_stack: usize, start_frame: usize) -> Self {
+    pub fn new(return_to: usize, start_stack: usize, function: Function) -> Self {
         CallFrame {
             return_to,
             start_stack,
-            start_frame,
+            function,
         }
     }
 
@@ -22,8 +22,8 @@ impl CallFrame {
         self.return_to
     }
 
-    pub fn start(&self) -> usize {
-        self.start_frame
+    pub fn values(&self) -> usize {
+        self.function.values()
     }
 }
 

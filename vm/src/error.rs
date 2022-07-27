@@ -25,6 +25,7 @@ pub enum ErrorKind {
     InvalidOperand(usize, usize), // expected, actual
     NoSuchConstant(usize),
     IncorrectCall(usize, usize), // expected, actual,
+    ReturnOutsideFunction,
 }
 
 impl Display for RuntimeError {
