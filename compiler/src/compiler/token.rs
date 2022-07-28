@@ -90,54 +90,83 @@ impl<'a> Token<'a> {
 /// The variants of the [`Token`]s and their associated attributes.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Kind {
+    // Literals
     Number,
     Identifier,
 
     // Punctuation
-    /// +
-    Plus,
-    /// -
-    Minus,
-    /// *
-    Star,
-    /// /
-    Slash,
+    /// ~
+    Tilde,
+    /// `
+    BackTick,
+    /// !
+    Exclamation,
+    /// @
+    At,
+    /// #
+    Pound,
+    /// $
+    Dollar,
     /// %
     Percent,
     /// ^
     Caret,
-    /// ~
-    Tilde,
-    /// =
-    Equal,
-    /// <>
-    NotEqual,
-    /// <
-    LessThan,
-    /// <=
-    LessThanOrEqualTo,
-    /// >
-    GreaterThan,
-    /// >=
-    GreaterThanOrEqualTo,
-    /// ,
-    Comma,
+    /// &
+    Ampersand,
+    /// *
+    Star,
+    /// (
+    LeftParenthesis,
+    /// )
+    RightParenthesis,
     /// _
     Underscore,
-    /// @
-    At,
-    /// !
-    Exclamation,
+    /// -
+    Minus,
+    /// +
+    Plus,
+    /// =
+    Equal,
+    /// {
+    LeftBrace,
+    /// [
+    LeftBracket,
+    /// }
+    RightBrace,
+    /// ]
+    RightBracket,
     /// |
     VerticalPipe,
+    /// \
+    BackSlash,
+    /// :
+    Colon,
+    /// ;
+    Semicolon,
+    /// '
+    SingleQuote,
+    /// "
+    DoubleQuote,
+    /// <
+    LessThan,
+    /// ,
+    Comma,
+    /// >
+    GreaterThan,
+    /// .
+    Dot,
+    /// ?
+    Question,
+    /// /
+    Slash,
 
-    // Delimiters
-    LeftParenthesis,
-    RightParenthesis,
-    LeftBrace,
-    RightBrace,
-    LeftBracket,
-    RightBracket,
+    // Multi-character
+    /// <>
+    NotEqual,
+    /// <=
+    LessThanOrEqualTo,
+    /// >=
+    GreaterThanOrEqualTo,
 }
 
 impl Display for Kind {
@@ -169,6 +198,17 @@ impl Display for Kind {
             Kind::RightBrace => f.write_char('}'),
             Kind::LeftBracket => f.write_char('['),
             Kind::RightBracket => f.write_char(']'),
+            Kind::BackTick => f.write_char('`'),
+            Kind::Pound => f.write_char('#'),
+            Kind::Dollar => f.write_char('$'),
+            Kind::Ampersand => f.write_char('&'),
+            Kind::BackSlash => f.write_char('\\'),
+            Kind::Colon => f.write_char(':'),
+            Kind::Semicolon => f.write_char(';'),
+            Kind::SingleQuote => f.write_char('\''),
+            Kind::DoubleQuote => f.write_char('"'),
+            Kind::Dot => f.write_char('.'),
+            Kind::Question => f.write_char('?'),
         }
     }
 }
