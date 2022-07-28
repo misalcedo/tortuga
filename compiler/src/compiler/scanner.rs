@@ -30,6 +30,8 @@ impl<'a> Iterator for Scanner<'a> {
             self.input.skip_blank_space();
 
             let result = match self.input.next()? {
+                '0'..='9' => self.scan_number(),
+                c if c.is_xid_start() => self.scan_identifier(),
                 '+' => self.new_token(Kind::Plus),
                 '-' => self.new_token(Kind::Minus),
                 '*' => self.new_token(Kind::Star),
@@ -49,15 +51,22 @@ impl<'a> Iterator for Scanner<'a> {
                 '@' => self.new_token(Kind::At),
                 '!' => self.new_token(Kind::Exclamation),
                 '|' => self.new_token(Kind::VerticalPipe),
+                '`' => self.new_token(Kind::BackTick),
+                '#' => self.new_token(Kind::Pound),
+                '$' => self.new_token(Kind::Dollar),
+                '&' => self.new_token(Kind::Ampersand),
+                '\\' => self.new_token(Kind::BackSlash),
+                ':' => self.new_token(Kind::Colon),
+                '\'' => self.new_token(Kind::SingleQuote),
+                '"' => self.new_token(Kind::DoubleQuote),
+                '?' => self.new_token(Kind::Question),
                 ';' => {
                     self.skip_comment();
-                    continue;
+                    self.new_token(Kind::Semicolon)
                 }
                 '<' => self.scan_less_than(),
                 '>' => self.scan_greater_than(),
                 '.' => self.scan_fractional_number(),
-                '0'..='9' => self.scan_number(),
-                s if s.is_xid_start() => self.scan_identifier(),
                 _ => self.scan_invalid(),
             };
 
