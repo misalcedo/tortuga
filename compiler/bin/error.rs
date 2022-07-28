@@ -1,5 +1,5 @@
 use std::convert::Infallible;
-use tortugac::SyntacticalError;
+use tortuga_compiler::SyntacticalError;
 use tracing::subscriber::SetGlobalDefaultError;
 
 pub(crate) enum Error {

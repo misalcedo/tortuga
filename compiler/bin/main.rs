@@ -4,8 +4,8 @@ use error::Error;
 use std::io::ErrorKind::BrokenPipe;
 use std::path::PathBuf;
 use std::{env, fs};
-use tortugac::walk::Walker;
-use tortugac::Program;
+use tortuga_compiler::walk::Walker;
+use tortuga_compiler::Program;
 use tracing::subscriber::set_global_default;
 use tracing::Level;
 
@@ -53,7 +53,7 @@ fn compile_file(file_path: String) -> CompilerResult {
 
     let source = fs::read_to_string(path.as_path())?;
     let program: Program = source.as_str().parse()?;
-    let emitter = tortugac::BinaryEmitter::default();
+    let emitter = tortuga_compiler::BinaryEmitter::default();
 
     if path.set_extension(OUTPUT_EXTENSION) {
         fs::write(path.as_path(), emitter.walk(program)?)?;

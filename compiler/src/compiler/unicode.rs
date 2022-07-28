@@ -43,7 +43,7 @@ impl UnicodeProperties for char {
 fn binary_search_range_table(c: &char, table: &[RangeInclusive<char>]) -> bool {
     table
         .binary_search_by(|range| {
-            if range.start() > c {
+            if c < range.start() {
                 Greater
             } else if range.end() < c {
                 Less
@@ -55,10 +55,10 @@ fn binary_search_range_table(c: &char, table: &[RangeInclusive<char>]) -> bool {
 }
 
 static PATTERN_WHITE_SPACE: &[RangeInclusive<char>] = &[
+    '\u{0009}'..='\u{000D}',
     '\u{0020}'..='\u{0020}',
     '\u{0085}'..='\u{0085}',
     '\u{200E}'..='\u{200F}',
-    '\u{0009}'..='\u{000D}',
     '\u{2028}'..='\u{2029}',
 ];
 
