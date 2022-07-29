@@ -4,4 +4,4 @@ mod errors;
 mod scanner;
 
 pub use errors::SyntacticalError;
-//pub use scanner::{Kind, Lexeme, Location, Scanner, Token};
+pub use scanner::{Lexeme, Location, Token};

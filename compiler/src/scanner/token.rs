@@ -13,16 +13,21 @@ pub struct Token<'a> {
 
 impl Display for Token<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{} token on {}", self.kind, self.lexeme)
+        write!(f, "{} token on {}", self.kind, self.start)
     }
 }
 
 impl<'a> Token<'a> {
     /// Creates a new instance of a [`Token`] with the given [`Lexeme`] and [`Kind`].
-    pub fn new<S: Into<Location>, L: Into<Lexeme<'a>>, K: Into<Kind>>(start: S, lexeme: L, kind: K) -> Self {
+    pub fn new<S, L, K>(start: S, lexeme: L, kind: K) -> Self
+    where
+        S: Into<Location>,
+        L: Into<Lexeme<'a>>,
+        K: Into<Kind>,
+    {
         Token {
             lexeme: lexeme.into(),
-            start: start.into()
+            start: start.into(),
             kind: kind.into(),
         }
     }
@@ -49,7 +54,7 @@ impl<'a> Token<'a> {
 }
 
 /// The variants of the [`Token`]s and their associated attributes.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Kind {
     // Literals
     Number,
@@ -177,15 +182,17 @@ impl Display for Kind {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::compiler::Location;
+    use crate::Location;
 
     #[test]
     fn token() {
         let lexeme = "ab";
+        let start = "";
         let kind = Kind::Number;
-        let token = Token::new(lexeme, kind);
+        let token = Token::new(start, lexeme, kind);
 
-        assert_eq!(token.lexeme(), &Lexeme::new(Location::default(), lexeme));
+        assert_eq!(token.start(), &Location::default());
+        assert_eq!(token.lexeme(), &Lexeme::from(lexeme));
         assert_eq!(token.kind(), &kind);
     }
 }
