@@ -3,7 +3,7 @@
 //! The line and column are used as debugging information.   
 
 use std::fmt;
-use std::ops::Add;
+use std::ops::{Add, AddAssign};
 
 /// The line and column of the start of a lexeme.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -18,10 +18,18 @@ impl Add<&str> for Location {
 
     fn add(mut self, rhs: &str) -> Self::Output {
         for c in rhs.chars() {
-            self.advance(c);
+            self.advance(&c);
         }
 
         self
+    }
+}
+
+impl AddAssign<&str> for Location {
+    fn add_assign(&mut self, rhs: &str) {
+        for c in rhs.chars() {
+            self.advance(&c);
+        }
     }
 }
 
@@ -59,7 +67,7 @@ impl Location {
     }
 
     /// Advance this `Location` based on the given character `c`.
-    pub fn advance(&mut self, c: char) {
+    pub fn advance(&mut self, c: &char) {
         match c {
             '\n' => self.next_line(),
             _ => self.add_column(c),
@@ -74,7 +82,7 @@ impl Location {
     }
 
     /// Adds a single column to this `Location`.
-    fn add_column(&mut self, c: char) {
+    fn add_column(&mut self, c: &char) {
         self.column += 1;
         self.offset += c.len_utf8();
     }
@@ -104,7 +112,7 @@ mod tests {
         let mut location = Location::default();
         let c = 'a';
 
-        location.advance(c);
+        location.advance(&c);
 
         assert_eq!(location, Location::new(1, 2, c.len_utf8()));
     }
@@ -114,7 +122,7 @@ mod tests {
         let mut location = Location::default();
         let c = '〞';
 
-        location.advance(c);
+        location.advance(&c);
 
         assert_eq!(location, Location::new(1, 2, c.len_utf8()));
     }
@@ -124,7 +132,7 @@ mod tests {
         let mut location = Location::default();
         let c = '\n';
 
-        location.advance(c);
+        location.advance(&c);
 
         assert_eq!(location, Location::new(2, 1, c.len_utf8()));
     }
@@ -134,9 +142,9 @@ mod tests {
         let mut location = Location::default();
         let c = '〞';
 
-        location.advance(c);
-        location.advance('\n');
-        location.advance(c);
+        location.advance(&c);
+        location.advance(&'\n');
+        location.advance(&c);
 
         assert_eq!(
             location,

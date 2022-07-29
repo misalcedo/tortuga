@@ -1,10 +1,14 @@
 //! Performs lexical analysis on Tortuga input and produces a sequence of `Token`s.
 
-use crate::compiler::errors::lexical::ErrorKind;
-use crate::compiler::number::{DECIMAL, MAX_RADIX, NUMBER_REGEX};
-use crate::compiler::unicode::UnicodeProperties;
-use crate::compiler::{Input, Kind, LexicalError, Token};
-use std::str::Chars;
+use std::str::{Chars, FromStr};
+
+// mod error;
+// mod input;
+mod lexeme;
+mod location;
+/*mod number;
+mod token;
+mod unicode;
 
 type LexicalResult<'a> = Result<Token<'a>, LexicalError>;
 
@@ -19,6 +23,14 @@ impl<'a> From<&'a str> for Scanner<'a> {
         Scanner {
             input: source.into(),
         }
+    }
+}
+
+impl FromStr for Scanner {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        todo!()
     }
 }
 
@@ -423,3 +435,4 @@ mod tests {
         assert_eq!(scanner.next(), None);
     }
 }
+*/

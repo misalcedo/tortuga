@@ -1,7 +1,6 @@
 //! Errors that may occur during lexical analysis.
 
-use crate::compiler::{Lexeme, Location};
-use crate::Kind;
+use crate::{Lexeme, Location};
 use std::fmt;
 use std::fmt::{Display, Formatter};
 
@@ -11,7 +10,6 @@ use std::fmt::{Display, Formatter};
 pub struct LexicalError {
     lexeme: String,
     start: Location,
-    token: Option<Kind>,
     kind: ErrorKind,
 }
 
@@ -31,6 +29,7 @@ impl std::error::Error for LexicalError {}
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ErrorKind {
     Number,
+    Identifier,
     Invalid,
 }
 

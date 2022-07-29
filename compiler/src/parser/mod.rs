@@ -468,14 +468,14 @@ mod tests {
 
     #[test]
     fn parse_example() {
-        assert!(include_str!("../../../../examples/example.ta")
+        assert!(include_str!("../../../examples/example.ta")
             .parse::<Program>()
             .is_ok())
     }
 
     #[test]
     fn parse_factorial() {
-        assert!(include_str!("../../../../examples/factorial.ta")
+        assert!(include_str!("../../../examples/factorial.ta")
             .parse::<Program>()
             .is_ok())
     }

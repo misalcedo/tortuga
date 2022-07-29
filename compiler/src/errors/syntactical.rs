@@ -1,7 +1,7 @@
 //! Errors that may occur during syntax analysis.
 
-use crate::compiler::OwnedToken;
-use crate::LexicalError;
+// use crate::LexicalError;
+//use crate::Location;
 use std::fmt::Display;
 
 /// An error that occurred while generating a syntax tree from a sequence of tokens.
@@ -10,12 +10,12 @@ use std::fmt::Display;
 pub enum SyntacticalError {
     #[error("Reached the end of file prematurely; unable to complete parsing a grammar rule.")]
     Incomplete,
-    #[error("No grammar rule matched the {0}.")]
-    NoMatch(OwnedToken),
-    #[error("Encountered multiple syntax errors.")]
-    Multiple,
-    #[error("Encountered one or more lexical errors: {}", display_slice(&.0[..], "\n\t"))]
-    Lexical(Vec<LexicalError>),
+    // #[error("No grammar rule matched the {0}.")]
+    // NoMatch(String, Location),
+    // #[error("Encountered multiple syntax errors.")]
+    // Multiple,
+    // #[error("Encountered one or more lexical errors: {}", display_slice(&.0[..], "\n\t"))]
+    // Lexical(Vec<LexicalError>),
 }
 
 fn display_slice<D: Display>(items: &[D], separator: &str) -> String {

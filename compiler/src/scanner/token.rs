@@ -1,59 +1,14 @@
 //! Lexical [`Token`]s for the Tortuga Programming Language.
 
-use crate::compiler::{Lexeme, Location};
+use crate::{Lexeme, Location};
 use std::fmt::{self, Display, Formatter, Write};
 
 /// A lexical token is a pair of a [`Lexeme`] and a [`Kind`].
 #[derive(Clone, Debug, PartialEq)]
 pub struct Token<'a> {
     lexeme: Lexeme<'a>,
-    kind: Kind,
-}
-
-/// A lexical token is a pair of a [`Lexeme`] and a [`Kind`].
-#[derive(Clone, Debug, PartialEq)]
-pub struct OwnedToken {
     start: Location,
-    lexeme: String,
     kind: Kind,
-}
-
-impl OwnedToken {
-    /// Creates a new instance of a [`Token`] with the given [`Lexeme`] and [`Kind`].
-    pub fn new<K: Into<Kind>>(lexeme: &Lexeme<'_>, kind: K) -> Self {
-        OwnedToken {
-            start: *lexeme.start(),
-            lexeme: lexeme.as_str().to_string(),
-            kind: kind.into(),
-        }
-    }
-
-    /// The start [`Location`] of this [`OwnedToken`].
-    pub fn start(&self) -> &Location {
-        &self.start
-    }
-
-    /// This [`OwnedToken`]'s variant.
-    pub fn kind(&self) -> &Kind {
-        &self.kind
-    }
-
-    /// A [`str`] representing this [`OwnedToken`] in the input.
-    pub fn as_str(&self) -> &str {
-        self.lexeme.as_str()
-    }
-}
-
-impl From<Token<'_>> for OwnedToken {
-    fn from(token: Token<'_>) -> Self {
-        OwnedToken::new(&token.lexeme, token.kind)
-    }
-}
-
-impl Display for OwnedToken {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{} token on {}", self.kind, self.start)
-    }
 }
 
 impl Display for Token<'_> {
@@ -64,9 +19,10 @@ impl Display for Token<'_> {
 
 impl<'a> Token<'a> {
     /// Creates a new instance of a [`Token`] with the given [`Lexeme`] and [`Kind`].
-    pub fn new<L: Into<Lexeme<'a>>, K: Into<Kind>>(lexeme: L, kind: K) -> Self {
+    pub fn new<S: Into<Location>, L: Into<Lexeme<'a>>, K: Into<Kind>>(start: S, lexeme: L, kind: K) -> Self {
         Token {
             lexeme: lexeme.into(),
+            start: start.into()
             kind: kind.into(),
         }
     }
@@ -74,6 +30,11 @@ impl<'a> Token<'a> {
     /// The actual text this [`Token`] represents in the input.
     pub fn lexeme(&self) -> &Lexeme {
         &self.lexeme
+    }
+
+    /// The start [`Location`] of this [`Lexeme`].
+    pub fn start(&self) -> &Location {
+        &self.start
     }
 
     /// This [`Token`]'s variant.
