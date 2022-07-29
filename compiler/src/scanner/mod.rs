@@ -7,12 +7,13 @@ use std::str::{Chars, FromStr};
 mod lexeme;
 mod location;
 mod token;
+mod unicode;
 
 pub use lexeme::Lexeme;
 pub use location::Location;
 pub use token::Token;
 /*mod number;
-mod unicode;
+
 
 type LexicalResult<'a> = Result<Token<'a>, LexicalError>;
 
