@@ -1,24 +1,25 @@
 //! Lexical [`Token`]s for the Tortuga Programming Language.
 
 use crate::{Lexeme, Location};
+use std::borrow::Cow;
 use std::fmt::{self, Display, Formatter, Write};
 
 /// A lexical token is a pair of a [`Lexeme`] and a [`Kind`].
 #[derive(Clone, Debug, PartialEq)]
 pub struct Token<'a> {
-    lexeme: Lexeme<'a>,
+    lexeme: Cow<'a, str>,
     start: Location,
     kind: Kind,
 }
 
 impl Display for Token<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{} token on {}", self.kind, self.start)
+        write!(f, "'{}' ({}) at {}", self.lexeme, self.kind, self.start)
     }
 }
 
 impl<'a> Token<'a> {
-    /// Creates a new instance of a [`Token`] with the given [`Lexeme`] and [`Kind`].
+    /// Creates a new instance of a [`Token`] with the given [`Location`], [`Lexeme`] and [`Kind`].
     pub fn new<S, L, K>(start: S, lexeme: L, kind: K) -> Self
     where
         S: Into<Location>,
@@ -33,11 +34,11 @@ impl<'a> Token<'a> {
     }
 
     /// The actual text this [`Token`] represents in the input.
-    pub fn lexeme(&self) -> &Lexeme {
+    pub fn lexeme(&self) -> &'a str {
         &self.lexeme
     }
 
-    /// The start [`Location`] of this [`Lexeme`].
+    /// The start [`Location`] of this [`Token`]'s [`Lexeme`].
     pub fn start(&self) -> &Location {
         &self.start
     }
@@ -45,11 +46,6 @@ impl<'a> Token<'a> {
     /// This [`Token`]'s variant.
     pub fn kind(&self) -> &Kind {
         &self.kind
-    }
-
-    /// A [`str`] representing this [`Token`] in the input.
-    pub fn as_str(&self) -> &str {
-        self.lexeme.as_str()
     }
 }
 

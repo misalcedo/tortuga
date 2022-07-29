@@ -1,113 +1,6 @@
-//! Representation of numbers within Tortuga.
-//! Parse a number lexeme into a runtime `Number`.
-//! Also, used to validate the lexical structure of a number.
-//! Numbers in Tortuga cannot have leading 0s in the radix or integer portion,
+//! Lexical representation of numbers within Tortuga.
+//! Numbers in Tortuga cannot have leading 0s in the integer portion
 //! and cannot have trailing 0s in the fraction portion.
-//! Also, the radix for a number cannot be more than 2 digits.
-
-use crate::compiler::errors::ParseNumberError;
-use lazy_static::lazy_static;
-use regex::{Captures, Match, Regex};
-use std::fmt;
-use std::str::FromStr;
-
-/// Base 10 (i.e. decimal). The default base for all numbers.
-pub const DECIMAL: u32 = 10;
-
-/// The largest supported radix for numbers with an explicit base.
-pub const MAX_RADIX: u32 = 36;
-
-const DEFAULT_NUMBER_PART: &str = "0";
-const DEFAULT_RADIX: &str = "10";
-
-lazy_static! {
-    /// A regular expression used to validate and extract a number from a Lexeme.
-    pub static ref NUMBER_REGEX: Regex = Regex::new(
-        r###"(?x)
-            ^
-            (?: ( [[:digit:]--0] [[:digit:]]{0, 1}) \# )?
-            (?: 
-                (?:
-                    ( 0 | [[:alnum:]--0] [[:alnum:]]* )
-                    (?: \. ( 0? | [[:alnum:]]*? [[:alnum:]--0] ) )?
-                )
-                |
-                (?: ( 0? ) \. ( 0 | [[:alnum:]]*? [[:alnum:]--0] ) )
-            )
-            $
-        "###
-    )
-    .expect("Invalid regular expression for NUMBER token.");
-}
-
-#[derive(Copy, Clone, Debug, Default, PartialEq, PartialOrd)]
-pub struct Number(f64);
-
-impl fmt::Display for Number {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl<I: Into<f64>> From<I> for Number {
-    fn from(value: I) -> Self {
-        Number(value.into())
-    }
-}
-
-impl FromStr for Number {
-    type Err = ParseNumberError;
-
-    fn from_str(number: &str) -> Result<Self, Self::Err> {
-        let captures = NUMBER_REGEX
-            .captures(number)
-            .ok_or_else(|| ParseNumberError::from(number))?;
-
-        let radix_part = get_match(&captures, 1).unwrap_or(DEFAULT_RADIX);
-        let integer_part = get_matches(&captures, &[2, 4, 6]);
-        let fraction_part = get_matches(&captures, &[3, 5, 7]);
-
-        let radix: u32 = radix_part
-            .parse()
-            .map_err(|_| ParseNumberError::from(number))?;
-
-        if radix > MAX_RADIX {
-            return Err(number.into());
-        }
-
-        let integer = u128::from_str_radix(integer_part.unwrap_or(DEFAULT_NUMBER_PART), radix)
-            .map_err(|_| ParseNumberError::from(number))?;
-
-        let numerator_part = fraction_part.unwrap_or(DEFAULT_NUMBER_PART);
-        let numerator = u128::from_str_radix(numerator_part, radix)
-            .map_err(|_| ParseNumberError::from(number))?;
-        let fraction = (numerator as f64) / (radix as f64).powf(numerator_part.len() as f64);
-
-        if integer_part.is_none() && fraction_part.is_none() {
-            Err(number.into())
-        } else {
-            Ok(Number::from((integer as f64) + fraction))
-        }
-    }
-}
-
-fn get_matches<'a>(captures: &Captures<'a>, indices: &[usize]) -> Option<&'a str> {
-    for &index in indices {
-        if captures.get(index).is_some() {
-            return get_match(captures, index);
-        }
-    }
-
-    None
-}
-
-fn get_match<'a>(captures: &Captures<'a>, index: usize) -> Option<&'a str> {
-    captures
-        .get(index)
-        .as_ref()
-        .map(Match::as_str)
-        .filter(|s| !s.is_empty())
-}
 
 #[cfg(test)]
 mod tests {
@@ -117,7 +10,6 @@ mod tests {
         assert_eq!(number.parse::<Number>(), Ok(value.into()));
     }
 
-    #[test]
     fn parse_number() {
         validate_number("0", 0);
         validate_number("0.0", 0);
@@ -155,7 +47,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn parse_invalid_number() {
         invalidate_number(".");
         invalidate_number("20#.");

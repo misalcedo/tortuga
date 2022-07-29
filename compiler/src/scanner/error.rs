@@ -1,8 +1,7 @@
 //! Errors that may occur during lexical analysis.
 
 use crate::{Lexeme, Location};
-use std::fmt;
-use std::fmt::{Display, Formatter};
+use std::fmt::{self, Display, Formatter};
 
 /// An error that occurred during lexical analysis of a specific lexeme.
 /// After an error is encountered, the scanner may continue to analyze the lexeme.
@@ -41,7 +40,6 @@ impl LexicalError {
         LexicalError {
             lexeme: lexeme.as_str().to_string(),
             start: *lexeme.start(),
-            token: None,
             kind,
         }
     }
@@ -67,6 +65,7 @@ impl Display for ErrorKind {
         match self {
             ErrorKind::Number => f.write_str("NUMBER"),
             ErrorKind::Invalid => f.write_str("INVALID"),
+            ErrorKind::Identifier => f.write_str("IDENTIFIER"),
         }
     }
 }

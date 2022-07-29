@@ -2,17 +2,13 @@
 
 use std::str::{Chars, FromStr};
 
-// mod error;
-// mod input;
-mod lexeme;
-mod location;
-mod token;
-mod unicode;
+mod error;
 
-pub use lexeme::Lexeme;
-pub use location::Location;
-pub use token::Token;
-/*mod number;
+pub use crate::lexeme::Lexeme;
+pub use crate::location::Location;
+pub use crate::token::Token;
+
+/*
 
 
 type LexicalResult<'a> = Result<Token<'a>, LexicalError>;

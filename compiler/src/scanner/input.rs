@@ -1,7 +1,7 @@
 //! Tortuga `Input` is interpreted as a sequence of Unicode code points encoded in UTF-8.
 
-use crate::compiler::unicode::UnicodeProperties;
-use crate::compiler::{Lexeme, Location};
+use crate::scanner::unicode::UnicodeProperties;
+use crate::{Lexeme, Location};
 use std::str::Chars;
 
 /// Iterates input with 1 Unicode code point of lookahead.
@@ -36,7 +36,7 @@ impl<I: Iterator<Item = char>> Iterator for Input<'_, I> {
             self.peeked.take()
         };
 
-        self.end.advance(c?);
+        self.end.advance(&c?);
 
         c
     }
@@ -58,7 +58,7 @@ impl<'a, I: Iterator<Item = char>> Input<'a, I> {
         let c = self.peek()?;
 
         if c == expected {
-            self.end.advance(c);
+            self.end.advance(&c);
             self.peeked.take()
         } else {
             None
@@ -71,7 +71,7 @@ impl<'a, I: Iterator<Item = char>> Input<'a, I> {
         let c = self.peek()?;
 
         if c.is_digit(radix) {
-            self.end.advance(c);
+            self.end.advance(&c);
             self.peeked.take()
         } else {
             None
@@ -86,7 +86,7 @@ impl<'a, I: Iterator<Item = char>> Input<'a, I> {
         if c == expected {
             None
         } else {
-            self.end.advance(c);
+            self.end.advance(&c);
             self.peeked.take()
         }
     }
@@ -96,7 +96,7 @@ impl<'a, I: Iterator<Item = char>> Input<'a, I> {
         let c = self.peek()?;
 
         if predicate(c) {
-            self.end.advance(c);
+            self.end.advance(&c);
             self.peeked.take()
         } else {
             None
@@ -125,13 +125,13 @@ impl<'a, I: Iterator<Item = char>> Input<'a, I> {
     }
 
     /// Advances the `Input` to start a new `Lexeme` and returns the scanned `Lexeme`.
-    pub fn advance(&mut self) -> Lexeme<'a> {
-        let start = self.start;
-        let lexeme = self.peek_lexeme();
-
+    pub fn advance(&mut self) {
         self.start = self.end;
+    }
 
-        Lexeme::new(start, lexeme)
+    /// The start [`Location`] of this [`Input`]'s current lexeme.
+    pub fn start(&self) -> &Location {
+        &self.start
     }
 
     /// Gets the lexeme starting at this [`Input`]'s start [`Location`] (inclusive) until this [`Input`]'s end [`Location`] (exclusive).
@@ -235,8 +235,8 @@ mod tests {
         input.advance();
         input.next_if_eq('b');
 
-        let actual = Lexeme::new(input.start, input.peek_lexeme());
-        let expected = Lexeme::new(Location::default() + "a", "b");
+        let actual = Lexeme::from(input.start, input.peek_lexeme());
+        let expected = Lexeme::from(Location::default() + "a", "b");
 
         assert_eq!(actual, expected);
         assert_eq!(input.advance(), expected);
@@ -256,16 +256,16 @@ mod tests {
         let second = input.advance();
         let third = input.advance();
 
-        assert_eq!(first, Lexeme::new(Location::default(), "ab"));
-        assert_eq!(second, Lexeme::new("ab", "c"));
-        assert_eq!(third, Lexeme::new("abc", ""));
+        assert_eq!(first, Lexeme::from(Location::default(), "ab"));
+        assert_eq!(second, Lexeme::from("ab", "c"));
+        assert_eq!(third, Lexeme::from("abc", ""));
     }
 
     #[test]
     fn lexeme_when_empty() {
         assert_eq!(
             Input::from("abc").advance(),
-            Lexeme::new(Location::default(), "")
+            Lexeme::from(Location::default(), "")
         );
     }
 
