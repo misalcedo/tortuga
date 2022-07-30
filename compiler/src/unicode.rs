@@ -1,7 +1,6 @@
 //! Character extensions to query for Unicode properties useful for the Tortuga compiler.
 
 use core::cmp::Ordering::{Equal, Greater, Less};
-use std::ops::RangeInclusive;
 
 type Table = [(char, char)];
 

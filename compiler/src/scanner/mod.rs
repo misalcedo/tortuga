@@ -1,37 +1,157 @@
 //! Performs lexical analysis on Tortuga input and produces a sequence of `Token`s.
 
-use std::str::{Chars, FromStr};
+use std::borrow::Cow;
+use std::str::Chars;
 
 mod error;
 
-pub use crate::lexeme::Lexeme;
-pub use crate::location::Location;
-pub use crate::token::Token;
-
-/*
-
+use crate::{unicode::UnicodeProperties, Location, Token, TokenKind};
+pub use error::LexicalError;
 
 type LexicalResult<'a> = Result<Token<'a>, LexicalError>;
 
-/// A lexical analyzer with 1 character of lookahead.
+/// A lexical analyzer with 1 Unicode code point of lookahead.
 #[derive(Clone, Debug)]
 pub struct Scanner<'a> {
-    input: Input<'a, Chars<'a>>,
+    source: Cow<'a, str>,
+    start: Location,
+    end: Location,
+    cursor: Chars<'a>,
 }
 
 impl<'a> From<&'a str> for Scanner<'a> {
     fn from(source: &'a str) -> Scanner<'a> {
         Scanner {
-            input: source.into(),
+            source: source.into(),
+            start: Location::default(),
+            end: Location::default(),
+            cursor: source.chars(),
         }
     }
 }
 
-impl FromStr for Scanner {
-    type Err = ();
+impl From<String> for Scanner<'_> {
+    fn from(source: String) -> Self {
+        Scanner {
+            source: source.into(),
+            start: Location::default(),
+            end: Location::default(),
+            cursor: source.chars(),
+        }
+    }
+}
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        todo!()
+impl<'a> TryFrom<Scanner<'a>> for Vec<Token<'a>> {
+    type Error = LexicalError;
+
+    fn try_from(scanner: Scanner<'a>) -> Result<Self, Self::Error> {
+        let mut tokens = Vec::new();
+
+        for token in scanner {
+            tokens.push(token?);
+        }
+
+        Ok(tokens)
+    }
+}
+
+const INVALID_CODE_POINTS: &'static str = "Invalid code points.";
+
+impl<'a> Scanner<'a> {
+    /// Returns `true` if the remaining source code starts with the given string, false otherwise.
+    fn matches(&mut self, pattern: &'a str) -> bool {
+        let starts_with = self.cursor.as_str().starts_with(pattern);
+
+        if starts_with {
+            if let Some(c) = self.cursor.next() {
+                self.end.advance(&c);
+            }
+        }
+
+        starts_with
+    }
+
+    /// Returns `true` if the remaining source code matches the given predicate, false otherwise.
+    fn matches_closure<F: FnMut(char) -> bool>(&mut self, pattern: F) -> bool {
+        let starts_with = self.cursor.as_str().starts_with(pattern);
+
+        if starts_with {
+            if let Some(c) = self.cursor.next() {
+                self.end.advance(&c);
+            }
+        }
+
+        starts_with
+    }
+
+    /// Creates a new lexical [`Token`] of the given [`TokenKind`] wrapped in a [`Result`].
+    fn new_token(&mut self, kind: TokenKind) -> LexicalResult<'a> {
+        let start = self.start;
+        let lexeme: &'a str = &self.source[start.offset()..self.end.offset()];
+
+        self.start = self.end;
+
+        Ok(Token::new(start, lexeme, kind))
+    }
+
+    /// Creates a new [`LexicalError`] of the given [`ErrorKind`] wrapped in a [`Result`].
+    fn new_error(&mut self, message: &str) -> LexicalResult<'a> {
+        let start = self.start;
+        let lexeme: &'a str = &self.source[start.offset()..self.end.offset()];
+
+        self.start = self.end;
+
+        Err(LexicalError::new(message, start, lexeme))
+    }
+
+    /// Skip characters until the end of the line because of a comment.
+    fn skip_comment(&mut self) {
+        while self.matches_closure(|c| c != '\n') {}
+    }
+
+    /// Skips any blank space characters except '\n'.
+    /// Returns true if any characters were skipped, false otherwise.
+    ///
+    /// Tortuga is a "free-form" language,
+    /// meaning that all forms of whitespace serve only to separate tokens in the grammar,
+    /// and have no semantic significance.
+    ///
+    /// A Tortuga program has identical meaning if each whitespace element is replaced with any other legal whitespace element,
+    /// such as a single space character.
+    ///
+    /// See <https://util.unicode.org/UnicodeJsps/list-unicodeset.jsp?a=%5B%3APattern_White_Space%3A%5D&abb=on&g=&i=>
+    pub fn skip_blank_space(&mut self) -> bool {
+        let start = self.end;
+
+        while self.matches_closure(|c| c.is_pattern_white_space()) {}
+
+        start != self.end
+    }
+
+    fn scan_number(&mut self, fractional: bool) -> LexicalResult<'a> {
+        while self.matches_closure(|c| c.is_ascii_digit()) {}
+
+        if !fractional && self.matches(".") {
+            while self.matches_closure(|c| c.is_ascii_digit()) {}
+        }
+
+        self.new_token(TokenKind::Number)
+    }
+
+    fn scan_identifier(&mut self) -> LexicalResult<'a> {
+        while self.matches_closure(|c| c.is_xid_continue()) {}
+        self.new_token(TokenKind::Identifier)
+    }
+
+    fn scan_invalid(&mut self) -> LexicalResult<'a> {
+        while self.matches_closure(|c| {
+            !c.is_ascii_punctuation()
+                && !c.is_ascii_digit()
+                && !c.is_xid_start()
+                && !c.is_pattern_white_space()
+        }) {}
+
+        self.new_error(INVALID_CODE_POINTS)
     }
 }
 
@@ -39,199 +159,103 @@ impl<'a> Iterator for Scanner<'a> {
     type Item = LexicalResult<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            self.input.skip_blank_space();
+        self.skip_blank_space();
 
-            let result = match self.input.next()? {
-                '0'..='9' => self.scan_number(),
-                c if c.is_xid_start() => self.scan_identifier(),
-                '+' => self.new_token(Kind::Plus),
-                '-' => self.new_token(Kind::Minus),
-                '*' => self.new_token(Kind::Star),
-                '/' => self.new_token(Kind::Slash),
-                '^' => self.new_token(Kind::Caret),
-                '=' => self.new_token(Kind::Equal),
-                '~' => self.new_token(Kind::Tilde),
-                '%' => self.new_token(Kind::Percent),
-                '_' => self.new_token(Kind::Underscore),
-                '(' => self.new_token(Kind::LeftParenthesis),
-                ')' => self.new_token(Kind::RightParenthesis),
-                '[' => self.new_token(Kind::LeftBracket),
-                ']' => self.new_token(Kind::RightBracket),
-                '{' => self.new_token(Kind::LeftBrace),
-                '}' => self.new_token(Kind::RightBrace),
-                ',' => self.new_token(Kind::Comma),
-                '@' => self.new_token(Kind::At),
-                '!' => self.new_token(Kind::Exclamation),
-                '|' => self.new_token(Kind::VerticalPipe),
-                '`' => self.new_token(Kind::BackTick),
-                '#' => self.new_token(Kind::Pound),
-                '$' => self.new_token(Kind::Dollar),
-                '&' => self.new_token(Kind::Ampersand),
-                '\\' => self.new_token(Kind::BackSlash),
-                ':' => self.new_token(Kind::Colon),
-                '\'' => self.new_token(Kind::SingleQuote),
-                '"' => self.new_token(Kind::DoubleQuote),
-                '?' => self.new_token(Kind::Question),
-                ';' => {
-                    self.skip_comment();
-                    self.new_token(Kind::Semicolon)
-                }
-                '<' => self.scan_less_than(),
-                '>' => self.scan_greater_than(),
-                '.' => self.scan_fractional_number(),
-                _ => self.scan_invalid(),
-            };
-
-            return Some(result);
-        }
-    }
-}
-
-impl<'a> Scanner<'a> {
-    fn new_token(&mut self, kind: Kind) -> Result<Token<'a>, LexicalError> {
-        Ok(Token::new(self.input.advance(), kind))
-    }
-
-    fn new_error(&mut self, kind: ErrorKind) -> Result<Token<'a>, LexicalError> {
-        Err(LexicalError::new(self.input.advance(), kind))
-    }
-
-    fn lexeme(&mut self) -> &'a str {
-        self.input.peek_lexeme()
-    }
-
-    fn skip_comment(&mut self) {
-        while self.input.next_unless_eq('\n').is_some() {}
-    }
-
-    fn scan_less_than(&mut self) -> LexicalResult<'a> {
-        let kind = if self.input.next_if_eq('=').is_some() {
-            Kind::LessThanOrEqualTo
-        } else if self.input.next_if_eq('>').is_some() {
-            Kind::NotEqual
-        } else {
-            Kind::LessThan
+        let result = match self.cursor.next()? {
+            '0'..='9' => self.scan_number(false),
+            '.' if self.matches_closure(|c| c.is_ascii_digit()) => self.scan_number(true),
+            '.' => self.new_token(TokenKind::Dot),
+            c if c.is_xid_start() => self.scan_identifier(),
+            '(' => self.new_token(TokenKind::LeftParenthesis),
+            ',' => self.new_token(TokenKind::Comma),
+            ')' => self.new_token(TokenKind::RightParenthesis),
+            ';' => {
+                self.skip_comment();
+                self.new_token(TokenKind::Semicolon)
+            }
+            '+' => self.new_token(TokenKind::Plus),
+            '-' => self.new_token(TokenKind::Minus),
+            '*' => self.new_token(TokenKind::Star),
+            '/' => self.new_token(TokenKind::Slash),
+            '^' => self.new_token(TokenKind::Caret),
+            '=' => self.new_token(TokenKind::Equal),
+            '~' => self.new_token(TokenKind::Tilde),
+            '%' => self.new_token(TokenKind::Percent),
+            '_' => self.new_token(TokenKind::Underscore),
+            '[' => self.new_token(TokenKind::LeftBracket),
+            ']' => self.new_token(TokenKind::RightBracket),
+            '{' => self.new_token(TokenKind::LeftBrace),
+            '}' => self.new_token(TokenKind::RightBrace),
+            '@' => self.new_token(TokenKind::At),
+            '!' => self.new_token(TokenKind::Exclamation),
+            '|' => self.new_token(TokenKind::VerticalPipe),
+            '`' => self.new_token(TokenKind::BackTick),
+            '#' => self.new_token(TokenKind::Pound),
+            '$' => self.new_token(TokenKind::Dollar),
+            '&' => self.new_token(TokenKind::Ampersand),
+            '\\' => self.new_token(TokenKind::BackSlash),
+            ':' => self.new_token(TokenKind::Colon),
+            '\'' => self.new_token(TokenKind::SingleQuote),
+            '"' => self.new_token(TokenKind::DoubleQuote),
+            '?' => self.new_token(TokenKind::Question),
+            '<' if self.matches_closure(|c| c == '=') => {
+                self.new_token(TokenKind::LessThanOrEqualTo)
+            }
+            '<' if self.matches_closure(|c| c == '>') => self.new_token(TokenKind::NotEqual),
+            '<' => self.new_token(TokenKind::LessThan),
+            '>' if self.matches_closure(|c| c == '=') => {
+                self.new_token(TokenKind::GreaterThanOrEqualTo)
+            }
+            '>' => self.new_token(TokenKind::GreaterThan),
+            _ => self.scan_invalid(),
         };
 
-        self.new_token(kind)
-    }
-
-    fn scan_greater_than(&mut self) -> LexicalResult<'a> {
-        let kind = if self.input.next_if_eq('=').is_some() {
-            Kind::GreaterThanOrEqualTo
-        } else {
-            Kind::GreaterThan
-        };
-
-        self.new_token(kind)
-    }
-
-    fn scan_fractional_number(&mut self) -> LexicalResult<'a> {
-        self.scan_digits(DECIMAL);
-
-        let number = self.lexeme();
-
-        if NUMBER_REGEX.is_match(number) {
-            self.new_token(Kind::Number)
-        } else {
-            self.new_error(ErrorKind::Number)
-        }
-    }
-
-    fn scan_number(&mut self) -> LexicalResult<'a> {
-        let mut base = DECIMAL;
-
-        self.scan_digits(base);
-
-        if self.input.next_if_eq('#').is_some() {
-            base = MAX_RADIX;
-            self.scan_digits(base);
-        }
-
-        if self.input.next_if_eq('.').is_some() {
-            self.scan_digits(base);
-        }
-
-        let number = self.lexeme();
-
-        if NUMBER_REGEX.is_match(number) {
-            self.new_token(Kind::Number)
-        } else {
-            self.new_error(ErrorKind::Number)
-        }
-    }
-
-    fn scan_digits(&mut self, radix: u32) {
-        while self.input.next_digit(radix).is_some() {}
-    }
-
-    fn scan_identifier(&mut self) -> LexicalResult<'a> {
-        while self.input.next_if(|c| c.is_xid_continue()).is_some() {}
-        self.new_token(Kind::Identifier)
-    }
-
-    fn scan_invalid(&mut self) -> LexicalResult<'a> {
-        while self
-            .input
-            .next_if(|c| {
-                !c.is_ascii_punctuation()
-                    && !c.is_ascii_digit()
-                    && !c.is_xid_start()
-                    && !c.is_pattern_white_space()
-            })
-            .is_some()
-        {}
-
-        Err(LexicalError::new(self.input.advance(), ErrorKind::Invalid))
+        return Some(result);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::compiler::{Lexeme, Location};
+    use crate::Location;
 
-    fn validate(kind: Kind) {
+    fn validate(kind: TokenKind) {
         let input = kind.to_string();
         let mut scanner: Scanner<'_> = input.as_str().into();
 
         assert_eq!(
             scanner.next(),
-            Some(Ok(Token::new(
-                Lexeme::new(Location::default(), input.as_str()),
-                kind
-            )))
+            Some(Ok(Token::new(Location::default(), input.as_str(), kind)))
         );
         assert_eq!(scanner.next(), None);
     }
 
     #[test]
     fn scan_simple() {
-        validate(Kind::Plus);
-        validate(Kind::Minus);
-        validate(Kind::Star);
-        validate(Kind::Slash);
-        validate(Kind::Percent);
-        validate(Kind::Caret);
-        validate(Kind::Tilde);
-        validate(Kind::Equal);
-        validate(Kind::NotEqual);
-        validate(Kind::LessThan);
-        validate(Kind::LessThanOrEqualTo);
-        validate(Kind::GreaterThan);
-        validate(Kind::GreaterThanOrEqualTo);
-        validate(Kind::Comma);
-        validate(Kind::Underscore);
-        validate(Kind::At);
-        validate(Kind::Exclamation);
-        validate(Kind::VerticalPipe);
-        validate(Kind::LeftParenthesis);
-        validate(Kind::RightParenthesis);
-        validate(Kind::LeftBrace);
-        validate(Kind::RightBrace);
-        validate(Kind::LeftBracket);
-        validate(Kind::RightBracket);
+        validate(TokenKind::Plus);
+        validate(TokenKind::Minus);
+        validate(TokenKind::Star);
+        validate(TokenKind::Slash);
+        validate(TokenKind::Percent);
+        validate(TokenKind::Caret);
+        validate(TokenKind::Tilde);
+        validate(TokenKind::Equal);
+        validate(TokenKind::NotEqual);
+        validate(TokenKind::LessThan);
+        validate(TokenKind::LessThanOrEqualTo);
+        validate(TokenKind::GreaterThan);
+        validate(TokenKind::GreaterThanOrEqualTo);
+        validate(TokenKind::Comma);
+        validate(TokenKind::Underscore);
+        validate(TokenKind::At);
+        validate(TokenKind::Exclamation);
+        validate(TokenKind::VerticalPipe);
+        validate(TokenKind::LeftParenthesis);
+        validate(TokenKind::RightParenthesis);
+        validate(TokenKind::LeftBrace);
+        validate(TokenKind::RightBrace);
+        validate(TokenKind::LeftBracket);
+        validate(TokenKind::RightBracket);
     }
 
     #[test]
@@ -244,16 +268,18 @@ mod tests {
         assert_eq!(
             scanner.next(),
             Some(Err(LexicalError::new(
-                Lexeme::new(Location::default(), bad),
-                ErrorKind::Invalid
+                INVALID_CODE_POINTS,
+                Location::default(),
+                bad
             )))
         );
 
         assert_eq!(
             scanner.next(),
             Some(Ok(Token::new(
-                Lexeme::new(&input[..input.len() - 1], "+"),
-                Kind::Plus
+                &input[..input.len() - 1],
+                "+",
+                TokenKind::Plus
             )))
         );
         assert_eq!(scanner.next(), None);
@@ -265,8 +291,9 @@ mod tests {
         assert_eq!(
             scanner.next(),
             Some(Ok(Token::new(
-                Lexeme::new(Location::default(), identifier),
-                Kind::Identifier
+                Location::default(),
+                identifier,
+                TokenKind::Identifier
             )))
         );
         assert_eq!(scanner.next(), None);
@@ -291,8 +318,9 @@ mod tests {
         assert_eq!(
             scanner.next(),
             Some(Ok(Token::new(
-                Lexeme::new(Location::default(), number),
-                Kind::Number
+                Location::default(),
+                number,
+                TokenKind::Number
             )))
         );
         assert_eq!(scanner.next(), None);
@@ -331,8 +359,9 @@ mod tests {
         assert_eq!(
             scanner.next(),
             Some(Err(LexicalError::new(
-                Lexeme::new(Location::default(), number),
-                ErrorKind::Number
+                INVALID_CODE_POINTS,
+                Location::default(),
+                number,
             )))
         );
         assert_eq!(scanner.next(), None);
@@ -350,47 +379,6 @@ mod tests {
     }
 
     #[test]
-    fn number_without_radix() {
-        let input = "#1.0";
-        let mut scanner: Scanner<'_> = input.into();
-
-        assert_eq!(
-            scanner.next(),
-            Some(Err(LexicalError::new(
-                Lexeme::new(Location::default(), "#"),
-                ErrorKind::Invalid
-            )))
-        );
-        assert_eq!(
-            scanner.next(),
-            Some(Ok(Token::new(Lexeme::new("#", "1.0"), Kind::Number)))
-        );
-        assert_eq!(scanner.next(), None);
-    }
-
-    #[test]
-    fn empty_number_without_radix() {
-        let input = "#.";
-        let mut scanner: Scanner<'_> = input.into();
-
-        assert_eq!(
-            scanner.next(),
-            Some(Err(LexicalError::new(
-                Lexeme::new(Location::default(), "#"),
-                ErrorKind::Invalid
-            )))
-        );
-        assert_eq!(
-            scanner.next(),
-            Some(Err(LexicalError::new(
-                Lexeme::new("#", "."),
-                ErrorKind::Number
-            )))
-        );
-        assert_eq!(scanner.next(), None);
-    }
-
-    #[test]
     fn skip_comment() {
         let input = "; hello, world!\n \t42";
 
@@ -403,8 +391,9 @@ mod tests {
         assert_eq!(
             scanner.next(),
             Some(Ok(Token::new(
-                Lexeme::new(&input[..input.len() - 2], "42"),
-                Kind::Number
+                &input[..input.len() - 2],
+                "42",
+                TokenKind::Number
             )))
         );
         assert_eq!(scanner.next(), None);
@@ -424,16 +413,12 @@ mod tests {
 
         assert_eq!(
             scanner.next(),
-            Some(Ok(Token::new(
-                Lexeme::new(Location::default(), "2"),
-                Kind::Number
-            )))
+            Some(Ok(Token::new(Location::default(), "2", TokenKind::Number)))
         );
         assert_eq!(
             scanner.next(),
-            Some(Ok(Token::new(Lexeme::new("2", "x"), Kind::Identifier)))
+            Some(Ok(Token::new("2", "x", TokenKind::Identifier)))
         );
         assert_eq!(scanner.next(), None);
     }
 }
-*/

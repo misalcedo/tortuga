@@ -1,71 +1,51 @@
 //! Errors that may occur during lexical analysis.
 
-use crate::{Lexeme, Location};
+use crate::Location;
 use std::fmt::{self, Display, Formatter};
 
 /// An error that occurred during lexical analysis of a specific lexeme.
 /// After an error is encountered, the scanner may continue to analyze the lexeme.
 #[derive(Clone, Debug, PartialEq)]
 pub struct LexicalError {
+    message: String,
     lexeme: String,
     start: Location,
-    kind: ErrorKind,
 }
 
 impl Display for LexicalError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Encountered a {} error during lexical analysis on {}",
-            self.kind, self.start
+            "Encountered an error during the lexical analysis of {:?} on {}. Reason: {}",
+            self.lexeme, self.start, self.message
         )
     }
 }
 
 impl std::error::Error for LexicalError {}
 
-/// The kind of lexical error that occurred.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum ErrorKind {
-    Number,
-    Identifier,
-    Invalid,
-}
-
 impl LexicalError {
-    /// Creates a new instance of a `LexicalError`.
-    pub fn new<'a, L: Into<Lexeme<'a>>>(lexeme: L, kind: ErrorKind) -> Self {
-        let lexeme = lexeme.into();
-
+    /// Creates a new instance of a [`LexicalError`].
+    pub fn new(message: &str, start: Location, lexeme: &str) -> Self {
         LexicalError {
-            lexeme: lexeme.as_str().to_string(),
-            start: *lexeme.start(),
-            kind,
+            message: message.to_string(),
+            lexeme: lexeme.to_string(),
+            start,
         }
     }
 
-    /// This `LexicalError`'s lexeme.
-    pub fn as_str(&self) -> &str {
-        &self.lexeme.as_str()
+    /// This [`LexicalError`]'s error message.
+    pub fn message(&self) -> &str {
+        self.message.as_str()
     }
 
-    /// This `LexicalError`'s start [`Location`] in the input.
+    /// This [`LexicalError`]'s start [`Location`] in the input.
     pub fn start(&self) -> &Location {
         &self.start
     }
 
-    /// This `LexicalError`'s variant.
-    pub fn kind(&self) -> &ErrorKind {
-        &self.kind
-    }
-}
-
-impl Display for ErrorKind {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            ErrorKind::Number => f.write_str("NUMBER"),
-            ErrorKind::Invalid => f.write_str("INVALID"),
-            ErrorKind::Identifier => f.write_str("IDENTIFIER"),
-        }
+    /// This [`LexicalError`]'s variant.
+    pub fn lexeme(&self) -> &str {
+        self.lexeme.as_str()
     }
 }

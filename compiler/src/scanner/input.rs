@@ -91,7 +91,6 @@ impl<'a, I: Iterator<Item = char>> Input<'a, I> {
         }
     }
 
-    /// Returns the next character only if the next one matches the given predicate.
     pub fn next_if(&mut self, predicate: impl FnOnce(char) -> bool) -> Option<char> {
         let c = self.peek()?;
 
@@ -101,27 +100,6 @@ impl<'a, I: Iterator<Item = char>> Input<'a, I> {
         } else {
             None
         }
-    }
-
-    /// Skips any blank space characters except '\n'.
-    /// Returns true if any characters were skipped, false otherwise.
-    ///
-    /// Tortuga is a "free-form" language,
-    /// meaning that all forms of whitespace serve only to separate tokens in the grammar,
-    /// and have no semantic significance.
-    ///
-    /// A Tortuga program has identical meaning if each whitespace element is replaced with any other legal whitespace element,
-    /// such as a single space character.
-    ///
-    /// See <https://util.unicode.org/UnicodeJsps/list-unicodeset.jsp?a=%5B%3APattern_White_Space%3A%5D&abb=on&g=&i=>
-    pub fn skip_blank_space(&mut self) -> bool {
-        let start = self.end;
-
-        while self.next_if(|c| c.is_pattern_white_space()).is_some() {}
-
-        self.start = self.end;
-
-        start < self.end
     }
 
     /// Advances the `Input` to start a new `Lexeme` and returns the scanned `Lexeme`.
