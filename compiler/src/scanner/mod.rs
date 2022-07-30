@@ -1,6 +1,5 @@
 //! Performs lexical analysis on Tortuga input and produces a sequence of `Token`s.
 
-use std::borrow::Cow;
 use std::str::Chars;
 
 mod error;
@@ -13,7 +12,7 @@ type LexicalResult<'a> = Result<Token<'a>, LexicalError>;
 /// A lexical analyzer with 1 Unicode code point of lookahead.
 #[derive(Clone, Debug)]
 pub struct Scanner<'a> {
-    source: Cow<'a, str>,
+    source: &'a str,
     start: Location,
     end: Location,
     cursor: Chars<'a>,
@@ -21,17 +20,6 @@ pub struct Scanner<'a> {
 
 impl<'a> From<&'a str> for Scanner<'a> {
     fn from(source: &'a str) -> Scanner<'a> {
-        Scanner {
-            source: source.into(),
-            start: Location::default(),
-            end: Location::default(),
-            cursor: source.chars(),
-        }
-    }
-}
-
-impl From<String> for Scanner<'_> {
-    fn from(source: String) -> Self {
         Scanner {
             source: source.into(),
             start: Location::default(),
@@ -59,13 +47,11 @@ const INVALID_CODE_POINTS: &'static str = "Invalid code points.";
 
 impl<'a> Scanner<'a> {
     /// Returns `true` if the remaining source code starts with the given string, false otherwise.
-    fn matches(&mut self, pattern: &'a str) -> bool {
+    fn matches(&mut self, pattern: char) -> bool {
         let starts_with = self.cursor.as_str().starts_with(pattern);
 
         if starts_with {
-            if let Some(c) = self.cursor.next() {
-                self.end.advance(&c);
-            }
+            self.next_char();
         }
 
         starts_with
@@ -76,9 +62,7 @@ impl<'a> Scanner<'a> {
         let starts_with = self.cursor.as_str().starts_with(pattern);
 
         if starts_with {
-            if let Some(c) = self.cursor.next() {
-                self.end.advance(&c);
-            }
+            self.next_char();
         }
 
         starts_with
@@ -87,17 +71,22 @@ impl<'a> Scanner<'a> {
     /// Creates a new lexical [`Token`] of the given [`TokenKind`] wrapped in a [`Result`].
     fn new_token(&mut self, kind: TokenKind) -> LexicalResult<'a> {
         let start = self.start;
-        let lexeme: &'a str = &self.source[start.offset()..self.end.offset()];
+        let lexeme = self.lexeme(&start);
 
         self.start = self.end;
 
         Ok(Token::new(start, lexeme, kind))
     }
 
+    /// The source code text for the current [`Token`] being scanned.
+    fn lexeme(&mut self, start: &Location) -> &'a str {
+        &self.source[start.offset()..self.end.offset()]
+    }
+
     /// Creates a new [`LexicalError`] of the given [`ErrorKind`] wrapped in a [`Result`].
     fn new_error(&mut self, message: &str) -> LexicalResult<'a> {
         let start = self.start;
-        let lexeme: &'a str = &self.source[start.offset()..self.end.offset()];
+        let lexeme = self.lexeme(&start);
 
         self.start = self.end;
 
@@ -125,13 +114,15 @@ impl<'a> Scanner<'a> {
 
         while self.matches_closure(|c| c.is_pattern_white_space()) {}
 
+        self.start = self.end;
+
         start != self.end
     }
 
     fn scan_number(&mut self, fractional: bool) -> LexicalResult<'a> {
         while self.matches_closure(|c| c.is_ascii_digit()) {}
 
-        if !fractional && self.matches(".") {
+        if !fractional && self.matches('.') {
             while self.matches_closure(|c| c.is_ascii_digit()) {}
         }
 
@@ -153,6 +144,14 @@ impl<'a> Scanner<'a> {
 
         self.new_error(INVALID_CODE_POINTS)
     }
+
+    fn next_char(&mut self) -> Option<char> {
+        let c = self.cursor.next()?;
+
+        self.end.advance(&c);
+
+        Some(c)
+    }
 }
 
 impl<'a> Iterator for Scanner<'a> {
@@ -161,11 +160,11 @@ impl<'a> Iterator for Scanner<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         self.skip_blank_space();
 
-        let result = match self.cursor.next()? {
+        let result = match self.next_char()? {
+            c if c.is_xid_start() => self.scan_identifier(),
             '0'..='9' => self.scan_number(false),
             '.' if self.matches_closure(|c| c.is_ascii_digit()) => self.scan_number(true),
             '.' => self.new_token(TokenKind::Dot),
-            c if c.is_xid_start() => self.scan_identifier(),
             '(' => self.new_token(TokenKind::LeftParenthesis),
             ',' => self.new_token(TokenKind::Comma),
             ')' => self.new_token(TokenKind::RightParenthesis),
@@ -232,30 +231,41 @@ mod tests {
 
     #[test]
     fn scan_simple() {
-        validate(TokenKind::Plus);
-        validate(TokenKind::Minus);
-        validate(TokenKind::Star);
-        validate(TokenKind::Slash);
+        validate(TokenKind::Tilde);
+        validate(TokenKind::BackTick);
+        validate(TokenKind::Exclamation);
+        validate(TokenKind::At);
+        validate(TokenKind::Pound);
+        validate(TokenKind::Dollar);
         validate(TokenKind::Percent);
         validate(TokenKind::Caret);
-        validate(TokenKind::Tilde);
-        validate(TokenKind::Equal);
-        validate(TokenKind::NotEqual);
-        validate(TokenKind::LessThan);
-        validate(TokenKind::LessThanOrEqualTo);
-        validate(TokenKind::GreaterThan);
-        validate(TokenKind::GreaterThanOrEqualTo);
-        validate(TokenKind::Comma);
-        validate(TokenKind::Underscore);
-        validate(TokenKind::At);
-        validate(TokenKind::Exclamation);
-        validate(TokenKind::VerticalPipe);
+        validate(TokenKind::Ampersand);
+        validate(TokenKind::Star);
         validate(TokenKind::LeftParenthesis);
         validate(TokenKind::RightParenthesis);
+        validate(TokenKind::Underscore);
+        validate(TokenKind::Minus);
+        validate(TokenKind::Plus);
+        validate(TokenKind::Equal);
         validate(TokenKind::LeftBrace);
-        validate(TokenKind::RightBrace);
         validate(TokenKind::LeftBracket);
+        validate(TokenKind::RightBrace);
         validate(TokenKind::RightBracket);
+        validate(TokenKind::VerticalPipe);
+        validate(TokenKind::BackSlash);
+        validate(TokenKind::Colon);
+        validate(TokenKind::Semicolon);
+        validate(TokenKind::SingleQuote);
+        validate(TokenKind::DoubleQuote);
+        validate(TokenKind::LessThan);
+        validate(TokenKind::Comma);
+        validate(TokenKind::GreaterThan);
+        validate(TokenKind::Dot);
+        validate(TokenKind::Question);
+        validate(TokenKind::Slash);
+        validate(TokenKind::NotEqual);
+        validate(TokenKind::LessThanOrEqualTo);
+        validate(TokenKind::GreaterThanOrEqualTo);
     }
 
     #[test]
@@ -369,25 +379,23 @@ mod tests {
 
     #[test]
     fn scan_invalid_number() {
-        invalidate_number(".");
-        invalidate_number("20#.");
-        invalidate_number("008#1.0");
         invalidate_number("0008");
         invalidate_number(".100");
-        invalidate_number("2#.100");
-        invalidate_number("300#1");
     }
 
     #[test]
     fn skip_comment() {
         let input = "; hello, world!\n \t42";
-
-        assert_forty_two(input);
-    }
-
-    fn assert_forty_two(input: &str) {
         let mut scanner: Scanner<'_> = input.into();
 
+        assert_eq!(
+            scanner.next(),
+            Some(Ok(Token::new(
+                Location::default(),
+                "; hello, world!",
+                TokenKind::Semicolon
+            )))
+        );
         assert_eq!(
             scanner.next(),
             Some(Ok(Token::new(
@@ -402,8 +410,33 @@ mod tests {
     #[test]
     fn skip_multiple_comments() {
         let input = "; hello, world!\n \t; foobar\n\n42";
+        let mut scanner: Scanner<'_> = input.into();
 
-        assert_forty_two(input);
+        assert_eq!(
+            scanner.next(),
+            Some(Ok(Token::new(
+                Location::default(),
+                "; hello, world!",
+                TokenKind::Semicolon
+            )))
+        );
+        assert_eq!(
+            scanner.next(),
+            Some(Ok(Token::new(
+                Location::from("; hello, world!\n \t"),
+                "; foobar",
+                TokenKind::Semicolon
+            )))
+        );
+        assert_eq!(
+            scanner.next(),
+            Some(Ok(Token::new(
+                &input[..input.len() - 2],
+                "42",
+                TokenKind::Number
+            )))
+        );
+        assert_eq!(scanner.next(), None);
     }
 
     #[test]

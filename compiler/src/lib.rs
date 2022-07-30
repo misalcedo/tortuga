@@ -4,7 +4,7 @@ mod errors;
 mod location;
 mod scanner;
 mod token;
-pub(crate) mod unicode;
+mod unicode;
 
 pub use errors::SyntacticalError;
 pub use location::Location;
