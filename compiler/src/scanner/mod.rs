@@ -44,6 +44,9 @@ impl<'a> TryFrom<Scanner<'a>> for Vec<Token<'a>> {
 }
 
 const INVALID_CODE_POINTS: &'static str = "Invalid code points.";
+const FRACTIONAL_ENDS_WITH_ZERO: &'static str = "Fractional numbers must not end with a zero.";
+const INTEGER_WITH_DOT_SUFFIX: &'static str = "Integers must not end with a dot ('.').";
+const INTEGER_WITH_LEADING_ZERO: &'static str = "Integers must not have a leading zero.";
 
 impl<'a> Scanner<'a> {
     /// Returns `true` if the remaining source code starts with the given string, false otherwise.
@@ -119,14 +122,27 @@ impl<'a> Scanner<'a> {
         start != self.end
     }
 
-    fn scan_number(&mut self, fractional: bool) -> LexicalResult<'a> {
+    fn scan_number(&mut self, first: char) -> LexicalResult<'a> {
+        let mut fractional = first == '.';
+
         while self.matches_closure(|c| c.is_ascii_digit()) {}
 
         if !fractional && self.matches('.') {
+            fractional = true;
             while self.matches_closure(|c| c.is_ascii_digit()) {}
         }
 
-        self.new_token(TokenKind::Number)
+        let number = &self.source[self.start.offset()..self.end.offset()];
+
+        if fractional && number.ends_with("0") {
+            self.new_error(FRACTIONAL_ENDS_WITH_ZERO)
+        } else if fractional && number.ends_with(".") {
+            self.new_error(INTEGER_WITH_DOT_SUFFIX)
+        } else if !fractional && first == '0' && number.len() != 1 {
+            self.new_error(INTEGER_WITH_LEADING_ZERO)
+        } else {
+            self.new_token(TokenKind::Number)
+        }
     }
 
     fn scan_identifier(&mut self) -> LexicalResult<'a> {
@@ -162,8 +178,8 @@ impl<'a> Iterator for Scanner<'a> {
 
         let result = match self.next_char()? {
             c if c.is_xid_start() => self.scan_identifier(),
-            '0'..='9' => self.scan_number(false),
-            '.' if self.matches_closure(|c| c.is_ascii_digit()) => self.scan_number(true),
+            c @ '0'..='9' => self.scan_number(c),
+            c @ '.' if self.matches_closure(|c| c.is_ascii_digit()) => self.scan_number(c),
             '.' => self.new_token(TokenKind::Dot),
             '(' => self.new_token(TokenKind::LeftParenthesis),
             ',' => self.new_token(TokenKind::Comma),
@@ -339,48 +355,32 @@ mod tests {
     #[test]
     fn scan_number() {
         validate_number("0");
-        validate_number("2.");
         validate_number("21");
         validate_number("100");
         validate_number(".5");
-        validate_number("1.0");
+        validate_number("1");
         validate_number("4.5");
         validate_number("0.5");
         validate_number("10000.5002");
         validate_number("7.002");
-
-        validate_number("2#0");
-        validate_number("16#F");
-        validate_number("3#21");
-        validate_number("2#100");
-        validate_number("10#.5");
-        validate_number("12#1.0");
-        validate_number("20#4.5");
-        validate_number("30#0.5");
-        validate_number("36#10000.5002");
-        validate_number("32#7.002");
-        validate_number("37#1.0");
-        validate_number("2#4.0");
     }
 
-    fn invalidate_number(number: &str) {
+    fn invalidate_number(number: &str, error: &str) {
         let mut scanner: Scanner<'_> = number.into();
 
         assert_eq!(
             scanner.next(),
-            Some(Err(LexicalError::new(
-                INVALID_CODE_POINTS,
-                Location::default(),
-                number,
-            )))
+            Some(Err(LexicalError::new(error, Location::default(), number,)))
         );
         assert_eq!(scanner.next(), None);
     }
 
     #[test]
     fn scan_invalid_number() {
-        invalidate_number("0008");
-        invalidate_number(".100");
+        invalidate_number("0008", INTEGER_WITH_LEADING_ZERO);
+        invalidate_number(".100", FRACTIONAL_ENDS_WITH_ZERO);
+        invalidate_number("1.0", FRACTIONAL_ENDS_WITH_ZERO);
+        invalidate_number("2.", INTEGER_WITH_DOT_SUFFIX);
     }
 
     #[test]
