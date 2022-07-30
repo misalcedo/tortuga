@@ -47,6 +47,7 @@ const INVALID_CODE_POINTS: &'static str = "Invalid code points.";
 const FRACTIONAL_ENDS_WITH_ZERO: &'static str = "Fractional numbers must not end with a zero.";
 const INTEGER_WITH_DOT_SUFFIX: &'static str = "Integers must not end with a dot ('.').";
 const INTEGER_WITH_LEADING_ZERO: &'static str = "Integers must not have a leading zero.";
+const UNTERMINATED_STRING: &'static str = "Unterminated string.";
 
 impl<'a> Scanner<'a> {
     /// Returns `true` if the remaining source code starts with the given string, false otherwise.
@@ -122,6 +123,16 @@ impl<'a> Scanner<'a> {
         start != self.end
     }
 
+    fn scan_string(&mut self) -> LexicalResult<'a> {
+        while self.matches_closure(|c| c != '"') {}
+
+        if self.matches('"') {
+            self.new_token(TokenKind::String)
+        } else {
+            self.new_error(UNTERMINATED_STRING)
+        }
+    }
+
     fn scan_number(&mut self, first: char) -> LexicalResult<'a> {
         let mut fractional = first == '.';
 
@@ -180,6 +191,7 @@ impl<'a> Iterator for Scanner<'a> {
             c if c.is_xid_start() => self.scan_identifier(),
             c @ '0'..='9' => self.scan_number(c),
             c @ '.' if self.matches_closure(|c| c.is_ascii_digit()) => self.scan_number(c),
+            '"' => self.scan_string(),
             '.' => self.new_token(TokenKind::Dot),
             '(' => self.new_token(TokenKind::LeftParenthesis),
             ',' => self.new_token(TokenKind::Comma),
@@ -211,7 +223,6 @@ impl<'a> Iterator for Scanner<'a> {
             '\\' => self.new_token(TokenKind::BackSlash),
             ':' => self.new_token(TokenKind::Colon),
             '\'' => self.new_token(TokenKind::SingleQuote),
-            '"' => self.new_token(TokenKind::DoubleQuote),
             '?' => self.new_token(TokenKind::Question),
             '<' if self.matches_closure(|c| c == '=') => {
                 self.new_token(TokenKind::LessThanOrEqualTo)
@@ -272,7 +283,6 @@ mod tests {
         validate(TokenKind::Colon);
         validate(TokenKind::Semicolon);
         validate(TokenKind::SingleQuote);
-        validate(TokenKind::DoubleQuote);
         validate(TokenKind::LessThan);
         validate(TokenKind::Comma);
         validate(TokenKind::GreaterThan);
@@ -336,6 +346,62 @@ mod tests {
         validate_identifier("x_y_z");
         validate_identifier("i");
         validate_identifier("I");
+    }
+
+    #[test]
+    fn scan_string() {
+        let input = "\"Hello, \\\"World!\"";
+        let mut scanner: Scanner<'_> = input.into();
+
+        assert_eq!(
+            scanner.next(),
+            Some(Ok(Token::new(
+                Location::default(),
+                "\"Hello, \\\"",
+                TokenKind::String
+            )))
+        );
+        assert_eq!(
+            scanner.next(),
+            Some(Ok(Token::new(
+                Location::from("\"Hello, \\\""),
+                "World",
+                TokenKind::Identifier
+            )))
+        );
+        assert_eq!(
+            scanner.next(),
+            Some(Ok(Token::new(
+                Location::from("\"Hello, \\\"World"),
+                "!",
+                TokenKind::Exclamation
+            )))
+        );
+        assert_eq!(
+            scanner.next(),
+            Some(Err(LexicalError::new(
+                UNTERMINATED_STRING,
+                Location::from("\"Hello, \\\"World!"),
+                "\""
+            )))
+        );
+        assert_eq!(scanner.next(), None);
+    }
+
+    #[test]
+    fn scan_invalid_string() {
+        let input = "\"Hello, World!";
+        let mut scanner: Scanner<'_> = input.into();
+
+        assert_eq!(
+            scanner.next(),
+            Some(Err(LexicalError::new(
+                UNTERMINATED_STRING,
+                Location::default(),
+                input
+            )))
+        );
+        assert_eq!(scanner.next(), None);
     }
 
     fn validate_number(number: &str) {

@@ -55,6 +55,7 @@ pub enum TokenKind {
     // Literals
     Number,
     Identifier,
+    String,
 
     // Punctuation
     /// ~
@@ -107,8 +108,6 @@ pub enum TokenKind {
     Semicolon,
     /// '
     SingleQuote,
-    /// "
-    DoubleQuote,
     /// <
     LessThan,
     /// ,
@@ -136,6 +135,7 @@ impl Display for TokenKind {
         match self {
             TokenKind::Number => f.write_str("NUMBER"),
             TokenKind::Identifier => f.write_str("IDENTIFIER"),
+            TokenKind::String => f.write_str("STRING"),
             TokenKind::Plus => f.write_char('+'),
             TokenKind::Minus => f.write_char('-'),
             TokenKind::Star => f.write_char('*'),
@@ -168,7 +168,6 @@ impl Display for TokenKind {
             TokenKind::Colon => f.write_char(':'),
             TokenKind::Semicolon => f.write_char(';'),
             TokenKind::SingleQuote => f.write_char('\''),
-            TokenKind::DoubleQuote => f.write_char('"'),
             TokenKind::Dot => f.write_char('.'),
             TokenKind::Question => f.write_char('?'),
         }
