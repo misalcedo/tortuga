@@ -3,40 +3,40 @@
 mod expression;
 mod terminal;
 
-pub use expression::{Expression, Internal, InternalKind, Terminal};
+pub use expression::{Expression, ExpressionReference, Internal, InternalKind, Terminal};
 use std::fmt::{Display, Formatter, Write};
 pub use terminal::{Identifier, Number, Uri};
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Program<'a> {
     expressions: Vec<Expression<'a>>,
-    roots: Vec<usize>,
+    roots: Vec<ExpressionReference>,
 }
 
 impl<'a> Program<'a> {
-    pub fn mark_root(&mut self, index: usize) {
+    pub fn mark_root(&mut self, index: ExpressionReference) {
         self.roots.push(index);
     }
 
-    pub fn insert<E: Into<Expression<'a>>>(&mut self, expression: E) -> usize {
+    pub fn insert<E: Into<Expression<'a>>>(&mut self, expression: E) -> ExpressionReference {
         let index = self.expressions.len();
 
         self.expressions.push(expression.into());
 
-        index
+        ExpressionReference(index)
     }
 
     pub fn iter(&self) -> PostOrderIterator<'a, '_> {
         PostOrderIterator {
             program: self,
-            stack: self.roots.iter().rev().map(|&i| (i, false)).collect(),
+            stack: self.roots.iter().rev().map(|i| (i.0, false)).collect(),
         }
     }
 
     pub fn iter_pre_order(&self) -> PreOrderIterator<'a, '_> {
         PreOrderIterator {
             program: self,
-            stack: self.roots.iter().copied().collect(),
+            stack: self.roots.iter().map(|r| r.0).collect(),
         }
     }
 }
@@ -94,8 +94,8 @@ impl<'a, 'b> Iterator for PreOrderIterator<'a, 'b> {
         let expression = self.program.expressions.get(index)?;
 
         if let Expression::Internal(internal) = expression {
-            for &child in internal.children() {
-                self.stack.push(child);
+            for child in internal.children() {
+                self.stack.push(child.0);
             }
         }
 
@@ -123,8 +123,8 @@ impl<'a, 'b> Iterator for PostOrderIterator<'a, 'b> {
                 Expression::Internal(internal) => {
                     self.stack.push((index, true));
 
-                    for &child in internal.children().iter().rev() {
-                        self.stack.push((child, false));
+                    for child in internal.children().iter().rev() {
+                        self.stack.push((child.0, false));
                     }
                 }
             }

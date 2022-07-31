@@ -29,8 +29,13 @@ impl Default for Expression<'_> {
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Internal {
     kind: InternalKind,
-    children: Vec<usize>,
+    children: Vec<ExpressionReference>,
 }
+
+/// An opaque reference to an [`Expression`] inserted into a [`Program`].
+/// Used to refer to an expression as a child of another expression.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct ExpressionReference(pub(crate) usize);
 
 impl Display for Internal {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -39,7 +44,7 @@ impl Display for Internal {
 }
 
 impl Internal {
-    pub fn new(kind: InternalKind, children: Vec<usize>) -> Self {
+    pub fn new(kind: InternalKind, children: Vec<ExpressionReference>) -> Self {
         Internal { kind, children }
     }
 
@@ -55,7 +60,7 @@ impl Internal {
         self.children.is_empty()
     }
 
-    pub(crate) fn children(&self) -> &[usize] {
+    pub(crate) fn children(&self) -> &[ExpressionReference] {
         self.children.as_slice()
     }
 }
