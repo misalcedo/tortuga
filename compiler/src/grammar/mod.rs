@@ -70,10 +70,11 @@ mod tests {
     fn add() {
         let mut program = Program::default();
         let left = Number::positive("3");
-        let left_index = program.insert(left.clone());
         let right = Number::positive("2");
-        let right_index = program.insert(right.clone());
         let add = Internal::new(InternalKind::Add, vec![left_index, right_index]);
+
+        let left_index = program.insert(left.clone());
+        let right_index = program.insert(right.clone());
         let add_index = program.insert(add.clone());
 
         program.mark_root(add_index);
