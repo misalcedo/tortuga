@@ -4,6 +4,7 @@ mod expression;
 mod terminal;
 
 pub use expression::{Expression, Internal, InternalKind, Terminal};
+use std::fmt::{Display, Formatter};
 pub use terminal::{Identifier, Number, Uri};
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -30,6 +31,21 @@ impl<'a> Program<'a> {
             program: self,
             stack: self.roots.iter().rev().map(|&i| (i, false)).collect(),
         }
+    }
+}
+
+impl Display for Program<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut iterator = self.iter();
+
+        while let Some(expression) = iterator.next() {
+            match expression {
+                Expression::Internal(internal) => todo!(),
+                Expression::Terminal(terminal) => write!(f, "{}", terminal),
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -69,12 +85,14 @@ mod tests {
     #[test]
     fn add() {
         let mut program = Program::default();
-        let left = Number::positive("3");
-        let right = Number::positive("2");
-        let add = Internal::new(InternalKind::Add, vec![left_index, right_index]);
 
+        let left = Number::positive("3");
         let left_index = program.insert(left.clone());
+
+        let right = Number::positive("2");
         let right_index = program.insert(right.clone());
+
+        let add = Internal::new(InternalKind::Add, vec![left_index, right_index]);
         let add_index = program.insert(add.clone());
 
         program.mark_root(add_index);

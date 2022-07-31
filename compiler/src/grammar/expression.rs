@@ -3,6 +3,7 @@
 //! Here, we use the order of the [`Internal`] variants to make each precedence level explicit.
 
 use crate::grammar::{Identifier, Number, Uri};
+use std::fmt::{Display, Formatter};
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Expression<'a> {
@@ -48,6 +49,16 @@ pub enum Terminal<'a> {
     Number(Number<'a>),
     Identifier(Identifier<'a>),
     Uri(Uri<'a>),
+}
+
+impl Display for Terminal<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Terminal::Number(n) => write!(f, "{}", n),
+            Terminal::Identifier(i) => write!(f, "{}", i),
+            Terminal::Uri(u) => write!(f, "{}", u),
+        }
+    }
 }
 
 impl From<Internal> for Expression<'_> {
