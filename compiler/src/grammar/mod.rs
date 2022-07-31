@@ -9,6 +9,8 @@ pub use expression::{Expression, ExpressionReference, Internal, InternalKind, Te
 use std::fmt::{Display, Formatter, Write};
 pub use terminal::{Identifier, Number, Uri};
 
+/// An ordered forest of [`Expression`]s.
+/// Each [`Expression`] is a tree with any number of children.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Program<'a> {
     expressions: Vec<Expression<'a>>,
