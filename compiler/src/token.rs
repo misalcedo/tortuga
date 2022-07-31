@@ -1,13 +1,12 @@
 //! Lexical [`Token`]s for the Tortuga Programming Language.
 
 use crate::Location;
-use std::borrow::Cow;
 use std::fmt::{self, Display, Formatter, Write};
 
 /// A lexical token is a pair of a [`Lexeme`] and a [`Kind`].
 #[derive(Clone, Debug, PartialEq)]
 pub struct Token<'a> {
-    lexeme: Cow<'a, str>,
+    lexeme: &'a str,
     start: Location,
     kind: TokenKind,
 }
@@ -20,14 +19,13 @@ impl Display for Token<'_> {
 
 impl<'a> Token<'a> {
     /// Creates a new instance of a [`Token`] with the given [`Location`], [`Lexeme`] and [`Kind`].
-    pub fn new<S, L, K>(start: S, lexeme: L, kind: K) -> Self
+    pub fn new<S, K>(start: S, lexeme: &'a str, kind: K) -> Self
     where
         S: Into<Location>,
-        L: Into<Cow<'a, str>>,
         K: Into<TokenKind>,
     {
         Token {
-            lexeme: lexeme.into(),
+            lexeme,
             start: start.into(),
             kind: kind.into(),
         }
@@ -55,7 +53,7 @@ pub enum TokenKind {
     // Literals
     Number,
     Identifier,
-    String,
+    Uri,
 
     // Punctuation
     /// ~
@@ -135,7 +133,7 @@ impl Display for TokenKind {
         match self {
             TokenKind::Number => f.write_str("NUMBER"),
             TokenKind::Identifier => f.write_str("IDENTIFIER"),
-            TokenKind::String => f.write_str("STRING"),
+            TokenKind::Uri => f.write_str("URI"),
             TokenKind::Plus => f.write_char('+'),
             TokenKind::Minus => f.write_char('-'),
             TokenKind::Star => f.write_char('*'),

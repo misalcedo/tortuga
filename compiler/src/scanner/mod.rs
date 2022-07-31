@@ -127,7 +127,7 @@ impl<'a> Scanner<'a> {
         while self.matches_closure(|c| c != '"') {}
 
         if self.matches('"') {
-            self.new_token(TokenKind::String)
+            self.new_token(TokenKind::Uri)
         } else {
             self.new_error(UNTERMINATED_STRING)
         }
@@ -358,7 +358,7 @@ mod tests {
             Some(Ok(Token::new(
                 Location::default(),
                 "\"Hello, \\\"",
-                TokenKind::String
+                TokenKind::Uri
             )))
         );
         assert_eq!(
