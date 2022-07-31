@@ -4,7 +4,7 @@ mod expression;
 mod terminal;
 
 pub use expression::{Expression, Internal, InternalKind, Terminal};
-use std::fmt::{Display, Formatter};
+use std::fmt::{Display, Formatter, Write};
 pub use terminal::{Identifier, Number, Uri};
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -32,20 +32,74 @@ impl<'a> Program<'a> {
             stack: self.roots.iter().rev().map(|&i| (i, false)).collect(),
         }
     }
+
+    pub fn iter_pre_order(&self) -> PreOrderIterator<'a, '_> {
+        PreOrderIterator {
+            program: self,
+            stack: self.roots.iter().copied().collect(),
+        }
+    }
 }
 
 impl Display for Program<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let mut iterator = self.iter();
+        let mut iterator = self.iter_pre_order();
+        let missing = Expression::default();
 
         while let Some(expression) = iterator.next() {
             match expression {
-                Expression::Internal(internal) => todo!(),
-                Expression::Terminal(terminal) => write!(f, "{}", terminal),
+                Expression::Internal(internal) => {
+                    format_internal(f, internal, &missing, &mut iterator)?
+                }
+                Expression::Terminal(terminal) => write!(f, "{}", terminal)?,
             }
         }
 
         Ok(())
+    }
+}
+
+fn format_internal<'a>(
+    f: &mut Formatter<'_>,
+    internal: &Internal,
+    missing: &Expression<'a>,
+    iterator: &mut PreOrderIterator<'a, '_>,
+) -> std::fmt::Result {
+    write!(f, "({} ", internal)?;
+
+    let children = internal.len();
+
+    for i in 1..=children {
+        write!(f, "{}", iterator.next().unwrap_or(missing))?;
+
+        if i < children {
+            f.write_str(" ")?;
+        }
+    }
+
+    f.write_char(')')
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct PreOrderIterator<'a, 'b> {
+    program: &'b Program<'a>,
+    stack: Vec<usize>,
+}
+
+impl<'a, 'b> Iterator for PreOrderIterator<'a, 'b> {
+    type Item = &'b Expression<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let index = self.stack.pop()?;
+        let expression = self.program.expressions.get(index)?;
+
+        if let Expression::Internal(internal) = expression {
+            for &child in internal.children() {
+                self.stack.push(child);
+            }
+        }
+
+        Some(expression)
     }
 }
 

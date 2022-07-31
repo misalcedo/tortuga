@@ -3,7 +3,7 @@
 //! Here, we use the order of the [`Internal`] variants to make each precedence level explicit.
 
 use crate::grammar::{Identifier, Number, Uri};
-use std::fmt::{Display, Formatter};
+use std::fmt::{Display, Formatter, Write};
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Expression<'a> {
@@ -11,10 +11,31 @@ pub enum Expression<'a> {
     Terminal(Terminal<'a>),
 }
 
+impl Display for Expression<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Expression::Internal(i) => write!(f, "{}", i),
+            Expression::Terminal(t) => write!(f, "{}", t),
+        }
+    }
+}
+
+impl Default for Expression<'_> {
+    fn default() -> Self {
+        Expression::Terminal(Terminal::Identifier(Identifier::from("_")))
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Internal {
     kind: InternalKind,
     children: Vec<usize>,
+}
+
+impl Display for Internal {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.kind)
+    }
 }
 
 impl Internal {
@@ -24,6 +45,14 @@ impl Internal {
 
     pub fn kind(&self) -> &InternalKind {
         &self.kind
+    }
+
+    pub fn len(&self) -> usize {
+        self.children.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.children.is_empty()
     }
 
     pub(crate) fn children(&self) -> &[usize] {
@@ -42,6 +71,22 @@ pub enum InternalKind {
     Power,
     Call,
     Grouping,
+}
+
+impl Display for InternalKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InternalKind::Assignment => f.write_char('='),
+            InternalKind::Modulo => f.write_char('%'),
+            InternalKind::Subtract => f.write_char('-'),
+            InternalKind::Add => f.write_char('+'),
+            InternalKind::Division => f.write_char('/'),
+            InternalKind::Multiply => f.write_char('*'),
+            InternalKind::Power => f.write_char('^'),
+            InternalKind::Call => f.write_str("call"),
+            InternalKind::Grouping => Ok(()),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]

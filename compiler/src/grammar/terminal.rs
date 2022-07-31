@@ -29,9 +29,21 @@ pub struct Identifier<'a> {
     lexeme: &'a str,
 }
 
+impl<'a> From<&'a str> for Identifier<'a> {
+    fn from(lexeme: &'a str) -> Self {
+        Identifier { lexeme }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Uri<'a> {
     lexeme: &'a str,
+}
+
+impl<'a> From<&'a str> for Uri<'a> {
+    fn from(lexeme: &'a str) -> Self {
+        Uri { lexeme }
+    }
 }
 
 impl Display for Number<'_> {
