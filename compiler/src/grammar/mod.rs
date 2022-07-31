@@ -2,7 +2,9 @@
 
 mod expression;
 mod terminal;
+mod traversal;
 
+use crate::grammar::traversal::{PostOrderIterator, PreOrderIterator};
 pub use expression::{Expression, ExpressionReference, Internal, InternalKind, Terminal};
 use std::fmt::{Display, Formatter, Write};
 pub use terminal::{Identifier, Number, Uri};
@@ -27,17 +29,11 @@ impl<'a> Program<'a> {
     }
 
     pub fn iter(&self) -> PostOrderIterator<'a, '_> {
-        PostOrderIterator {
-            program: self,
-            stack: self.roots.iter().rev().map(|i| (i.0, false)).collect(),
-        }
+        self.into()
     }
 
     pub fn iter_pre_order(&self) -> PreOrderIterator<'a, '_> {
-        PreOrderIterator {
-            program: self,
-            stack: self.roots.iter().map(|r| r.0).collect(),
-        }
+        self.into()
     }
 }
 
@@ -78,58 +74,6 @@ fn format_internal<'a>(
     }
 
     f.write_char(')')
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct PreOrderIterator<'a, 'b> {
-    program: &'b Program<'a>,
-    stack: Vec<usize>,
-}
-
-impl<'a, 'b> Iterator for PreOrderIterator<'a, 'b> {
-    type Item = &'b Expression<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let index = self.stack.pop()?;
-        let expression = self.program.expressions.get(index)?;
-
-        if let Expression::Internal(internal) = expression {
-            for child in internal.children() {
-                self.stack.push(child.0);
-            }
-        }
-
-        Some(expression)
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct PostOrderIterator<'a, 'b> {
-    program: &'b Program<'a>,
-    stack: Vec<(usize, bool)>,
-}
-
-impl<'a, 'b> Iterator for PostOrderIterator<'a, 'b> {
-    type Item = &'b Expression<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            let (index, discovered) = self.stack.pop()?;
-            let expression = self.program.expressions.get(index)?;
-
-            match expression {
-                Expression::Terminal(_) => return Some(expression),
-                Expression::Internal(_) if discovered => return Some(expression),
-                Expression::Internal(internal) => {
-                    self.stack.push((index, true));
-
-                    for child in internal.children().iter().rev() {
-                        self.stack.push((child.0, false));
-                    }
-                }
-            }
-        }
-    }
 }
 
 #[cfg(test)]
