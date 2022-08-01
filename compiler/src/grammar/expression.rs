@@ -1,6 +1,6 @@
 //! Tortuga has no statements. Every piece of code is an expression that produces a value.
 //! Some grammars for languages do not directly encode the precedence relationships and specify that elsewhere.
-//! Here, we use the order of the [`Internal`] variants to make each precedence level explicit.
+//! Here, we use the order of the [`Internal`] variants to denote each precedence level.
 
 use crate::grammar::{Identifier, Number, Uri};
 use std::fmt::{Display, Formatter, Write};
