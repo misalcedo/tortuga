@@ -3,11 +3,13 @@
 //! Here, we use the nesting of the parsing functions to denote each precedence level.
 
 mod error;
+mod precedence;
 
-use crate::grammar::{Expression, Program};
+use crate::grammar::{ExpressionReference, Internal, InternalKind, Number, Program};
 use crate::scanner::LexicalError;
 use crate::{Location, Token, TokenKind};
 pub use error::SyntacticalError;
+use precedence::{ParseRule, Precedence};
 
 pub trait ErrorReporter {
     fn report(&mut self, error: SyntacticalError);
@@ -27,6 +29,8 @@ pub struct Parser<'a, Iterator, Reporter> {
     current: Option<Token<'a>>,
     program: Program<'a>,
     end_location: Location,
+    precedence: Precedence,
+    can_assign: bool,
     had_error: bool,
 }
 
@@ -37,6 +41,51 @@ where
     I: Iterator<Item = Result<Token<'a>, LexicalError>>,
     R: ErrorReporter,
 {
+    const PARSE_RULES: [ParseRule<I, R>; 37] = [
+        ParseRule::prefix(TokenKind::Number, Self::parse_number),
+        ParseRule::empty(TokenKind::Identifier),
+        ParseRule::empty(TokenKind::Uri),
+        ParseRule::empty(TokenKind::Tilde),
+        ParseRule::empty(TokenKind::BackTick),
+        ParseRule::empty(TokenKind::Exclamation),
+        ParseRule::empty(TokenKind::At),
+        ParseRule::empty(TokenKind::Pound),
+        ParseRule::empty(TokenKind::Dollar),
+        ParseRule::empty(TokenKind::Percent),
+        ParseRule::empty(TokenKind::Caret),
+        ParseRule::empty(TokenKind::Ampersand),
+        ParseRule::empty(TokenKind::Star),
+        ParseRule::empty(TokenKind::LeftParenthesis),
+        ParseRule::empty(TokenKind::RightParenthesis),
+        ParseRule::empty(TokenKind::Underscore),
+        ParseRule::empty(TokenKind::Minus),
+        ParseRule::infix(TokenKind::Plus, Self::parse_binary, Precedence::Term),
+        ParseRule::empty(TokenKind::Equal),
+        ParseRule::empty(TokenKind::LeftBrace),
+        ParseRule::empty(TokenKind::LeftBracket),
+        ParseRule::empty(TokenKind::RightBrace),
+        ParseRule::empty(TokenKind::RightBracket),
+        ParseRule::empty(TokenKind::VerticalPipe),
+        ParseRule::empty(TokenKind::BackSlash),
+        ParseRule::empty(TokenKind::Colon),
+        ParseRule::empty(TokenKind::Semicolon),
+        ParseRule::empty(TokenKind::SingleQuote),
+        ParseRule::empty(TokenKind::LessThan),
+        ParseRule::empty(TokenKind::Comma),
+        ParseRule::empty(TokenKind::GreaterThan),
+        ParseRule::empty(TokenKind::Dot),
+        ParseRule::empty(TokenKind::Question),
+        ParseRule::empty(TokenKind::Slash),
+        ParseRule::empty(TokenKind::NotEqual),
+        ParseRule::empty(TokenKind::LessThanOrEqualTo),
+        ParseRule::new(
+            TokenKind::GreaterThanOrEqualTo,
+            None,
+            None,
+            Precedence::None,
+        ),
+    ];
+
     fn new<II>(tokens: II, reporter: R) -> Self
     where
         II: IntoIterator<Item = I::Item, IntoIter = I>,
@@ -47,12 +96,23 @@ where
             current: None,
             program: Program::default(),
             end_location: Location::default(),
+            precedence: Precedence::None,
+            can_assign: false,
             had_error: false,
         }
     }
 
     /// Generate a [`Program`] syntax tree for this [`Parser`]'s sequence of [`Token`]s.
     pub fn parse(mut self) -> Result<Program<'a>, R> {
+        self.advance();
+
+        while self.current.is_some() {
+            match self.parse_expression() {
+                Ok(expression) => self.program.mark_root(expression),
+                Err(error) => self.synchronize(error),
+            }
+        }
+
         if self.had_error {
             Err(self.reporter)
         } else {
@@ -60,8 +120,76 @@ where
         }
     }
 
-    fn parse_expression(&mut self) -> SyntacticalResult<Expression<'a>> {
-        todo!()
+    fn synchronize(&mut self, error: SyntacticalError) {
+        self.report_error(error);
+
+        loop {
+            if self.current.is_some() {
+                self.advance();
+            }
+
+            if self.current.is_none() || self.check(TokenKind::Semicolon) {
+                return;
+            }
+        }
+    }
+
+    fn parse_expression(&mut self) -> SyntacticalResult<ExpressionReference> {
+        self.precedence = Precedence::Assignment;
+
+        self.parse_precedence()
+    }
+
+    fn parse_precedence(&mut self) -> SyntacticalResult<ExpressionReference> {
+        self.advance();
+
+        let kind = self.previous.kind();
+        let rule = self.get_rule(kind);
+        let can_assign = precedence <= Precedence::Assignment;
+
+        match rule.prefix {
+            None => {
+                self.error_at(&self.previous.clone(), "Expect expression.");
+                return;
+            }
+            Some(prefix) => prefix(self, can_assign),
+        }
+
+        while precedence <= self.get_current_precedence() {
+            self.advance();
+
+            let kind = self.previous.kind();
+            let rule = self.get_rule(kind);
+
+            match rule.infix {
+                None => {
+                    self.error_at(&self.previous.clone(), "Expect expression.");
+                    return;
+                }
+                Some(infix) => infix(self, can_assign),
+            }
+        }
+
+        if self.can_assign && self.consume_conditionally(TokenKind::Equal) {
+            Err(SyntacticalError::new(
+                "Invalid assignment target.",
+                self.end_location,
+            ))
+        } else {
+            todo!()
+        }
+    }
+
+    fn parse_binary(&mut self) -> SyntacticalResult<ExpressionReference> {
+        self.parse_precedence();
+        Ok(self.program.insert(number))
+    }
+
+    fn parse_number(&mut self) -> SyntacticalResult<ExpressionReference> {
+        let token = self.consume(TokenKind::Number, "Expected a number.")?;
+        let number = Number::positive(token.lexeme());
+
+        Ok(self.program.insert(number))
     }
 
     fn advance(&mut self) {
@@ -85,15 +213,18 @@ where
         self.reporter.report(error);
     }
 
-    fn consume(&mut self, kind: TokenKind, message: &str) -> SyntacticalResult<()> {
+    fn consume(&mut self, kind: TokenKind, message: &str) -> SyntacticalResult<Token<'a>> {
         match self.current {
-            Some(token) if token.kind() == &kind => Ok(self.advance()),
-            Some(token) => Err(SyntacticalError::new(message, *token.start())),
-            None => Err(SyntacticalError::new(message, self.end_location)),
+            Some(token) if token.kind() == &kind => {
+                self.advance();
+                Ok(token)
+            }
+            Some(ref token) => Err(SyntacticalError::new(message, token.start())),
+            None => Err(SyntacticalError::new(message, &self.end_location)),
         }
     }
 
-    fn conditional_consume(&mut self, kind: TokenKind) -> bool {
+    fn consume_conditionally(&mut self, kind: TokenKind) -> bool {
         let same = self.check(kind);
 
         if same {
@@ -142,81 +273,6 @@ mod tests {
     }
 }
 
-//
-// impl<'a> Parser<'a> {
-//     /// Advances the token sequence and returns the next value if the token is one of the expected [`Kind`]s.
-//     ///
-//     /// Returns [`Err`] when at the end of the sequence,
-//     /// if the token's kind does not match, or if the token is invalid.
-//     fn next_kind<Matcher: TokenMatcher>(
-//         &mut self,
-//         matcher: Matcher,
-//     ) -> Result<Token<'a>, SyntacticalError> {
-//         match self.tokens.next_matches(matcher) {
-//             Some(true) => self.tokens.next_token(),
-//             Some(false) => Err(SyntacticalError::NoMatch(
-//                 self.tokens
-//                     .peek()
-//                     .cloned()
-//                     .ok_or(SyntacticalError::Incomplete)?
-//                     .into(),
-//             )),
-//             None => Err(SyntacticalError::Incomplete),
-//         }
-//     }
-//
-//     /// Generate a syntax tree rooted at a `Program` for this `Parser`'s sequence of tokens.
-//     pub fn parse(mut self) -> Result<Program, SyntacticalError> {
-//         let expression = self.parse_expression()?;
-//
-//         let result = match self.tokens.peek_kind() {
-//             Some(
-//                 Kind::LessThan
-//                 | Kind::GreaterThan
-//                 | Kind::LessThanOrEqualTo
-//                 | Kind::GreaterThanOrEqualTo
-//                 | Kind::Equal
-//                 | Kind::NotEqual,
-//             ) => self.parse_comparisons(expression),
-//             _ => self.parse_expressions(expression),
-//         };
-//
-//         if self.errors.is_empty() {
-//             result
-//         } else {
-//             if let Err(error) = result {
-//                 error!("{error}");
-//             }
-//
-//             for error in self.errors.into_iter().rev() {
-//                 error!("{error}");
-//             }
-//
-//             Err(SyntacticalError::Multiple)
-//         }
-//     }
-//
-//     fn parse_expressions(&mut self, expression: Expression) -> Result<Program, SyntacticalError> {
-//         let mut expressions = Vec::new();
-//
-//         while self.tokens.has_next() {
-//             expressions.push(self.parse_expression()?);
-//         }
-//
-//         Ok(List::new(expression, expressions).into())
-//     }
-//
-//     fn parse_comparisons(&mut self, expression: Expression) -> Result<Program, SyntacticalError> {
-//         let head = self.parse_comparison()?;
-//         let mut comparisons = Vec::new();
-//
-//         while self.tokens.has_next() {
-//             comparisons.push(self.parse_comparison()?);
-//         }
-//
-//         Ok(Comparisons::new(expression, List::new(head, comparisons)).into())
-//     }
-//
 //     fn parse_comparison(&mut self) -> Result<Comparison, SyntacticalError> {
 //         let operator = self.parse_comparator()?;
 //         let expression = self.parse_expression()?;
@@ -235,25 +291,6 @@ mod tests {
 //         };
 //
 //         Ok(operator)
-//     }
-//
-//     // Expressions are the synchronization point for panic mode.
-//     fn parse_expression(&mut self) -> Result<Expression, SyntacticalError> {
-//         self.tokens.mark();
-//
-//         loop {
-//             match self.parse_expression_not_synchronized() {
-//                 Err(error) if error.is_complete() => {
-//                     debug!("Entered panic mode while parsing an expression (Error: {error}).");
-//
-//                     self.errors.push(error);
-//                     self.tokens.backtrack();
-//
-//                     while self.tokens.next_unless_match(SYNC_KINDS).is_some() {}
-//                 }
-//                 result => return result,
-//             }
-//         }
 //     }
 //
 //     // Expressions are the synchronization point for panic mode.

@@ -30,10 +30,10 @@ impl From<LexicalError> for SyntacticalError {
 }
 
 impl SyntacticalError {
-    pub fn new(message: &str, start: Location) -> Self {
+    pub fn new(message: &str, start: &Location) -> Self {
         SyntacticalError {
             message: message.to_string(),
-            start,
+            start: *start,
         }
     }
 }

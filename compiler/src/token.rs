@@ -4,7 +4,7 @@ use crate::Location;
 use std::fmt::{self, Display, Formatter, Write};
 
 /// A lexical token is a pair of a [`Lexeme`] and a [`Kind`].
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Token<'a> {
     lexeme: &'a str,
     start: Location,
@@ -32,7 +32,7 @@ impl<'a> Token<'a> {
     }
 
     /// The actual text this [`Token`] represents in the input.
-    pub fn lexeme(&'a self) -> &'a str {
+    pub fn lexeme(&self) -> &'a str {
         &self.lexeme
     }
 
@@ -53,7 +53,8 @@ impl<'a> Token<'a> {
 }
 
 /// The variants of the [`Token`]s and their associated attributes.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[repr(u8)]
 pub enum TokenKind {
     // Literals
     Number,
