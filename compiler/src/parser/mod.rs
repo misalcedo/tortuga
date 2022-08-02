@@ -3,13 +3,13 @@
 //! Here, we use the nesting of the parsing functions to denote each precedence level.
 
 mod error;
-mod precedence;
 
-use crate::grammar::{ExpressionReference, Internal, InternalKind, Number, Program};
+use crate::grammar::{
+    ExpressionReference, Identifier, Internal, InternalKind, Number, Program, Uri,
+};
 use crate::scanner::LexicalError;
 use crate::{Location, Token, TokenKind};
 pub use error::SyntacticalError;
-use precedence::{ParseRule, Precedence};
 
 pub trait ErrorReporter {
     fn report(&mut self, error: SyntacticalError);
@@ -29,8 +29,6 @@ pub struct Parser<'a, Iterator, Reporter> {
     current: Option<Token<'a>>,
     program: Program<'a>,
     end_location: Location,
-    precedence: Precedence,
-    can_assign: bool,
     had_error: bool,
 }
 
@@ -41,51 +39,6 @@ where
     I: Iterator<Item = Result<Token<'a>, LexicalError>>,
     R: ErrorReporter,
 {
-    const PARSE_RULES: [ParseRule<I, R>; 37] = [
-        ParseRule::prefix(TokenKind::Number, Self::parse_number),
-        ParseRule::empty(TokenKind::Identifier),
-        ParseRule::empty(TokenKind::Uri),
-        ParseRule::empty(TokenKind::Tilde),
-        ParseRule::empty(TokenKind::BackTick),
-        ParseRule::empty(TokenKind::Exclamation),
-        ParseRule::empty(TokenKind::At),
-        ParseRule::empty(TokenKind::Pound),
-        ParseRule::empty(TokenKind::Dollar),
-        ParseRule::empty(TokenKind::Percent),
-        ParseRule::empty(TokenKind::Caret),
-        ParseRule::empty(TokenKind::Ampersand),
-        ParseRule::empty(TokenKind::Star),
-        ParseRule::empty(TokenKind::LeftParenthesis),
-        ParseRule::empty(TokenKind::RightParenthesis),
-        ParseRule::empty(TokenKind::Underscore),
-        ParseRule::empty(TokenKind::Minus),
-        ParseRule::infix(TokenKind::Plus, Self::parse_binary, Precedence::Term),
-        ParseRule::empty(TokenKind::Equal),
-        ParseRule::empty(TokenKind::LeftBrace),
-        ParseRule::empty(TokenKind::LeftBracket),
-        ParseRule::empty(TokenKind::RightBrace),
-        ParseRule::empty(TokenKind::RightBracket),
-        ParseRule::empty(TokenKind::VerticalPipe),
-        ParseRule::empty(TokenKind::BackSlash),
-        ParseRule::empty(TokenKind::Colon),
-        ParseRule::empty(TokenKind::Semicolon),
-        ParseRule::empty(TokenKind::SingleQuote),
-        ParseRule::empty(TokenKind::LessThan),
-        ParseRule::empty(TokenKind::Comma),
-        ParseRule::empty(TokenKind::GreaterThan),
-        ParseRule::empty(TokenKind::Dot),
-        ParseRule::empty(TokenKind::Question),
-        ParseRule::empty(TokenKind::Slash),
-        ParseRule::empty(TokenKind::NotEqual),
-        ParseRule::empty(TokenKind::LessThanOrEqualTo),
-        ParseRule::new(
-            TokenKind::GreaterThanOrEqualTo,
-            None,
-            None,
-            Precedence::None,
-        ),
-    ];
-
     fn new<II>(tokens: II, reporter: R) -> Self
     where
         II: IntoIterator<Item = I::Item, IntoIter = I>,
@@ -96,8 +49,6 @@ where
             current: None,
             program: Program::default(),
             end_location: Location::default(),
-            precedence: Precedence::None,
-            can_assign: false,
             had_error: false,
         }
     }
@@ -135,61 +86,125 @@ where
     }
 
     fn parse_expression(&mut self) -> SyntacticalResult<ExpressionReference> {
-        self.precedence = Precedence::Assignment;
-
-        self.parse_precedence()
+        self.parse_assignment()
     }
 
-    fn parse_precedence(&mut self) -> SyntacticalResult<ExpressionReference> {
-        self.advance();
+    fn parse_assignment(&mut self) -> SyntacticalResult<ExpressionReference> {
+        self.parse_left_hand_side()
+    }
 
-        let kind = self.previous.kind();
-        let rule = self.get_rule(kind);
-        let can_assign = precedence <= Precedence::Assignment;
+    fn parse_left_hand_side(&mut self) -> SyntacticalResult<ExpressionReference> {
+        self.parse_modulo()
+    }
 
-        match rule.prefix {
-            None => {
-                self.error_at(&self.previous.clone(), "Expect expression.");
-                return;
-            }
-            Some(prefix) => prefix(self, can_assign),
+    fn parse_modulo(&mut self) -> SyntacticalResult<ExpressionReference> {
+        let mut lhs = self.parse_modulo()?;
+
+        while self.consume_conditionally(TokenKind::Caret) {
+            let rhs = self.parse_modulo()?;
+            let operation = Internal::new(InternalKind::Power, vec![lhs, rhs]);
+
+            lhs = self.program.insert(operation);
         }
 
-        while precedence <= self.get_current_precedence() {
-            self.advance();
+        Ok(lhs)
+    }
 
-            let kind = self.previous.kind();
-            let rule = self.get_rule(kind);
+    fn parse_sum(&mut self) -> SyntacticalResult<ExpressionReference> {
+        let mut lhs = self.parse_product()?;
 
-            match rule.infix {
-                None => {
-                    self.error_at(&self.previous.clone(), "Expect expression.");
-                    return;
-                }
-                Some(infix) => infix(self, can_assign),
-            }
+        while self.check(TokenKind::Plus) || self.check(TokenKind::Minus) {
+            let operator = if self.consume_conditionally(TokenKind::Plus) {
+                InternalKind::Add
+            } else {
+                self.consume(TokenKind::Minus, "Expected '+' or '-'.")?;
+                InternalKind::Subtract
+            };
+            let rhs = self.parse_product()?;
+            let operation = Internal::new(operator, vec![lhs, rhs]);
+
+            lhs = self.program.insert(operation);
         }
 
-        if self.can_assign && self.consume_conditionally(TokenKind::Equal) {
-            Err(SyntacticalError::new(
-                "Invalid assignment target.",
-                self.end_location,
-            ))
+        Ok(lhs)
+    }
+
+    fn parse_product(&mut self) -> SyntacticalResult<ExpressionReference> {
+        let mut lhs = self.parse_power()?;
+
+        while self.check(TokenKind::Star) || self.check(TokenKind::Slash) {
+            let operator = if self.consume_conditionally(TokenKind::Star) {
+                InternalKind::Multiply
+            } else {
+                self.consume(TokenKind::Slash, "Expected '*' or '/'.")?;
+                InternalKind::Divide
+            };
+            let rhs = self.parse_power()?;
+            let operation = Internal::new(operator, vec![lhs, rhs]);
+
+            lhs = self.program.insert(operation);
+        }
+
+        Ok(lhs)
+    }
+
+    fn parse_power(&mut self) -> SyntacticalResult<ExpressionReference> {
+        let mut lhs = self.parse_call()?;
+
+        while self.consume_conditionally(TokenKind::Caret) {
+            let rhs = self.parse_call()?;
+            let operation = Internal::new(InternalKind::Power, vec![lhs, rhs]);
+
+            lhs = self.program.insert(operation);
+        }
+
+        Ok(lhs)
+    }
+
+    fn parse_call(&mut self) -> SyntacticalResult<ExpressionReference> {
+        self.parse_primary()
+    }
+
+    fn parse_primary(&mut self) -> SyntacticalResult<ExpressionReference> {
+        if self.check(TokenKind::LeftParenthesis) {
+            self.parse_grouping()
+        } else if self.check(TokenKind::Number) || self.check(TokenKind::Minus) {
+            self.parse_number()
+        } else if self.check(TokenKind::Identifier) {
+            self.parse_identifier()
         } else {
-            todo!()
+            self.parse_uri()
         }
     }
 
-    fn parse_binary(&mut self) -> SyntacticalResult<ExpressionReference> {
-        self.parse_precedence();
-        Ok(self.program.insert(number))
+    fn parse_grouping(&mut self) -> SyntacticalResult<ExpressionReference> {
+        self.consume(TokenKind::LeftParenthesis, "")?;
+        let expression = self.parse_expression()?;
+        self.consume(TokenKind::RightParenthesis, "")?;
+
+        Ok(expression)
     }
 
     fn parse_number(&mut self) -> SyntacticalResult<ExpressionReference> {
+        let negative = self.consume_conditionally(TokenKind::Minus);
         let token = self.consume(TokenKind::Number, "Expected a number.")?;
-        let number = Number::positive(token.lexeme());
+        let number = Number::new(negative, token.lexeme());
 
         Ok(self.program.insert(number))
+    }
+
+    fn parse_identifier(&mut self) -> SyntacticalResult<ExpressionReference> {
+        let token = self.consume(TokenKind::Identifier, "Expected an identifier.")?;
+        let identifier = Identifier::from(token.lexeme());
+
+        Ok(self.program.insert(identifier))
+    }
+
+    fn parse_uri(&mut self) -> SyntacticalResult<ExpressionReference> {
+        let token = self.consume(TokenKind::Uri, "Expected an URI.")?;
+        let uri = Uri::from(token.lexeme());
+
+        Ok(self.program.insert(uri))
     }
 
     fn advance(&mut self) {
@@ -250,15 +265,16 @@ mod tests {
 
     #[test]
     fn from_scanner() {
-        let input = "3 + 2";
+        // TODO deal with stack overflow.
+        let input = "-3 + 2";
         let scanner: Scanner<'_> = input.into();
-        let mut parser: Parser<_, _> = Parser::new(scanner, Vec::new());
+        let parser: Parser<_, _> = Parser::new(scanner, Vec::new());
 
         let program = parser.parse().unwrap();
 
         let mut expected = Program::default();
 
-        let left = Number::positive("3");
+        let left = Number::negative("3");
         let left_index = expected.insert(left.clone());
 
         let right = Number::positive("2");
@@ -291,19 +307,6 @@ mod tests {
 //         };
 //
 //         Ok(operator)
-//     }
-//
-//     // Expressions are the synchronization point for panic mode.
-//     fn parse_expression_not_synchronized(&mut self) -> Result<Expression, SyntacticalError> {
-//         if let Some(true) = self.tokens.next_matches(NAME_KINDS) {
-//             self.parse_assignment().map(Expression::from)
-//         } else {
-//             self.parse_arithmetic().map(Expression::from)
-//         }
-//     }
-//
-//     fn parse_arithmetic(&mut self) -> Result<Expression, SyntacticalError> {
-//         Ok(self.parse_epsilon()?.into())
 //     }
 //
 //     fn parse_epsilon(&mut self) -> Result<Expression, SyntacticalError> {

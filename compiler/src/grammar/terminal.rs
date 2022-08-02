@@ -9,6 +9,10 @@ pub struct Number<'a> {
 }
 
 impl<'a> Number<'a> {
+    pub fn new(negative: bool, lexeme: &'a str) -> Self {
+        Number { negative, lexeme }
+    }
+
     pub fn negative(lexeme: &'a str) -> Self {
         Number {
             negative: true,
