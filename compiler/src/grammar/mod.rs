@@ -37,6 +37,14 @@ impl<'a> Program<'a> {
     pub fn iter_pre_order(&self) -> PreOrderIterator<'a, '_> {
         self.into()
     }
+
+    pub fn len(&self) -> usize {
+        self.expressions.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.expressions.is_empty()
+    }
 }
 
 impl Display for Program<'_> {
@@ -68,7 +76,10 @@ fn format_internal<'a>(
     let children = internal.len();
 
     for i in 1..=children {
-        write!(f, "{}", iterator.next().unwrap_or(missing))?;
+        match iterator.next().unwrap_or(missing) {
+            Expression::Internal(child) => format_internal(f, child, missing, iterator)?,
+            Expression::Terminal(terminal) => write!(f, "{}", terminal)?,
+        }
 
         if i < children {
             f.write_str(" ")?;

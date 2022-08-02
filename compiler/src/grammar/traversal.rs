@@ -23,7 +23,7 @@ impl<'a, 'b> Iterator for PreOrderIterator<'a, 'b> {
         let expression = self.program.expressions.get(index)?;
 
         if let Expression::Internal(internal) = expression {
-            for child in internal.children() {
+            for child in internal.children().iter().rev() {
                 self.stack.push(child.0);
             }
         }
