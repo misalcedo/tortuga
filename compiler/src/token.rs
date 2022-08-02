@@ -4,7 +4,7 @@ use crate::Location;
 use std::fmt::{self, Display, Formatter, Write};
 
 /// A lexical token is a pair of a [`Lexeme`] and a [`Kind`].
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Token<'a> {
     lexeme: &'a str,
     start: Location,
@@ -39,6 +39,11 @@ impl<'a> Token<'a> {
     /// The start [`Location`] of this [`Token`]'s [`Lexeme`].
     pub fn start(&self) -> &Location {
         &self.start
+    }
+
+    /// The end [`Location`] of this [`Token`]'s [`Lexeme`].
+    pub fn end(&self) -> Location {
+        self.start + self.lexeme
     }
 
     /// This [`Token`]'s variant.
@@ -185,6 +190,7 @@ mod tests {
         let token = Token::new(start, lexeme, kind);
 
         assert_eq!(token.start(), &Location::default());
+        assert_eq!(token.end(), Location::new(1, 3, 2));
         assert_eq!(token.lexeme(), lexeme);
         assert_eq!(token.kind(), &kind);
     }

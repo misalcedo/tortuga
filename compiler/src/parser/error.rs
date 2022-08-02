@@ -1,5 +1,6 @@
 //! Errors that may occur during lexical analysis.
 
+use crate::scanner::LexicalError;
 use crate::Location;
 use std::fmt::{self, Display, Formatter};
 
@@ -18,3 +19,21 @@ impl Display for SyntacticalError {
 }
 
 impl std::error::Error for SyntacticalError {}
+
+impl From<LexicalError> for SyntacticalError {
+    fn from(error: LexicalError) -> Self {
+        SyntacticalError {
+            message: format!("{}", &error),
+            start: *error.start(),
+        }
+    }
+}
+
+impl SyntacticalError {
+    pub fn new(message: &str, start: Location) -> Self {
+        SyntacticalError {
+            message: message.to_string(),
+            start,
+        }
+    }
+}

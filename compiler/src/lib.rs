@@ -1,6 +1,6 @@
 //! Public interface of the tortuga compiler.
 
-mod grammar;
+pub mod grammar;
 mod location;
 mod parser;
 mod scanner;

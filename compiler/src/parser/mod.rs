@@ -4,41 +4,109 @@
 
 mod error;
 
+use crate::grammar::{Expression, Program};
 use crate::scanner::LexicalError;
-use crate::Token;
+use crate::{Location, Token, TokenKind};
 pub use error::SyntacticalError;
 
 pub trait ErrorReporter {
-    fn report(error: SyntacticalError);
+    fn report(&mut self, error: SyntacticalError);
+}
+
+impl ErrorReporter for Vec<SyntacticalError> {
+    fn report(&mut self, error: SyntacticalError) {
+        self.push(error)
+    }
 }
 
 /// A recursive descent LL(1) parser for the syntax grammar.
 /// Parses a sequence of `Token`s into syntax tree.
-///
-/// # Examples
-/// ```rust
-/// use tortuga::Program;
-///
-/// assert!("(2 + 10) ^ 2 = 144".parse::<Program>().is_ok());
-/// ```
-pub struct Parser<Iterator> {
-    offset: usize,
+pub struct Parser<'a, Iterator, Reporter> {
+    reporter: Reporter,
     tokens: Iterator,
-    markers: Vec<usize>,
-    errors: Vec<SyntacticalError>,
+    current: Option<Token<'a>>,
+    program: Program<'a>,
+    end_location: Location,
+    had_error: bool,
 }
 
-impl<'a, II, I> From<II> for Parser<I>
+type SyntacticalResult<Output> = Result<Output, SyntacticalError>;
+
+impl<'a, I, R> Parser<'a, I, R>
 where
-    II: IntoIterator<Item = Result<Token<'a>, LexicalError>, IntoIter = I>,
-    I: Iterator<Item = II::Item>,
+    I: Iterator<Item = Result<Token<'a>, LexicalError>>,
+    R: ErrorReporter,
 {
-    fn from(tokens: II) -> Self {
+    fn new<II>(tokens: II, reporter: R) -> Self
+    where
+        II: IntoIterator<Item = I::Item, IntoIter = I>,
+    {
         Parser {
-            offset: 0,
+            reporter,
             tokens: tokens.into_iter(),
-            markers: Vec::default(),
-            errors: Vec::default(),
+            current: None,
+            program: Program::default(),
+            end_location: Location::default(),
+            had_error: false,
+        }
+    }
+
+    /// Generate a [`Program`] syntax tree for this [`Parser`]'s sequence of [`Token`]s.
+    pub fn parse(mut self) -> Result<Program<'a>, R> {
+        if self.had_error {
+            Err(self.reporter)
+        } else {
+            Ok(self.program)
+        }
+    }
+
+    fn parse_expression(&mut self) -> SyntacticalResult<Expression<'a>> {
+        todo!()
+    }
+
+    fn advance(&mut self) {
+        self.current = self.next_token();
+        if let Some(token) = &self.current {
+            self.end_location = token.end();
+        }
+    }
+
+    fn next_token(&mut self) -> Option<Token<'a>> {
+        loop {
+            match self.tokens.next()? {
+                Ok(token) => return Some(token),
+                Err(error) => self.report_error(error.into()),
+            }
+        }
+    }
+
+    fn report_error(&mut self, error: SyntacticalError) {
+        self.had_error = true;
+        self.reporter.report(error);
+    }
+
+    fn consume(&mut self, kind: TokenKind, message: &str) -> SyntacticalResult<()> {
+        match self.current {
+            Some(token) if token.kind() == &kind => Ok(self.advance()),
+            Some(token) => Err(SyntacticalError::new(message, *token.start())),
+            None => Err(SyntacticalError::new(message, self.end_location)),
+        }
+    }
+
+    fn conditional_consume(&mut self, kind: TokenKind) -> bool {
+        let same = self.check(kind);
+
+        if same {
+            self.advance();
+        }
+
+        same
+    }
+
+    fn check(&mut self, kind: TokenKind) -> bool {
+        match self.current {
+            Some(token) => token.kind() == &kind,
+            None => false,
         }
     }
 }
@@ -46,17 +114,34 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::grammar::{Internal, InternalKind, Number};
     use crate::Scanner;
 
     #[test]
     fn from_scanner() {
         let input = "3 + 2";
-        let mut scanner: Scanner<'_> = input.into();
-        let mut parser: Parser<_> = scanner.into();
+        let scanner: Scanner<'_> = input.into();
+        let mut parser: Parser<_, _> = Parser::new(scanner, Vec::new());
 
-        assert!(false);
+        let program = parser.parse().unwrap();
+
+        let mut expected = Program::default();
+
+        let left = Number::positive("3");
+        let left_index = expected.insert(left.clone());
+
+        let right = Number::positive("2");
+        let right_index = expected.insert(right.clone());
+
+        let add = Internal::new(InternalKind::Add, vec![left_index, right_index]);
+        let add_index = expected.insert(add.clone());
+
+        expected.mark_root(add_index);
+
+        assert_eq!(program, expected);
     }
 }
+
 //
 // impl<'a> Parser<'a> {
 //     /// Advances the token sequence and returns the next value if the token is one of the expected [`Kind`]s.
