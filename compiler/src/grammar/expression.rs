@@ -67,7 +67,7 @@ impl Internal {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum InternalKind {
-    Assignment,
+    Equality,
     Modulo,
     Subtract,
     Add,
@@ -76,20 +76,30 @@ pub enum InternalKind {
     Power,
     Call,
     Grouping,
+    Inequality,
+    LessThan,
+    GreaterThan,
+    LessThanOrEqualTo,
+    GreaterThanOrEqualTo,
 }
 
 impl Display for InternalKind {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            InternalKind::Assignment => f.write_char('='),
+            InternalKind::Equality => f.write_char('='),
             InternalKind::Modulo => f.write_char('%'),
             InternalKind::Subtract => f.write_char('-'),
             InternalKind::Add => f.write_char('+'),
             InternalKind::Divide => f.write_char('/'),
             InternalKind::Multiply => f.write_char('*'),
             InternalKind::Power => f.write_char('^'),
-            InternalKind::Call => f.write_str("call"),
+            InternalKind::Call => Ok(()),
             InternalKind::Grouping => Ok(()),
+            InternalKind::Inequality => f.write_str("<>"),
+            InternalKind::LessThan => f.write_char('<'),
+            InternalKind::GreaterThan => f.write_char('>'),
+            InternalKind::LessThanOrEqualTo => f.write_str("<="),
+            InternalKind::GreaterThanOrEqualTo => f.write_str(">="),
         }
     }
 }

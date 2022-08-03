@@ -9,7 +9,7 @@ use crate::grammar::{
     ExpressionReference, Identifier, Internal, InternalKind, Number, Program, Uri,
 };
 use crate::scanner::LexicalError;
-use crate::{Location, Token, TokenKind};
+use crate::{Location, Scanner, Token, TokenKind};
 pub use error::SyntacticalError;
 use precedence::{ParseRule, Precedence};
 
@@ -39,11 +39,22 @@ pub struct Parser<'a, Iterator, Reporter> {
 
 type SyntacticalResult<Output> = Result<Output, SyntacticalError>;
 static OPERATOR_MAPPINGS: &[(TokenKind, InternalKind)] = &[
-    (TokenKind::Equal, InternalKind::Assignment),
+    (TokenKind::Equal, InternalKind::Equality),
     (TokenKind::Plus, InternalKind::Add),
     (TokenKind::Minus, InternalKind::Subtract),
     (TokenKind::Star, InternalKind::Multiply),
     (TokenKind::Slash, InternalKind::Divide),
+    (TokenKind::NotEqual, InternalKind::Inequality),
+    (TokenKind::LessThan, InternalKind::LessThan),
+    (
+        TokenKind::LessThanOrEqualTo,
+        InternalKind::LessThanOrEqualTo,
+    ),
+    (TokenKind::GreaterThan, InternalKind::GreaterThan),
+    (
+        TokenKind::GreaterThanOrEqualTo,
+        InternalKind::GreaterThanOrEqualTo,
+    ),
 ];
 
 impl<'a, I, R> Parser<'a, I, R>
@@ -111,7 +122,7 @@ where
         &mut self,
         precedence: Precedence,
     ) -> SyntacticalResult<ExpressionReference> {
-        self.can_assign = precedence <= Precedence::Assignment;
+        self.can_assign = precedence <= Precedence::Assignment || precedence == Precedence::Call;
 
         let mut token = self
             .current
@@ -189,6 +200,24 @@ where
         let number = Number::negative(token.lexeme());
 
         Ok(self.program.insert(number))
+    }
+
+    fn parse_call(&mut self) -> SyntacticalResult<ExpressionReference> {
+        self.consume(TokenKind::LeftParenthesis, "Expected '('.")?;
+
+        while !self.check(TokenKind::RightParenthesis) {
+            self.parse_expression()?;
+
+            if !self.consume_conditionally(TokenKind::Comma) {
+                break;
+            }
+        }
+
+        self.consume(TokenKind::RightParenthesis, "Expect ')' after arguments.")?;
+
+        let call = Internal::new(InternalKind::Call, self.children.drain(..).collect());
+
+        Ok(self.program.insert(call))
     }
 
     fn parse_grouping(&mut self) -> SyntacticalResult<ExpressionReference> {
@@ -275,8 +304,8 @@ where
     fn rules() -> Vec<ParseRule<'a, I, R>> {
         vec![
             ParseRule::new_prefix(TokenKind::Number, Self::parse_number),
-            ParseRule::placeholder(TokenKind::Identifier),
-            ParseRule::placeholder(TokenKind::Uri),
+            ParseRule::new_prefix(TokenKind::Identifier, Self::parse_identifier),
+            ParseRule::new_prefix(TokenKind::Uri, Self::parse_uri),
             ParseRule::placeholder(TokenKind::Tilde),
             ParseRule::placeholder(TokenKind::BackTick),
             ParseRule::placeholder(TokenKind::Exclamation),
@@ -287,7 +316,12 @@ where
             ParseRule::placeholder(TokenKind::Caret),
             ParseRule::placeholder(TokenKind::Ampersand),
             ParseRule::new_infix(TokenKind::Star, Self::parse_binary, Precedence::Factor),
-            ParseRule::placeholder(TokenKind::LeftParenthesis),
+            ParseRule::new(
+                TokenKind::LeftParenthesis,
+                Self::parse_grouping,
+                Self::parse_call,
+                Precedence::Call,
+            ),
             ParseRule::placeholder(TokenKind::RightParenthesis),
             ParseRule::placeholder(TokenKind::Underscore),
             ParseRule::new(
@@ -297,7 +331,7 @@ where
                 Precedence::Term,
             ),
             ParseRule::new_infix(TokenKind::Plus, Self::parse_binary, Precedence::Term),
-            ParseRule::placeholder(TokenKind::Equal),
+            ParseRule::new_infix(TokenKind::Equal, Self::parse_binary, Precedence::Comparison),
             ParseRule::placeholder(TokenKind::LeftBrace),
             ParseRule::placeholder(TokenKind::LeftBracket),
             ParseRule::placeholder(TokenKind::RightBrace),
@@ -307,16 +341,47 @@ where
             ParseRule::placeholder(TokenKind::Colon),
             ParseRule::placeholder(TokenKind::Semicolon),
             ParseRule::placeholder(TokenKind::SingleQuote),
-            ParseRule::placeholder(TokenKind::LessThan),
+            ParseRule::new_infix(
+                TokenKind::LessThan,
+                Self::parse_binary,
+                Precedence::Comparison,
+            ),
             ParseRule::placeholder(TokenKind::Comma),
-            ParseRule::placeholder(TokenKind::GreaterThan),
+            ParseRule::new_infix(
+                TokenKind::GreaterThan,
+                Self::parse_binary,
+                Precedence::Comparison,
+            ),
             ParseRule::placeholder(TokenKind::Dot),
             ParseRule::placeholder(TokenKind::Question),
             ParseRule::new_infix(TokenKind::Slash, Self::parse_binary, Precedence::Factor),
-            ParseRule::placeholder(TokenKind::NotEqual),
-            ParseRule::placeholder(TokenKind::LessThanOrEqualTo),
-            ParseRule::placeholder(TokenKind::GreaterThanOrEqualTo),
+            ParseRule::new_infix(
+                TokenKind::NotEqual,
+                Self::parse_binary,
+                Precedence::Comparison,
+            ),
+            ParseRule::new_infix(
+                TokenKind::LessThanOrEqualTo,
+                Self::parse_binary,
+                Precedence::Comparison,
+            ),
+            ParseRule::new_infix(
+                TokenKind::GreaterThanOrEqualTo,
+                Self::parse_binary,
+                Precedence::Comparison,
+            ),
         ]
+    }
+}
+
+impl<'a> TryFrom<&'a str> for Program<'a> {
+    type Error = Vec<SyntacticalError>;
+
+    fn try_from(input: &'a str) -> Result<Self, Self::Error> {
+        let scanner = Scanner::from(input);
+        let parser = Parser::new(scanner, Vec::new());
+
+        parser.parse()
     }
 }
 
@@ -324,94 +389,130 @@ where
 mod tests {
     use super::*;
     use crate::grammar::{Internal, InternalKind, Number};
-    use crate::Scanner;
 
     #[test]
-    fn from_scanner() {
+    fn math() {
         let input = "-3 + 2 + 1";
-        let scanner: Scanner<'_> = input.into();
-        let parser = Parser::new(scanner, Vec::new());
-
-        let program = parser.parse().unwrap();
+        let program = Program::try_from(input).unwrap();
 
         let mut expected = Program::default();
 
         let left = Number::negative("3");
-        let left_index = expected.insert(left.clone());
+        let left_index = expected.insert(left);
 
         let middle = Number::positive("2");
-        let middle_index = expected.insert(middle.clone());
+        let middle_index = expected.insert(middle);
 
         let inner_add = Internal::new(InternalKind::Add, vec![left_index, middle_index]);
-        let inner_add_index = expected.insert(inner_add.clone());
+        let inner_add_index = expected.insert(inner_add);
 
         let right = Number::positive("1");
-        let right_index = expected.insert(right.clone());
+        let right_index = expected.insert(right);
 
         let add = Internal::new(InternalKind::Add, vec![inner_add_index, right_index]);
-        let add_index = expected.insert(add.clone());
+        let add_index = expected.insert(add);
 
         expected.mark_root(add_index);
 
         assert_eq!(program, expected);
     }
-}
 
-// impl FromStr for Program {
-//     type Err = SyntacticalError;
-//
-//     fn from_str(s: &str) -> Result<Self, Self::Err> {
-//         let tokens = Tokens::try_from(Scanner::from(s))?;
-//         let parser = Parser::from(tokens);
-//
-//         parser.parse()
-//     }
-// }
-//
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//
-//     #[test]
-//     fn parse_number() {
-//         assert!("2".parse::<Program>().is_ok());
-//     }
-//
-//     #[test]
-//     fn parse_with_panic() {
-//         let result = "+x".parse::<Program>();
-//
-//         assert_eq!(result, Err(SyntacticalError::Multiple));
-//     }
-//
-//     #[test]
-//     fn parse_negative_number() {
-//         assert!("-2#100".parse::<Program>().is_ok());
-//     }
-//
-//     #[test]
-//     fn parse_identifier() {
-//         assert!("xyz".parse::<Program>().is_ok());
-//     }
-//
-//     #[test]
-//     fn parse_example() {
-//         assert!(include_str!("../../../examples/example.ta")
-//             .parse::<Program>()
-//             .is_ok())
-//     }
-//
-//     #[test]
-//     fn parse_factorial() {
-//         assert!(include_str!("../../../examples/factorial.ta")
-//             .parse::<Program>()
-//             .is_ok())
-//     }
-//
-//     #[test]
-//     fn parse_bad() {
-//         assert!(include_str!("../../../../examples/bad.ta")
-//             .parse::<Program>()
-//             .is_err())
-//     }
-// }
+    #[test]
+    fn functions() {
+        let input = "f(x) = x * x\nf(2)";
+        let program = Program::try_from(input).unwrap();
+
+        let mut expected = Program::default();
+
+        let function = Identifier::from("f");
+        let function_index = expected.insert(function);
+
+        let parameter = Identifier::from("x");
+        let parameter_index = expected.insert(parameter);
+
+        let declaration = Internal::new(InternalKind::Call, vec![function_index, parameter_index]);
+        let declaration_index = expected.insert(declaration);
+
+        let left_index = expected.insert(parameter);
+        let right_index = expected.insert(parameter);
+
+        let multiply = Internal::new(InternalKind::Add, vec![left_index, right_index]);
+        let multiply_index = expected.insert(multiply);
+
+        let equality = Internal::new(
+            InternalKind::Equality,
+            vec![declaration_index, multiply_index],
+        );
+        let equality_index = expected.insert(equality);
+
+        let invocation_index = expected.insert(function);
+        let argument_index = expected.insert(Number::positive("2"));
+        let call = Internal::new(InternalKind::Call, vec![invocation_index, argument_index]);
+        let call_index = expected.insert(call);
+
+        expected.mark_root(equality_index);
+        expected.mark_root(call_index);
+
+        println!("{}", program);
+        println!("{}", expected);
+
+        assert_eq!(program, expected);
+    }
+
+    #[test]
+    fn parse_number() {
+        let input = "2";
+        let program = Program::try_from(input).unwrap();
+
+        let mut expected = Program::default();
+
+        let number = Number::positive("2");
+        let index = expected.insert(number);
+
+        expected.mark_root(index);
+
+        assert_eq!(program, expected);
+    }
+
+    #[test]
+    fn parse_with_panic() {
+        let result = Program::try_from("+x");
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_negative_number() {
+        let input = "-3";
+        let program = Program::try_from(input).unwrap();
+
+        let mut expected = Program::default();
+
+        let number = Number::negative("3");
+        let index = expected.insert(number);
+
+        expected.mark_root(index);
+
+        assert_eq!(program, expected);
+    }
+
+    #[test]
+    fn parse_identifier() {
+        let input = "xyz";
+        let program = Program::try_from(input).unwrap();
+
+        let mut expected = Program::default();
+
+        let identifier = Identifier::from("xyz");
+        let index = expected.insert(identifier);
+
+        expected.mark_root(index);
+
+        assert_eq!(program, expected);
+    }
+
+    #[test]
+    fn parse_bad() {
+        assert!(Program::try_from(include_str!("../../../examples/bad.ta")).is_err())
+    }
+}

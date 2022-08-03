@@ -6,6 +6,7 @@ mod traversal;
 
 use crate::grammar::traversal::{PostOrderIterator, PreOrderIterator};
 pub use expression::{Expression, ExpressionReference, Internal, InternalKind, Terminal};
+use std::collections::BTreeSet;
 use std::fmt::{Display, Formatter, Write};
 pub use terminal::{Identifier, Number, Uri};
 
@@ -14,12 +15,12 @@ pub use terminal::{Identifier, Number, Uri};
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Program<'a> {
     expressions: Vec<Expression<'a>>,
-    roots: Vec<ExpressionReference>,
+    roots: BTreeSet<ExpressionReference>,
 }
 
 impl<'a> Program<'a> {
     pub fn mark_root(&mut self, index: ExpressionReference) {
-        self.roots.push(index);
+        self.roots.insert(index);
     }
 
     pub fn insert<E: Into<Expression<'a>>>(&mut self, expression: E) -> ExpressionReference {
@@ -71,7 +72,11 @@ fn format_internal<'a>(
     missing: &Expression<'a>,
     iterator: &mut PreOrderIterator<'a, '_>,
 ) -> std::fmt::Result {
-    write!(f, "({} ", internal)?;
+    write!(f, "({}", internal)?;
+
+    if internal.kind() != &InternalKind::Grouping && internal.kind() != &InternalKind::Call {
+        write!(f, " ")?;
+    }
 
     let children = internal.len();
 

@@ -10,7 +10,7 @@ impl<'a, 'b> From<&'b Program<'a>> for PreOrderIterator<'a, 'b> {
     fn from(program: &'b Program<'a>) -> Self {
         PreOrderIterator {
             program,
-            stack: program.roots.iter().map(|r| r.0).collect(),
+            stack: program.roots.iter().rev().map(|r| r.0).collect(),
         }
     }
 }

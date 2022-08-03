@@ -10,7 +10,6 @@ pub enum Precedence {
     Assignment,
     Or,
     And,
-    Equality,
     Comparison,
     Term,
     Factor,
@@ -22,17 +21,16 @@ pub enum Precedence {
 impl Precedence {
     pub fn next(&self) -> Self {
         match self {
-            Self::None => Self::None,
+            Self::None => Self::Assignment,
             Self::Assignment => Self::Or,
             Self::Or => Self::And,
-            Self::And => Self::Equality,
-            Self::Equality => Self::Comparison,
+            Self::And => Self::Comparison,
             Self::Comparison => Self::Term,
             Self::Term => Self::Factor,
             Self::Factor => Self::Unary,
             Self::Unary => Self::Call,
             Self::Call => Self::Primary,
-            Self::Primary => Self::None,
+            Self::Primary => Self::Primary,
         }
     }
 }
