@@ -43,6 +43,7 @@ static OPERATOR_MAPPINGS: &[(TokenKind, InternalKind)] = &[
     (TokenKind::Minus, InternalKind::Subtract),
     (TokenKind::Star, InternalKind::Multiply),
     (TokenKind::Slash, InternalKind::Divide),
+    (TokenKind::Caret, InternalKind::Power),
     (TokenKind::NotEqual, InternalKind::Inequality),
     (TokenKind::LessThan, InternalKind::LessThan),
     (
@@ -212,8 +213,20 @@ where
     fn parse_call(&mut self) -> SyntacticalResult<ExpressionReference> {
         self.consume(TokenKind::LeftParenthesis, "Expected '('.")?;
 
+        let callee = self.children.pop().ok_or_else(|| {
+            SyntacticalError::new("Function call must have a callee.", self.end_location)
+        })?;
+
+        let mut arguments = vec![callee];
+
         while !self.check(TokenKind::RightParenthesis) {
             self.parse_expression()?;
+
+            let argument = self.children.pop().ok_or_else(|| {
+                SyntacticalError::new("Function call argument not found.", self.end_location)
+            })?;
+
+            arguments.push(argument);
 
             if !self.consume_conditionally(TokenKind::Comma) {
                 break;
@@ -222,20 +235,25 @@ where
 
         self.consume(TokenKind::RightParenthesis, "Expect ')' after arguments.")?;
 
-        let call = Internal::new(InternalKind::Call, self.children.drain(..).collect());
+        let call = Internal::new(InternalKind::Call, arguments);
 
         Ok(self.program.insert(call))
     }
 
     fn parse_grouping(&mut self) -> SyntacticalResult<ExpressionReference> {
         self.consume(TokenKind::LeftParenthesis, "Expected '('.")?;
-        let expression = self.parse_expression()?;
+        self.parse_expression()?;
         self.consume(
             TokenKind::RightParenthesis,
             "Expected ')' after expression.",
         )?;
 
-        Ok(expression)
+        let inner = self.children.pop().ok_or_else(|| {
+            SyntacticalError::new("Grouping must have an inner expression", self.end_location)
+        })?;
+        let grouping = Internal::new(InternalKind::Grouping, vec![inner]);
+
+        Ok(self.program.insert(grouping))
     }
 
     fn parse_number(&mut self) -> SyntacticalResult<ExpressionReference> {
@@ -320,7 +338,7 @@ where
             ParseRule::placeholder(TokenKind::Pound),
             ParseRule::placeholder(TokenKind::Dollar),
             ParseRule::placeholder(TokenKind::Percent),
-            ParseRule::placeholder(TokenKind::Caret),
+            ParseRule::new_infix(TokenKind::Caret, Self::parse_binary, Precedence::Power),
             ParseRule::placeholder(TokenKind::Ampersand),
             ParseRule::new_infix(TokenKind::Star, Self::parse_binary, Precedence::Factor),
             ParseRule::new(
@@ -516,7 +534,17 @@ mod tests {
     }
 
     #[test]
+    fn parse_simple() {
+        let program = Program::try_from(include_str!("../../../examples/simple.ta"));
+
+        println!("{}", program.unwrap());
+
+        //assert!(program.is_ok());
+        assert!(false);
+    }
+
+    #[test]
     fn parse_bad() {
-        assert!(Program::try_from(include_str!("../../../examples/bad.ta")).is_err())
+        assert!(Program::try_from(include_str!("../../../examples/bad.ta")).is_err());
     }
 }
