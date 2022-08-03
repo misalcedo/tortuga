@@ -82,12 +82,8 @@ where
         self.advance();
 
         while self.current.is_some() {
-            match self.parse_expression() {
-                Ok(expression) => {
-                    self.children.pop();
-                    self.program.mark_root(expression)
-                }
-                Err(error) => self.synchronize(error),
+            if let Err(error) = self.parse_expression_statement() {
+                self.synchronize(error);
             }
         }
 
@@ -110,6 +106,16 @@ where
                 return;
             }
         }
+    }
+
+    fn parse_expression_statement(&mut self) -> SyntacticalResult<()> {
+        let expression = self.parse_expression()?;
+        self.consume_conditionally(TokenKind::Semicolon);
+
+        self.program.mark_root(expression);
+        self.children.pop();
+
+        Ok(())
     }
 
     fn parse_expression(&mut self) -> SyntacticalResult<ExpressionReference> {
@@ -496,7 +502,7 @@ mod tests {
 
     #[test]
     fn parse_identifier() {
-        let input = "xyz";
+        let input = "xyz; This is a comment.";
         let program = Program::try_from(input).unwrap();
 
         let mut expected = Program::default();
