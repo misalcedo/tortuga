@@ -33,7 +33,6 @@ pub struct Parser<'a, Iterator, Reporter> {
     program: Program<'a>,
     children: Vec<ExpressionReference>,
     end_location: Location,
-    can_assign: bool,
     had_error: bool,
 }
 
@@ -74,7 +73,6 @@ where
             program: Program::default(),
             children: Vec::with_capacity(2),
             end_location: Location::default(),
-            can_assign: false,
             had_error: false,
         }
     }
@@ -122,8 +120,6 @@ where
         &mut self,
         precedence: Precedence,
     ) -> SyntacticalResult<ExpressionReference> {
-        self.can_assign = precedence <= Precedence::Assignment || precedence == Precedence::Call;
-
         let mut token = self
             .current
             .ok_or_else(|| SyntacticalError::new("Expected current token.", self.end_location))?;
@@ -160,14 +156,7 @@ where
             self.children.push(lhs);
         }
 
-        if self.can_assign && self.consume_conditionally(TokenKind::Equal) {
-            Err(SyntacticalError::new(
-                "Invalid assignment target.",
-                self.end_location,
-            ))
-        } else {
-            Ok(lhs)
-        }
+        Ok(lhs)
     }
 
     fn parse_binary(&mut self) -> SyntacticalResult<ExpressionReference> {
