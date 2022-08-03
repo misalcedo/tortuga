@@ -182,7 +182,19 @@ where
 
                 self.parse_precedence(precedence)?;
 
-                let operation = Internal::new(*operator, self.children.drain(..).collect());
+                let right = self.children.pop().ok_or_else(|| {
+                    SyntacticalError::new(
+                        "Binary operator must have a right-hand side expression",
+                        self.end_location,
+                    )
+                })?;
+                let left = self.children.pop().ok_or_else(|| {
+                    SyntacticalError::new(
+                        "Binary operator must have a left-hand side expression",
+                        self.end_location,
+                    )
+                })?;
+                let operation = Internal::new(*operator, vec![left, right]);
 
                 Ok(self.program.insert(operation))
             }
@@ -436,7 +448,7 @@ mod tests {
         let left_index = expected.insert(parameter);
         let right_index = expected.insert(parameter);
 
-        let multiply = Internal::new(InternalKind::Add, vec![left_index, right_index]);
+        let multiply = Internal::new(InternalKind::Multiply, vec![left_index, right_index]);
         let multiply_index = expected.insert(multiply);
 
         let equality = Internal::new(
@@ -452,9 +464,6 @@ mod tests {
 
         expected.mark_root(equality_index);
         expected.mark_root(call_index);
-
-        println!("{}", program);
-        println!("{}", expected);
 
         assert_eq!(program, expected);
     }
