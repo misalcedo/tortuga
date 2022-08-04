@@ -176,15 +176,29 @@ where
     }
 
     fn parse_call(&mut self) -> SyntacticalResult<ExpressionReference> {
+        let callee = self.pop_child("Function call must have a callee.")?;
+        let call = self.parse_grouping_internal(InternalKind::Call, vec![callee])?;
+
+        Ok(self.program.insert(call))
+    }
+
+    fn parse_grouping(&mut self) -> SyntacticalResult<ExpressionReference> {
+        let grouping = self.parse_grouping_internal(InternalKind::Grouping, Vec::default())?;
+
+        Ok(self.program.insert(grouping))
+    }
+
+    fn parse_grouping_internal(
+        &mut self,
+        kind: InternalKind,
+        mut parts: Vec<ExpressionReference>,
+    ) -> SyntacticalResult<Internal> {
         self.consume(TokenKind::LeftParenthesis, "Expected '('.")?;
 
-        let callee = self.pop_child("Function call must have a callee.")?;
-        let mut arguments = vec![callee];
-
         while !self.check(TokenKind::RightParenthesis) {
-            let argument = self.parse_expression()?;
+            let inner = self.parse_expression()?;
 
-            arguments.push(argument);
+            parts.push(inner);
 
             if !self.consume_conditionally(TokenKind::Comma) {
                 break;
@@ -193,27 +207,10 @@ where
 
         self.consume(
             TokenKind::RightParenthesis,
-            "Expect ')' after call arguments.",
+            "Expected ')' after expression list.",
         )?;
 
-        let call = Internal::new(InternalKind::Call, arguments);
-
-        Ok(self.program.insert(call))
-    }
-
-    fn parse_grouping(&mut self) -> SyntacticalResult<ExpressionReference> {
-        self.consume(TokenKind::LeftParenthesis, "Expected '('.")?;
-
-        let inner = self.parse_expression()?;
-
-        self.consume(
-            TokenKind::RightParenthesis,
-            "Expected ')' after expression.",
-        )?;
-
-        let grouping = Internal::new(InternalKind::Grouping, vec![inner]);
-
-        Ok(self.program.insert(grouping))
+        Ok(Internal::new(kind, parts))
     }
 
     fn parse_block(&mut self) -> SyntacticalResult<ExpressionReference> {
