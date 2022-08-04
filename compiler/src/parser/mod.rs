@@ -85,6 +85,10 @@ where
         self.advance();
 
         while self.current.is_some() {
+            if self.consume_conditionally(TokenKind::Semicolon) {
+                continue;
+            }
+
             match self.parse_statement() {
                 Ok(expression) => self.program.mark_root(expression),
                 Err(error) => self.synchronize(error),
@@ -583,16 +587,26 @@ mod tests {
 
     #[test]
     fn parse_simple() {
-        assert!(Program::try_from(include_str!("../../../examples/simple.ta")).is_ok());
+        assert!(
+            !Program::try_from(include_str!("../../../examples/simple.ta"))
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[test]
     fn parse_factorial() {
-        assert!(Program::try_from(include_str!("../../../examples/factorial.ta")).is_ok());
+        assert!(
+            !Program::try_from(include_str!("../../../examples/factorial.ta"))
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[test]
     fn parse_bad() {
-        assert!(Program::try_from(include_str!("../../../examples/bad.ta")).is_err());
+        assert!(!Program::try_from(include_str!("../../../examples/bad.ta"))
+            .unwrap_err()
+            .is_empty());
     }
 }

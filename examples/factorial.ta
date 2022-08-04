@@ -2,7 +2,11 @@ round(n) = round(n, n % 1)
 round(n, remainder) ? (remainder >= 0.5) = 1 + n - (n % 1)
 round(n, remainder) ? (remainder < 0.5) = n - (n % 1)
 
+; base case
 factorial(n) ? (n = 0) = 1
+
+; factorial
+; inductive case
 factorial(n) ? (n > 0) = [
     i = round(n)
     i * factorial(i - 1)
