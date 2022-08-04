@@ -188,9 +188,9 @@ where
         let mut children = self.parse_grouping_children(vec![callee])?;
 
         if self.check(TokenKind::Question) {
-            let conditions = self.parse_conditions()?;
+            let condition = self.parse_condition()?;
 
-            children.push(conditions);
+            children.push(condition);
         }
 
         let call = Internal::new(InternalKind::Call, children);
@@ -198,7 +198,7 @@ where
         Ok(self.program.insert(call))
     }
 
-    fn parse_conditions(&mut self) -> SyntacticalResult<ExpressionReference> {
+    fn parse_condition(&mut self) -> SyntacticalResult<ExpressionReference> {
         self.consume(
             TokenKind::Question,
             "Expected '?' before list of conditions",
@@ -588,6 +588,11 @@ mod tests {
 
     #[test]
     fn parse_factorial() {
+        println!(
+            "{}",
+            Program::try_from(include_str!("../../../examples/factorial.ta")).unwrap()
+        );
+        assert!(false);
         assert!(Program::try_from(include_str!("../../../examples/factorial.ta")).is_ok());
     }
 
