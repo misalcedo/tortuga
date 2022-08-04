@@ -4,8 +4,7 @@ use crate::scanner::LexicalError;
 use crate::Location;
 use std::fmt::{self, Display, Formatter};
 
-/// An error that occurred during lexical analysis of a specific lexeme.
-/// After an error is encountered, the scanner may continue to analyze the lexeme.
+/// An error that occurred during parsing of the source code's syntax tree.
 #[derive(Clone, Debug, PartialEq)]
 pub struct SyntacticalError {
     message: String,
@@ -14,7 +13,7 @@ pub struct SyntacticalError {
 
 impl Display for SyntacticalError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "Syntax error at ({}): {}", self.start, self.message)
     }
 }
 

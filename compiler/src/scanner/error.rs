@@ -4,7 +4,6 @@ use crate::Location;
 use std::fmt::{self, Display, Formatter};
 
 /// An error that occurred during lexical analysis of a specific lexeme.
-/// After an error is encountered, the scanner may continue to analyze the lexeme.
 #[derive(Clone, Debug, PartialEq)]
 pub struct LexicalError {
     message: String,

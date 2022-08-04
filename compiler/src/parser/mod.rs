@@ -9,20 +9,11 @@ use crate::grammar::{
     ExpressionReference, Identifier, Internal, InternalKind, Number, Program, Uri,
 };
 use crate::scanner::LexicalError;
+use crate::{CompilationError, ErrorReporter};
 use crate::{Location, Scanner, Token, TokenKind};
 pub use error::SyntacticalError;
 use precedence::{ParseFunction, ParseRule, Precedence};
 use std::collections::HashMap;
-
-pub trait ErrorReporter {
-    fn report(&mut self, error: SyntacticalError);
-}
-
-impl ErrorReporter for Vec<SyntacticalError> {
-    fn report(&mut self, error: SyntacticalError) {
-        self.push(error)
-    }
-}
 
 /// A recursive descent LL(1) parser for the syntax grammar.
 /// Parses a sequence of `Token`s into syntax tree.
@@ -103,7 +94,8 @@ where
     }
 
     fn synchronize(&mut self, error: SyntacticalError) {
-        self.report_error(error);
+        self.had_error = true;
+        self.reporter.report_syntax_error(error);
 
         loop {
             if self.current.is_some() {
@@ -288,14 +280,12 @@ where
         loop {
             match self.tokens.next()? {
                 Ok(token) => return Some(token),
-                Err(error) => self.report_error(error.into()),
+                Err(error) => {
+                    self.had_error = true;
+                    self.reporter.report_lexical_error(error);
+                }
             }
         }
-    }
-
-    fn report_error(&mut self, error: SyntacticalError) {
-        self.had_error = true;
-        self.reporter.report(error);
     }
 
     fn consume(&mut self, kind: TokenKind, message: &str) -> SyntacticalResult<Token<'a>> {
@@ -452,7 +442,7 @@ where
 }
 
 impl<'a> TryFrom<&'a str> for Program<'a> {
-    type Error = Vec<SyntacticalError>;
+    type Error = Vec<CompilationError>;
 
     fn try_from(input: &'a str) -> Result<Self, Self::Error> {
         let scanner = Scanner::from(input);
