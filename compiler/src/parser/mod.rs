@@ -121,7 +121,7 @@ where
     }
 
     fn parse_expression(&mut self) -> SyntacticalResult<ExpressionReference> {
-        self.parse_precedence(Precedence::Assignment)
+        self.parse_precedence(Precedence::Comparison)
     }
 
     fn parse_precedence(

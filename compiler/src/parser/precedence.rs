@@ -7,9 +7,6 @@ use crate::Parser;
 pub enum Precedence {
     #[default]
     None,
-    Assignment,
-    Or,
-    And,
     Comparison,
     Term,
     Factor,
@@ -22,10 +19,7 @@ pub enum Precedence {
 impl Precedence {
     pub fn next(&self) -> Self {
         match self {
-            Self::None => Self::Assignment,
-            Self::Assignment => Self::Or,
-            Self::Or => Self::And,
-            Self::And => Self::Comparison,
+            Self::None => Self::Comparison,
             Self::Comparison => Self::Term,
             Self::Term => Self::Factor,
             Self::Factor => Self::Power,
