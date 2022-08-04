@@ -588,11 +588,6 @@ mod tests {
 
     #[test]
     fn parse_factorial() {
-        println!(
-            "{}",
-            Program::try_from(include_str!("../../../examples/factorial.ta")).unwrap()
-        );
-        assert!(false);
         assert!(Program::try_from(include_str!("../../../examples/factorial.ta")).is_ok());
     }
 
