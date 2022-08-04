@@ -11,7 +11,8 @@ use crate::grammar::{
 use crate::scanner::LexicalError;
 use crate::{Location, Scanner, Token, TokenKind};
 pub use error::SyntacticalError;
-use precedence::{ParseRule, Precedence};
+use precedence::{ParseFunction, ParseRule, Precedence};
+use std::collections::HashMap;
 
 pub trait ErrorReporter {
     fn report(&mut self, error: SyntacticalError);
@@ -28,7 +29,7 @@ impl ErrorReporter for Vec<SyntacticalError> {
 pub struct Parser<'a, Iterator, Reporter> {
     reporter: Reporter,
     tokens: Iterator,
-    rules: Vec<ParseRule<'a, Iterator, Reporter>>,
+    rules: HashMap<TokenKind, ParseRule<'a, Iterator, Reporter>>,
     current: Option<Token<'a>>,
     program: Program<'a>,
     children: Vec<ExpressionReference>,
@@ -127,15 +128,8 @@ where
         &mut self,
         precedence: Precedence,
     ) -> SyntacticalResult<ExpressionReference> {
-        let mut token = self
-            .current
-            .ok_or_else(|| SyntacticalError::new("Expected current token.", self.end_location))?;
-        let mut rule = &self.rules[*token.kind() as usize];
-        let location = self.end_location.clone();
-        let prefix = rule
-            .prefix()
-            .ok_or_else(|| SyntacticalError::new("Expect expression.", location))?;
-
+        let mut kind = self.current_kind()?;
+        let prefix = self.rule_prefix(&kind)?;
         let mut lhs = prefix(self)?;
 
         self.children.push(lhs);
@@ -145,19 +139,13 @@ where
                 break;
             }
 
-            token = self.current.ok_or_else(|| {
-                SyntacticalError::new("Expected current token.", self.end_location)
-            })?;
-            rule = &self.rules[*token.kind() as usize];
+            kind = self.current_kind()?;
 
-            if precedence > rule.precedence() {
+            if precedence > self.rule_precedence(&kind) {
                 break;
             }
 
-            let location = self.end_location.clone();
-            let infix = rule
-                .infix()
-                .ok_or_else(|| SyntacticalError::new("Expect expression.", location))?;
+            let infix = self.rule_infix(&kind)?;
 
             lhs = infix(self)?;
             self.children.push(lhs);
@@ -173,8 +161,7 @@ where
 
         match result {
             Some((kind, operator)) => {
-                let rule = &self.rules[*kind as usize];
-                let precedence = rule.precedence().next();
+                let precedence = self.rule_precedence(kind).next();
 
                 self.parse_precedence(precedence)?;
 
@@ -326,76 +313,105 @@ where
         }
     }
 
-    fn rules() -> Vec<ParseRule<'a, I, R>> {
-        vec![
-            ParseRule::new_prefix(TokenKind::Number, Self::parse_number),
-            ParseRule::new_prefix(TokenKind::Identifier, Self::parse_identifier),
-            ParseRule::new_prefix(TokenKind::Uri, Self::parse_uri),
-            ParseRule::placeholder(TokenKind::Tilde),
-            ParseRule::placeholder(TokenKind::BackTick),
-            ParseRule::placeholder(TokenKind::Exclamation),
-            ParseRule::placeholder(TokenKind::At),
-            ParseRule::placeholder(TokenKind::Pound),
-            ParseRule::placeholder(TokenKind::Dollar),
-            ParseRule::placeholder(TokenKind::Percent),
-            ParseRule::new_infix(TokenKind::Caret, Self::parse_binary, Precedence::Power),
-            ParseRule::placeholder(TokenKind::Ampersand),
-            ParseRule::new_infix(TokenKind::Star, Self::parse_binary, Precedence::Factor),
-            ParseRule::new(
+    fn current_kind(&mut self) -> SyntacticalResult<TokenKind> {
+        let token = self
+            .current
+            .ok_or_else(|| SyntacticalError::new("Expected current token.", self.end_location))?;
+
+        Ok(*token.kind())
+    }
+
+    fn current_location(&mut self) -> Location {
+        self.current
+            .map(|t| *t.start())
+            .unwrap_or(self.end_location)
+    }
+
+    fn rule_precedence(&mut self, kind: &TokenKind) -> Precedence {
+        self.rules
+            .get(kind)
+            .map(|r| r.precedence())
+            .unwrap_or_default()
+    }
+
+    fn rule_prefix(&mut self, kind: &TokenKind) -> SyntacticalResult<ParseFunction<'a, I, R>> {
+        let location = self.current_location();
+        let rule = self.rules.get(kind).ok_or_else(|| {
+            SyntacticalError::new("No parse rule for the current token.", location)
+        })?;
+        rule.prefix()
+            .copied()
+            .ok_or_else(|| SyntacticalError::new("Unable to parse prefix token.", location))
+    }
+
+    fn rule_infix(&mut self, kind: &TokenKind) -> SyntacticalResult<ParseFunction<'a, I, R>> {
+        let location = self.current_location();
+        let rule = self.rules.get(kind).ok_or_else(|| {
+            SyntacticalError::new("No parse rule for the current token.", location)
+        })?;
+
+        rule.infix()
+            .copied()
+            .ok_or_else(|| SyntacticalError::new("Unable to parse infix token.", location))
+    }
+
+    fn rules() -> HashMap<TokenKind, ParseRule<'a, I, R>> {
+        HashMap::from([
+            (TokenKind::Number, ParseRule::new_prefix(Self::parse_number)),
+            (
+                TokenKind::Identifier,
+                ParseRule::new_prefix(Self::parse_identifier),
+            ),
+            (TokenKind::Uri, ParseRule::new_prefix(Self::parse_uri)),
+            (
+                TokenKind::Caret,
+                ParseRule::new_infix(Self::parse_binary, Precedence::Power),
+            ),
+            (
+                TokenKind::Star,
+                ParseRule::new_infix(Self::parse_binary, Precedence::Factor),
+            ),
+            (
                 TokenKind::LeftParenthesis,
-                Self::parse_grouping,
-                Self::parse_call,
-                Precedence::Call,
+                ParseRule::new(Self::parse_grouping, Self::parse_call, Precedence::Call),
             ),
-            ParseRule::placeholder(TokenKind::RightParenthesis),
-            ParseRule::placeholder(TokenKind::Underscore),
-            ParseRule::new(
+            (
                 TokenKind::Minus,
-                Self::parse_negation,
-                Self::parse_binary,
-                Precedence::Term,
+                ParseRule::new(Self::parse_negation, Self::parse_binary, Precedence::Term),
             ),
-            ParseRule::new_infix(TokenKind::Plus, Self::parse_binary, Precedence::Term),
-            ParseRule::new_infix(TokenKind::Equal, Self::parse_binary, Precedence::Comparison),
-            ParseRule::placeholder(TokenKind::LeftBrace),
-            ParseRule::placeholder(TokenKind::LeftBracket),
-            ParseRule::placeholder(TokenKind::RightBrace),
-            ParseRule::placeholder(TokenKind::RightBracket),
-            ParseRule::placeholder(TokenKind::VerticalPipe),
-            ParseRule::placeholder(TokenKind::BackSlash),
-            ParseRule::placeholder(TokenKind::Colon),
-            ParseRule::placeholder(TokenKind::Semicolon),
-            ParseRule::placeholder(TokenKind::SingleQuote),
-            ParseRule::new_infix(
+            (
+                TokenKind::Plus,
+                ParseRule::new_infix(Self::parse_binary, Precedence::Term),
+            ),
+            (
+                TokenKind::Equal,
+                ParseRule::new_infix(Self::parse_binary, Precedence::Comparison),
+            ),
+            (
                 TokenKind::LessThan,
-                Self::parse_binary,
-                Precedence::Comparison,
+                ParseRule::new_infix(Self::parse_binary, Precedence::Comparison),
             ),
-            ParseRule::placeholder(TokenKind::Comma),
-            ParseRule::new_infix(
+            (
                 TokenKind::GreaterThan,
-                Self::parse_binary,
-                Precedence::Comparison,
+                ParseRule::new_infix(Self::parse_binary, Precedence::Comparison),
             ),
-            ParseRule::placeholder(TokenKind::Dot),
-            ParseRule::placeholder(TokenKind::Question),
-            ParseRule::new_infix(TokenKind::Slash, Self::parse_binary, Precedence::Factor),
-            ParseRule::new_infix(
+            (
+                TokenKind::Slash,
+                ParseRule::new_infix(Self::parse_binary, Precedence::Factor),
+            ),
+            (
                 TokenKind::NotEqual,
-                Self::parse_binary,
-                Precedence::Comparison,
+                ParseRule::new_infix(Self::parse_binary, Precedence::Comparison),
             ),
-            ParseRule::new_infix(
+            (
                 TokenKind::LessThanOrEqualTo,
-                Self::parse_binary,
-                Precedence::Comparison,
+                ParseRule::new_infix(Self::parse_binary, Precedence::Comparison),
             ),
-            ParseRule::new_infix(
+            (
                 TokenKind::GreaterThanOrEqualTo,
-                Self::parse_binary,
-                Precedence::Comparison,
+                ParseRule::new_infix(Self::parse_binary, Precedence::Comparison),
             ),
-        ]
+        ])
     }
 }
 
