@@ -45,6 +45,7 @@ static OPERATOR_MAPPINGS: &[(TokenKind, InternalKind)] = &[
     (TokenKind::Star, InternalKind::Multiply),
     (TokenKind::Slash, InternalKind::Divide),
     (TokenKind::Caret, InternalKind::Power),
+    (TokenKind::Percent, InternalKind::Modulo),
     (TokenKind::NotEqual, InternalKind::Inequality),
     (TokenKind::LessThan, InternalKind::LessThan),
     (
@@ -173,6 +174,17 @@ where
         let number = Number::negative(token.lexeme());
 
         Ok(self.program.insert(number))
+    }
+
+    fn parse_condition(&mut self) -> SyntacticalResult<ExpressionReference> {
+        self.consume(
+            TokenKind::Question,
+            "Expected '?' before list of conditions",
+        )?;
+        let call = self.pop_child("Function condition must have a preceding call.")?;
+        let condition = self.parse_grouping_internal(InternalKind::Condition, vec![call])?;
+
+        Ok(self.program.insert(condition))
     }
 
     fn parse_call(&mut self) -> SyntacticalResult<ExpressionReference> {
@@ -391,6 +403,10 @@ where
                 ParseRule::new_infix(Self::parse_binary, Precedence::Term),
             ),
             (
+                TokenKind::Percent,
+                ParseRule::new_infix(Self::parse_binary, Precedence::Modulo),
+            ),
+            (
                 TokenKind::Equal,
                 ParseRule::new_infix(Self::parse_binary, Precedence::Comparison),
             ),
@@ -417,6 +433,10 @@ where
             (
                 TokenKind::GreaterThanOrEqualTo,
                 ParseRule::new_infix(Self::parse_binary, Precedence::Comparison),
+            ),
+            (
+                TokenKind::Question,
+                ParseRule::new_infix(Self::parse_condition, Precedence::Call),
             ),
         ])
     }

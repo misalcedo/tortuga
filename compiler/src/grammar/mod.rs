@@ -75,6 +75,8 @@ impl Display for Program<'_> {
     }
 }
 
+static PARENTHESIS_KINDS: &[InternalKind] = &[InternalKind::Call, InternalKind::Grouping];
+
 fn format_internal<'a>(
     f: &mut Formatter<'_>,
     depth: usize,
@@ -84,7 +86,7 @@ fn format_internal<'a>(
 ) -> std::fmt::Result {
     write!(f, "({}", internal)?;
 
-    if internal.kind() != &InternalKind::Grouping && internal.kind() != &InternalKind::Call {
+    if !PARENTHESIS_KINDS.contains(internal.kind()) {
         write!(f, " ")?;
     }
 

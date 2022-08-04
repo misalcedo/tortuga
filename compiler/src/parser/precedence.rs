@@ -8,6 +8,7 @@ pub enum Precedence {
     #[default]
     None,
     Comparison,
+    Modulo,
     Term,
     Factor,
     Power,
@@ -20,7 +21,8 @@ impl Precedence {
     pub fn next(&self) -> Self {
         match self {
             Self::None => Self::Comparison,
-            Self::Comparison => Self::Term,
+            Self::Comparison => Self::Modulo,
+            Self::Modulo => Self::Term,
             Self::Term => Self::Factor,
             Self::Factor => Self::Power,
             Self::Power => Self::Unary,
