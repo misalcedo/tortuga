@@ -535,12 +535,7 @@ mod tests {
 
     #[test]
     fn parse_simple() {
-        let program = Program::try_from(include_str!("../../../examples/simple.ta"));
-
-        println!("{}", program.unwrap());
-
-        //assert!(program.is_ok());
-        assert!(false);
+        assert!(Program::try_from(include_str!("../../../examples/simple.ta")).is_ok());
     }
 
     #[test]
