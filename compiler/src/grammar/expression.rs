@@ -67,6 +67,7 @@ impl Internal {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum InternalKind {
+    Block,
     Equality,
     Modulo,
     Subtract,
@@ -86,6 +87,7 @@ pub enum InternalKind {
 impl Display for InternalKind {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
+            InternalKind::Block => Ok(()),
             InternalKind::Equality => f.write_char('='),
             InternalKind::Modulo => f.write_char('%'),
             InternalKind::Subtract => f.write_char('-'),

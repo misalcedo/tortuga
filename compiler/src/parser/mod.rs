@@ -84,8 +84,9 @@ where
         self.advance();
 
         while self.current.is_some() {
-            if let Err(error) = self.parse_expression_statement() {
-                self.synchronize(error);
+            match self.parse_statement() {
+                Ok(expression) => self.program.mark_root(expression),
+                Err(error) => self.synchronize(error),
             }
         }
 
@@ -110,18 +111,21 @@ where
         }
     }
 
-    fn parse_expression_statement(&mut self) -> SyntacticalResult<()> {
+    fn parse_statement(&mut self) -> SyntacticalResult<ExpressionReference> {
+        self.parse_expression_statement()
+    }
+
+    fn parse_expression_statement(&mut self) -> SyntacticalResult<ExpressionReference> {
         let expression = self.parse_expression()?;
+
         self.consume_conditionally(TokenKind::Semicolon);
 
-        self.program.mark_root(expression);
-        self.children.pop();
-
-        Ok(())
+        Ok(expression)
     }
 
     fn parse_expression(&mut self) -> SyntacticalResult<ExpressionReference> {
-        self.parse_precedence(Precedence::Comparison)
+        self.parse_precedence(Precedence::Comparison)?;
+        self.pop_child("Child expression stack is empty.")
     }
 
     fn parse_precedence(
@@ -129,25 +133,14 @@ where
         precedence: Precedence,
     ) -> SyntacticalResult<ExpressionReference> {
         let mut kind = self.current_kind()?;
-        let prefix = self.rule_prefix(&kind)?;
-        let mut lhs = prefix(self)?;
+        let mut lhs = self.rule_prefix(&kind)?(self)?;
 
         self.children.push(lhs);
 
-        loop {
-            if self.current.is_none() {
-                break;
-            }
-
+        while self.current.is_some() && precedence <= self.current_precedence() {
             kind = self.current_kind()?;
+            lhs = self.rule_infix(&kind)?(self)?;
 
-            if precedence > self.rule_precedence(&kind) {
-                break;
-            }
-
-            let infix = self.rule_infix(&kind)?;
-
-            lhs = infix(self)?;
             self.children.push(lhs);
         }
 
@@ -155,37 +148,22 @@ where
     }
 
     fn parse_binary(&mut self) -> SyntacticalResult<ExpressionReference> {
-        let result = OPERATOR_MAPPINGS
+        let (kind, operator) = OPERATOR_MAPPINGS
             .iter()
-            .find(|(kind, _)| self.consume_conditionally(*kind));
+            .find(|(kind, _)| self.consume_conditionally(*kind))
+            .ok_or_else(|| {
+                SyntacticalError::new("Unsupported binary token.", self.current_location())
+            })?;
 
-        match result {
-            Some((kind, operator)) => {
-                let precedence = self.rule_precedence(kind).next();
+        let precedence = self.rule_precedence(kind).next();
 
-                self.parse_precedence(precedence)?;
+        self.parse_precedence(precedence)?;
 
-                let right = self.children.pop().ok_or_else(|| {
-                    SyntacticalError::new(
-                        "Binary operator must have a right-hand side expression",
-                        self.end_location,
-                    )
-                })?;
-                let left = self.children.pop().ok_or_else(|| {
-                    SyntacticalError::new(
-                        "Binary operator must have a left-hand side expression",
-                        self.end_location,
-                    )
-                })?;
-                let operation = Internal::new(*operator, vec![left, right]);
+        let right = self.pop_child("Binary operator must have a right-hand side expression")?;
+        let left = self.pop_child("Binary operator must have a left-hand side expression")?;
+        let operation = Internal::new(*operator, vec![left, right]);
 
-                Ok(self.program.insert(operation))
-            }
-            None => Err(SyntacticalError::new(
-                "Expected binary operator.",
-                self.end_location,
-            )),
-        }
+        Ok(self.program.insert(operation))
     }
 
     fn parse_negation(&mut self) -> SyntacticalResult<ExpressionReference> {
@@ -200,18 +178,11 @@ where
     fn parse_call(&mut self) -> SyntacticalResult<ExpressionReference> {
         self.consume(TokenKind::LeftParenthesis, "Expected '('.")?;
 
-        let callee = self.children.pop().ok_or_else(|| {
-            SyntacticalError::new("Function call must have a callee.", self.end_location)
-        })?;
-
+        let callee = self.pop_child("Function call must have a callee.")?;
         let mut arguments = vec![callee];
 
         while !self.check(TokenKind::RightParenthesis) {
-            self.parse_expression()?;
-
-            let argument = self.children.pop().ok_or_else(|| {
-                SyntacticalError::new("Function call argument not found.", self.end_location)
-            })?;
+            let argument = self.parse_expression()?;
 
             arguments.push(argument);
 
@@ -220,7 +191,10 @@ where
             }
         }
 
-        self.consume(TokenKind::RightParenthesis, "Expect ')' after arguments.")?;
+        self.consume(
+            TokenKind::RightParenthesis,
+            "Expect ')' after call arguments.",
+        )?;
 
         let call = Internal::new(InternalKind::Call, arguments);
 
@@ -229,18 +203,35 @@ where
 
     fn parse_grouping(&mut self) -> SyntacticalResult<ExpressionReference> {
         self.consume(TokenKind::LeftParenthesis, "Expected '('.")?;
-        self.parse_expression()?;
+
+        let inner = self.parse_expression()?;
+
         self.consume(
             TokenKind::RightParenthesis,
             "Expected ')' after expression.",
         )?;
 
-        let inner = self.children.pop().ok_or_else(|| {
-            SyntacticalError::new("Grouping must have an inner expression", self.end_location)
-        })?;
         let grouping = Internal::new(InternalKind::Grouping, vec![inner]);
 
         Ok(self.program.insert(grouping))
+    }
+
+    fn parse_block(&mut self) -> SyntacticalResult<ExpressionReference> {
+        self.consume(TokenKind::LeftBracket, "Expected '['.")?;
+
+        let mut statements = Vec::default();
+
+        while !self.check(TokenKind::RightBracket) {
+            let statement = self.parse_statement()?;
+
+            statements.push(statement);
+        }
+
+        self.consume(TokenKind::RightBracket, "Expected ']' after block.")?;
+
+        let block = Internal::new(InternalKind::Block, statements);
+
+        Ok(self.program.insert(block))
     }
 
     fn parse_number(&mut self) -> SyntacticalResult<ExpressionReference> {
@@ -321,10 +312,25 @@ where
         Ok(*token.kind())
     }
 
+    fn current_precedence(&mut self) -> Precedence {
+        self.current
+            .as_ref()
+            .map(|t| t.kind())
+            .and_then(|k| self.rules.get(k))
+            .map(|r| r.precedence())
+            .unwrap_or_default()
+    }
+
     fn current_location(&mut self) -> Location {
         self.current
             .map(|t| *t.start())
             .unwrap_or(self.end_location)
+    }
+
+    fn pop_child(&mut self, message: &str) -> Result<ExpressionReference, SyntacticalError> {
+        self.children
+            .pop()
+            .ok_or_else(|| SyntacticalError::new(message, self.current_location()))
     }
 
     fn rule_precedence(&mut self, kind: &TokenKind) -> Precedence {
@@ -374,6 +380,10 @@ where
             (
                 TokenKind::LeftParenthesis,
                 ParseRule::new(Self::parse_grouping, Self::parse_call, Precedence::Call),
+            ),
+            (
+                TokenKind::LeftBracket,
+                ParseRule::new_prefix(Self::parse_block),
             ),
             (
                 TokenKind::Minus,
@@ -552,6 +562,11 @@ mod tests {
     #[test]
     fn parse_simple() {
         assert!(Program::try_from(include_str!("../../../examples/simple.ta")).is_ok());
+    }
+
+    #[test]
+    fn parse_factorial() {
+        assert!(Program::try_from(include_str!("../../../examples/factorial.ta")).is_ok());
     }
 
     #[test]
