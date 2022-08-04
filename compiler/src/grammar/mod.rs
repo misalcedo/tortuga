@@ -4,9 +4,10 @@ mod expression;
 mod terminal;
 mod traversal;
 
-use crate::grammar::traversal::{PostOrderIterator, PreOrderIterator};
+use crate::grammar::traversal::{
+    PostOrderIterator, PostOrderIteratorWithHeight, PreOrderIterator, PreOrderIteratorWithHeight,
+};
 pub use expression::{Expression, ExpressionReference, Internal, InternalKind, Terminal};
-use std::collections::BTreeSet;
 use std::fmt::{Display, Formatter, Write};
 pub use terminal::{Identifier, Number, Uri};
 
@@ -15,12 +16,12 @@ pub use terminal::{Identifier, Number, Uri};
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Program<'a> {
     expressions: Vec<Expression<'a>>,
-    roots: BTreeSet<ExpressionReference>,
+    roots: Vec<ExpressionReference>,
 }
 
 impl<'a> Program<'a> {
     pub fn mark_root(&mut self, index: ExpressionReference) {
-        self.roots.insert(index);
+        self.roots.push(index);
     }
 
     pub fn insert<E: Into<Expression<'a>>>(&mut self, expression: E) -> ExpressionReference {
@@ -35,7 +36,15 @@ impl<'a> Program<'a> {
         self.into()
     }
 
+    pub fn iter_with_height(&self) -> PostOrderIteratorWithHeight<'a, '_> {
+        self.into()
+    }
+
     pub fn iter_pre_order(&self) -> PreOrderIterator<'a, '_> {
+        self.into()
+    }
+
+    pub fn iter_pre_order_with_height(&self) -> PreOrderIteratorWithHeight<'a, '_> {
         self.into()
     }
 
@@ -50,13 +59,13 @@ impl<'a> Program<'a> {
 
 impl Display for Program<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let mut iterator = self.iter_pre_order();
+        let mut iterator = self.iter_pre_order_with_height();
         let missing = Expression::default();
 
-        while let Some(expression) = iterator.next() {
+        while let Some((depth, expression)) = iterator.next() {
             match expression {
                 Expression::Internal(internal) => {
-                    format_internal(f, internal, &missing, &mut iterator)?
+                    format_internal(f, depth, internal, &missing, &mut iterator)?
                 }
                 Expression::Terminal(terminal) => write!(f, "{}", terminal)?,
             }
@@ -68,9 +77,10 @@ impl Display for Program<'_> {
 
 fn format_internal<'a>(
     f: &mut Formatter<'_>,
+    depth: usize,
     internal: &Internal,
     missing: &Expression<'a>,
-    iterator: &mut PreOrderIterator<'a, '_>,
+    iterator: &mut PreOrderIteratorWithHeight<'a, '_>,
 ) -> std::fmt::Result {
     write!(f, "({}", internal)?;
 
@@ -81,9 +91,11 @@ fn format_internal<'a>(
     let children = internal.len();
 
     for i in 1..=children {
-        match iterator.next().unwrap_or(missing) {
-            Expression::Internal(child) => format_internal(f, child, missing, iterator)?,
-            Expression::Terminal(terminal) => write!(f, "{}", terminal)?,
+        match iterator.next().unwrap_or((depth + 1, missing)) {
+            (height, Expression::Internal(child)) => {
+                format_internal(f, height, child, missing, iterator)?
+            }
+            (_, Expression::Terminal(terminal)) => write!(f, "{}", terminal)?,
         }
 
         if i < children {
@@ -91,7 +103,13 @@ fn format_internal<'a>(
         }
     }
 
-    f.write_char(')')
+    f.write_char(')')?;
+
+    if depth == 0 {
+        f.write_char(' ')?;
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
