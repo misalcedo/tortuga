@@ -1,21 +1,21 @@
 use crate::grammar::{Expression, Program};
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct PreOrderIteratorWithHeight<'a, 'b> {
+pub struct PreOrderIterator<'a, 'b> {
     program: &'b Program<'a>,
     stack: Vec<(usize, usize)>,
 }
 
-impl<'a, 'b> From<&'b Program<'a>> for PreOrderIteratorWithHeight<'a, 'b> {
+impl<'a, 'b> From<&'b Program<'a>> for PreOrderIterator<'a, 'b> {
     fn from(program: &'b Program<'a>) -> Self {
-        PreOrderIteratorWithHeight {
+        PreOrderIterator {
             program,
             stack: program.roots.iter().rev().map(|r| (0, r.0)).collect(),
         }
     }
 }
 
-impl<'a, 'b> Iterator for PreOrderIteratorWithHeight<'a, 'b> {
+impl<'a, 'b> Iterator for PreOrderIterator<'a, 'b> {
     type Item = (usize, &'b Expression<'a>);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -33,14 +33,14 @@ impl<'a, 'b> Iterator for PreOrderIteratorWithHeight<'a, 'b> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct PostOrderIteratorWithHeight<'a, 'b> {
+pub struct PostOrderIterator<'a, 'b> {
     program: &'b Program<'a>,
     stack: Vec<(usize, usize, bool)>,
 }
 
-impl<'a, 'b> From<&'b Program<'a>> for PostOrderIteratorWithHeight<'a, 'b> {
+impl<'a, 'b> From<&'b Program<'a>> for PostOrderIterator<'a, 'b> {
     fn from(program: &'b Program<'a>) -> Self {
-        PostOrderIteratorWithHeight {
+        PostOrderIterator {
             program,
             stack: program
                 .roots
@@ -52,7 +52,7 @@ impl<'a, 'b> From<&'b Program<'a>> for PostOrderIteratorWithHeight<'a, 'b> {
     }
 }
 
-impl<'a, 'b> Iterator for PostOrderIteratorWithHeight<'a, 'b> {
+impl<'a, 'b> Iterator for PostOrderIterator<'a, 'b> {
     type Item = (usize, &'b Expression<'a>);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -76,40 +76,29 @@ impl<'a, 'b> Iterator for PostOrderIteratorWithHeight<'a, 'b> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct PreOrderIterator<'a, 'b> {
-    inner: PreOrderIteratorWithHeight<'a, 'b>,
+pub struct IteratorWithoutHeight<Iterator> {
+    inner: Iterator,
 }
 
-impl<'a, 'b> From<&'b Program<'a>> for PreOrderIterator<'a, 'b> {
-    fn from(program: &'b Program<'a>) -> Self {
-        PreOrderIterator {
-            inner: PreOrderIteratorWithHeight::from(program),
-        }
+pub trait WithoutHeight: Sized {
+    fn without_height(self) -> IteratorWithoutHeight<Self>;
+}
+
+impl<'a, 'b, I> WithoutHeight for I
+where
+    'a: 'b,
+    I: Iterator<Item = (usize, &'b Expression<'a>)>,
+{
+    fn without_height(self) -> IteratorWithoutHeight<Self> {
+        IteratorWithoutHeight { inner: self }
     }
 }
 
-impl<'a, 'b> Iterator for PreOrderIterator<'a, 'b> {
-    type Item = &'b Expression<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        Some(self.inner.next()?.1)
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct PostOrderIterator<'a, 'b> {
-    inner: PostOrderIteratorWithHeight<'a, 'b>,
-}
-
-impl<'a, 'b> From<&'b Program<'a>> for PostOrderIterator<'a, 'b> {
-    fn from(program: &'b Program<'a>) -> Self {
-        PostOrderIterator {
-            inner: PostOrderIteratorWithHeight::from(program),
-        }
-    }
-}
-
-impl<'a, 'b> Iterator for PostOrderIterator<'a, 'b> {
+impl<'a, 'b, I> Iterator for IteratorWithoutHeight<I>
+where
+    'a: 'b,
+    I: Iterator<Item = (usize, &'b Expression<'a>)>,
+{
     type Item = &'b Expression<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {

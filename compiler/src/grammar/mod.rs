@@ -4,9 +4,7 @@ mod expression;
 mod terminal;
 mod traversal;
 
-use crate::grammar::traversal::{
-    PostOrderIterator, PostOrderIteratorWithHeight, PreOrderIterator, PreOrderIteratorWithHeight,
-};
+use crate::grammar::traversal::{PostOrderIterator, PreOrderIterator};
 pub use expression::{Expression, ExpressionReference, Internal, InternalKind, Terminal};
 use std::fmt::{Display, Formatter, Write};
 pub use terminal::{Identifier, Number, Uri};
@@ -36,15 +34,7 @@ impl<'a> Program<'a> {
         self.into()
     }
 
-    pub fn iter_with_height(&self) -> PostOrderIteratorWithHeight<'a, '_> {
-        self.into()
-    }
-
     pub fn iter_pre_order(&self) -> PreOrderIterator<'a, '_> {
-        self.into()
-    }
-
-    pub fn iter_pre_order_with_height(&self) -> PreOrderIteratorWithHeight<'a, '_> {
         self.into()
     }
 
@@ -59,7 +49,7 @@ impl<'a> Program<'a> {
 
 impl Display for Program<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let mut iterator = self.iter_pre_order_with_height();
+        let mut iterator = self.iter_pre_order();
         let missing = Expression::default();
 
         while let Some((depth, expression)) = iterator.next() {
@@ -82,7 +72,7 @@ fn format_internal<'a>(
     depth: usize,
     internal: &Internal,
     missing: &Expression<'a>,
-    iterator: &mut PreOrderIteratorWithHeight<'a, '_>,
+    iterator: &mut PreOrderIterator<'a, '_>,
 ) -> std::fmt::Result {
     write!(f, "({}", internal)?;
 
@@ -117,6 +107,7 @@ fn format_internal<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::grammar::traversal::WithoutHeight;
 
     #[test]
     fn add() {
@@ -134,7 +125,7 @@ mod tests {
         program.mark_root(add_index);
 
         let expected: Vec<Expression<'static>> = vec![left.into(), right.into(), add.into()];
-        let actual: Vec<Expression<'static>> = program.iter().cloned().collect();
+        let actual: Vec<Expression<'static>> = program.iter().without_height().cloned().collect();
 
         assert_eq!(expected, actual);
     }
