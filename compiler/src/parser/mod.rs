@@ -73,7 +73,7 @@ where
             rules: Self::rules(),
             current: None,
             program: Program::default(),
-            children: Vec::with_capacity(2),
+            children: Vec::default(),
             end_location: Location::default(),
             had_error: false,
         }
