@@ -176,35 +176,44 @@ where
         Ok(self.program.insert(number))
     }
 
-    fn parse_condition(&mut self) -> SyntacticalResult<ExpressionReference> {
-        self.consume(
-            TokenKind::Question,
-            "Expected '?' before list of conditions",
-        )?;
-        let call = self.pop_child("Function condition must have a preceding call.")?;
-        let condition = self.parse_grouping_internal(InternalKind::Condition, vec![call])?;
-
-        Ok(self.program.insert(condition))
-    }
-
-    fn parse_call(&mut self) -> SyntacticalResult<ExpressionReference> {
-        let callee = self.pop_child("Function call must have a callee.")?;
-        let call = self.parse_grouping_internal(InternalKind::Call, vec![callee])?;
-
-        Ok(self.program.insert(call))
-    }
-
     fn parse_grouping(&mut self) -> SyntacticalResult<ExpressionReference> {
-        let grouping = self.parse_grouping_internal(InternalKind::Grouping, Vec::default())?;
+        let parts = self.parse_grouping_children(Vec::default())?;
+        let grouping = Internal::new(InternalKind::Grouping, parts);
 
         Ok(self.program.insert(grouping))
     }
 
-    fn parse_grouping_internal(
+    fn parse_call(&mut self) -> SyntacticalResult<ExpressionReference> {
+        let callee = self.pop_child("Function call must have a callee.")?;
+        let mut children = self.parse_grouping_children(vec![callee])?;
+
+        if self.check(TokenKind::Question) {
+            let conditions = self.parse_conditions()?;
+
+            children.push(conditions);
+        }
+
+        let call = Internal::new(InternalKind::Call, children);
+
+        Ok(self.program.insert(call))
+    }
+
+    fn parse_conditions(&mut self) -> SyntacticalResult<ExpressionReference> {
+        self.consume(
+            TokenKind::Question,
+            "Expected '?' before list of conditions",
+        )?;
+
+        let children = self.parse_grouping_children(Vec::default())?;
+        let condition = Internal::new(InternalKind::Condition, children);
+
+        Ok(self.program.insert(condition))
+    }
+
+    fn parse_grouping_children(
         &mut self,
-        kind: InternalKind,
         mut parts: Vec<ExpressionReference>,
-    ) -> SyntacticalResult<Internal> {
+    ) -> SyntacticalResult<Vec<ExpressionReference>> {
         self.consume(TokenKind::LeftParenthesis, "Expected '('.")?;
 
         while !self.check(TokenKind::RightParenthesis) {
@@ -222,7 +231,7 @@ where
             "Expected ')' after expression list.",
         )?;
 
-        Ok(Internal::new(kind, parts))
+        Ok(parts)
     }
 
     fn parse_block(&mut self) -> SyntacticalResult<ExpressionReference> {
@@ -433,10 +442,6 @@ where
             (
                 TokenKind::GreaterThanOrEqualTo,
                 ParseRule::new_infix(Self::parse_binary, Precedence::Comparison),
-            ),
-            (
-                TokenKind::Question,
-                ParseRule::new_infix(Self::parse_condition, Precedence::Call),
             ),
         ])
     }
