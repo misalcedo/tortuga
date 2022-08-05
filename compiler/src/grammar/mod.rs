@@ -50,52 +50,54 @@ impl<'a> Program<'a> {
 
 impl Display for Program<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let mut iterator = self.iter_pre_order();
-        let missing = Expression::default();
+        let mut stack: Vec<(usize, bool)> = self.roots.iter().rev().map(|&r| (r, false)).collect();
 
-        while let Some((_, expression)) = iterator.next() {
+        while let Some((index, discovered)) = stack.pop() {
+            let expression = self.expressions.get(index).ok_or(std::fmt::Error)?;
+            let is_last = stack.last().map(|(i, d)| *d).unwrap_or(true);
+
             match expression {
-                Expression::Internal(internal) => {
-                    format_internal(f, internal, &missing, &mut iterator)?
+                Expression::Internal(internal) if discovered => {
+                    match internal.kind() {
+                        InternalKind::Block => f.write_char(']')?,
+                        _ => f.write_char(')')?,
+                    }
+
+                    if !is_last {
+                        f.write_char(' ')?;
+                    }
                 }
-                Expression::Terminal(terminal) => write!(f, "{}", terminal)?,
+                Expression::Internal(internal) => {
+                    stack.push((index, true));
+
+                    for child in internal.children().iter().rev() {
+                        stack.push((child.0, false));
+                    }
+
+                    match internal.kind() {
+                        InternalKind::Block => f.write_char('[')?,
+                        _ => f.write_char('(')?,
+                    }
+
+                    let kind = internal.kind().to_string();
+                    f.write_str(kind.as_str())?;
+
+                    if !kind.is_empty() {
+                        f.write_char(' ')?;
+                    }
+                }
+                Expression::Terminal(terminal) => {
+                    write!(f, "{}", terminal)?;
+
+                    if !is_last {
+                        f.write_char(' ')?;
+                    }
+                }
             }
         }
 
         Ok(())
     }
-}
-
-static PARENTHESIS_KINDS: &[InternalKind] = &[InternalKind::Call, InternalKind::Grouping];
-
-fn format_internal<'a>(
-    f: &mut Formatter<'_>,
-    internal: &Internal,
-    missing: &Expression<'a>,
-    iterator: &mut PreOrderIterator<'a, '_>,
-) -> std::fmt::Result {
-    write!(f, "({}", internal)?;
-
-    if !PARENTHESIS_KINDS.contains(internal.kind()) {
-        write!(f, " ")?;
-    }
-
-    let children = internal.len();
-
-    for i in 1..=children {
-        match iterator.next().unwrap_or((0, missing)) {
-            (_, Expression::Internal(child)) => format_internal(f, child, missing, iterator)?,
-            (_, Expression::Terminal(terminal)) => write!(f, "{}", terminal)?,
-        }
-
-        if i < children {
-            f.write_str(" ")?;
-        }
-    }
-
-    f.write_char(')')?;
-
-    Ok(())
 }
 
 #[cfg(test)]
@@ -125,6 +127,61 @@ mod tests {
             .cloned()
             .collect();
 
+        assert_eq!("(+ 3 2)", program.to_string().as_str());
         assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn grouping() {
+        let mut program = Program::default();
+
+        let left = Number::positive("3");
+        let left_index = program.insert(left.clone());
+
+        let right = Number::positive("2");
+        let right_index = program.insert(right.clone());
+
+        let grouping = Internal::new(InternalKind::Grouping, vec![left_index, right_index]);
+        let grouping_index = program.insert(grouping.clone());
+
+        program.mark_root(grouping_index);
+
+        assert_eq!("(3 2)", program.to_string().as_str());
+    }
+
+    #[test]
+    fn display() {
+        let mut program = Program::default();
+
+        let function = Identifier::from("f");
+        let function_index = program.insert(function);
+
+        let parameter = Identifier::from("x");
+        let parameter_index = program.insert(parameter);
+
+        let declaration = Internal::new(InternalKind::Call, vec![function_index, parameter_index]);
+        let declaration_index = program.insert(declaration);
+
+        let left_index = program.insert(parameter);
+        let right_index = program.insert(parameter);
+
+        let multiply = Internal::new(InternalKind::Multiply, vec![left_index, right_index]);
+        let multiply_index = program.insert(multiply);
+
+        let equality = Internal::new(
+            InternalKind::Equality,
+            vec![declaration_index, multiply_index],
+        );
+        let equality_index = program.insert(equality);
+
+        let invocation_index = program.insert(function);
+        let argument_index = program.insert(Number::positive("2"));
+        let call = Internal::new(InternalKind::Call, vec![invocation_index, argument_index]);
+        let call_index = program.insert(call);
+
+        program.mark_root(equality_index);
+        program.mark_root(call_index);
+
+        assert_eq!("(= (f x) (* x x)) (f 2)", program.to_string().as_str());
     }
 }
