@@ -1,4 +1,4 @@
-use crate::grammar::{Expression, Program};
+use crate::grammar::{Expression, InternalKind, Program};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct PreOrderIterator<'a, 'b> {
@@ -10,7 +10,7 @@ impl<'a, 'b> From<&'b Program<'a>> for PreOrderIterator<'a, 'b> {
     fn from(program: &'b Program<'a>) -> Self {
         PreOrderIterator {
             program,
-            stack: program.roots.iter().rev().map(|r| (0, r.0)).collect(),
+            stack: program.roots.iter().rev().map(|&r| (0, r)).collect(),
         }
     }
 }
@@ -19,16 +19,22 @@ impl<'a, 'b> Iterator for PreOrderIterator<'a, 'b> {
     type Item = (usize, &'b Expression<'a>);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let (height, index) = self.stack.pop()?;
+        let (scope_depth, index) = self.stack.pop()?;
         let expression = self.program.expressions.get(index)?;
 
         if let Expression::Internal(internal) = expression {
+            let increment = if internal.kind() == &InternalKind::Block {
+                1
+            } else {
+                0
+            };
+
             for child in internal.children().iter().rev() {
-                self.stack.push((height + 1, child.0));
+                self.stack.push((scope_depth + increment, child.0));
             }
         }
 
-        Some((height, expression))
+        Some((scope_depth, expression))
     }
 }
 
@@ -42,12 +48,7 @@ impl<'a, 'b> From<&'b Program<'a>> for PostOrderIterator<'a, 'b> {
     fn from(program: &'b Program<'a>) -> Self {
         PostOrderIterator {
             program,
-            stack: program
-                .roots
-                .iter()
-                .rev()
-                .map(|i| (0, i.0, false))
-                .collect(),
+            stack: program.roots.iter().rev().map(|&i| (0, i, false)).collect(),
         }
     }
 }
@@ -57,17 +58,23 @@ impl<'a, 'b> Iterator for PostOrderIterator<'a, 'b> {
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            let (height, index, discovered) = self.stack.pop()?;
+            let (scope_depth, index, discovered) = self.stack.pop()?;
             let expression = self.program.expressions.get(index)?;
 
             match expression {
-                Expression::Terminal(_) => return Some((height, expression)),
-                Expression::Internal(_) if discovered => return Some((height, expression)),
+                Expression::Terminal(_) => return Some((scope_depth, expression)),
+                Expression::Internal(_) if discovered => return Some((scope_depth, expression)),
                 Expression::Internal(internal) => {
-                    self.stack.push((height, index, true));
+                    self.stack.push((scope_depth, index, true));
+
+                    let increment = if internal.kind() == &InternalKind::Block {
+                        1
+                    } else {
+                        0
+                    };
 
                     for child in internal.children().iter().rev() {
-                        self.stack.push((height + 1, child.0, false));
+                        self.stack.push((scope_depth + increment, child.0, false));
                     }
                 }
             }
@@ -76,25 +83,25 @@ impl<'a, 'b> Iterator for PostOrderIterator<'a, 'b> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct IteratorWithoutHeight<Iterator> {
+pub struct IteratorWithoutScopeDepth<Iterator> {
     inner: Iterator,
 }
 
-pub trait WithoutHeight: Sized {
-    fn without_height(self) -> IteratorWithoutHeight<Self>;
+pub trait WithoutScopeDepth: Sized {
+    fn without_scope_depth(self) -> IteratorWithoutScopeDepth<Self>;
 }
 
-impl<'a, 'b, I> WithoutHeight for I
+impl<'a, 'b, I> WithoutScopeDepth for I
 where
     'a: 'b,
     I: Iterator<Item = (usize, &'b Expression<'a>)>,
 {
-    fn without_height(self) -> IteratorWithoutHeight<Self> {
-        IteratorWithoutHeight { inner: self }
+    fn without_scope_depth(self) -> IteratorWithoutScopeDepth<Self> {
+        IteratorWithoutScopeDepth { inner: self }
     }
 }
 
-impl<'a, 'b, I> Iterator for IteratorWithoutHeight<I>
+impl<'a, 'b, I> Iterator for IteratorWithoutScopeDepth<I>
 where
     'a: 'b,
     I: Iterator<Item = (usize, &'b Expression<'a>)>,

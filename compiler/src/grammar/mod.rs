@@ -4,8 +4,9 @@ mod expression;
 mod terminal;
 mod traversal;
 
-use crate::grammar::traversal::{PostOrderIterator, PreOrderIterator};
+pub use crate::grammar::traversal::{PostOrderIterator, PreOrderIterator};
 pub use expression::{Expression, ExpressionReference, Internal, InternalKind, Terminal};
+use std::collections::BTreeSet;
 use std::fmt::{Display, Formatter, Write};
 pub use terminal::{Identifier, Number, Uri};
 
@@ -14,18 +15,18 @@ pub use terminal::{Identifier, Number, Uri};
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Program<'a> {
     expressions: Vec<Expression<'a>>,
-    roots: Vec<ExpressionReference>,
+    roots: BTreeSet<usize>,
 }
 
 impl<'a> Program<'a> {
     pub fn mark_root(&mut self, index: ExpressionReference) {
-        self.roots.push(index);
+        self.roots.insert(index.0);
     }
 
     pub fn insert<E: Into<Expression<'a>>>(&mut self, expression: E) -> ExpressionReference {
         let index = self.expressions.len();
 
-        self.expressions.push(expression.into());
+        self.expressions.insert(index, expression.into());
 
         ExpressionReference(index)
     }
@@ -52,10 +53,10 @@ impl Display for Program<'_> {
         let mut iterator = self.iter_pre_order();
         let missing = Expression::default();
 
-        while let Some((depth, expression)) = iterator.next() {
+        while let Some((_, expression)) = iterator.next() {
             match expression {
                 Expression::Internal(internal) => {
-                    format_internal(f, depth, internal, &missing, &mut iterator)?
+                    format_internal(f, internal, &missing, &mut iterator)?
                 }
                 Expression::Terminal(terminal) => write!(f, "{}", terminal)?,
             }
@@ -69,7 +70,6 @@ static PARENTHESIS_KINDS: &[InternalKind] = &[InternalKind::Call, InternalKind::
 
 fn format_internal<'a>(
     f: &mut Formatter<'_>,
-    depth: usize,
     internal: &Internal,
     missing: &Expression<'a>,
     iterator: &mut PreOrderIterator<'a, '_>,
@@ -83,10 +83,8 @@ fn format_internal<'a>(
     let children = internal.len();
 
     for i in 1..=children {
-        match iterator.next().unwrap_or((depth + 1, missing)) {
-            (height, Expression::Internal(child)) => {
-                format_internal(f, height, child, missing, iterator)?
-            }
+        match iterator.next().unwrap_or((0, missing)) {
+            (_, Expression::Internal(child)) => format_internal(f, child, missing, iterator)?,
             (_, Expression::Terminal(terminal)) => write!(f, "{}", terminal)?,
         }
 
@@ -97,17 +95,13 @@ fn format_internal<'a>(
 
     f.write_char(')')?;
 
-    if depth == 0 {
-        f.write_char(' ')?;
-    }
-
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::grammar::traversal::WithoutHeight;
+    use crate::grammar::traversal::WithoutScopeDepth;
 
     #[test]
     fn add() {
@@ -127,7 +121,7 @@ mod tests {
         let expected: Vec<Expression<'static>> = vec![left.into(), right.into(), add.into()];
         let actual: Vec<Expression<'static>> = program
             .iter_post_order()
-            .without_height()
+            .without_scope_depth()
             .cloned()
             .collect();
 
