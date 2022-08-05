@@ -30,7 +30,7 @@ impl<'a> Program<'a> {
         ExpressionReference(index)
     }
 
-    pub fn iter(&self) -> PostOrderIterator<'a, '_> {
+    pub fn iter_post_order(&self) -> PostOrderIterator<'a, '_> {
         self.into()
     }
 
@@ -125,7 +125,11 @@ mod tests {
         program.mark_root(add_index);
 
         let expected: Vec<Expression<'static>> = vec![left.into(), right.into(), add.into()];
-        let actual: Vec<Expression<'static>> = program.iter().without_height().cloned().collect();
+        let actual: Vec<Expression<'static>> = program
+            .iter_post_order()
+            .without_height()
+            .cloned()
+            .collect();
 
         assert_eq!(expected, actual);
     }
