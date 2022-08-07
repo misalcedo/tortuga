@@ -167,9 +167,14 @@ where
         self.consume(TokenKind::Minus, "Expected a unary '-' sign.")?;
 
         let token = self.consume(TokenKind::Number, "Expected a number after the '-' sign.")?;
-        let number = Number::negative(token.lexeme());
 
-        Ok(self.program.insert(number))
+        if token.lexeme() == "0" {
+            Err(SyntacticalError::new("Cannot negate zero.", *token.start()))
+        } else {
+            let number = Number::negative(token.lexeme());
+
+            Ok(self.program.insert(number))
+        }
     }
 
     fn parse_grouping(&mut self) -> SyntacticalResult<ExpressionReference> {
@@ -558,6 +563,11 @@ mod tests {
         expected.mark_root(index);
 
         assert_eq!(program, expected);
+    }
+
+    #[test]
+    fn parse_negative_zero() {
+        assert_eq!(Program::try_from("-0").unwrap_err().len(), 1);
     }
 
     #[test]

@@ -4,7 +4,7 @@ mod expression;
 mod terminal;
 mod traversal;
 
-pub use crate::grammar::traversal::{PostOrderIterator, PreOrderIterator};
+pub use crate::grammar::traversal::{PostOrderIterator, PreOrderIterator, WithoutScopeDepth};
 pub use expression::{Expression, ExpressionReference, Internal, InternalKind, Terminal};
 use std::collections::BTreeSet;
 use std::fmt::{Display, Formatter, Write};
