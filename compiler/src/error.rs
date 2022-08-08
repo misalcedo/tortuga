@@ -1,8 +1,8 @@
 //! Errors that may occur during lexical analysis.
 
-use crate::analyzer::AnalyticalError;
-use crate::parser::SyntacticalError;
-use crate::scanner::LexicalError;
+use crate::analysis::AnalyticalError;
+use crate::parse::SyntacticalError;
+use crate::scan::LexicalError;
 use std::fmt::{self, Display, Formatter};
 
 /// An error that occurred while compiling source code.

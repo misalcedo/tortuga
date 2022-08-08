@@ -1,5 +1,5 @@
 use crate::grammar::ExpressionReference;
-use crate::parser::SyntacticalError;
+use crate::parse::SyntacticalError;
 use crate::Parser;
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]

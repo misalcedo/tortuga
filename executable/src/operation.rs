@@ -8,7 +8,7 @@ pub type FunctionIndex = u8;
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum Operation {
     ConstantNumber(ConstantIndex),
-    ConstantUri(ConstantIndex),
+    ConstantText(ConstantIndex),
     Pop,
     GetLocal(LocalOffset),
     GetCapture(CaptureOffset),
@@ -38,10 +38,9 @@ pub trait WriteOperation {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 #[repr(u8)]
-enum OperationIndex {
+enum OperationCode {
     ConstantNumber,
-    ConstantUri,
-    ConstantFunction,
+    ConstantText,
     Pop,
     GetLocal,
     GetCapture,
@@ -65,34 +64,45 @@ enum OperationIndex {
     BranchIfNonZero,
 }
 
-impl From<&Operation> for u8 {
+impl From<&Operation> for OperationCode {
     fn from(operation: &Operation) -> Self {
         match operation {
-            Operation::ConstantNumber(_) => OperationIndex::ConstantNumber as u8,
-            Operation::ConstantUri(_) => OperationIndex::ConstantUri as u8,
-            Operation::ConstantFunction(_) => OperationIndex::ConstantFunction as u8,
-            Operation::Pop => OperationIndex::Pop as u8,
-            Operation::GetLocal(_) => OperationIndex::GetLocal as u8,
-            Operation::GetCapture(_) => OperationIndex::GetCapture as u8,
-            Operation::Equal => OperationIndex::Equal as u8,
-            Operation::Greater => OperationIndex::Greater as u8,
-            Operation::Less => OperationIndex::Less as u8,
-            Operation::Add => OperationIndex::Add as u8,
-            Operation::Subtract => OperationIndex::Subtract as u8,
-            Operation::Multiply => OperationIndex::Multiply as u8,
-            Operation::Divide => OperationIndex::Divide as u8,
-            Operation::Remainder => OperationIndex::Remainder as u8,
-            Operation::And => OperationIndex::And as u8,
-            Operation::Or => OperationIndex::Or as u8,
-            Operation::Not => OperationIndex::Not as u8,
-            Operation::Call(_) => OperationIndex::Call as u8,
-            Operation::Send => OperationIndex::Send as u8,
-            Operation::Closure(_, _) => OperationIndex::Closure as u8,
-            Operation::Return => OperationIndex::Return as u8,
-            Operation::Branch(_) => OperationIndex::Branch as u8,
-            Operation::BranchIfZero(_) => OperationIndex::BranchIfZero as u8,
-            Operation::BranchIfNonZero(_) => OperationIndex::BranchIfNonZero as u8,
+            Operation::ConstantNumber(_) => OperationCode::ConstantNumber,
+            Operation::ConstantText(_) => OperationCode::ConstantText,
+            Operation::Pop => OperationCode::Pop,
+            Operation::GetLocal(_) => OperationCode::GetLocal,
+            Operation::GetCapture(_) => OperationCode::GetCapture,
+            Operation::Equal => OperationCode::Equal,
+            Operation::Greater => OperationCode::Greater,
+            Operation::Less => OperationCode::Less,
+            Operation::Add => OperationCode::Add,
+            Operation::Subtract => OperationCode::Subtract,
+            Operation::Multiply => OperationCode::Multiply,
+            Operation::Divide => OperationCode::Divide,
+            Operation::Remainder => OperationCode::Remainder,
+            Operation::And => OperationCode::And,
+            Operation::Or => OperationCode::Or,
+            Operation::Not => OperationCode::Not,
+            Operation::Call(_) => OperationCode::Call,
+            Operation::Send => OperationCode::Send,
+            Operation::Closure(_, _) => OperationCode::Closure,
+            Operation::Return => OperationCode::Return,
+            Operation::Branch(_) => OperationCode::Branch,
+            Operation::BranchIfZero(_) => OperationCode::BranchIfZero,
+            Operation::BranchIfNonZero(_) => OperationCode::BranchIfNonZero,
         }
+    }
+}
+
+impl From<OperationCode> for u8 {
+    fn from(code: OperationCode) -> Self {
+        code as u8
+    }
+}
+
+impl From<&Operation> for u8 {
+    fn from(operation: &Operation) -> Self {
+        OperationCode::from(operation) as u8
     }
 }
 
@@ -104,12 +114,7 @@ impl<W: Write> WriteOperation for W {
                 self.write_all(&bytes)?;
                 Ok(bytes.len())
             }
-            Operation::ConstantUri(operand) => {
-                let bytes = [u8::from(&operation), *operand];
-                self.write_all(&bytes)?;
-                Ok(bytes.len())
-            }
-            Operation::ConstantFunction(operand) => {
+            Operation::ConstantText(operand) => {
                 let bytes = [u8::from(&operation), *operand];
                 self.write_all(&bytes)?;
                 Ok(bytes.len())

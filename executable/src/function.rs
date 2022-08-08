@@ -7,22 +7,6 @@ pub struct Function {
     captures: Vec<bool>,
 }
 
-impl Display for Function {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<{}/{}>", self.start, self.locals)
-    }
-}
-
-impl Default for Function {
-    fn default() -> Self {
-        Function {
-            start: 0,
-            locals: 1,
-            captures: Vec::default(),
-        }
-    }
-}
-
 impl Function {
     pub fn new(start: usize, locals: usize, captures: Vec<bool>) -> Self {
         Function {
@@ -46,5 +30,21 @@ impl Function {
 
     pub fn values(&self) -> usize {
         self.locals + 1 + self.captures.len()
+    }
+}
+
+impl Display for Function {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<{}/{}>", self.start, self.locals)
+    }
+}
+
+impl Default for Function {
+    fn default() -> Self {
+        Function {
+            start: 0,
+            locals: 1,
+            captures: Vec::default(),
+        }
     }
 }

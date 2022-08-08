@@ -1,7 +1,7 @@
-use crate::analyzer::AnalyticalError;
+use crate::analysis::AnalyticalError;
 use crate::error::CompilationError;
-use crate::parser::SyntacticalError;
-use crate::scanner::LexicalError;
+use crate::parse::SyntacticalError;
+use crate::scan::LexicalError;
 
 pub trait ErrorReporter {
     fn report_lexical_error(&mut self, error: LexicalError);

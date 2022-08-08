@@ -3,5 +3,6 @@
 members = [
     "cli",
     "compiler",
+    "executable",
     "vm"
 ]

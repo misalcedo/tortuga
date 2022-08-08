@@ -17,24 +17,3 @@ impl From<ParseFloatError> for ParseNumberError {
         ParseNumberError(error)
     }
 }
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct ParseUriError {
-    message: String,
-}
-
-impl Display for ParseUriError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.message)
-    }
-}
-
-impl std::error::Error for ParseUriError {}
-
-impl From<&str> for ParseUriError {
-    fn from(error: &str) -> Self {
-        ParseUriError {
-            message: error.to_string(),
-        }
-    }
-}

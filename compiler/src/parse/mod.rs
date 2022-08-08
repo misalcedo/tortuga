@@ -8,7 +8,7 @@ mod precedence;
 use crate::grammar::{
     ExpressionReference, Identifier, Internal, InternalKind, Number, Program, Uri,
 };
-use crate::scanner::LexicalError;
+use crate::scan::LexicalError;
 use crate::{CompilationError, ErrorReporter};
 use crate::{Location, Scanner, Token, TokenKind};
 pub use error::SyntacticalError;

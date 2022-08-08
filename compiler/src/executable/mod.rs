@@ -1,19 +1,15 @@
-mod error;
-mod function;
-mod number;
-mod operation;
-mod uri;
+use crate::grammar;
+use std::fmt::{self, Display, Formatter};
+use std::num::ParseFloatError;
+use std::str::FromStr;
+use tortuga_executable::{Number, ParseNumberError};
 
-pub use error::{ParseNumberError, ParseUriError};
-pub use function::Function;
-pub use number::Number;
-pub use operation::Operation;
-pub use uri::Uri;
+impl<'a> TryFrom<grammar::Number<'a>> for Number {
+    type Error = ParseNumberError;
 
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct Executable {
-    operations: Vec<Operation>,
-    functions: Vec<Function>,
-    numbers: Vec<Number>,
-    uris: Vec<Uri>,
+    fn try_from(number: grammar::Number<'a>) -> Result<Self, Self::Error> {
+        Ok(Number(
+            number.as_str().parse::<f64>()? * number.sign_number() as f64,
+        ))
+    }
 }

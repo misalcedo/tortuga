@@ -1,4 +1,4 @@
-use crate::analyzer::local::Local;
+use crate::analysis::local::Local;
 use std::collections::HashMap;
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd)]

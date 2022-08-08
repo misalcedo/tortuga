@@ -1,6 +1,6 @@
 //! Errors that may occur during lexical analysis.
 
-use crate::scanner::LexicalError;
+use crate::scan::LexicalError;
 use crate::Location;
 use std::fmt::{self, Display, Formatter};
 
