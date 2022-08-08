@@ -26,11 +26,29 @@ impl<'a> Number<'a> {
             lexeme,
         }
     }
+
+    pub fn as_str(&self) -> &'a str {
+        self.lexeme
+    }
+
+    pub fn sign_number(&self) -> i8 {
+        if self.negative {
+            -1
+        } else {
+            1
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Identifier<'a> {
     lexeme: &'a str,
+}
+
+impl<'a> Identifier<'a> {
+    pub fn as_str(&self) -> &'a str {
+        self.lexeme
+    }
 }
 
 impl<'a> From<&'a str> for Identifier<'a> {
@@ -42,6 +60,12 @@ impl<'a> From<&'a str> for Identifier<'a> {
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Uri<'a> {
     lexeme: &'a str,
+}
+
+impl<'a> Uri<'a> {
+    pub fn as_str(&self) -> &'a str {
+        self.lexeme
+    }
 }
 
 impl<'a> From<&'a str> for Uri<'a> {

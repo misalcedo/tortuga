@@ -9,12 +9,11 @@ mod context;
 mod error;
 mod local;
 
-use crate::grammar::Program;
+use crate::Program;
 use crate::{CompilationError, ErrorReporter};
 use constants::ConstantAnalysis;
 use context::ScopeContext;
 pub use error::AnalyticalError;
-use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 
 pub struct Analyzer<'a, Reporter> {
