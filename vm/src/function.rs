@@ -1,10 +1,10 @@
 use std::fmt::{Display, Formatter};
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Function {
     start: usize,
     locals: usize,
-    captures: usize,
+    captures: Vec<bool>,
 }
 
 impl Display for Function {
@@ -18,13 +18,13 @@ impl Default for Function {
         Function {
             start: 0,
             locals: 1,
-            captures: 0,
+            captures: Vec::default(),
         }
     }
 }
 
 impl Function {
-    pub fn new(start: usize, locals: usize, captures: usize) -> Self {
+    pub fn new(start: usize, locals: usize, captures: Vec<bool>) -> Self {
         Function {
             start,
             locals,
@@ -40,11 +40,11 @@ impl Function {
         self.locals + 1
     }
 
-    pub fn captures(&self) -> usize {
-        self.captures
+    pub fn captures(&self) -> &[bool] {
+        self.captures.as_slice()
     }
 
     pub fn values(&self) -> usize {
-        self.locals + 1 + self.captures
+        self.locals + 1 + self.captures.len()
     }
 }

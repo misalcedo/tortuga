@@ -11,6 +11,24 @@ impl Display for Number {
     }
 }
 
+impl PartialEq<i32> for Number {
+    fn eq(&self, other: &i32) -> bool {
+        self.0 == *other as f64
+    }
+}
+
+impl PartialEq<f64> for Number {
+    fn eq(&self, other: &f64) -> bool {
+        self.0 == *other
+    }
+}
+
+impl PartialEq<bool> for Number {
+    fn eq(&self, other: &bool) -> bool {
+        (self.0 != 0.0) == *other
+    }
+}
+
 macro_rules! impl_from_for_number {
     ($t:ident, $v:ident, $e:expr) => {
         impl From<$t> for Number {

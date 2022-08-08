@@ -1,17 +1,24 @@
-use crate::{Function, Value};
+use crate::{Function, Number, Text, Value};
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Program {
     content: Vec<u8>,
-    constants: Vec<Value>,
+    numbers: Vec<Number>,
+    texts: Vec<Text>,
     functions: Vec<Function>,
 }
 
 impl Program {
-    pub fn new(content: Vec<u8>, constants: Vec<Value>, functions: Vec<Function>) -> Self {
+    pub fn new(
+        content: Vec<u8>,
+        numbers: Vec<Number>,
+        texts: Vec<Text>,
+        functions: Vec<Function>,
+    ) -> Self {
         Program {
             content,
-            constants,
+            numbers,
+            texts,
             functions,
         }
     }
@@ -20,8 +27,12 @@ impl Program {
         &self.content.as_slice()[start..start + size]
     }
 
-    pub fn constant(&self, index: usize) -> Option<&Value> {
-        self.constants.get(index)
+    pub fn number(&self, index: usize) -> Option<&Number> {
+        self.numbers.get(index)
+    }
+
+    pub fn text(&self, index: usize) -> Option<&Text> {
+        self.texts.get(index)
     }
 
     pub fn function(&self, index: usize) -> Option<&Function> {

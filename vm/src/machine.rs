@@ -1,10 +1,10 @@
 use crate::error::{ErrorKind, RuntimeError};
-use crate::Courier;
 use crate::Identifier;
 use crate::Program;
 use crate::Value;
 use crate::{CallFrame, Number};
 use crate::{Closure, Function};
+use crate::{Courier, Text};
 use std::cmp::Ordering;
 use std::mem::size_of;
 
@@ -21,8 +21,9 @@ type RuntimeResult<T> = Result<T, RuntimeError>;
 type OperationResult = RuntimeResult<()>;
 
 impl<C: Courier> VirtualMachine<C> {
-    const OPERATIONS_TABLE: [fn(&mut VirtualMachine<C>) -> OperationResult; 19] = [
-        Self::constant_operation,
+    const OPERATIONS_TABLE: [fn(&mut VirtualMachine<C>) -> OperationResult; 23] = [
+        Self::constant_number_operation,
+        Self::constant_text_operation,
         Self::pop_operation,
         Self::get_local_operation,
         Self::get_capture_operation,
@@ -34,6 +35,9 @@ impl<C: Courier> VirtualMachine<C> {
         Self::multiply_operation,
         Self::divide_operation,
         Self::remainder_operation,
+        Self::and_operation,
+        Self::or_operation,
+        Self::not_operation,
         Self::call_operation,
         Self::send_operation,
         Self::closure_operation,
@@ -55,7 +59,7 @@ impl<C: Courier> VirtualMachine<C> {
 
     pub fn process(&mut self, value: Value) -> RuntimeResult<Option<Value>> {
         let function = Function::default();
-        let closure = Closure::new(function, Vec::new());
+        let closure = Closure::new(function.clone(), Vec::new());
 
         self.stack.push(closure.into());
         self.stack.push(value);
@@ -71,10 +75,18 @@ impl<C: Courier> VirtualMachine<C> {
         self.exit_function()
     }
 
-    fn constant_operation(&mut self) -> OperationResult {
-        let constant = self.get_constant()?.clone();
+    fn constant_number_operation(&mut self) -> OperationResult {
+        let constant = self.get_constant_number()?.clone();
 
-        self.stack.push(constant);
+        self.stack.push(constant.into());
+
+        Ok(())
+    }
+
+    fn constant_text_operation(&mut self) -> OperationResult {
+        let constant = self.get_constant_text()?.clone();
+
+        self.stack.push(constant.into());
 
         Ok(())
     }
@@ -187,6 +199,40 @@ impl<C: Courier> VirtualMachine<C> {
         Ok(())
     }
 
+    fn and_operation(&mut self) -> OperationResult {
+        let b = self.pop_value()?;
+        let a = self.pop_value()?;
+        let result = a & b;
+        let value = result
+            .map_err(|(lhs, rhs)| RuntimeError::from(ErrorKind::UnsupportedTypes(lhs, rhs)))?;
+
+        self.stack.push(value);
+
+        Ok(())
+    }
+
+    fn or_operation(&mut self) -> OperationResult {
+        let b = self.pop_value()?;
+        let a = self.pop_value()?;
+        let result = a | b;
+        let value = result
+            .map_err(|(lhs, rhs)| RuntimeError::from(ErrorKind::UnsupportedTypes(lhs, rhs)))?;
+
+        self.stack.push(value);
+
+        Ok(())
+    }
+
+    fn not_operation(&mut self) -> OperationResult {
+        let a = self.pop_value()?;
+        let result = !a;
+        let value = result.map_err(|v| RuntimeError::from(ErrorKind::UnsupportedType(v)))?;
+
+        self.stack.push(value);
+
+        Ok(())
+    }
+
     fn call_operation(&mut self) -> OperationResult {
         let function = self.get_function()?;
 
@@ -207,10 +253,14 @@ impl<C: Courier> VirtualMachine<C> {
     fn closure_operation(&mut self) -> OperationResult {
         let function = self.get_function()?;
 
-        let mut captures = Vec::with_capacity(function.captures());
-        for _ in 0..function.captures() {
+        let mut captures = Vec::with_capacity(function.captures().len());
+        for local in function.captures() {
             let index = self.read_byte()? as usize;
-            let value = self.get_local(index)?;
+            let value = if *local {
+                self.get_local(index)?
+            } else {
+                self.get_capture(index)?
+            };
 
             captures.push(value);
         }
@@ -264,7 +314,7 @@ impl<C: Courier> VirtualMachine<C> {
 
     fn enter_function(&mut self, function: Function) -> RuntimeResult<()> {
         let locals = function.locals();
-        let has_captures = function.captures() > 0;
+        let has_captures = function.captures().len() > 0;
         let length = self.stack.len();
         let start_stack = length
             .checked_sub(locals)
@@ -317,11 +367,27 @@ impl<C: Courier> VirtualMachine<C> {
             .ok_or_else(|| ErrorKind::UnsupportedOperation(operation).into())
     }
 
-    fn get_constant(&mut self) -> RuntimeResult<&Value> {
+    fn get_constant_number(&mut self) -> RuntimeResult<&Number> {
         let index = self.read_byte()? as usize;
 
         self.code
-            .constant(index)
+            .number(index)
+            .ok_or_else(|| ErrorKind::NoSuchConstant(index).into())
+    }
+
+    fn get_constant_text(&mut self) -> RuntimeResult<&Text> {
+        let index = self.read_byte()? as usize;
+
+        self.code
+            .text(index)
+            .ok_or_else(|| ErrorKind::NoSuchConstant(index).into())
+    }
+
+    fn get_constant_function(&mut self) -> RuntimeResult<&Function> {
+        let index = self.read_byte()? as usize;
+
+        self.code
+            .function(index)
             .ok_or_else(|| ErrorKind::NoSuchConstant(index).into())
     }
 
@@ -410,7 +476,7 @@ impl<C: Courier> VirtualMachine<C> {
             .function(slot)
             .ok_or_else(|| RuntimeError::from(ErrorKind::NoSuchFunction(slot)))?;
 
-        Ok(*function)
+        Ok(function.clone())
     }
 
     fn get_current_closure(&mut self) -> RuntimeResult<Closure> {
@@ -423,88 +489,4 @@ impl<C: Courier> VirtualMachine<C> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn add() {
-        let code = Program::new(
-            vec![0, 0, 0, 1, 7],
-            vec![Value::from(1.0), Value::from(2.0)],
-            vec![],
-        );
-        let mut machine: VirtualMachine<()> = VirtualMachine::new(code, ());
-        let message = Value::default();
-        let result = machine.process(message);
-
-        assert_eq!(result, Ok(Some(Value::from(3.0))));
-    }
-
-    #[test]
-    fn compare() {
-        let code = Program::new(
-            vec![0, 0, 0, 1, 0, 2, 5, 4],
-            vec![Value::from(1.0), Value::from(42.0), Value::from(2.0)],
-            vec![],
-        );
-        let mut machine: VirtualMachine<()> = VirtualMachine::new(code, ());
-        let message = Value::default();
-        let result = machine.process(message);
-
-        assert_eq!(result, Ok(Some(Value::from(true))));
-    }
-
-    #[test]
-    fn less_and_greater() {
-        let code = Program::new(
-            vec![0, 0, 0, 1, 0, 2, 5, 6],
-            vec![Value::from(2.0), Value::from(42.0), Value::from(1.0)],
-            vec![],
-        );
-        let mut machine: VirtualMachine<()> = VirtualMachine::new(code, ());
-        let message = Value::default();
-        let result = machine.process(message);
-
-        assert_eq!(result, Ok(Some(Value::from(false))));
-    }
-
-    #[test]
-    fn unconditional_branch() {
-        let code = Program::new(
-            vec![16, 2, 0, 0, 0, 0, 1],
-            vec![Value::from(1.0), Value::from(42.0)],
-            vec![],
-        );
-        let mut machine: VirtualMachine<()> = VirtualMachine::new(code, ());
-        let message = Value::default();
-        let result = machine.process(message);
-
-        assert_eq!(result, Ok(Some(Value::from(42.0))));
-    }
-
-    #[test]
-    fn branch_if_zero() {
-        let code = Program::new(
-            vec![0, 0, 17, 2, 0, 0, 1, 0, 0, 1],
-            vec![Value::from(1.0), Value::from(42.0)],
-            vec![],
-        );
-        let mut machine: VirtualMachine<()> = VirtualMachine::new(code, ());
-        let message = Value::default();
-        let result = machine.process(message);
-
-        assert_eq!(result, Ok(Some(Value::from(42.0))));
-    }
-
-    #[test]
-    fn branch_if_non_zero() {
-        let code = Program::new(
-            vec![0, 0, 18, 2, 0, 0, 0, 0, 1, 1],
-            vec![Value::from(1.0), Value::from(42.0)],
-            vec![],
-        );
-        let mut machine: VirtualMachine<()> = VirtualMachine::new(code, ());
-        let message = Value::default();
-        let result = machine.process(message);
-
-        assert_eq!(result, Ok(None));
-    }
 }

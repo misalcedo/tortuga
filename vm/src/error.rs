@@ -22,6 +22,7 @@ pub enum ErrorKind {
     ExpectedNumber(Value),
     ExpectedClosure(Value),
     UnsupportedOperation(usize),
+    UnsupportedType(Value),
     UnsupportedTypes(Value, Value),
     InvalidOperand(usize, usize), // expected, actual
     NoSuchConstant(usize),

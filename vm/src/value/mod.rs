@@ -2,13 +2,14 @@ mod extractors;
 mod operators;
 mod wrappers;
 
-use crate::{Closure, Identifier, Number};
+use crate::{Closure, Identifier, Number, Text};
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     Number(Number),
+    Text(Text),
     Closure(Closure),
     Identifier(Identifier),
 }
@@ -34,6 +35,7 @@ impl Display for Value {
             Value::Number(n) => write!(f, "{}", n),
             Value::Closure(c) => write!(f, "{}", c),
             Value::Identifier(i) => write!(f, "{}", i),
+            Value::Text(t) => write!(f, "{}", t),
         }
     }
 }

@@ -1,4 +1,4 @@
-use crate::{Closure, Identifier, Number, Value};
+use crate::{Closure, Identifier, Number, Text, Value};
 
 macro_rules! impl_try_from_value {
     ($t:ident) => {
@@ -17,4 +17,5 @@ macro_rules! impl_try_from_value {
 
 impl_try_from_value!(Identifier);
 impl_try_from_value!(Number);
+impl_try_from_value!(Text);
 impl_try_from_value!(Closure);
