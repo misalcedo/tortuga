@@ -1,14 +1,14 @@
 use std::fmt::{self, Display, Formatter};
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Function {
     start: usize,
     locals: u8,
-    captures: u8,
+    captures: Vec<bool>,
 }
 
 impl Function {
-    pub fn new(start: usize, locals: u8, captures: u8) -> Self {
+    pub fn new(start: usize, locals: u8, captures: Vec<bool>) -> Self {
         Function {
             start,
             locals,
@@ -24,7 +24,7 @@ impl Function {
         self.locals
     }
 
-    pub fn captures(&self) -> u8 {
-        self.captures
+    pub fn captures(&self) -> &[bool] {
+        self.captures.as_slice()
     }
 }
