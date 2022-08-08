@@ -1,5 +1,3 @@
-use std::io::{self, Write};
-
 pub type LocalOffset = u8;
 pub type CaptureOffset = u8;
 pub type ConstantIndex = u8;
@@ -30,10 +28,6 @@ pub enum Operation {
     Branch(u16),
     BranchIfZero(u16),
     BranchIfNonZero(u16),
-}
-
-pub trait WriteOperation {
-    fn write(&mut self, operation: Operation) -> io::Result<usize>;
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -106,134 +100,127 @@ impl From<&Operation> for u8 {
     }
 }
 
-impl<W: Write> WriteOperation for W {
-    fn write(&mut self, operation: Operation) -> io::Result<usize> {
-        match &operation {
-            Operation::ConstantNumber(operand) => {
-                let bytes = [u8::from(&operation), *operand];
-                self.write_all(&bytes)?;
-                Ok(bytes.len())
-            }
-            Operation::ConstantText(operand) => {
-                let bytes = [u8::from(&operation), *operand];
-                self.write_all(&bytes)?;
-                Ok(bytes.len())
-            }
-            Operation::Pop => {
-                let bytes = [u8::from(&operation)];
-                self.write_all(&bytes)?;
-                Ok(bytes.len())
-            }
-            Operation::GetLocal(operand) => {
-                let bytes = [u8::from(&operation), *operand];
-                self.write_all(&bytes)?;
-                Ok(bytes.len())
-            }
-            Operation::GetCapture(operand) => {
-                let bytes = [u8::from(&operation), *operand];
-                self.write_all(&bytes)?;
-                Ok(bytes.len())
-            }
-            Operation::Equal => {
-                let bytes = [u8::from(&operation)];
-                self.write_all(&bytes)?;
-                Ok(bytes.len())
-            }
-            Operation::Greater => {
-                let bytes = [u8::from(&operation)];
-                self.write_all(&bytes)?;
-                Ok(bytes.len())
-            }
-            Operation::Less => {
-                let bytes = [u8::from(&operation)];
-                self.write_all(&bytes)?;
-                Ok(bytes.len())
-            }
-            Operation::Add => {
-                let bytes = [u8::from(&operation)];
-                self.write_all(&bytes)?;
-                Ok(bytes.len())
-            }
-            Operation::Subtract => {
-                let bytes = [u8::from(&operation)];
-                self.write_all(&bytes)?;
-                Ok(bytes.len())
-            }
-            Operation::Multiply => {
-                let bytes = [u8::from(&operation)];
-                self.write_all(&bytes)?;
-                Ok(bytes.len())
-            }
-            Operation::Divide => {
-                let bytes = [u8::from(&operation)];
-                self.write_all(&bytes)?;
-                Ok(bytes.len())
-            }
-            Operation::Remainder => {
-                let bytes = [u8::from(&operation)];
-                self.write_all(&bytes)?;
-                Ok(bytes.len())
-            }
-            Operation::And => {
-                let bytes = [u8::from(&operation)];
-                self.write_all(&bytes)?;
-                Ok(bytes.len())
-            }
-            Operation::Or => {
-                let bytes = [u8::from(&operation)];
-                self.write_all(&bytes)?;
-                Ok(bytes.len())
-            }
-            Operation::Not => {
-                let bytes = [u8::from(&operation)];
-                self.write_all(&bytes)?;
-                Ok(bytes.len())
-            }
-            Operation::Call(operand) => {
-                let bytes = [u8::from(&operation), *operand];
-                self.write_all(&bytes)?;
-                Ok(bytes.len())
-            }
-            Operation::Send => {
-                let bytes = [u8::from(&operation)];
-                self.write_all(&bytes)?;
-                Ok(bytes.len())
-            }
-            Operation::Closure(operand, operands) => {
-                let bytes = [u8::from(&operation), *operand];
-                self.write_all(&bytes)?;
-                self.write_all(&operands[..])?;
-                Ok(bytes.len() + operands.len())
-            }
-            Operation::Return => {
-                let bytes = [u8::from(&operation)];
-                self.write_all(&bytes)?;
-                Ok(bytes.len())
-            }
-            Operation::Branch(operand) => {
-                let bytes = [u8::from(&operation)];
-                let operand_bytes = u16::to_le_bytes(*operand);
+pub trait AsCode {
+    fn as_code(&self) -> Vec<u8>;
+}
 
-                self.write_all(&bytes)?;
-                self.write_all(&operand_bytes)?;
-                Ok(bytes.len() + operand_bytes.len())
-            }
-            Operation::BranchIfZero(operand) => {
-                let bytes = [u8::from(&operation)];
-                let operand_bytes = u16::to_le_bytes(*operand);
+impl AsCode for [Operation] {
+    fn as_code(&self) -> Vec<u8> {
+        let mut code = Vec::default();
 
-                self.write_all(&bytes)?;
-                self.write_all(&operand_bytes)?;
-                Ok(bytes.len() + operand_bytes.len())
-            }
-            Operation::BranchIfNonZero(operand) => {
-                let bytes = [u8::from(&operation)];
-                let operand_bytes = u16::to_le_bytes(*operand);
+        for operation in self {
+            match operation {
+                Operation::ConstantNumber(operand) => {
+                    let bytes = [u8::from(operation), *operand];
+                    code.extend_from_slice(&bytes);
+                }
+                Operation::ConstantText(operand) => {
+                    let bytes = [u8::from(operation), *operand];
+                    code.extend_from_slice(&bytes);
+                }
+                Operation::Pop => {
+                    let bytes = [u8::from(operation)];
+                    code.extend_from_slice(&bytes);
+                }
+                Operation::GetLocal(operand) => {
+                    let bytes = [u8::from(operation), *operand];
+                    code.extend_from_slice(&bytes);
+                }
+                Operation::GetCapture(operand) => {
+                    let bytes = [u8::from(operation), *operand];
+                    code.extend_from_slice(&bytes);
+                }
+                Operation::Equal => {
+                    let bytes = [u8::from(operation)];
+                    code.extend_from_slice(&bytes);
+                }
+                Operation::Greater => {
+                    let bytes = [u8::from(operation)];
+                    code.extend_from_slice(&bytes);
+                }
+                Operation::Less => {
+                    let bytes = [u8::from(operation)];
+                    code.extend_from_slice(&bytes);
+                }
+                Operation::Add => {
+                    let bytes = [u8::from(operation)];
+                    code.extend_from_slice(&bytes);
+                }
+                Operation::Subtract => {
+                    let bytes = [u8::from(operation)];
+                    code.extend_from_slice(&bytes);
+                }
+                Operation::Multiply => {
+                    let bytes = [u8::from(operation)];
+                    code.extend_from_slice(&bytes);
+                }
+                Operation::Divide => {
+                    let bytes = [u8::from(operation)];
+                    code.extend_from_slice(&bytes);
+                }
+                Operation::Remainder => {
+                    let bytes = [u8::from(operation)];
+                    code.extend_from_slice(&bytes);
+                }
+                Operation::And => {
+                    let bytes = [u8::from(operation)];
+                    code.extend_from_slice(&bytes);
+                }
+                Operation::Or => {
+                    let bytes = [u8::from(operation)];
+                    code.extend_from_slice(&bytes);
+                }
+                Operation::Not => {
+                    let bytes = [u8::from(operation)];
+                    code.extend_from_slice(&bytes);
+                }
+                Operation::Call(operand) => {
+                    let bytes = [u8::from(operation), *operand];
+                    code.extend_from_slice(&bytes);
+                }
+                Operation::Send => {
+                    let bytes = [u8::from(operation)];
+                    code.extend_from_slice(&bytes);
+                }
+                Operation::Closure(operand, operands) => {
+                    let bytes = [u8::from(operation), *operand];
+                    code.extend_from_slice(&bytes);
+                    code.extend_from_slice(operands);
+                }
+                Operation::Return => {
+                    let bytes = [u8::from(operation)];
+                    code.extend_from_slice(&bytes);
+                }
+                Operation::Branch(operand) => {
+                    let bytes = [u8::from(operation)];
+                    let operand_bytes = u16::to_le_bytes(*operand);
 
-                self.write_all(&bytes)?;
-                self.write_all(&operand_bytes)?;
-                Ok(bytes.len() + operand_bytes.len())
+                    code.extend_from_slice(&bytes);
+                    code.extend_from_slice(&operand_bytes);
+                }
+                Operation::BranchIfZero(operand) => {
+                    let bytes = [u8::from(operation)];
+                    let operand_bytes = u16::to_le_bytes(*operand);
+
+                    code.extend_from_slice(&bytes);
+                    code.extend_from_slice(&operand_bytes);
+                }
+                Operation::BranchIfNonZero(operand) => {
+                    let bytes = [u8::from(operation)];
+                    let operand_bytes = u16::to_le_bytes(*operand);
+
+                    code.extend_from_slice(&bytes);
+                    code.extend_from_slice(&operand_bytes);
+                }
             }
         }
+
+        code
+    }
+}
+
+impl AsCode for Vec<Operation> {
+    fn as_code(&self) -> Vec<u8> {
+        self.as_slice().as_code()
     }
 }

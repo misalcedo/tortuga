@@ -1,9 +1,12 @@
+extern crate core;
+
 mod error;
 mod function;
 mod number;
 mod operation;
 mod text;
 
+use crate::operation::AsCode;
 pub use error::ParseNumberError;
 pub use function::Function;
 pub use number::Number;
@@ -21,13 +24,13 @@ pub struct Executable {
 impl Executable {
     pub fn new<C, F, N, T>(code: C, functions: F, numbers: N, texts: T) -> Self
     where
-        C: Into<Vec<u8>>,
+        C: AsCode,
         F: Into<Vec<Function>>,
         N: Into<Vec<Number>>,
         T: Into<Vec<Text>>,
     {
         Executable {
-            code: code.into(),
+            code: code.as_code(),
             functions: functions.into(),
             numbers: numbers.into(),
             texts: texts.into(),
