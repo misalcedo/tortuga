@@ -9,7 +9,6 @@ pub type FunctionIndex = u8;
 pub enum Operation {
     ConstantNumber(ConstantIndex),
     ConstantUri(ConstantIndex),
-    ConstantFunction(ConstantIndex),
     Pop,
     GetLocal(LocalOffset),
     GetCapture(CaptureOffset),
