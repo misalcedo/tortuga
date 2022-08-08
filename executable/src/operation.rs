@@ -100,15 +100,19 @@ impl From<&Operation> for u8 {
     }
 }
 
-pub trait AsCode {
-    fn as_code(&self) -> Vec<u8>;
+pub trait ToCode {
+    fn to_code(self) -> Vec<u8>;
 }
 
-impl AsCode for [Operation] {
-    fn as_code(&self) -> Vec<u8> {
+impl<'a, I, II> ToCode for II
+where
+    I: Iterator<Item = &'a Operation>,
+    II: IntoIterator<Item = I::Item, IntoIter = I>,
+{
+    fn to_code(self) -> Vec<u8> {
         let mut code = Vec::default();
 
-        for operation in self {
+        for operation in self.into_iter() {
             match operation {
                 Operation::ConstantNumber(operand) => {
                     let bytes = [u8::from(operation), *operand];
@@ -216,11 +220,5 @@ impl AsCode for [Operation] {
         }
 
         code
-    }
-}
-
-impl AsCode for Vec<Operation> {
-    fn as_code(&self) -> Vec<u8> {
-        self.as_slice().as_code()
     }
 }

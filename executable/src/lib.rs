@@ -6,7 +6,7 @@ mod number;
 mod operation;
 mod text;
 
-use crate::operation::AsCode;
+use crate::operation::ToCode;
 pub use error::ParseNumberError;
 pub use function::Function;
 pub use number::Number;
@@ -24,13 +24,13 @@ pub struct Executable {
 impl Executable {
     pub fn new<C, F, N, T>(code: C, functions: F, numbers: N, texts: T) -> Self
     where
-        C: AsCode,
+        C: ToCode,
         F: Into<Vec<Function>>,
         N: Into<Vec<Number>>,
         T: Into<Vec<Text>>,
     {
         Executable {
-            code: code.as_code(),
+            code: code.to_code(),
             functions: functions.into(),
             numbers: numbers.into(),
             texts: texts.into(),
