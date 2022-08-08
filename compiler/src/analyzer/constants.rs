@@ -1,5 +1,4 @@
 use crate::grammar::{Expression, Number, Program, Terminal, Uri, WithoutScopeDepth};
-use crate::{CompilationError, ErrorReporter};
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 

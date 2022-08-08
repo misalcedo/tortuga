@@ -13,7 +13,8 @@ pub struct ScopeContext<'a> {
     name: Option<&'a str>,
     depth: usize,
     kind: ScopeKind,
-    locals: HashMap<Option<&'a str>, Local<'a>>,
+    local_indices: HashMap<Option<&'a str>, usize>,
+    locals: Vec<Local<'a>>,
 }
 
 impl<'a> Default for ScopeContext<'a> {
@@ -21,7 +22,8 @@ impl<'a> Default for ScopeContext<'a> {
         ScopeContext {
             name: None,
             kind: ScopeKind::Script,
-            locals: HashMap::from([(None, Local::initialized(None, 0))]),
+            local_indices: HashMap::from([(None, 0)]),
+            locals: vec![Local::initialized(None, 0)],
             depth: 0,
         }
     }
@@ -32,7 +34,8 @@ impl<'a> ScopeContext<'a> {
         ScopeContext {
             kind,
             name: Some(name),
-            locals: HashMap::from([(None, Local::initialized(Some(name), 0))]),
+            local_indices: HashMap::from([(None, 0)]),
+            locals: vec![Local::initialized(None, 0)],
             depth: 0,
         }
     }
@@ -41,8 +44,16 @@ impl<'a> ScopeContext<'a> {
         &self.kind
     }
 
-    #[must_use]
-    pub fn add_local(&mut self, name: &'a str) -> bool {
-        self.locals.insert(Some(name), Local::from(name)).is_none()
+    pub fn add_local(&mut self, name: &'a str) {
+        let index = self.locals.len();
+
+        self.locals.push(Local::from(name));
+        self.local_indices.insert(Some(name), index);
+    }
+
+    pub fn resolve_local(&self, name: &str) -> Option<&Local<'a>> {
+        let index = *self.local_indices.get(&Some(name))?;
+
+        self.locals.get(index)
     }
 }
