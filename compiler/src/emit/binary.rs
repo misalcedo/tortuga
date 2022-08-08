@@ -1,7 +1,7 @@
-use crate::executable::Executable;
 use crate::grammar::WithoutScopeDepth;
 use crate::Program;
 use std::io::Write;
+use tortuga_executable::Executable;
 
 #[derive(Clone, Copy, Default, Eq, PartialEq)]
 pub struct BinaryEmitter {}

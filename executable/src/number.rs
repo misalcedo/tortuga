@@ -1,8 +1,9 @@
 use crate::ParseNumberError;
 use std::fmt::{Display, Formatter};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Rem, RemAssign, Sub, SubAssign};
 use std::str::FromStr;
 
-#[derive(Copy, Clone, Debug, Default, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Debug, Default, PartialOrd)]
 pub struct Number(f64);
 
 impl Number {
@@ -25,6 +26,15 @@ impl FromStr for Number {
     }
 }
 
+impl<N> PartialEq<N> for Number
+where
+    N: Copy + Into<Self>,
+{
+    fn eq(&self, other: &N) -> bool {
+        let other: Self = (*other).into();
+        self.0 == other.0
+    }
+}
 impl From<f64> for Number {
     fn from(float: f64) -> Self {
         Number(float)
@@ -114,6 +124,40 @@ impl From<bool> for Number {
         Number(if non_zero { 1.0 } else { 0.0 })
     }
 }
+
+macro_rules! impl_operator_for_number {
+    ($t:ident, $f:ident, $op:tt) => {
+        impl $t for Number {
+            type Output = Self;
+
+            fn $f(self, other: Self) -> Self {
+                Number(self.0 $op other.0)
+            }
+        }
+    };
+}
+
+impl_operator_for_number!(Add, add, +);
+impl_operator_for_number!(Sub, sub, -);
+impl_operator_for_number!(Mul, mul, *);
+impl_operator_for_number!(Div, div, /);
+impl_operator_for_number!(Rem, rem, %);
+
+macro_rules! impl_assign_operator_for_number {
+    ($t:ident, $f:ident, $op:tt) => {
+        impl $t for Number {
+            fn $f(&mut self, other: Self) {
+                self.0 $op other.0;
+            }
+        }
+    };
+}
+
+impl_assign_operator_for_number!(AddAssign, add_assign, +=);
+impl_assign_operator_for_number!(SubAssign, sub_assign, -=);
+impl_assign_operator_for_number!(MulAssign, mul_assign, *=);
+impl_assign_operator_for_number!(DivAssign, div_assign, /=);
+impl_assign_operator_for_number!(RemAssign, rem_assign, %=);
 
 #[cfg(test)]
 mod tests {

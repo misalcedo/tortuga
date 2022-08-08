@@ -1,6 +1,6 @@
 use crate::error::{ErrorKind, RuntimeError};
+use crate::Executable;
 use crate::Identifier;
-use crate::Program;
 use crate::Value;
 use crate::{CallFrame, Number};
 use crate::{Closure, Function};
@@ -11,7 +11,7 @@ use std::mem::size_of;
 #[derive(Clone, Debug, Default)]
 pub struct VirtualMachine<Courier> {
     courier: Courier,
-    code: Program,
+    executable: Executable,
     cursor: usize,
     stack: Vec<Value>,
     frames: Vec<CallFrame>,
@@ -47,10 +47,10 @@ impl<C: Courier> VirtualMachine<C> {
         Self::branch_if_non_zero_operation,
     ];
 
-    pub fn new(code: Program, courier: C) -> Self {
+    pub fn new(code: Executable, courier: C) -> Self {
         VirtualMachine {
             courier,
-            code,
+            executable: code,
             cursor: 0,
             stack: vec![],
             frames: vec![],
@@ -66,7 +66,7 @@ impl<C: Courier> VirtualMachine<C> {
 
         self.enter_function(function)?;
 
-        while self.cursor < self.code.len() {
+        while self.cursor < self.executable.len() {
             let operation = self.get_operation()?;
 
             operation(self)?;
@@ -370,7 +370,7 @@ impl<C: Courier> VirtualMachine<C> {
     fn get_constant_number(&mut self) -> RuntimeResult<&Number> {
         let index = self.read_byte()? as usize;
 
-        self.code
+        self.executable
             .number(index)
             .ok_or_else(|| ErrorKind::NoSuchConstant(index).into())
     }
@@ -378,7 +378,7 @@ impl<C: Courier> VirtualMachine<C> {
     fn get_constant_text(&mut self) -> RuntimeResult<&Text> {
         let index = self.read_byte()? as usize;
 
-        self.code
+        self.executable
             .text(index)
             .ok_or_else(|| ErrorKind::NoSuchConstant(index).into())
     }
@@ -386,7 +386,7 @@ impl<C: Courier> VirtualMachine<C> {
     fn get_constant_function(&mut self) -> RuntimeResult<&Function> {
         let index = self.read_byte()? as usize;
 
-        self.code
+        self.executable
             .function(index)
             .ok_or_else(|| ErrorKind::NoSuchConstant(index).into())
     }
@@ -404,7 +404,7 @@ impl<C: Courier> VirtualMachine<C> {
 
     fn read<T>(&mut self) -> RuntimeResult<&[u8]> {
         let size = size_of::<T>();
-        let operand = self.code.content(self.cursor, size);
+        let operand = self.executable.code(self.cursor, size);
 
         if operand.len() == size {
             self.cursor += size;
@@ -472,7 +472,7 @@ impl<C: Courier> VirtualMachine<C> {
     fn get_function(&mut self) -> RuntimeResult<Function> {
         let slot = self.read_byte()? as usize;
         let function = self
-            .code
+            .executable
             .function(slot)
             .ok_or_else(|| RuntimeError::from(ErrorKind::NoSuchFunction(slot)))?;
 
@@ -484,9 +484,4 @@ impl<C: Courier> VirtualMachine<C> {
             .try_into()
             .map_err(|value| ErrorKind::ExpectedClosure(value).into())
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
 }
