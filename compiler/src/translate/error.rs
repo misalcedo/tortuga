@@ -1,4 +1,6 @@
+use crate::translate::uri::ParseUriError;
 use std::fmt::{Display, Formatter};
+use tortuga_executable::ParseNumberError;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TranslationError(String);
@@ -20,5 +22,17 @@ impl From<&str> for TranslationError {
 impl From<String> for TranslationError {
     fn from(error: String) -> Self {
         TranslationError(error)
+    }
+}
+
+impl From<ParseNumberError> for TranslationError {
+    fn from(error: ParseNumberError) -> Self {
+        TranslationError(format!("{}", error))
+    }
+}
+
+impl From<ParseUriError> for TranslationError {
+    fn from(error: ParseUriError) -> Self {
+        TranslationError(format!("{}", error))
     }
 }

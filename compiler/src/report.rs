@@ -2,12 +2,13 @@ use crate::analyze::AnalyticalError;
 use crate::error::CompilationError;
 use crate::parse::SyntacticalError;
 use crate::scan::LexicalError;
+use crate::translate::TranslationError;
 
 pub trait ErrorReporter {
     fn report_lexical_error(&mut self, error: LexicalError);
     fn report_syntax_error(&mut self, error: SyntacticalError);
     fn report_analysis_error(&mut self, error: AnalyticalError);
-    fn report_translation_error(&mut self, error: AnalyticalError);
+    fn report_translation_error(&mut self, error: TranslationError);
 }
 
 impl ErrorReporter for Vec<CompilationError> {
@@ -23,7 +24,7 @@ impl ErrorReporter for Vec<CompilationError> {
         self.push(error.into())
     }
 
-    fn report_translation_error(&mut self, error: AnalyticalError) {
+    fn report_translation_error(&mut self, error: TranslationError) {
         self.push(error.into())
     }
 }
