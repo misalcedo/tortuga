@@ -8,14 +8,14 @@ mod number;
 mod uri;
 mod value;
 
-use crate::grammar::{Expression, InternalKind, Terminal, Uri, WithoutScopeDepth};
+use crate::grammar::{Expression, Internal, InternalKind, PostOrderIterator, Terminal, Uri};
 use constant::Constants;
 pub use error::TranslationError;
 use value::Value;
 
-pub struct Translator<'a, Reporter> {
+pub struct Translator<'a, Iterator, Reporter> {
     reporter: Reporter,
-    program: Program<'a>,
+    iterator: Iterator,
     contexts: Vec<()>,
     code: Vec<Operation>,
     functions: Constants<Function>,
@@ -32,14 +32,15 @@ pub struct Translation<'a> {
 
 type TranslationResult<Output> = Result<Output, TranslationError>;
 
-impl<'a, R> Translator<'a, R>
+impl<'a, 'b, R> Translator<'a, PostOrderIterator<'a, 'b>, R>
 where
+    'a: 'b,
     R: ErrorReporter,
 {
-    fn new(program: Program<'a>, reporter: R) -> Self {
+    fn new(program: &'b Program<'a>, reporter: R) -> Self {
         Translator {
             reporter,
-            program,
+            iterator: program.iter_post_order(),
             contexts: vec![Default::default()],
             code: Default::default(),
             functions: Default::default(),
@@ -50,26 +51,27 @@ where
         }
     }
 
-    pub fn translate(mut self) -> Result<Translation<'a>, R> {
+    pub fn translate(mut self) -> Result<Executable, R> {
         if let Err(e) = self.simulate() {
-            self.had_error = true;
-            self.reporter.report_translation_error(e);
+            self.report_error(e);
         }
 
         if self.had_error {
             Err(self.reporter)
         } else {
-            Ok(Translation {
-                input: self.program,
-                output: Executable::new(self.code, self.functions, self.numbers, self.texts),
-            })
+            Ok(Executable::new(
+                self.code,
+                self.functions,
+                self.numbers,
+                self.texts,
+            ))
         }
     }
 
     fn simulate(&mut self) -> TranslationResult<()> {
-        let previous_depth = 0;
+        let mut previous_depth = 0;
 
-        for (depth, expression) in self.program.iter_post_order() {
+        while let Some((depth, expression)) = self.iterator.next() {
             if previous_depth < depth {
                 self.contexts.push(());
             } else if previous_depth > depth {
@@ -78,64 +80,120 @@ where
                 })?;
             }
 
-            match expression {
-                Expression::Internal(internal) => match internal.kind() {
-                    InternalKind::Block => {}
-                    InternalKind::Equality => {}
-                    InternalKind::Modulo => {}
-                    InternalKind::Subtract => {}
-                    InternalKind::Add => {}
-                    InternalKind::Divide => {}
-                    InternalKind::Multiply => {}
-                    InternalKind::Power => {}
-                    InternalKind::Call => {}
-                    InternalKind::Grouping => {}
-                    InternalKind::Condition => {}
-                    InternalKind::Inequality => {}
-                    InternalKind::LessThan => {}
-                    InternalKind::GreaterThan => {}
-                    InternalKind::LessThanOrEqualTo => {}
-                    InternalKind::GreaterThanOrEqualTo => {}
-                },
-                Expression::Terminal(terminal) => match terminal {
-                    Terminal::Identifier(identifier) => {
-                        todo!()
-                    }
-                    Terminal::Number(number) => {
-                        let constant = match Number::try_from(*number) {
-                            Ok(c) => c,
-                            Err(e) => {
-                                self.had_error = true;
-                                self.reporter
-                                    .report_translation_error(TranslationError::from(e));
+            previous_depth = depth;
 
-                                Number::default()
-                            }
-                        };
-                        let index = self.numbers.insert(constant, *number);
-
-                        self.stack.push(Value::ConstantNumber(index));
-                    }
-                    Terminal::Uri(uri) => {
-                        let constant = match Text::try_from(*uri) {
-                            Ok(c) => c,
-                            Err(e) => {
-                                self.had_error = true;
-                                self.reporter
-                                    .report_translation_error(TranslationError::from(e));
-
-                                Text::default()
-                            }
-                        };
-                        let index = self.texts.insert(constant, *uri);
-
-                        self.stack.push(Value::ConstantText(index));
-                    }
-                },
-            };
+            self.simulate_expression(expression)?;
         }
 
         Ok(())
+    }
+
+    fn simulate_expression(&mut self, expression: &Expression<'a>) -> TranslationResult<()> {
+        match expression {
+            Expression::Internal(internal) => self.simulate_internal(internal),
+            Expression::Terminal(terminal) => self.simulate_terminal(terminal),
+        }
+    }
+
+    fn simulate_internal(&mut self, internal: &Internal) -> TranslationResult<()> {
+        match internal.kind() {
+            InternalKind::Block => {}
+            InternalKind::Equality => {}
+            InternalKind::Modulo => {}
+            InternalKind::Subtract => {}
+            InternalKind::Add => self.simulate_add()?,
+            InternalKind::Divide => {}
+            InternalKind::Multiply => {}
+            InternalKind::Power => {}
+            InternalKind::Call => {}
+            InternalKind::Grouping => {}
+            InternalKind::Condition => {}
+            InternalKind::Inequality => {}
+            InternalKind::LessThan => {}
+            InternalKind::GreaterThan => {}
+            InternalKind::LessThanOrEqualTo => {}
+            InternalKind::GreaterThanOrEqualTo => {}
+        };
+
+        Ok(())
+    }
+
+    fn simulate_add(&mut self) -> TranslationResult<()> {
+        let b = self.pop()?;
+        let a = self.pop()?;
+
+        match (a, b) {
+            (Value::ConstantNumber(lhs), Value::ConstantNumber(rhs)) => {}
+            (Value::Number, Value::Number) => {}
+            (Value::ConstantNumber(lhs), Value::Number) => {}
+            (Value::Number, Value::ConstantNumber(rhs)) => {}
+            (lhs, rhs) => {}
+        };
+
+        Ok(())
+    }
+
+    fn simulate_terminal(&mut self, terminal: &Terminal<'a>) -> TranslationResult<()> {
+        match terminal {
+            Terminal::Identifier(identifier) => {
+                todo!()
+            }
+            Terminal::Number(number) => {
+                self.simulate_number(*number);
+            }
+            Terminal::Uri(uri) => {
+                self.simulate_uri(*uri);
+            }
+        };
+
+        Ok(())
+    }
+
+    fn simulate_uri(&mut self, uri: Uri<'a>) {
+        let constant = match Text::try_from(uri) {
+            Ok(c) => c,
+            Err(e) => {
+                self.report_error(e);
+                Text::default()
+            }
+        };
+        let index = self.texts.insert(constant, uri);
+
+        if index >= u8::MAX as usize {
+            self.report_error("Too many URI constants (max is 256).");
+        }
+
+        self.code.push(Operation::ConstantText(index as u8));
+        self.stack.push(Value::ConstantText(index));
+    }
+
+    fn simulate_number(&mut self, number: grammar::Number<'a>) {
+        let constant = match Number::try_from(number) {
+            Ok(c) => c,
+            Err(e) => {
+                self.report_error(e);
+                Number::default()
+            }
+        };
+        let index = self.numbers.insert(constant, number);
+
+        if index >= u8::MAX as usize {
+            self.report_error("Too many number constants (max is 256).");
+        }
+
+        self.code.push(Operation::ConstantNumber(index as u8));
+        self.stack.push(Value::ConstantNumber(index));
+    }
+
+    fn pop(&mut self) -> TranslationResult<Value> {
+        self.stack
+            .pop()
+            .ok_or_else(|| TranslationError::from("Translation value stack is unexpectedly empty."))
+    }
+
+    fn report_error<E: Into<TranslationError>>(&mut self, error: E) {
+        self.had_error = true;
+        self.reporter.report_translation_error(error.into());
     }
 }
 
@@ -150,7 +208,11 @@ impl<'a> TryFrom<&'a str> for Translation<'a> {
 
     fn try_from(input: &'a str) -> Result<Self, Self::Error> {
         let program = Program::try_from(input)?;
+        let executable = Translator::new(&program, Vec::default()).translate()?;
 
-        Translator::new(program, Vec::default()).translate()
+        Ok(Translation {
+            input: program,
+            output: executable,
+        })
     }
 }
