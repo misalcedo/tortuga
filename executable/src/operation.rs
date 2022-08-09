@@ -216,3 +216,9 @@ impl From<&[Operation]> for Code {
         Code::from(code)
     }
 }
+
+impl From<Vec<Operation>> for Code {
+    fn from(operations: Vec<Operation>) -> Self {
+        operations.as_slice().into()
+    }
+}

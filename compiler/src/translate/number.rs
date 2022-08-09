@@ -1,5 +1,4 @@
 use crate::grammar;
-use std::num::ParseFloatError;
 use tortuga_executable::{Number, ParseNumberError};
 
 impl<'a> TryFrom<grammar::Number<'a>> for Number {

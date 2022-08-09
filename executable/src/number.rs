@@ -35,6 +35,7 @@ where
         self.0 == other.0
     }
 }
+
 impl From<f64> for Number {
     fn from(float: f64) -> Self {
         Number(float)
