@@ -1,8 +1,9 @@
 //! Errors that may occur during lexical analysis.
 
-use crate::analysis::AnalyticalError;
+use crate::analyze::AnalyticalError;
 use crate::parse::SyntacticalError;
 use crate::scan::LexicalError;
+use crate::translate::TranslationError;
 use std::fmt::{self, Display, Formatter};
 
 /// An error that occurred while compiling source code.
@@ -45,6 +46,14 @@ impl From<SyntacticalError> for CompilationError {
 
 impl From<AnalyticalError> for CompilationError {
     fn from(error: AnalyticalError) -> Self {
+        CompilationError {
+            message: format!("{}", &error),
+        }
+    }
+}
+
+impl From<TranslationError> for CompilationError {
+    fn from(error: TranslationError) -> Self {
         CompilationError {
             message: format!("{}", &error),
         }

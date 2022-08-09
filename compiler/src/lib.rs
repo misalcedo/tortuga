@@ -1,18 +1,16 @@
 //! Public interface of the tortuga compiler.
 
-mod analysis;
-mod emit;
+mod analyze;
 mod error;
-mod executable;
 pub mod grammar;
 mod location;
 mod parse;
 mod report;
 mod scan;
 mod token;
+mod translate;
 mod unicode;
 
-pub use emit::BinaryEmitter;
 pub use error::CompilationError;
 pub use grammar::Program;
 pub use location::Location;
