@@ -107,7 +107,9 @@ where
                             Err(e) => {
                                 self.had_error = true;
                                 self.reporter
-                                    .report_translation_error(TranslationError::from(e))
+                                    .report_translation_error(TranslationError::from(e));
+
+                                Number::default()
                             }
                         };
                         let index = self.numbers.insert(constant, *number);
@@ -120,7 +122,9 @@ where
                             Err(e) => {
                                 self.had_error = true;
                                 self.reporter
-                                    .report_translation_error(TranslationError::from(e))
+                                    .report_translation_error(TranslationError::from(e));
+
+                                Text::default()
                             }
                         };
                         let index = self.texts.insert(constant, *uri);
