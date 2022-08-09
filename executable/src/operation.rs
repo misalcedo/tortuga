@@ -1,3 +1,5 @@
+use crate::Code;
+
 pub type LocalOffset = u8;
 pub type CaptureOffset = u8;
 pub type ConstantIndex = u8;
@@ -100,19 +102,11 @@ impl From<&Operation> for u8 {
     }
 }
 
-pub trait ToCode {
-    fn to_code(self) -> Vec<u8>;
-}
-
-impl<'a, I, II> ToCode for II
-where
-    I: Iterator<Item = &'a Operation>,
-    II: IntoIterator<Item = I::Item, IntoIter = I>,
-{
-    fn to_code(self) -> Vec<u8> {
+impl From<&[Operation]> for Code {
+    fn from(operations: &[Operation]) -> Code {
         let mut code = Vec::default();
 
-        for operation in self.into_iter() {
+        for operation in operations {
             match operation {
                 Operation::ConstantNumber(operand) => {
                     let bytes = [u8::from(operation), *operand];
@@ -219,6 +213,6 @@ where
             }
         }
 
-        code
+        Code::from(code)
     }
 }
