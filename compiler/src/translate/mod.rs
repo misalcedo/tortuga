@@ -265,9 +265,10 @@ mod tests {
 
     #[test]
     fn add_wrong_types() {
-        assert!(!Translation::try_from("x = \"Hello\"\nx + 42")
-            .unwrap_err()
-            .is_empty());
+        assert_eq!(
+            Translation::try_from("\"Hello\" + 42").unwrap_err().len(),
+            1
+        );
     }
 
     // #[test]
