@@ -2,13 +2,19 @@ use crate::Program;
 use crate::{grammar, CompilationError, ErrorReporter};
 use tortuga_executable::{Executable, Function, Number, Operation, Text};
 
+mod capture;
 mod constant;
+mod context;
 mod error;
+mod local;
 mod number;
 mod uri;
 mod value;
 
-use crate::grammar::{Expression, Internal, InternalKind, PostOrderIterator, Terminal, Uri};
+use crate::grammar::{
+    Expression, Identifier, Internal, InternalKind, PostOrderIterator, Terminal, Uri,
+};
+use crate::translate::context::ScopeContext;
 use constant::Constants;
 pub use error::TranslationError;
 use value::Value;
@@ -16,7 +22,7 @@ use value::Value;
 pub struct Translator<'a, Iterator, Reporter> {
     reporter: Reporter,
     iterator: Iterator,
-    contexts: Vec<()>,
+    contexts: Vec<ScopeContext<'a>>,
     code: Vec<Operation>,
     functions: Constants<Function>,
     numbers: Constants<Number, grammar::Number<'a>>,
@@ -25,6 +31,7 @@ pub struct Translator<'a, Iterator, Reporter> {
     had_error: bool,
 }
 
+#[derive(Clone, Debug, PartialEq)]
 pub struct Translation<'a> {
     input: Program<'a>,
     output: Executable,
@@ -73,7 +80,7 @@ where
 
         while let Some((depth, expression)) = self.iterator.next() {
             if previous_depth < depth {
-                self.contexts.push(());
+                self.contexts.push(ScopeContext::default());
             } else if previous_depth > depth {
                 self.contexts.pop().ok_or_else(|| {
                     TranslationError::from("Expected context stack to not be empty.")
@@ -99,18 +106,18 @@ where
         match internal.kind() {
             InternalKind::Block => {}
             InternalKind::Equality => {}
-            InternalKind::Modulo => {}
-            InternalKind::Subtract => {}
-            InternalKind::Add => self.simulate_add()?,
-            InternalKind::Divide => {}
-            InternalKind::Multiply => {}
+            InternalKind::Modulo => self.simulate_binary(Operation::Remainder)?,
+            InternalKind::Subtract => self.simulate_binary(Operation::Subtract)?,
+            InternalKind::Add => self.simulate_binary(Operation::Add)?,
+            InternalKind::Divide => self.simulate_binary(Operation::Divide)?,
+            InternalKind::Multiply => self.simulate_binary(Operation::Multiply)?,
             InternalKind::Power => {}
             InternalKind::Call => {}
             InternalKind::Grouping => {}
             InternalKind::Condition => {}
             InternalKind::Inequality => {}
-            InternalKind::LessThan => {}
-            InternalKind::GreaterThan => {}
+            InternalKind::LessThan => self.simulate_binary(Operation::Less)?,
+            InternalKind::GreaterThan => self.simulate_binary(Operation::Greater)?,
             InternalKind::LessThanOrEqualTo => {}
             InternalKind::GreaterThanOrEqualTo => {}
         };
@@ -118,26 +125,35 @@ where
         Ok(())
     }
 
-    fn simulate_add(&mut self) -> TranslationResult<()> {
+    fn simulate_binary(&mut self, operation: Operation) -> TranslationResult<()> {
         let b = self.pop()?;
         let a = self.pop()?;
 
         match (a, b) {
-            (Value::ConstantNumber(lhs), Value::ConstantNumber(rhs)) => {}
-            (Value::Number, Value::Number) => {}
-            (Value::ConstantNumber(lhs), Value::Number) => {}
-            (Value::Number, Value::ConstantNumber(rhs)) => {}
-            (lhs, rhs) => {}
+            (Value::Number(_), Value::Number(_)) => {
+                self.code.push(operation);
+                self.stack.push(Value::Number(None));
+            }
+            (Value::Any, Value::Any) => self.stack.push(Value::Any),
+            (_, _) => {
+                self.report_error("Operands must be numbers.");
+                self.stack.push(Value::Any);
+            }
         };
 
         Ok(())
     }
 
+    fn get_number(&mut self, index: usize) -> TranslationResult<Number> {
+        self.numbers
+            .get(index)
+            .copied()
+            .ok_or_else(|| TranslationError::from("Invalid index for number constant."))
+    }
+
     fn simulate_terminal(&mut self, terminal: &Terminal<'a>) -> TranslationResult<()> {
         match terminal {
-            Terminal::Identifier(identifier) => {
-                todo!()
-            }
+            Terminal::Identifier(identifier) => self.simulate_identifier(identifier),
             Terminal::Number(number) => {
                 self.simulate_number(*number);
             }
@@ -147,6 +163,10 @@ where
         };
 
         Ok(())
+    }
+
+    fn simulate_identifier(&mut self, identifier: &Identifier<'a>) {
+        self.stack.push(Value::Unknown);
     }
 
     fn simulate_uri(&mut self, uri: Uri<'a>) {
@@ -164,7 +184,7 @@ where
         }
 
         self.code.push(Operation::ConstantText(index as u8));
-        self.stack.push(Value::ConstantText(index));
+        self.stack.push(Value::Text(Some(index)));
     }
 
     fn simulate_number(&mut self, number: grammar::Number<'a>) {
@@ -182,7 +202,7 @@ where
         }
 
         self.code.push(Operation::ConstantNumber(index as u8));
-        self.stack.push(Value::ConstantNumber(index));
+        self.stack.push(Value::Number(Some(index)));
     }
 
     fn pop(&mut self) -> TranslationResult<Value> {
@@ -215,4 +235,54 @@ impl<'a> TryFrom<&'a str> for Translation<'a> {
             output: executable,
         })
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tortuga_executable::OperationCode;
+
+    // #[test]
+    // fn undefined_variable() {
+    //     assert!(!Analysis::try_from("x + 42").unwrap_err().is_empty());
+    // }
+
+    #[test]
+    fn add_numbers() {
+        let executable: Executable = Translation::try_from("2 + 40").unwrap().into();
+
+        assert_eq!(
+            executable.code(0, executable.len()),
+            &[
+                OperationCode::ConstantNumber as u8,
+                0,
+                OperationCode::ConstantNumber as u8,
+                1,
+                OperationCode::Add as u8
+            ]
+        );
+    }
+
+    #[test]
+    fn add_wrong_types() {
+        assert!(!Translation::try_from("x = \"Hello\"\nx + 42")
+            .unwrap_err()
+            .is_empty());
+    }
+
+    // #[test]
+    // fn undefined() {
+    //     assert!(
+    //         !Analysis::try_from(include_str!("../../../examples/undefined.ta"))
+    //             .unwrap_err()
+    //             .is_empty()
+    //     );
+    // }
+    //
+    // #[test]
+    // fn factorial() {
+    //     let analysis = Analysis::try_from(include_str!("../../../examples/factorial.ta")).unwrap();
+    //
+    //     assert!(false);
+    // }
 }

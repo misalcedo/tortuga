@@ -11,7 +11,7 @@ pub use code::Code;
 pub use error::ParseNumberError;
 pub use function::Function;
 pub use number::Number;
-pub use operation::Operation;
+pub use operation::{Operation, OperationCode};
 pub use text::Text;
 
 #[derive(Clone, Debug, Default, PartialEq)]

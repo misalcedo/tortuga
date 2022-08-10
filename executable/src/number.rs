@@ -1,9 +1,10 @@
 use crate::ParseNumberError;
+use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Rem, RemAssign, Sub, SubAssign};
 use std::str::FromStr;
 
-#[derive(Copy, Clone, Debug, Default, PartialOrd)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct Number(f64);
 
 impl Number {
@@ -33,6 +34,16 @@ where
     fn eq(&self, other: &N) -> bool {
         let other: Self = (*other).into();
         self.0 == other.0
+    }
+}
+
+impl<N> PartialOrd<N> for Number
+where
+    N: Copy + Into<Self>,
+{
+    fn partial_cmp(&self, other: &N) -> Option<Ordering> {
+        let other: Self = (*other).into();
+        self.0.partial_cmp(&other.0)
     }
 }
 

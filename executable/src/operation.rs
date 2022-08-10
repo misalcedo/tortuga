@@ -34,7 +34,7 @@ pub enum Operation {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 #[repr(u8)]
-enum OperationCode {
+pub enum OperationCode {
     ConstantNumber,
     ConstantText,
     Pop,

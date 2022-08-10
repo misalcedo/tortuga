@@ -1,6 +1,5 @@
 //! Errors that may occur during lexical analysis.
 
-use crate::analyze::AnalyticalError;
 use crate::parse::SyntacticalError;
 use crate::scan::LexicalError;
 use crate::translate::TranslationError;
@@ -38,14 +37,6 @@ impl From<LexicalError> for CompilationError {
 
 impl From<SyntacticalError> for CompilationError {
     fn from(error: SyntacticalError) -> Self {
-        CompilationError {
-            message: format!("{}", &error),
-        }
-    }
-}
-
-impl From<AnalyticalError> for CompilationError {
-    fn from(error: AnalyticalError) -> Self {
         CompilationError {
             message: format!("{}", &error),
         }
