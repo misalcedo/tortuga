@@ -105,23 +105,35 @@ where
     fn simulate_internal(&mut self, internal: &Internal) -> TranslationResult<()> {
         match internal.kind() {
             InternalKind::Block => {}
-            InternalKind::Equality => {}
+            InternalKind::Equality => self.simulate_equality()?,
             InternalKind::Modulo => self.simulate_binary(Operation::Remainder)?,
             InternalKind::Subtract => self.simulate_binary(Operation::Subtract)?,
             InternalKind::Add => self.simulate_binary(Operation::Add)?,
             InternalKind::Divide => self.simulate_binary(Operation::Divide)?,
             InternalKind::Multiply => self.simulate_binary(Operation::Multiply)?,
-            InternalKind::Power => {}
+            InternalKind::Power => todo!(),
             InternalKind::Call => {}
             InternalKind::Grouping => {}
             InternalKind::Condition => {}
-            InternalKind::Inequality => {}
+            InternalKind::Inequality => self.simulate_negated_binary(Operation::Equal)?,
             InternalKind::LessThan => self.simulate_binary(Operation::Less)?,
             InternalKind::GreaterThan => self.simulate_binary(Operation::Greater)?,
-            InternalKind::LessThanOrEqualTo => {}
-            InternalKind::GreaterThanOrEqualTo => {}
+            InternalKind::LessThanOrEqualTo => self.simulate_negated_binary(Operation::Greater)?,
+            InternalKind::GreaterThanOrEqualTo => self.simulate_negated_binary(Operation::Less)?,
         };
 
+        Ok(())
+    }
+
+    fn simulate_equality(&mut self) -> TranslationResult<()> {
+        Ok(())
+    }
+
+    fn simulate_call(&mut self) -> TranslationResult<()> {
+        Ok(())
+    }
+
+    fn simulate_condition(&mut self) -> TranslationResult<()> {
         Ok(())
     }
 
@@ -131,6 +143,26 @@ where
 
         match (a, b) {
             (Value::Number(_), Value::Number(_)) => {
+                self.code.push(operation);
+                self.stack.push(Value::Number(None));
+            }
+            (Value::Any, Value::Any) => self.stack.push(Value::Any),
+            (_, _) => {
+                self.report_error("Operands must be numbers.");
+                self.stack.push(Value::Any);
+            }
+        };
+
+        Ok(())
+    }
+
+    fn simulate_negated_binary(&mut self, operation: Operation) -> TranslationResult<()> {
+        let b = self.pop()?;
+        let a = self.pop()?;
+
+        match (a, b) {
+            (Value::Number(_), Value::Number(_)) => {
+                self.code.push(Operation::Not);
                 self.code.push(operation);
                 self.stack.push(Value::Number(None));
             }
