@@ -28,7 +28,6 @@ pub struct Translator<'a, Iterator, Reporter> {
     numbers: Constants<Number, grammar::Number<'a>>,
     texts: Constants<Text, Uri<'a>>,
     stack: Vec<Value>,
-    had_error: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -54,7 +53,6 @@ where
             numbers: Default::default(),
             texts: Default::default(),
             stack: Default::default(),
-            had_error: false,
         }
     }
 
@@ -63,7 +61,7 @@ where
             self.report_error(e);
         }
 
-        if self.had_error {
+        if self.reporter.had_error() {
             Err(self.reporter)
         } else {
             Ok(Executable::new(
@@ -244,7 +242,6 @@ where
     }
 
     fn report_error<E: Into<TranslationError>>(&mut self, error: E) {
-        self.had_error = true;
         self.reporter.report_translation_error(error.into());
     }
 }

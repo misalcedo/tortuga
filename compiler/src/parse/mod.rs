@@ -25,7 +25,6 @@ pub struct Parser<'a, Iterator, Reporter> {
     program: Program<'a>,
     children: Vec<ExpressionReference>,
     end_location: Location,
-    had_error: bool,
 }
 
 type SyntacticalResult<Output> = Result<Output, SyntacticalError>;
@@ -67,7 +66,6 @@ where
             program: Program::default(),
             children: Vec::default(),
             end_location: Location::default(),
-            had_error: false,
         }
     }
 
@@ -86,7 +84,7 @@ where
             }
         }
 
-        if self.had_error {
+        if self.reporter.had_error() {
             Err(self.reporter)
         } else {
             Ok(self.program)
@@ -94,7 +92,6 @@ where
     }
 
     fn synchronize(&mut self, error: SyntacticalError) {
-        self.had_error = true;
         self.reporter.report_syntax_error(error);
 
         loop {
@@ -286,7 +283,6 @@ where
             match self.tokens.next()? {
                 Ok(token) => return Some(token),
                 Err(error) => {
-                    self.had_error = true;
                     self.reporter.report_lexical_error(error);
                 }
             }

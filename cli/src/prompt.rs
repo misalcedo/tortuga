@@ -12,13 +12,14 @@ use rustyline::validate::{ValidationContext, ValidationResult, Validator};
 use rustyline::{error::ReadlineError, Editor, Helper};
 use std::io::{stderr, stdout, Write};
 use tortuga_compiler::{
-    ErrorReporter, LexicalError, Parser, Scanner, SyntacticalError, Translation, TranslationError,
+    CompilationError, ErrorReporter, LexicalError, Parser, Scanner, SyntacticalError, Translation,
+    TranslationError,
 };
 use tortuga_vm::{Identifier, Value, VirtualMachine};
 use tracing::error;
 
 #[derive(Default)]
-struct PromptHelper(Option<SyntacticalError>);
+struct PromptHelper(Option<SyntacticalError>, Vec<CompilationError>);
 
 /// The prompt used to communicate with a user.
 pub struct Prompt {
@@ -77,13 +78,22 @@ impl Hinter for PromptHelper {
 }
 
 impl ErrorReporter for PromptHelper {
-    fn report_lexical_error(&mut self, _: LexicalError) {}
-
-    fn report_syntax_error(&mut self, error: SyntacticalError) {
-        self.0 = Some(error);
+    fn report_lexical_error(&mut self, error: LexicalError) {
+        self.1.push(error.into());
     }
 
-    fn report_translation_error(&mut self, _: TranslationError) {}
+    fn report_syntax_error(&mut self, error: SyntacticalError) {
+        self.0 = Some(error.clone());
+        self.1.push(error.into());
+    }
+
+    fn report_translation_error(&mut self, error: TranslationError) {
+        self.1.push(error.into());
+    }
+
+    fn had_error(&self) -> bool {
+        todo!()
+    }
 }
 
 impl Validator for PromptHelper {
@@ -97,7 +107,7 @@ impl Validator for PromptHelper {
 
         match parser.parse() {
             Ok(_) => Ok(ValidationResult::Valid(None)),
-            Err(PromptHelper(Some(error))) if error.is_incomplete() => {
+            Err(PromptHelper(Some(error), _)) if error.is_incomplete() => {
                 Ok(ValidationResult::Invalid(Some(format!("\t{}", error))))
             }
             Err(_) => Ok(ValidationResult::Incomplete),
