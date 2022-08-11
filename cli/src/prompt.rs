@@ -93,7 +93,7 @@ impl Validator for PromptHelper {
         }
 
         let scanner = Scanner::from(ctx.input());
-        let mut parser = Parser::new(scanner, PromptHelper::default());
+        let parser = Parser::new(scanner, PromptHelper::default());
 
         match parser.parse() {
             Ok(_) => Ok(ValidationResult::Valid(None)),

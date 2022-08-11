@@ -386,14 +386,6 @@ impl<C: Courier> VirtualMachine<C> {
             .ok_or_else(|| ErrorKind::NoSuchConstant(index).into())
     }
 
-    fn get_constant_function(&mut self) -> RuntimeResult<&Function> {
-        let index = self.read_byte()? as usize;
-
-        self.executable
-            .function(index)
-            .ok_or_else(|| ErrorKind::NoSuchConstant(index).into())
-    }
-
     fn read_byte(&mut self) -> RuntimeResult<u8> {
         Ok(self.read::<u8>()?[0])
     }
