@@ -8,6 +8,7 @@ use std::fmt::{self, Display, Formatter};
 #[derive(Clone, Debug, PartialEq)]
 pub struct SyntacticalError {
     message: String,
+    incomplete: bool,
     start: Location,
 }
 
@@ -23,15 +24,29 @@ impl From<LexicalError> for SyntacticalError {
     fn from(error: LexicalError) -> Self {
         SyntacticalError {
             message: format!("{}", &error),
+            incomplete: false,
             start: *error.start(),
         }
     }
 }
 
 impl SyntacticalError {
+    pub fn is_incomplete(&self) -> bool {
+        self.incomplete
+    }
+
     pub fn new(message: &str, start: Location) -> Self {
         SyntacticalError {
             message: message.to_string(),
+            incomplete: false,
+            start,
+        }
+    }
+
+    pub fn incomplete(message: &str, start: Location) -> Self {
+        SyntacticalError {
+            message: message.to_string(),
+            incomplete: true,
             start,
         }
     }

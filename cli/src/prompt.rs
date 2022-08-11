@@ -11,11 +11,14 @@ use rustyline::line_buffer::LineBuffer;
 use rustyline::validate::{ValidationContext, ValidationResult, Validator};
 use rustyline::{error::ReadlineError, Editor, Helper};
 use std::io::{stderr, stdout, Write};
-use tortuga_compiler::Translation;
+use tortuga_compiler::{
+    ErrorReporter, LexicalError, Parser, Scanner, SyntacticalError, Translation, TranslationError,
+};
 use tortuga_vm::{Identifier, Value, VirtualMachine};
 use tracing::error;
 
-struct PromptHelper;
+#[derive(Default)]
+struct PromptHelper(Option<SyntacticalError>);
 
 /// The prompt used to communicate with a user.
 pub struct Prompt {
@@ -32,7 +35,7 @@ impl Prompt {
             .build();
         let mut editor = Editor::<PromptHelper>::with_config(config)?;
 
-        editor.set_helper(Some(PromptHelper));
+        editor.set_helper(Some(PromptHelper::default()));
 
         Ok(Prompt { line: 1, editor })
     }
@@ -73,18 +76,30 @@ impl Hinter for PromptHelper {
     type Hint = String;
 }
 
+impl ErrorReporter for PromptHelper {
+    fn report_lexical_error(&mut self, _: LexicalError) {}
+
+    fn report_syntax_error(&mut self, error: SyntacticalError) {
+        self.0 = Some(error);
+    }
+
+    fn report_translation_error(&mut self, _: TranslationError) {}
+}
+
 impl Validator for PromptHelper {
     fn validate(&self, ctx: &mut ValidationContext) -> Result<ValidationResult, ReadlineError> {
         if ctx.input().trim().is_empty() {
             return Ok(ValidationResult::Valid(None));
         }
 
-        match Translation::try_from(ctx.input()) {
+        let scanner = Scanner::from(ctx.input());
+        let mut parser = Parser::new(scanner, PromptHelper::default());
+
+        match parser.parse() {
             Ok(_) => Ok(ValidationResult::Valid(None)),
-            // TODO: Handle incomplete entries.
-            // Err(errors) if error.is_complete() => {
-            //     Ok(ValidationResult::Invalid(Some(format!("\t{}", error))))
-            // }
+            Err(PromptHelper(Some(error))) if error.is_incomplete() => {
+                Ok(ValidationResult::Invalid(Some(format!("\t{}", error))))
+            }
             Err(_) => Ok(ValidationResult::Incomplete),
         }
     }

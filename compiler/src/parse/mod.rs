@@ -55,7 +55,7 @@ where
     I: Iterator<Item = Result<Token<'a>, LexicalError>>,
     R: ErrorReporter,
 {
-    fn new<II>(tokens: II, reporter: R) -> Self
+    pub fn new<II>(tokens: II, reporter: R) -> Self
     where
         II: IntoIterator<Item = I::Item, IntoIter = I>,
     {
