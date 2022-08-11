@@ -1,5 +1,6 @@
 //! Terminal prompt reading and printing with editing and history.
 
+use crate::about;
 use crate::CommandLineError;
 use colored::*;
 use rustyline::completion::Completer;
@@ -10,8 +11,8 @@ use rustyline::line_buffer::LineBuffer;
 use rustyline::validate::{ValidationContext, ValidationResult, Validator};
 use rustyline::{error::ReadlineError, Editor, Helper};
 use std::io::{stderr, stdout, Write};
-use tortuga::Program;
-use tortuga::{about, Interpreter};
+use tortuga_compiler::Translation;
+use tortuga_vm::{Identifier, Value, VirtualMachine};
 use tracing::error;
 
 struct PromptHelper;
@@ -22,22 +23,20 @@ pub struct Prompt {
     editor: Editor<PromptHelper>,
 }
 
-impl Default for Prompt {
-    fn default() -> Self {
+impl Prompt {
+    fn new() -> Result<Self, CommandLineError> {
         let config = Config::builder()
             .auto_add_history(true)
             .tab_stop(2)
             .indent_size(2)
             .build();
-        let mut editor = Editor::<PromptHelper>::with_config(config);
+        let mut editor = Editor::<PromptHelper>::with_config(config)?;
 
         editor.set_helper(Some(PromptHelper));
 
-        Prompt { line: 1, editor }
+        Ok(Prompt { line: 1, editor })
     }
-}
 
-impl Prompt {
     /// Read input from the user via a terminal prompt.
     pub fn prompt(&mut self) -> Result<Option<String>, CommandLineError> {
         let prompt = format!(
@@ -80,11 +79,12 @@ impl Validator for PromptHelper {
             return Ok(ValidationResult::Valid(None));
         }
 
-        match ctx.input().parse::<Program>() {
+        match Translation::try_from(ctx.input()) {
             Ok(_) => Ok(ValidationResult::Valid(None)),
-            Err(error) if error.is_complete() => {
-                Ok(ValidationResult::Invalid(Some(format!("\t{}", error))))
-            }
+            // TODO: Handle incomplete entries.
+            // Err(errors) if error.is_complete() => {
+            //     Ok(ValidationResult::Invalid(Some(format!("\t{}", error))))
+            // }
             Err(_) => Ok(ValidationResult::Incomplete),
         }
     }
@@ -92,8 +92,7 @@ impl Validator for PromptHelper {
 
 /// Runs the read-evaluate-print loop.
 pub fn run_prompt() -> Result<(), CommandLineError> {
-    let mut user = Prompt::default();
-    let mut interpreter = Interpreter::default();
+    let mut user = Prompt::new()?;
 
     println!("{} {}", about::PROGRAM.green(), about::VERSION);
     println!("{}", "Press Ctrl-C to exit.".yellow().bold());
@@ -104,11 +103,16 @@ pub fn run_prompt() -> Result<(), CommandLineError> {
             None => return Ok(()),
             Some(input) if input.trim().is_empty() => continue,
             Some(input) => {
-                match input.as_str().parse::<Program>() {
-                    Ok(program) => match interpreter.run(program) {
-                        Ok(value) => writeln!(stdout(), "=> {}", value)?,
-                        Err(error) => writeln!(stderr(), "=> {}", error)?,
-                    },
+                match Translation::try_from(input.as_str()) {
+                    Ok(translation) => {
+                        let mut machine = VirtualMachine::new(translation, ());
+
+                        match machine.process(Value::Identifier(Identifier::from(0))) {
+                            Ok(Some(value)) => writeln!(stdout(), "=> {}", value)?,
+                            Ok(None) => writeln!(stdout(), "=>")?,
+                            Err(error) => writeln!(stderr(), "=> {}", error)?,
+                        }
+                    }
                     Err(error) => error!("{:?}", error),
                 };
             }

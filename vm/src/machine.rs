@@ -47,10 +47,13 @@ impl<C: Courier> VirtualMachine<C> {
         Self::branch_if_non_zero_operation,
     ];
 
-    pub fn new(code: Executable, courier: C) -> Self {
+    pub fn new<E>(executable: E, courier: C) -> Self
+    where
+        E: Into<Executable>,
+    {
         VirtualMachine {
             courier,
-            executable: code,
+            executable: executable.into(),
             cursor: 0,
             stack: vec![],
             frames: vec![],

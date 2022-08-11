@@ -140,8 +140,6 @@ pub struct ScanCommand {
 pub enum Commands {
     Prompt(PromptCommand),
     Run(RunCommand),
-    Scan(ScanCommand),
-    Parse(ParseCommand),
 }
 
 impl Default for Commands {

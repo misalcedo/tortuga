@@ -14,6 +14,7 @@ pub use number::Number;
 pub use operation::{Operation, OperationCode};
 pub use text::Text;
 
+// TODO: Make functions have their own chunks and
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Executable {
     code: Vec<u8>,

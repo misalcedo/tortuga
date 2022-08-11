@@ -9,10 +9,6 @@ homepage = "https://tortuga.salcedo.cc"
 repository = "https://github.com/misalcedo/tortuga"
 documentation = "https://docs.rs/tortuga"
 
-[[bin]]
-name = "tortuga"
-path = "bin/main.rs"
-
 [profile.release]
 lto = true
 debug = true
@@ -28,20 +24,20 @@ tracing-subscriber = { version = "0.3", default-features = false, features = ["e
 pprof = { version = "0.6", features = ["criterion", "flamegraph", "protobuf"] }
 
 [dependencies]
-clap = { version = "3.0", features = ["derive"] }
+clap = { version = "3.2", features = ["derive"] }
 colored = { version = "2.0.0" }
 lazy_static = "1.4"
 log = "0.4"
 mimalloc = { version = "0.1.27" }
-rustyline = { version = "9" }
+rustyline = { version = "10" }
 regex = "1"
 thiserror = "1.0"
 tortuga-compiler = { path = "../compiler" }
+tortuga-executable = { path = "../executable" }
 tortuga-vm = { path = "../vm" }
 tracing = "0.1"
 tracing-log = { version = "0.1" }
 tracing-subscriber = { version = "0.3" }
-unicode-xid = "0.2"
 
 [[bench]]
 name = "fibonacci"

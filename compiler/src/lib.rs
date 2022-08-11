@@ -17,3 +17,4 @@ pub use parse::Parser;
 pub use report::ErrorReporter;
 pub use scan::Scanner;
 pub use token::{Token, TokenKind};
+pub use translate::Translation;
