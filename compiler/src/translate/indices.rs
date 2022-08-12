@@ -52,6 +52,24 @@ where
         }
     }
 
+    pub fn insert_with<F>(&mut self, key: K, f: F) -> usize
+    where
+        F: FnOnce(usize) -> V,
+    {
+        match self.indices.get(&key) {
+            Some(index) => *index,
+            None => {
+                let index = self.instances.len();
+                let value = f(index);
+
+                self.instances.push(value);
+                self.indices.insert(key, index);
+
+                index
+            }
+        }
+    }
+
     pub fn add(&mut self, value: V) -> usize {
         let index = self.instances.len();
 

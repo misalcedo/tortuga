@@ -145,8 +145,8 @@ where
                 self.stack.push(Value::Number(None));
             }
             (Value::Any, Value::Any) => self.stack.push(Value::Any),
-            (_, _) => {
-                self.report_error("Operands must be numbers.");
+            (lhs, rhs) => {
+                self.report_error(format!("Operands must be numbers: {}, {}.", lhs, rhs));
                 self.stack.push(Value::Any);
             }
         };
@@ -183,20 +183,37 @@ where
 
     fn simulate_terminal(&mut self, terminal: &Terminal<'a>) -> TranslationResult<()> {
         match terminal {
-            Terminal::Identifier(identifier) => self.simulate_identifier(identifier),
-            Terminal::Number(number) => {
-                self.simulate_number(*number);
-            }
-            Terminal::Uri(uri) => {
-                self.simulate_uri(*uri);
-            }
+            Terminal::Identifier(identifier) => self.simulate_identifier(identifier)?,
+            Terminal::Number(number) => self.simulate_number(*number),
+            Terminal::Uri(uri) => self.simulate_uri(*uri),
         };
 
         Ok(())
     }
 
-    fn simulate_identifier(&mut self, identifier: &Identifier<'a>) {
-        self.stack.push(Value::Unknown);
+    fn simulate_identifier(&mut self, identifier: &Identifier<'a>) -> TranslationResult<()> {
+        let scope = self
+            .contexts
+            .last_mut()
+            .ok_or_else(|| TranslationError::from("Expected function contexts to not be empty."))?;
+
+        match scope.resolve_local(identifier) {
+            Some(local) => {
+                self.code.push(Operation::GetLocal(local.offset() as u8));
+                self.stack.push(local.kind().clone());
+                Ok(())
+            }
+            None => {
+                let index = scope.add_local(*identifier);
+
+                if index >= u8::MAX as usize {
+                    self.report_error("Too many locals (max is 256).");
+                }
+
+                self.stack.push(Value::Uninitialized(index));
+                Ok(())
+            }
+        }
     }
 
     fn simulate_uri(&mut self, uri: Uri<'a>) {
@@ -271,14 +288,30 @@ mod tests {
     use super::*;
     use tortuga_executable::OperationCode;
 
-    // #[test]
-    // fn undefined_variable() {
-    //     assert!(!Analysis::try_from("x + 42").unwrap_err().is_empty());
-    // }
+    #[test]
+    fn undefined_variable() {
+        assert_eq!(Translation::try_from("x + 40").unwrap_err().len(), 1);
+    }
 
     #[test]
     fn add_numbers() {
         let executable: Executable = Translation::try_from("2 + 40").unwrap().into();
+
+        assert_eq!(
+            executable.code(0, executable.len()),
+            &[
+                OperationCode::ConstantNumber as u8,
+                0,
+                OperationCode::ConstantNumber as u8,
+                1,
+                OperationCode::Add as u8
+            ]
+        );
+    }
+
+    #[test]
+    fn add_with_variable() {
+        let executable: Executable = Translation::try_from("x = 2\nx + 40").unwrap().into();
 
         assert_eq!(
             executable.code(0, executable.len()),
@@ -300,19 +333,21 @@ mod tests {
         );
     }
 
-    // #[test]
-    // fn undefined() {
-    //     assert!(
-    //         !Analysis::try_from(include_str!("../../../examples/undefined.ta"))
-    //             .unwrap_err()
-    //             .is_empty()
-    //     );
-    // }
-    //
-    // #[test]
-    // fn factorial() {
-    //     let analysis = Analysis::try_from(include_str!("../../../examples/factorial.ta")).unwrap();
-    //
-    //     assert!(false);
-    // }
+    #[test]
+    fn undefined() {
+        assert_eq!(
+            Translation::try_from(include_str!("../../../examples/undefined.ta"))
+                .unwrap_err()
+                .len(),
+            1
+        );
+    }
+
+    #[test]
+    fn factorial() {
+        let analysis =
+            Translation::try_from(include_str!("../../../examples/factorial.ta")).unwrap();
+
+        assert!(false);
+    }
 }
