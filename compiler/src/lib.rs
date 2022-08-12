@@ -17,4 +17,4 @@ pub use parse::{Parser, SyntacticalError};
 pub use report::ErrorReporter;
 pub use scan::{LexicalError, Scanner};
 pub use token::{Token, TokenKind};
-pub use translate::{Translation, TranslationError};
+pub use translate::{Translation, TranslationError, Translator};

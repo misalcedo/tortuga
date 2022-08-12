@@ -2,12 +2,12 @@ use std::collections::HashMap;
 use std::hash::Hash;
 
 #[derive(Clone, Debug, Default)]
-pub struct Constants<Constant, Key = Constant> {
+pub struct IndexedSet<Constant, Key = Constant> {
     instances: Vec<Constant>,
     indices: HashMap<Key, usize>,
 }
 
-impl<C, K> Constants<C, K>
+impl<C, K> IndexedSet<C, K>
 where
     K: Hash + Eq,
 {
@@ -44,8 +44,8 @@ where
     }
 }
 
-impl<C, K> From<Constants<C, K>> for Vec<C> {
-    fn from(constants: Constants<C, K>) -> Self {
+impl<C, K> From<IndexedSet<C, K>> for Vec<C> {
+    fn from(constants: IndexedSet<C, K>) -> Self {
         constants.instances
     }
 }

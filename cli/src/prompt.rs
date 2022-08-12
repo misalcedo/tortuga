@@ -12,8 +12,8 @@ use rustyline::validate::{ValidationContext, ValidationResult, Validator};
 use rustyline::{error::ReadlineError, Editor, Helper};
 use std::io::{stderr, stdout, Write};
 use tortuga_compiler::{
-    CompilationError, ErrorReporter, LexicalError, Parser, Scanner, SyntacticalError, Translation,
-    TranslationError,
+    CompilationError, ErrorReporter, LexicalError, Parser, Program, Scanner, SyntacticalError,
+    Translation, TranslationError, Translator,
 };
 use tortuga_vm::{Identifier, Value, VirtualMachine};
 use tracing::error;
@@ -92,7 +92,7 @@ impl ErrorReporter for PromptHelper {
     }
 
     fn had_error(&self) -> bool {
-        todo!()
+        !self.1.is_empty()
     }
 }
 

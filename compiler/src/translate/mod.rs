@@ -3,9 +3,9 @@ use crate::{grammar, CompilationError, ErrorReporter};
 use tortuga_executable::{Executable, Function, Number, Operation, Text};
 
 mod capture;
-mod constant;
 mod context;
 mod error;
+mod indices;
 mod local;
 mod number;
 mod uri;
@@ -15,8 +15,8 @@ use crate::grammar::{
     Expression, Identifier, Internal, InternalKind, PostOrderIterator, Terminal, Uri,
 };
 use crate::translate::context::ScopeContext;
-use constant::Constants;
 pub use error::TranslationError;
+use indices::IndexedSet;
 use value::Value;
 
 pub struct Translator<'a, Iterator, Reporter> {
@@ -24,9 +24,9 @@ pub struct Translator<'a, Iterator, Reporter> {
     iterator: Iterator,
     contexts: Vec<ScopeContext<'a>>,
     code: Vec<Operation>,
-    functions: Constants<Function>,
-    numbers: Constants<Number, grammar::Number<'a>>,
-    texts: Constants<Text, Uri<'a>>,
+    functions: IndexedSet<Function>,
+    numbers: IndexedSet<Number, grammar::Number<'a>>,
+    texts: IndexedSet<Text, Uri<'a>>,
     stack: Vec<Value>,
 }
 
@@ -43,7 +43,7 @@ where
     'a: 'b,
     R: ErrorReporter,
 {
-    fn new(program: &'b Program<'a>, reporter: R) -> Self {
+    pub fn new(program: &'b Program<'a>, reporter: R) -> Self {
         Translator {
             reporter,
             iterator: program.iter_post_order(),
