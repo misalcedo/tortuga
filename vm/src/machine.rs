@@ -8,13 +8,19 @@ use crate::{Courier, Text};
 use std::cmp::Ordering;
 use std::mem::size_of;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct VirtualMachine<Courier> {
     courier: Courier,
     executable: Executable,
     cursor: usize,
     stack: Vec<Value>,
     frames: Vec<CallFrame>,
+}
+
+impl Default for VirtualMachine<()> {
+    fn default() -> Self {
+        VirtualMachine::new(Executable::default(), ())
+    }
 }
 
 type RuntimeResult<T> = Result<T, RuntimeError>;
@@ -60,12 +66,28 @@ impl<C: Courier> VirtualMachine<C> {
         }
     }
 
-    pub fn process(&mut self, value: Value) -> RuntimeResult<Option<Value>> {
-        let function = Function::default();
+    pub fn set_executable<E>(&mut self, executable: E)
+    where
+        E: Into<Executable>,
+    {
+        self.executable = executable.into();
+    }
+
+    pub fn respond(&mut self, message: Value) -> RuntimeResult<Option<Value>> {
+        self.execute(Some(message))?;
+        self.exit_function()
+    }
+
+    fn execute(&mut self, value: Option<Value>) -> RuntimeResult<()> {
+        let locals = if value.is_some() { 1 } else { 0 };
+        let function = Function::new(self.cursor, locals, Vec::default());
         let closure = Closure::new(function.clone(), Vec::new());
 
         self.stack.push(closure.into());
-        self.stack.push(value);
+
+        if let Some(value) = value {
+            self.stack.push(value);
+        }
 
         self.enter_function(function)?;
 
@@ -75,7 +97,18 @@ impl<C: Courier> VirtualMachine<C> {
             operation(self)?;
         }
 
-        self.exit_function()
+        Ok(())
+    }
+
+    pub fn run(&mut self) -> RuntimeResult<Option<Value>> {
+        self.execute(None)?;
+
+        let cursor = self.cursor;
+        let result = self.exit_function()?;
+
+        self.cursor = cursor;
+
+        Ok(result)
     }
 
     fn constant_number_operation(&mut self) -> OperationResult {

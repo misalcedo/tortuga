@@ -10,12 +10,13 @@ use rustyline::hint::Hinter;
 use rustyline::line_buffer::LineBuffer;
 use rustyline::validate::{ValidationContext, ValidationResult, Validator};
 use rustyline::{error::ReadlineError, Editor, Helper};
+use std::ffi::OsString;
 use std::io::{stderr, stdout, Write};
 use tortuga_compiler::{
-    CompilationError, ErrorReporter, LexicalError, Parser, Program, Scanner, SyntacticalError,
-    Translation, TranslationError, Translator,
+    CompilationError, ErrorReporter, LexicalError, Parser, Scanner, SyntacticalError, Translation,
+    TranslationError,
 };
-use tortuga_vm::{Identifier, Value, VirtualMachine};
+use tortuga_vm::VirtualMachine;
 use tracing::error;
 
 #[derive(Default)]
@@ -118,6 +119,8 @@ impl Validator for PromptHelper {
 /// Runs the read-evaluate-print loop.
 pub fn run_prompt() -> Result<(), CommandLineError> {
     let mut user = Prompt::new()?;
+    let mut script = String::new();
+    let mut machine = VirtualMachine::default();
 
     println!("{} {}", about::PROGRAM.green(), about::VERSION);
     println!("{}", "Press Ctrl-C to exit.".yellow().bold());
@@ -128,11 +131,14 @@ pub fn run_prompt() -> Result<(), CommandLineError> {
             None => return Ok(()),
             Some(input) if input.trim().is_empty() => continue,
             Some(input) => {
-                match Translation::try_from(input.as_str()) {
-                    Ok(translation) => {
-                        let mut machine = VirtualMachine::new(translation, ());
+                script.push_str(input.as_str());
+                script.push('\n');
 
-                        match machine.process(Value::Identifier(Identifier::from(0))) {
+                match Translation::try_from(script.as_str()) {
+                    Ok(translation) => {
+                        machine.set_executable(translation);
+
+                        match machine.run() {
                             Ok(Some(value)) => writeln!(stdout(), "=> {}", value)?,
                             Ok(None) => writeln!(stdout(), "=>")?,
                             Err(error) => writeln!(stderr(), "=> {}", error)?,
