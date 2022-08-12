@@ -10,7 +10,6 @@ use rustyline::hint::Hinter;
 use rustyline::line_buffer::LineBuffer;
 use rustyline::validate::{ValidationContext, ValidationResult, Validator};
 use rustyline::{error::ReadlineError, Editor, Helper};
-use std::ffi::OsString;
 use std::io::{stderr, stdout, Write};
 use tortuga_compiler::{
     CompilationError, ErrorReporter, LexicalError, Parser, Scanner, SyntacticalError, Translation,

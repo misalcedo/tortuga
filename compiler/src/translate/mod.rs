@@ -25,8 +25,8 @@ pub struct Translator<'a, Iterator, Reporter> {
     contexts: Vec<ScopeContext<'a>>,
     code: Vec<Operation>,
     functions: IndexedSet<Function>,
-    numbers: IndexedSet<Number, grammar::Number<'a>>,
-    texts: IndexedSet<Text, Uri<'a>>,
+    numbers: IndexedSet<grammar::Number<'a>, Number>,
+    texts: IndexedSet<Uri<'a>, Text>,
     stack: Vec<Value>,
 }
 
@@ -207,7 +207,7 @@ where
                 Text::default()
             }
         };
-        let index = self.texts.insert(constant, uri);
+        let index = self.texts.insert(uri, constant);
 
         if index >= u8::MAX as usize {
             self.report_error("Too many URI constants (max is 256).");
@@ -225,7 +225,7 @@ where
                 Number::default()
             }
         };
-        let index = self.numbers.insert(constant, number);
+        let index = self.numbers.insert(number, constant);
 
         if index >= u8::MAX as usize {
             self.report_error("Too many number constants (max is 256).");
