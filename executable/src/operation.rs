@@ -10,7 +10,9 @@ pub enum Operation {
     ConstantNumber(ConstantIndex),
     ConstantText(ConstantIndex),
     Pop,
+    SetLocal(LocalOffset),
     GetLocal(LocalOffset),
+    SetCapture(CaptureOffset),
     GetCapture(CaptureOffset),
     Equal,
     Greater,
@@ -20,6 +22,7 @@ pub enum Operation {
     Multiply,
     Divide,
     Remainder,
+    Power,
     And,
     Or,
     Not,
@@ -38,7 +41,9 @@ pub enum OperationCode {
     ConstantNumber,
     ConstantText,
     Pop,
+    SetLocal,
     GetLocal,
+    SetCapture,
     GetCapture,
     Equal,
     Greater,
@@ -48,6 +53,7 @@ pub enum OperationCode {
     Multiply,
     Divide,
     Remainder,
+    Power,
     And,
     Or,
     Not,
@@ -66,7 +72,9 @@ impl From<&Operation> for OperationCode {
             Operation::ConstantNumber(_) => OperationCode::ConstantNumber,
             Operation::ConstantText(_) => OperationCode::ConstantText,
             Operation::Pop => OperationCode::Pop,
+            Operation::SetLocal(_) => OperationCode::SetLocal,
             Operation::GetLocal(_) => OperationCode::GetLocal,
+            Operation::SetCapture(_) => OperationCode::SetCapture,
             Operation::GetCapture(_) => OperationCode::GetCapture,
             Operation::Equal => OperationCode::Equal,
             Operation::Greater => OperationCode::Greater,
@@ -76,6 +84,7 @@ impl From<&Operation> for OperationCode {
             Operation::Multiply => OperationCode::Multiply,
             Operation::Divide => OperationCode::Divide,
             Operation::Remainder => OperationCode::Remainder,
+            Operation::Power => OperationCode::Power,
             Operation::And => OperationCode::And,
             Operation::Or => OperationCode::Or,
             Operation::Not => OperationCode::Not,
@@ -120,7 +129,15 @@ impl From<&[Operation]> for Code {
                     let bytes = [u8::from(operation)];
                     code.extend_from_slice(&bytes);
                 }
+                Operation::SetLocal(operand) => {
+                    let bytes = [u8::from(operation), *operand];
+                    code.extend_from_slice(&bytes);
+                }
                 Operation::GetLocal(operand) => {
+                    let bytes = [u8::from(operation), *operand];
+                    code.extend_from_slice(&bytes);
+                }
+                Operation::SetCapture(operand) => {
                     let bytes = [u8::from(operation), *operand];
                     code.extend_from_slice(&bytes);
                 }
@@ -157,6 +174,10 @@ impl From<&[Operation]> for Code {
                     code.extend_from_slice(&bytes);
                 }
                 Operation::Remainder => {
+                    let bytes = [u8::from(operation)];
+                    code.extend_from_slice(&bytes);
+                }
+                Operation::Power => {
                     let bytes = [u8::from(operation)];
                     code.extend_from_slice(&bytes);
                 }

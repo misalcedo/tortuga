@@ -37,4 +37,8 @@ impl<'a> ScopeContext<'a> {
     pub fn resolve_local(&self, name: &Identifier<'a>) -> Option<&Local<'a>> {
         self.locals.lookup(&Some(*name))
     }
+
+    pub fn local_mut(&mut self, index: usize) -> Option<&mut Local<'a>> {
+        self.locals.get_mut(index)
+    }
 }

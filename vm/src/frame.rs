@@ -1,5 +1,5 @@
 use crate::{Function, Value};
-use std::ops::Index;
+use std::ops::{Index, IndexMut};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct CallFrame {
@@ -43,5 +43,11 @@ impl Index<&CallFrame> for Vec<Value> {
 
     fn index(&self, index: &CallFrame) -> &Self::Output {
         &self[index.start_stack..]
+    }
+}
+
+impl IndexMut<&CallFrame> for Vec<Value> {
+    fn index_mut(&mut self, index: &CallFrame) -> &mut Self::Output {
+        &mut self[index.start_stack..]
     }
 }

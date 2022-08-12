@@ -82,6 +82,10 @@ where
         self.instances.get(index)
     }
 
+    pub fn get_mut(&mut self, index: usize) -> Option<&mut V> {
+        self.instances.get_mut(index)
+    }
+
     pub fn lookup(&self, key: &K) -> Option<&V> {
         let index = self.indices.get(key)?;
         self.instances.get(*index)

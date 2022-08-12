@@ -27,11 +27,13 @@ type RuntimeResult<T> = Result<T, RuntimeError>;
 type OperationResult = RuntimeResult<()>;
 
 impl<C: Courier> VirtualMachine<C> {
-    const OPERATIONS_TABLE: [fn(&mut VirtualMachine<C>) -> OperationResult; 23] = [
+    const OPERATIONS_TABLE: [fn(&mut VirtualMachine<C>) -> OperationResult; 26] = [
         Self::constant_number_operation,
         Self::constant_text_operation,
         Self::pop_operation,
+        Self::set_local_operation,
         Self::get_local_operation,
+        Self::set_capture_operation,
         Self::get_capture_operation,
         Self::equal_operation,
         Self::greater_operation,
@@ -41,6 +43,7 @@ impl<C: Courier> VirtualMachine<C> {
         Self::multiply_operation,
         Self::divide_operation,
         Self::remainder_operation,
+        Self::power_operation,
         Self::and_operation,
         Self::or_operation,
         Self::not_operation,
@@ -134,11 +137,26 @@ impl<C: Courier> VirtualMachine<C> {
         }
     }
 
+    fn set_local_operation(&mut self) -> OperationResult {
+        let slot = self.read_byte()? as usize;
+
+        self.set_local(slot)?;
+
+        Ok(())
+    }
+
     fn get_local_operation(&mut self) -> OperationResult {
         let slot = self.read_byte()? as usize;
         let value = self.get_local(slot)?;
 
         self.stack.push(value);
+
+        Ok(())
+    }
+
+    fn set_capture_operation(&mut self) -> OperationResult {
+        let slot = self.read_byte()? as usize;
+        self.set_capture(slot)?;
 
         Ok(())
     }
@@ -227,6 +245,18 @@ impl<C: Courier> VirtualMachine<C> {
         let b = self.pop_value()?;
         let a = self.pop_value()?;
         let result = a % b;
+        let value = result
+            .map_err(|(lhs, rhs)| RuntimeError::from(ErrorKind::UnsupportedTypes(lhs, rhs)))?;
+
+        self.stack.push(value);
+
+        Ok(())
+    }
+
+    fn power_operation(&mut self) -> OperationResult {
+        let b = self.pop_value()?;
+        let a = self.pop_value()?;
+        let result = a ^ b;
         let value = result
             .map_err(|(lhs, rhs)| RuntimeError::from(ErrorKind::UnsupportedTypes(lhs, rhs)))?;
 
@@ -443,6 +473,21 @@ impl<C: Courier> VirtualMachine<C> {
         }
     }
 
+    fn set_local(&mut self, index: usize) -> RuntimeResult<()> {
+        let value = self.pop_value()?;
+        let frame = self
+            .frames
+            .last()
+            .ok_or_else(|| RuntimeError::from(ErrorKind::EmptyCallFrames))?;
+        let local = self.stack[frame]
+            .get_mut(index)
+            .ok_or_else(|| RuntimeError::from(ErrorKind::CorruptedFrame))?;
+
+        *local = value;
+
+        Ok(())
+    }
+
     fn get_local(&mut self, index: usize) -> RuntimeResult<Value> {
         let frame = self
             .frames
@@ -453,6 +498,21 @@ impl<C: Courier> VirtualMachine<C> {
             .ok_or_else(|| RuntimeError::from(ErrorKind::CorruptedFrame))?;
 
         Ok(value.clone())
+    }
+
+    fn set_capture(&mut self, index: usize) -> RuntimeResult<()> {
+        let value = self.pop_value()?;
+        let frame = self
+            .frames
+            .last()
+            .ok_or_else(|| RuntimeError::from(ErrorKind::EmptyCallFrames))?;
+        let capture = self.stack[frame]
+            .get_mut(frame.locals() + index)
+            .ok_or_else(|| RuntimeError::from(ErrorKind::CorruptedFrame))?;
+
+        *capture = value;
+
+        Ok(())
     }
 
     fn get_capture(&mut self, index: usize) -> RuntimeResult<Value> {

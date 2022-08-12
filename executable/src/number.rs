@@ -11,6 +11,10 @@ impl Number {
     pub fn as_f64(&self) -> f64 {
         self.0
     }
+
+    pub fn power(&self, exponent: &Self) -> Number {
+        Number(self.0.powf(exponent.0))
+    }
 }
 
 impl Display for Number {

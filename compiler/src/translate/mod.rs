@@ -124,6 +124,30 @@ where
     }
 
     fn simulate_equality(&mut self) -> TranslationResult<()> {
+        let value = self.pop()?;
+        let assignee = self.pop()?;
+
+        match assignee {
+            Value::Uninitialized(index) => {
+                let depth = self.contexts.len();
+                let scope = self.contexts.last_mut().ok_or_else(|| {
+                    TranslationError::from("Expected function contexts to not be empty.")
+                })?;
+                let local = scope.local_mut(index).ok_or_else(|| {
+                    TranslationError::from("Unable to find local in current scope.")
+                })?;
+
+                local.initialize(depth, value);
+
+                self.code.push(Operation::SetLocal(local.offset() as u8));
+                self.stack.push(value);
+            }
+            Value::Any => {}
+            Value::Closure => {}
+            Value::Number(_) => {}
+            Value::Text(_) => {}
+        }
+
         Ok(())
     }
 
@@ -318,6 +342,10 @@ mod tests {
             &[
                 OperationCode::ConstantNumber as u8,
                 0,
+                OperationCode::SetLocal as u8,
+                1,
+                OperationCode::GetLocal as u8,
+                1,
                 OperationCode::ConstantNumber as u8,
                 1,
                 OperationCode::Add as u8
@@ -345,8 +373,10 @@ mod tests {
 
     #[test]
     fn factorial() {
-        let analysis =
-            Translation::try_from(include_str!("../../../examples/factorial.ta")).unwrap();
+        let executable: Executable =
+            Translation::try_from(include_str!("../../../examples/factorial.ta"))
+                .unwrap()
+                .into();
 
         assert!(false);
     }

@@ -1,6 +1,6 @@
 use crate::Value;
 
-use std::ops::{Add, BitAnd, BitOr, Div, Mul, Not, Rem, Sub};
+use std::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Not, Rem, Sub};
 impl Add for Value {
     type Output = Result<Value, (Value, Value)>;
 
@@ -73,6 +73,17 @@ impl BitOr for Value {
     fn bitor(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
             (Value::Number(a), Value::Number(b)) => Ok(Value::from(a != 0 || b != 0)),
+            pair => Err(pair),
+        }
+    }
+}
+
+impl BitXor for Value {
+    type Output = Result<Value, (Value, Value)>;
+
+    fn bitxor(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a.power(&b))),
             pair => Err(pair),
         }
     }
