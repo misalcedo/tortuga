@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter};
 
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Function {
     start: usize,
     locals: usize,
@@ -20,8 +20,12 @@ impl Function {
         self.start
     }
 
+    pub fn set_locals(&mut self, locals: usize) {
+        self.locals = locals;
+    }
+
     pub fn locals(&self) -> usize {
-        self.locals + 1
+        self.locals
     }
 
     pub fn captures(&self) -> &[bool] {
@@ -43,7 +47,7 @@ impl Default for Function {
     fn default() -> Self {
         Function {
             start: 0,
-            locals: 1,
+            locals: 0,
             captures: Vec::default(),
         }
     }

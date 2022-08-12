@@ -49,7 +49,7 @@ where
             iterator: program.iter_post_order(),
             contexts: vec![Default::default()],
             code: Default::default(),
-            functions: Default::default(),
+            functions: IndexedSet::from([Function::default()]),
             numbers: Default::default(),
             texts: Default::default(),
             stack: Default::default(),
@@ -89,6 +89,21 @@ where
 
             self.simulate_expression(expression)?;
         }
+
+        self.update_entrypoint()
+    }
+
+    fn update_entrypoint(&mut self) -> TranslationResult<()> {
+        let root = self
+            .contexts
+            .pop()
+            .ok_or_else(|| TranslationError::from("Expected function context to not be empty."))?;
+        let script = self
+            .functions
+            .get_mut(0)
+            .ok_or_else(|| TranslationError::from("Expected script function to be present."))?;
+
+        script.set_locals(root.locals());
 
         Ok(())
     }
@@ -350,6 +365,10 @@ mod tests {
                 1,
                 OperationCode::Add as u8
             ]
+        );
+        assert_eq!(
+            executable.function(0),
+            Some(&Function::new(0, 1, Vec::default()))
         );
     }
 

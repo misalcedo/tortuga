@@ -1,10 +1,19 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct IndexedSet<Key, Value = Key> {
     instances: Vec<Value>,
     indices: HashMap<Key, usize>,
+}
+
+impl<K, V> Default for IndexedSet<K, V> {
+    fn default() -> Self {
+        IndexedSet {
+            instances: Vec::default(),
+            indices: HashMap::default(),
+        }
+    }
 }
 
 impl<K, V, const N: usize> From<[(K, V); N]> for IndexedSet<K, V>
@@ -19,6 +28,25 @@ where
 
         for (index, (key, value)) in array.into_iter().enumerate() {
             set.instances.push(value);
+            set.indices.insert(key, index);
+        }
+
+        set
+    }
+}
+
+impl<K, const N: usize> From<[K; N]> for IndexedSet<K>
+where
+    K: Eq + Hash + Clone,
+{
+    fn from(array: [K; N]) -> Self {
+        let mut set = IndexedSet {
+            instances: Vec::with_capacity(N),
+            indices: HashMap::with_capacity(N),
+        };
+
+        for (index, key) in array.into_iter().enumerate() {
+            set.instances.push(key.clone());
             set.indices.insert(key, index);
         }
 

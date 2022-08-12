@@ -379,7 +379,7 @@ impl<C: Courier> VirtualMachine<C> {
     }
 
     fn enter_function(&mut self, function: Function) -> RuntimeResult<()> {
-        let locals = function.locals();
+        let locals = function.locals() + 1;
         let has_captures = function.captures().len() > 0;
         let length = self.stack.len();
         let start_stack = length
