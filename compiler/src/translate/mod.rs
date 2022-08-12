@@ -103,7 +103,7 @@ where
             .get_mut(0)
             .ok_or_else(|| TranslationError::from("Expected script function to be present."))?;
 
-        script.set_locals(root.locals());
+        *script = Function::new(0, root.locals(), Vec::default());
 
         Ok(())
     }
@@ -124,7 +124,7 @@ where
             InternalKind::Add => self.simulate_binary(Operation::Add)?,
             InternalKind::Divide => self.simulate_binary(Operation::Divide)?,
             InternalKind::Multiply => self.simulate_binary(Operation::Multiply)?,
-            InternalKind::Power => todo!(),
+            InternalKind::Power => self.simulate_binary(Operation::Power)?,
             InternalKind::Call => {}
             InternalKind::Grouping => {}
             InternalKind::Condition => {}

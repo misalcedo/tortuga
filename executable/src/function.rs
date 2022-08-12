@@ -20,10 +20,6 @@ impl Function {
         self.start
     }
 
-    pub fn set_locals(&mut self, locals: usize) {
-        self.locals = locals;
-    }
-
     pub fn locals(&self) -> usize {
         self.locals
     }
