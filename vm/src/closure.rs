@@ -4,7 +4,7 @@ use std::fmt::{Display, Formatter};
 
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub struct Closure {
-    function: Function,
+    function: usize,
     captures: Vec<Value>,
 }
 
@@ -17,7 +17,7 @@ impl Display for Closure {
 impl Default for Closure {
     fn default() -> Self {
         Closure {
-            function: Function::default(),
+            function: 0,
             captures: Vec::default(),
         }
     }
@@ -30,8 +30,12 @@ impl From<Closure> for Vec<Value> {
 }
 
 impl Closure {
-    pub fn new(function: Function, captures: Vec<Value>) -> Self {
+    pub fn new(function: usize, captures: Vec<Value>) -> Self {
         Closure { function, captures }
+    }
+
+    pub fn function(&self) -> usize {
+        self.function
     }
 
     pub fn captures(&self) -> &[Value] {

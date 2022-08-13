@@ -1,32 +1,75 @@
 use crate::{Function, Value};
-use std::ops::{Index, IndexMut};
+use std::borrow::Borrow;
+use std::ops::{Index, IndexMut, Range};
+use std::rc::Rc;
 
-#[derive(Clone, Debug, PartialEq)]
+/// Closure, Parameters, Locals, Captures
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct CallFrame {
-    return_to: usize,
+    code: Rc<Vec<u8>>,
     start_stack: usize,
-    function: Function,
+    parameters: usize,
+    captures: usize,
+    locals: usize,
+    defined_locals: usize,
+    cursor: usize,
 }
 
 impl CallFrame {
-    pub fn new(return_to: usize, start_stack: usize, function: Function) -> Self {
+    pub fn new(start_stack: usize, function: &Function) -> Self {
         CallFrame {
-            return_to,
             start_stack,
-            function,
+            code: function.code(),
+            parameters: function.arity(),
+            captures: function.captures().len(),
+            locals: 0,
+            defined_locals: 0,
+            cursor: 0,
         }
     }
 
-    pub fn return_to(&self) -> usize {
-        self.return_to
+    pub fn define_local(&mut self) -> Result<usize, usize> {
+        if self.defined_locals < self.locals {
+            let index = self.defined_locals;
+
+            self.defined_locals += 1;
+
+            Ok(index)
+        } else {
+            Err(self.locals)
+        }
     }
 
-    pub fn locals(&self) -> usize {
-        self.function.locals() + 1
+    pub fn locals(&self) -> Range<usize> {
+        self.start_stack..self.start_captures()
     }
 
-    pub fn values(&self) -> usize {
-        self.function.values()
+    pub fn captures(&self) -> Range<usize> {
+        self.start_captures()..self.end_frame()
+    }
+
+    pub fn jump(&mut self, offset: usize) {
+        self.cursor += offset;
+    }
+
+    fn start_captures(&self) -> usize {
+        self.start_stack + 1 + self.parameters + self.defined_locals
+    }
+
+    pub fn end_frame(&self) -> usize {
+        self.start_captures() + self.captures
+    }
+}
+
+impl Iterator for CallFrame {
+    type Item = u8;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let byte = self.code.get(self.cursor)?;
+
+        self.cursor += 1;
+
+        Some(*byte)
     }
 }
 
@@ -42,12 +85,12 @@ impl Index<&CallFrame> for Vec<Value> {
     type Output = [Value];
 
     fn index(&self, index: &CallFrame) -> &Self::Output {
-        &self[index.start_stack..]
+        &self[index.start_stack..index.end_frame()]
     }
 }
 
 impl IndexMut<&CallFrame> for Vec<Value> {
     fn index_mut(&mut self, index: &CallFrame) -> &mut Self::Output {
-        &mut self[index.start_stack..]
+        &mut self[index.start_stack..index.end_frame()]
     }
 }

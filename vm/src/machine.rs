@@ -6,14 +6,15 @@ use crate::{CallFrame, Number};
 use crate::{Closure, Function};
 use crate::{Courier, Text};
 use std::cmp::Ordering;
+use std::mem;
 use std::mem::size_of;
 
 #[derive(Clone, Debug)]
 pub struct VirtualMachine<Courier> {
     courier: Courier,
     executable: Executable,
-    cursor: usize,
     stack: Vec<Value>,
+    frame: CallFrame,
     frames: Vec<CallFrame>,
 }
 
@@ -64,9 +65,9 @@ impl<C: Courier> VirtualMachine<C> {
         VirtualMachine {
             courier,
             executable: executable.into(),
-            cursor: 0,
-            stack: vec![],
+            frame: CallFrame::default(),
             frames: vec![],
+            stack: vec![],
         }
     }
 
@@ -77,42 +78,21 @@ impl<C: Courier> VirtualMachine<C> {
         self.executable = executable.into();
     }
 
-    pub fn respond(&mut self, message: Value) -> RuntimeResult<Option<Value>> {
-        self.execute(Some(message))?;
-        self.exit_function()
-    }
-
-    fn execute(&mut self, value: Option<Value>) -> RuntimeResult<()> {
-        let locals = if value.is_some() { 1 } else { 0 };
-        let function = Function::new(self.cursor, locals, Vec::default());
-        let closure = Closure::new(function.clone(), Vec::new());
+    pub fn call(&mut self, index: usize, arguments: &[Value]) -> RuntimeResult<Option<Value>> {
+        let closure = Closure::new(index, Vec::new());
 
         self.stack.push(closure.into());
+        self.stack.extend_from_slice(arguments);
 
-        if let Some(value) = value {
-            self.stack.push(value);
-        }
+        self.enter_function(index)?;
 
-        self.enter_function(function)?;
-
-        while self.cursor < self.executable.len() {
-            let operation = self.get_operation()?;
+        while let Some(index) = self.frame.next() {
+            let operation = self.get_operation(index as usize)?;
 
             operation(self)?;
         }
 
-        Ok(())
-    }
-
-    pub fn run(&mut self) -> RuntimeResult<Option<Value>> {
-        self.execute(None)?;
-
-        let cursor = self.cursor;
-        let result = self.exit_function()?;
-
-        self.cursor = cursor;
-
-        Ok(result)
+        self.exit_function()
     }
 
     fn constant_number_operation(&mut self) -> OperationResult {
@@ -139,7 +119,12 @@ impl<C: Courier> VirtualMachine<C> {
     }
 
     fn define_local_operation(&mut self) -> OperationResult {
-        self.set_local(todo!())?;
+        let slot = self
+            .frame
+            .define_local()
+            .map_err(|locals| RuntimeError::from(ErrorKind::TooManyLocals(locals)))?;
+
+        self.set_local(slot)?;
 
         Ok(())
     }
@@ -309,7 +294,7 @@ impl<C: Courier> VirtualMachine<C> {
     fn call_operation(&mut self) -> OperationResult {
         let function = self.get_function()?;
 
-        self.enter_function(function)?;
+        self.enter_function(todo!())?;
 
         Ok(())
     }
@@ -338,7 +323,7 @@ impl<C: Courier> VirtualMachine<C> {
             captures.push(value);
         }
 
-        self.stack.push(Closure::new(function, captures).into());
+        self.stack.push(Closure::new(todo!(), captures).into());
 
         Ok(())
     }
@@ -358,7 +343,7 @@ impl<C: Courier> VirtualMachine<C> {
     fn branch_operation(&mut self) -> OperationResult {
         let jump = self.read_u16()? as usize;
 
-        self.cursor += jump;
+        self.frame.jump(jump);
 
         Ok(())
     }
@@ -368,7 +353,7 @@ impl<C: Courier> VirtualMachine<C> {
         let condition = self.pop_number()? == Number::from(0);
 
         if condition {
-            self.cursor += jump;
+            self.frame.jump(jump);
         }
 
         Ok(())
@@ -379,62 +364,65 @@ impl<C: Courier> VirtualMachine<C> {
         let condition = self.pop_number()? != Number::from(0);
 
         if condition {
-            self.cursor += jump;
+            self.frame.jump(jump);
         }
 
         Ok(())
     }
 
-    fn enter_function(&mut self, function: Function) -> RuntimeResult<()> {
-        let locals = function.locals() + 1;
-        let has_captures = function.captures().len() > 0;
-        let length = self.stack.len();
-        let start_stack = length
-            .checked_sub(locals)
-            .ok_or_else(|| RuntimeError::from(ErrorKind::IncorrectCall(locals, length)))?;
-        let start_frame = function.start();
-        let frame = CallFrame::new(self.cursor, start_stack, function);
+    fn enter_function(&mut self, index: usize) -> RuntimeResult<()> {
+        let function = self
+            .executable
+            .function(index)
+            .ok_or_else(|| RuntimeError::from(ErrorKind::NoSuchFunction(index)))?;
+
+        let parameters = 1 + function.arity();
+        let start_stack = self.stack.len().checked_sub(parameters).ok_or_else(|| {
+            RuntimeError::from(ErrorKind::NotEnoughParameters(parameters, self.stack.len()))
+        })?;
+        let mut frame = CallFrame::new(start_stack, function);
+
+        mem::swap(&mut frame, &mut self.frame);
 
         self.frames.push(frame);
 
-        if has_captures {
-            let closure = self.get_current_closure()?;
-            let captures = Vec::from(closure);
-
-            self.stack.extend(captures);
+        for _ in 0..function.locals() {
+            self.stack.push(Value::default());
         }
 
-        self.cursor = start_frame;
+        if !function.captures().is_empty() {
+            let range = self.frame.locals();
+            let index = 0;
+            let value = self.stack[range]
+                .get(index)
+                .ok_or_else(|| RuntimeError::from(ErrorKind::UndefinedLocal(index, range.len())))?;
+
+            match value {
+                Value::Closure(closure) => self.stack.extend_from_slice(closure.captures()),
+                _ => return Err(ErrorKind::ExpectedClosure(value.clone()).into()),
+            }
+        }
 
         Ok(())
     }
 
     fn exit_function(&mut self) -> RuntimeResult<Option<Value>> {
-        let frame = self
+        let mut iterator = self.stack.drain(self.frame.end_frame()..);
+        let result = iterator.next();
+        let mut frame = self
             .frames
             .pop()
             .ok_or_else(|| RuntimeError::from(ErrorKind::EmptyCallFrames))?;
-        let values = frame.values();
-        let result = if self.stack[&frame].len() > values {
-            self.stack.pop()
-        } else {
-            None
-        };
 
-        for _ in 0..values {
-            if self.stack.pop().is_none() {
-                return Err(ErrorKind::EmptyStack.into());
-            }
-        }
-
-        self.cursor = frame.return_to();
+        mem::swap(&mut frame, &mut self.frame);
 
         Ok(result)
     }
 
-    fn get_operation(&mut self) -> RuntimeResult<&fn(&mut VirtualMachine<C>) -> OperationResult> {
-        let operation = self.read_byte()? as usize;
-
+    fn get_operation(
+        &mut self,
+        operation: usize,
+    ) -> RuntimeResult<&fn(&mut VirtualMachine<C>) -> OperationResult> {
         Self::OPERATIONS_TABLE
             .get(operation)
             .ok_or_else(|| ErrorKind::UnsupportedOperation(operation).into())
@@ -482,13 +470,10 @@ impl<C: Courier> VirtualMachine<C> {
 
     fn set_local(&mut self, index: usize) -> RuntimeResult<()> {
         let value = self.pop_value()?;
-        let frame = self
-            .frames
-            .last()
-            .ok_or_else(|| RuntimeError::from(ErrorKind::EmptyCallFrames))?;
-        let local = self.stack[frame]
+        let range = self.frame.locals();
+        let local = self.stack[&range]
             .get_mut(index)
-            .ok_or_else(|| RuntimeError::from(ErrorKind::CorruptedFrame))?;
+            .ok_or_else(|| RuntimeError::from(ErrorKind::UndefinedLocal(index, range.len())))?;
 
         *local = value;
 
@@ -496,26 +481,20 @@ impl<C: Courier> VirtualMachine<C> {
     }
 
     fn get_local(&mut self, index: usize) -> RuntimeResult<Value> {
-        let frame = self
-            .frames
-            .last()
-            .ok_or_else(|| RuntimeError::from(ErrorKind::EmptyCallFrames))?;
-        let value = self.stack[frame]
+        let range = self.frame.locals();
+        let value = self.stack[&range]
             .get(index)
-            .ok_or_else(|| RuntimeError::from(ErrorKind::CorruptedFrame))?;
+            .ok_or_else(|| RuntimeError::from(ErrorKind::UndefinedLocal(index, range.len())))?;
 
         Ok(value.clone())
     }
 
     fn set_capture(&mut self, index: usize) -> RuntimeResult<()> {
         let value = self.pop_value()?;
-        let frame = self
-            .frames
-            .last()
-            .ok_or_else(|| RuntimeError::from(ErrorKind::EmptyCallFrames))?;
-        let capture = self.stack[frame]
-            .get_mut(frame.locals() + index)
-            .ok_or_else(|| RuntimeError::from(ErrorKind::CorruptedFrame))?;
+        let range = self.frame.captures();
+        let capture = self.stack[&range]
+            .get_mut(index)
+            .ok_or_else(|| RuntimeError::from(ErrorKind::UndefinedCapture(index, range.len())))?;
 
         *capture = value;
 
@@ -523,13 +502,10 @@ impl<C: Courier> VirtualMachine<C> {
     }
 
     fn get_capture(&mut self, index: usize) -> RuntimeResult<Value> {
-        let frame = self
-            .frames
-            .last()
-            .ok_or_else(|| RuntimeError::from(ErrorKind::EmptyCallFrames))?;
-        let value = self.stack[frame]
-            .get(frame.locals() + index)
-            .ok_or_else(|| RuntimeError::from(ErrorKind::CorruptedFrame))?;
+        let range = self.frame.captures();
+        let value = self.stack[&range]
+            .get(index)
+            .ok_or_else(|| RuntimeError::from(ErrorKind::UndefinedCapture(index, range.len())))?;
 
         Ok(value.clone())
     }
@@ -572,11 +548,5 @@ impl<C: Courier> VirtualMachine<C> {
             .ok_or_else(|| RuntimeError::from(ErrorKind::NoSuchFunction(slot)))?;
 
         Ok(function.clone())
-    }
-
-    fn get_current_closure(&mut self) -> RuntimeResult<Closure> {
-        self.get_local(0)?
-            .try_into()
-            .map_err(|value| ErrorKind::ExpectedClosure(value).into())
     }
 }

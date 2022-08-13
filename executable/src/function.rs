@@ -1,23 +1,34 @@
 use std::fmt::{Display, Formatter};
+use std::rc::Rc;
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Function {
-    start: usize,
+    code: Rc<Vec<u8>>,
+    parameters: usize,
     locals: usize,
     captures: Vec<bool>,
 }
 
 impl Function {
-    pub fn new(start: usize, locals: usize, captures: Vec<bool>) -> Self {
+    pub fn new<Co, Ca>(code: Co, parameters: usize, locals: usize, captures: Ca) -> Self
+    where
+        Co: Into<Vec<u8>>,
+        Ca: Into<Vec<bool>>,
+    {
         Function {
-            start,
+            code: Rc::new(code.into()),
+            parameters,
             locals,
-            captures,
+            captures: captures.into(),
         }
     }
 
-    pub fn start(&self) -> usize {
-        self.start
+    pub fn code(&self) -> Rc<Vec<u8>> {
+        Rc::clone(&self.code)
+    }
+
+    pub fn arity(&self) -> usize {
+        self.parameters
     }
 
     pub fn locals(&self) -> usize {
@@ -29,22 +40,23 @@ impl Function {
     }
 
     pub fn values(&self) -> usize {
-        self.locals + 1 + self.captures.len()
+        1 + self.parameters + self.locals + self.captures.len()
     }
 }
 
 impl Display for Function {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<{}/{}>", self.start, self.locals)
+        write!(f, "<_/{}>", self.parameters)
     }
 }
 
 impl Default for Function {
     fn default() -> Self {
         Function {
-            start: 0,
+            code: Rc::new(vec![]),
+            parameters: 0,
             locals: 0,
-            captures: Vec::default(),
+            captures: vec![],
         }
     }
 }

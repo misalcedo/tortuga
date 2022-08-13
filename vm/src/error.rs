@@ -17,7 +17,6 @@ impl From<ErrorKind> for RuntimeError {
 pub enum ErrorKind {
     EmptyStack,
     EmptyCallFrames,
-    CorruptedFrame,
     ExpectedIdentifier(Value),
     ExpectedNumber(Value),
     ExpectedClosure(Value),
@@ -27,7 +26,10 @@ pub enum ErrorKind {
     InvalidOperand(usize, usize), // expected, actual
     NoSuchConstant(usize),
     NoSuchFunction(usize),
-    IncorrectCall(usize, usize), // expected, actual,
+    TooManyLocals(usize),
+    UndefinedLocal(usize, usize),      // requested, defined
+    UndefinedCapture(usize, usize),    // requested, defined
+    NotEnoughParameters(usize, usize), // expected, actual,
     ReturnOutsideFunction,
 }
 
