@@ -93,6 +93,7 @@ where
         self.update_entrypoint()
     }
 
+    // TODO: Figure out how to denote the number of locals in the script.
     fn update_entrypoint(&mut self) -> TranslationResult<()> {
         let root = self
             .contexts

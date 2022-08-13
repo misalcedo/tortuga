@@ -10,6 +10,7 @@ pub enum Operation {
     ConstantNumber(ConstantIndex),
     ConstantText(ConstantIndex),
     Pop,
+    DefineLocal,
     SetLocal(LocalOffset),
     GetLocal(LocalOffset),
     SetCapture(CaptureOffset),
@@ -41,6 +42,7 @@ pub enum OperationCode {
     ConstantNumber,
     ConstantText,
     Pop,
+    DefineLocal,
     SetLocal,
     GetLocal,
     SetCapture,
@@ -72,6 +74,7 @@ impl From<&Operation> for OperationCode {
             Operation::ConstantNumber(_) => OperationCode::ConstantNumber,
             Operation::ConstantText(_) => OperationCode::ConstantText,
             Operation::Pop => OperationCode::Pop,
+            Operation::DefineLocal => OperationCode::DefineLocal,
             Operation::SetLocal(_) => OperationCode::SetLocal,
             Operation::GetLocal(_) => OperationCode::GetLocal,
             Operation::SetCapture(_) => OperationCode::SetCapture,
@@ -126,6 +129,10 @@ impl From<&[Operation]> for Code {
                     code.extend_from_slice(&bytes);
                 }
                 Operation::Pop => {
+                    let bytes = [u8::from(operation)];
+                    code.extend_from_slice(&bytes);
+                }
+                Operation::DefineLocal => {
                     let bytes = [u8::from(operation)];
                     code.extend_from_slice(&bytes);
                 }

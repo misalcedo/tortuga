@@ -27,10 +27,11 @@ type RuntimeResult<T> = Result<T, RuntimeError>;
 type OperationResult = RuntimeResult<()>;
 
 impl<C: Courier> VirtualMachine<C> {
-    const OPERATIONS_TABLE: [fn(&mut VirtualMachine<C>) -> OperationResult; 26] = [
+    const OPERATIONS_TABLE: [fn(&mut VirtualMachine<C>) -> OperationResult; 27] = [
         Self::constant_number_operation,
         Self::constant_text_operation,
         Self::pop_operation,
+        Self::define_local_operation,
         Self::set_local_operation,
         Self::get_local_operation,
         Self::set_capture_operation,
@@ -135,6 +136,12 @@ impl<C: Courier> VirtualMachine<C> {
             Some(_) => Ok(()),
             None => Err(ErrorKind::EmptyStack.into()),
         }
+    }
+
+    fn define_local_operation(&mut self) -> OperationResult {
+        self.set_local(todo!())?;
+
+        Ok(())
     }
 
     fn set_local_operation(&mut self) -> OperationResult {
