@@ -7,7 +7,6 @@ use crate::{Closure, Function};
 use crate::{Courier, Text};
 use std::cmp::Ordering;
 use std::mem;
-use std::mem::size_of;
 
 #[derive(Clone, Debug)]
 pub struct VirtualMachine<Courier> {
@@ -392,15 +391,16 @@ impl<C: Courier> VirtualMachine<C> {
 
         if !function.captures().is_empty() {
             let range = self.frame.locals();
-            let index = 0;
+            let locals = range.len();
             let value = self.stack[range]
-                .get(index)
-                .ok_or_else(|| RuntimeError::from(ErrorKind::UndefinedLocal(index, range.len())))?;
-
-            match value {
-                Value::Closure(closure) => self.stack.extend_from_slice(closure.captures()),
+                .get(0)
+                .ok_or_else(|| RuntimeError::from(ErrorKind::UndefinedLocal(0, locals)))?;
+            let captures = match value {
+                Value::Closure(closure) => closure.captures(),
                 _ => return Err(ErrorKind::ExpectedClosure(value.clone()).into()),
-            }
+            };
+
+            self.stack.extend_from_slice(&captures)
         }
 
         Ok(())
@@ -444,36 +444,13 @@ impl<C: Courier> VirtualMachine<C> {
             .ok_or_else(|| ErrorKind::NoSuchConstant(index).into())
     }
 
-    fn read_byte(&mut self) -> RuntimeResult<u8> {
-        Ok(self.read::<u8>()?[0])
-    }
-
-    fn read_u16(&mut self) -> RuntimeResult<u16> {
-        let operand = self.read::<u16>()?;
-        let bytes = [operand[0], operand[1]];
-
-        Ok(u16::from_le_bytes(bytes))
-    }
-
-    fn read<T>(&mut self) -> RuntimeResult<&[u8]> {
-        let size = size_of::<T>();
-        let operand = self.executable.code(self.cursor, size);
-
-        if operand.len() == size {
-            self.cursor += size;
-
-            Ok(operand)
-        } else {
-            Err(ErrorKind::InvalidOperand(size, operand.len()).into())
-        }
-    }
-
     fn set_local(&mut self, index: usize) -> RuntimeResult<()> {
         let value = self.pop_value()?;
         let range = self.frame.locals();
-        let local = self.stack[&range]
+        let locals = range.len();
+        let local = self.stack[range]
             .get_mut(index)
-            .ok_or_else(|| RuntimeError::from(ErrorKind::UndefinedLocal(index, range.len())))?;
+            .ok_or_else(|| RuntimeError::from(ErrorKind::UndefinedLocal(index, locals)))?;
 
         *local = value;
 
@@ -482,9 +459,10 @@ impl<C: Courier> VirtualMachine<C> {
 
     fn get_local(&mut self, index: usize) -> RuntimeResult<Value> {
         let range = self.frame.locals();
-        let value = self.stack[&range]
+        let locals = range.len();
+        let value = self.stack[range]
             .get(index)
-            .ok_or_else(|| RuntimeError::from(ErrorKind::UndefinedLocal(index, range.len())))?;
+            .ok_or_else(|| RuntimeError::from(ErrorKind::UndefinedLocal(index, locals)))?;
 
         Ok(value.clone())
     }
@@ -492,9 +470,10 @@ impl<C: Courier> VirtualMachine<C> {
     fn set_capture(&mut self, index: usize) -> RuntimeResult<()> {
         let value = self.pop_value()?;
         let range = self.frame.captures();
-        let capture = self.stack[&range]
+        let captures = range.len();
+        let capture = self.stack[range]
             .get_mut(index)
-            .ok_or_else(|| RuntimeError::from(ErrorKind::UndefinedCapture(index, range.len())))?;
+            .ok_or_else(|| RuntimeError::from(ErrorKind::UndefinedCapture(index, captures)))?;
 
         *capture = value;
 
@@ -503,9 +482,10 @@ impl<C: Courier> VirtualMachine<C> {
 
     fn get_capture(&mut self, index: usize) -> RuntimeResult<Value> {
         let range = self.frame.captures();
-        let value = self.stack[&range]
+        let captures = range.len();
+        let value = self.stack[range]
             .get(index)
-            .ok_or_else(|| RuntimeError::from(ErrorKind::UndefinedCapture(index, range.len())))?;
+            .ok_or_else(|| RuntimeError::from(ErrorKind::UndefinedCapture(index, captures)))?;
 
         Ok(value.clone())
     }
@@ -548,5 +528,17 @@ impl<C: Courier> VirtualMachine<C> {
             .ok_or_else(|| RuntimeError::from(ErrorKind::NoSuchFunction(slot)))?;
 
         Ok(function.clone())
+    }
+
+    fn read_byte(&mut self) -> RuntimeResult<u8> {
+        self.frame
+            .read_byte()
+            .ok_or_else(|| RuntimeError::from(ErrorKind::InvalidOperand(mem::size_of::<u8>(), 0)))
+    }
+
+    fn read_u16(&mut self) -> RuntimeResult<u16> {
+        self.frame.read_u16().map_err(|actual| {
+            RuntimeError::from(ErrorKind::InvalidOperand(mem::size_of::<u16>(), actual))
+        })
     }
 }

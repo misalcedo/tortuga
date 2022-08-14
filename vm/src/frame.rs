@@ -1,5 +1,4 @@
 use crate::{Function, Value};
-use std::borrow::Borrow;
 use std::ops::{Index, IndexMut, Range};
 use std::rc::Rc;
 
@@ -52,12 +51,35 @@ impl CallFrame {
         self.cursor += offset;
     }
 
-    fn start_captures(&self) -> usize {
-        self.start_stack + 1 + self.parameters + self.defined_locals
-    }
-
     pub fn end_frame(&self) -> usize {
         self.start_captures() + self.captures
+    }
+
+    pub fn read_byte(&mut self) -> Option<u8> {
+        self.next()
+    }
+
+    pub fn read_u16(&mut self) -> Result<u16, usize> {
+        let bytes = self.read::<2>()?;
+
+        Ok(u16::from_le_bytes(bytes))
+    }
+
+    fn read<const N: usize>(&mut self) -> Result<[u8; N], usize> {
+        let mut bytes = [0u8; N];
+
+        for (index, x) in bytes.iter_mut().enumerate() {
+            match self.next() {
+                None => return Err(index),
+                Some(byte) => *x = byte,
+            }
+        }
+
+        Ok(bytes)
+    }
+
+    fn start_captures(&self) -> usize {
+        self.start_stack + 1 + self.parameters + self.defined_locals
     }
 }
 

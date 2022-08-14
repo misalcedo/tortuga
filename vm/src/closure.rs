@@ -1,11 +1,11 @@
-use crate::Function;
 use crate::Value;
 use std::fmt::{Display, Formatter};
+use std::rc::Rc;
 
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub struct Closure {
     function: usize,
-    captures: Vec<Value>,
+    captures: Rc<Vec<Value>>,
 }
 
 impl Display for Closure {
@@ -18,27 +18,24 @@ impl Default for Closure {
     fn default() -> Self {
         Closure {
             function: 0,
-            captures: Vec::default(),
+            captures: Rc::new(vec![]),
         }
-    }
-}
-
-impl From<Closure> for Vec<Value> {
-    fn from(closure: Closure) -> Self {
-        closure.captures
     }
 }
 
 impl Closure {
     pub fn new(function: usize, captures: Vec<Value>) -> Self {
-        Closure { function, captures }
+        Closure {
+            function,
+            captures: Rc::new(captures),
+        }
     }
 
     pub fn function(&self) -> usize {
         self.function
     }
 
-    pub fn captures(&self) -> &[Value] {
-        &self.captures[..]
+    pub fn captures(&self) -> Rc<Vec<Value>> {
+        Rc::clone(&self.captures)
     }
 }
