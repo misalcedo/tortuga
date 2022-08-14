@@ -14,7 +14,7 @@ mod value;
 use crate::grammar::{
     Expression, Identifier, Internal, InternalKind, PostOrderIterator, Terminal, Uri,
 };
-use crate::translate::context::ScopeContext;
+use context::ScopeContext;
 pub use error::TranslationError;
 use indices::IndexedSet;
 use value::Value;
@@ -22,9 +22,9 @@ use value::Value;
 pub struct Translator<'a, Iterator, Reporter> {
     reporter: Reporter,
     iterator: Iterator,
+    context: ScopeContext<'a>,
     contexts: Vec<ScopeContext<'a>>,
-    code: Vec<Operation>,
-    functions: IndexedSet<Function>,
+    functions: Vec<Function>,
     numbers: IndexedSet<grammar::Number<'a>, Number>,
     texts: IndexedSet<Uri<'a>, Text>,
     stack: Vec<Value>,
@@ -47,9 +47,9 @@ where
         Translator {
             reporter,
             iterator: program.iter_post_order(),
-            contexts: vec![Default::default()],
-            code: Default::default(),
-            functions: IndexedSet::from([Function::default()]),
+            context: Default::default(),
+            contexts: vec![],
+            functions: vec![],
             numbers: Default::default(),
             texts: Default::default(),
             stack: Default::default(),
@@ -64,12 +64,7 @@ where
         if self.reporter.had_error() {
             Err(self.reporter)
         } else {
-            Ok(Executable::new(
-                self.code,
-                self.functions,
-                self.numbers,
-                self.texts,
-            ))
+            Ok(Executable::new(self.functions, self.numbers, self.texts))
         }
     }
 
@@ -104,7 +99,7 @@ where
             .get_mut(0)
             .ok_or_else(|| TranslationError::from("Expected script function to be present."))?;
 
-        *script = Function::new(0, root.locals(), Vec::default());
+        *script = Function::new(0, root.locals(), vec![], vec![]);
 
         Ok(())
     }
@@ -155,7 +150,8 @@ where
 
                 local.initialize(depth, value);
 
-                self.code.push(Operation::SetLocal(local.offset() as u8));
+                self.context
+                    .add_operation(Operation::SetLocal(local.offset() as u8));
                 self.stack.push(value);
             }
             Value::Any => {}
@@ -181,7 +177,7 @@ where
 
         match (a, b) {
             (Value::Number(_), Value::Number(_)) => {
-                self.code.push(operation);
+                self.context.add_operation(operation);
                 self.stack.push(Value::Number(None));
             }
             (Value::Any, Value::Any) => self.stack.push(Value::Any),
@@ -200,8 +196,8 @@ where
 
         match (a, b) {
             (Value::Number(_), Value::Number(_)) => {
-                self.code.push(Operation::Not);
-                self.code.push(operation);
+                self.context.add_operation(Operation::Not);
+                self.context.add_operation(operation);
                 self.stack.push(Value::Number(None));
             }
             (Value::Any, Value::Any) => self.stack.push(Value::Any),
@@ -239,7 +235,8 @@ where
 
         match scope.resolve_local(identifier) {
             Some(local) => {
-                self.code.push(Operation::GetLocal(local.offset() as u8));
+                self.context
+                    .add_operation(Operation::GetLocal(local.offset() as u8));
                 self.stack.push(local.kind().clone());
                 Ok(())
             }
@@ -270,7 +267,8 @@ where
             self.report_error("Too many URI constants (max is 256).");
         }
 
-        self.code.push(Operation::ConstantText(index as u8));
+        self.context
+            .add_operation(Operation::ConstantText(index as u8));
         self.stack.push(Value::Text(Some(index)));
     }
 
@@ -288,7 +286,8 @@ where
             self.report_error("Too many number constants (max is 256).");
         }
 
-        self.code.push(Operation::ConstantNumber(index as u8));
+        self.context
+            .add_operation(Operation::ConstantNumber(index as u8));
         self.stack.push(Value::Number(Some(index)));
     }
 
@@ -338,7 +337,7 @@ mod tests {
         let executable: Executable = Translation::try_from("2 + 40").unwrap().into();
 
         assert_eq!(
-            executable.code(0, executable.len()),
+            executable.function(0).unwrap().code().as_slice(),
             &[
                 OperationCode::ConstantNumber as u8,
                 0,
@@ -354,7 +353,7 @@ mod tests {
         let executable: Executable = Translation::try_from("x = 2\nx + 40").unwrap().into();
 
         assert_eq!(
-            executable.code(0, executable.len()),
+            executable.function(0).unwrap().code().as_slice(),
             &[
                 OperationCode::ConstantNumber as u8,
                 0,
@@ -369,7 +368,7 @@ mod tests {
         );
         assert_eq!(
             executable.function(0),
-            Some(&Function::new(0, 1, Vec::default()))
+            Some(&Function::new(0, 1, vec![], vec![]))
         );
     }
 
