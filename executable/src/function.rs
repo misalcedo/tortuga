@@ -3,23 +3,23 @@ use std::rc::Rc;
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Function {
-    code: Rc<Vec<u8>>,
     parameters: usize,
     locals: usize,
-    captures: Vec<bool>,
+    code: Rc<Vec<u8>>,
+    captures: Rc<Vec<bool>>,
 }
 
 impl Function {
-    pub fn new<Co, Ca>(code: Co, parameters: usize, locals: usize, captures: Ca) -> Self
+    pub fn new<Co, Ca>(parameters: usize, locals: usize, code: Co, captures: Ca) -> Self
     where
         Co: Into<Vec<u8>>,
         Ca: Into<Vec<bool>>,
     {
         Function {
-            code: Rc::new(code.into()),
             parameters,
             locals,
-            captures: captures.into(),
+            code: Rc::new(code.into()),
+            captures: Rc::new(captures.into()),
         }
     }
 
@@ -35,8 +35,8 @@ impl Function {
         self.locals
     }
 
-    pub fn captures(&self) -> &[bool] {
-        self.captures.as_slice()
+    pub fn captures(&self) -> Rc<Vec<bool>> {
+        Rc::clone(&self.captures)
     }
 
     pub fn values(&self) -> usize {
@@ -56,7 +56,7 @@ impl Default for Function {
             code: Rc::new(vec![]),
             parameters: 0,
             locals: 0,
-            captures: vec![],
+            captures: Rc::new(vec![]),
         }
     }
 }

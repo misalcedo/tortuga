@@ -240,3 +240,19 @@ impl Code for Vec<u8> {
         }
     }
 }
+
+pub trait ToCode {
+    fn to_code(self) -> Vec<u8>;
+}
+
+impl ToCode for Vec<Operation> {
+    fn to_code(self) -> Vec<u8> {
+        let mut bytes = vec![];
+
+        for operation in self {
+            bytes.push_operation(&operation);
+        }
+
+        bytes
+    }
+}

@@ -9,7 +9,7 @@ mod text;
 pub use error::ParseNumberError;
 pub use function::Function;
 pub use number::Number;
-pub use operation::{Code, Operation, OperationCode};
+pub use operation::{Code, Operation, OperationCode, ToCode};
 pub use text::Text;
 
 #[derive(Clone, Debug, Default, PartialEq)]

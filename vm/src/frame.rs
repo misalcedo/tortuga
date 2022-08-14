@@ -21,7 +21,7 @@ impl CallFrame {
             code: function.code(),
             parameters: function.arity(),
             captures: function.captures().len(),
-            locals: 0,
+            locals: function.locals(),
             defined_locals: 0,
             cursor: 0,
         }
@@ -29,11 +29,9 @@ impl CallFrame {
 
     pub fn define_local(&mut self) -> Result<usize, usize> {
         if self.defined_locals < self.locals {
-            let index = self.defined_locals;
-
             self.defined_locals += 1;
 
-            Ok(index)
+            Ok(self.parameters + self.defined_locals)
         } else {
             Err(self.locals)
         }
@@ -51,7 +49,11 @@ impl CallFrame {
         self.cursor += offset;
     }
 
-    pub fn end_frame(&self) -> usize {
+    pub fn start_frame(&self) -> usize {
+        self.start_stack
+    }
+
+    fn end_frame(&self) -> usize {
         self.start_captures() + self.captures
     }
 

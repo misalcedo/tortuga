@@ -1,9 +1,9 @@
 use crate::error::{ErrorKind, RuntimeError};
+use crate::Closure;
 use crate::Executable;
 use crate::Identifier;
 use crate::Value;
 use crate::{CallFrame, Number};
-use crate::{Closure, Function};
 use crate::{Courier, Text};
 use std::cmp::Ordering;
 use std::mem;
@@ -78,7 +78,7 @@ impl<C: Courier> VirtualMachine<C> {
     }
 
     pub fn call(&mut self, index: usize, arguments: &[Value]) -> RuntimeResult<Option<Value>> {
-        let closure = Closure::new(index, Vec::new());
+        let closure = Closure::new(index, vec![]);
 
         self.stack.push(closure.into());
         self.stack.extend_from_slice(arguments);
@@ -91,7 +91,11 @@ impl<C: Courier> VirtualMachine<C> {
             operation(self)?;
         }
 
-        self.exit_function()
+        if self.frames.is_empty() {
+            Ok(self.stack.pop())
+        } else {
+            Err(ErrorKind::FunctionMissingReturn(index).into())
+        }
     }
 
     fn constant_number_operation(&mut self) -> OperationResult {
@@ -291,9 +295,9 @@ impl<C: Courier> VirtualMachine<C> {
     }
 
     fn call_operation(&mut self) -> OperationResult {
-        let function = self.get_function()?;
+        let slot = self.read_byte()? as usize;
 
-        self.enter_function(todo!())?;
+        self.enter_function(slot)?;
 
         Ok(())
     }
@@ -308,12 +312,16 @@ impl<C: Courier> VirtualMachine<C> {
     }
 
     fn closure_operation(&mut self) -> OperationResult {
-        let function = self.get_function()?;
+        let slot = self.read_byte()? as usize;
+        let function = self
+            .executable
+            .function(slot)
+            .ok_or_else(|| RuntimeError::from(ErrorKind::NoSuchFunction(slot)))?;
 
         let mut captures = Vec::with_capacity(function.captures().len());
-        for local in function.captures() {
+        for &local in function.captures().iter() {
             let index = self.read_byte()? as usize;
-            let value = if *local {
+            let value = if local {
                 self.get_local(index)?
             } else {
                 self.get_capture(index)?
@@ -322,7 +330,7 @@ impl<C: Courier> VirtualMachine<C> {
             captures.push(value);
         }
 
-        self.stack.push(Closure::new(todo!(), captures).into());
+        self.stack.push(Closure::new(slot, captures).into());
 
         Ok(())
     }
@@ -332,11 +340,7 @@ impl<C: Courier> VirtualMachine<C> {
             self.stack.push(result);
         }
 
-        if self.frames.is_empty() {
-            Err(ErrorKind::ReturnOutsideFunction.into())
-        } else {
-            Ok(())
-        }
+        Ok(())
     }
 
     fn branch_operation(&mut self) -> OperationResult {
@@ -407,8 +411,10 @@ impl<C: Courier> VirtualMachine<C> {
     }
 
     fn exit_function(&mut self) -> RuntimeResult<Option<Value>> {
-        let mut iterator = self.stack.drain(self.frame.end_frame()..);
-        let result = iterator.next();
+        let result = self.stack.pop();
+
+        self.stack.drain(self.frame.start_frame()..);
+
         let mut frame = self
             .frames
             .pop()
@@ -520,16 +526,6 @@ impl<C: Courier> VirtualMachine<C> {
         }
     }
 
-    fn get_function(&mut self) -> RuntimeResult<Function> {
-        let slot = self.read_byte()? as usize;
-        let function = self
-            .executable
-            .function(slot)
-            .ok_or_else(|| RuntimeError::from(ErrorKind::NoSuchFunction(slot)))?;
-
-        Ok(function.clone())
-    }
-
     fn read_byte(&mut self) -> RuntimeResult<u8> {
         self.frame
             .read_byte()
@@ -540,5 +536,28 @@ impl<C: Courier> VirtualMachine<C> {
         self.frame.read_u16().map_err(|actual| {
             RuntimeError::from(ErrorKind::InvalidOperand(mem::size_of::<u16>(), actual))
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tortuga_executable::{Function, Operation, ToCode};
+
+    #[test]
+    fn add_with_local() {
+        let operations = vec![
+            Operation::ConstantNumber(0),
+            Operation::DefineLocal,
+            Operation::GetLocal(1),
+            Operation::ConstantNumber(1),
+            Operation::Add,
+            Operation::Return,
+        ];
+        let main = Function::new(0, 1, operations.to_code(), vec![]);
+        let executable = Executable::new(vec![main], vec![2.into(), 40.into()], vec![]);
+        let mut machine = VirtualMachine::new(executable, ());
+
+        assert_eq!(machine.call(0, &[]), Ok(Some(Value::from(42))));
     }
 }

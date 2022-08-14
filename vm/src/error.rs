@@ -30,7 +30,7 @@ pub enum ErrorKind {
     UndefinedLocal(usize, usize),      // requested, defined
     UndefinedCapture(usize, usize),    // requested, defined
     NotEnoughParameters(usize, usize), // expected, actual,
-    ReturnOutsideFunction,
+    FunctionMissingReturn(usize),
 }
 
 impl Display for RuntimeError {
