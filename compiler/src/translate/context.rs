@@ -48,8 +48,8 @@ impl<'a> ScopeContext<'a> {
             .insert_with(name, |index| Local::new(name, index + 1))
     }
 
-    pub fn resolve_local(&self, name: &Identifier<'a>) -> Option<&Local<'a>> {
-        self.locals.lookup(name)
+    pub fn resolve_local(&self, name: &Identifier<'a>) -> Option<Local<'a>> {
+        self.locals.lookup(name).cloned()
     }
 
     pub fn local_mut(&mut self, index: usize) -> Option<&mut Local<'a>> {

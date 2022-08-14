@@ -137,17 +137,15 @@ where
         match assignee {
             Value::Uninitialized(index) => {
                 let depth = self.contexts.len();
-                let scope = self.contexts.last_mut().ok_or_else(|| {
-                    TranslationError::from("Expected function contexts to not be empty.")
-                })?;
-                let local = scope.local_mut(index).ok_or_else(|| {
-                    TranslationError::from("Unable to find local in current scope.")
-                })?;
+                let local = self
+                    .context
+                    .local_mut(index)
+                    .ok_or_else(|| {
+                        TranslationError::from("Unable to find local in current scope.")
+                    })?
+                    .initialize(depth, value);
 
-                local.initialize(depth, value);
-
-                self.context
-                    .add_operation(Operation::SetLocal(local.offset() as u8));
+                self.context.add_operation(Operation::SetLocal(local as u8));
                 self.stack.push(value);
             }
             Value::Any => {}
@@ -224,12 +222,7 @@ where
     }
 
     fn simulate_identifier(&mut self, identifier: &Identifier<'a>) -> TranslationResult<()> {
-        let scope = self
-            .contexts
-            .last_mut()
-            .ok_or_else(|| TranslationError::from("Expected function contexts to not be empty."))?;
-
-        match scope.resolve_local(identifier) {
+        match self.context.resolve_local(identifier) {
             Some(local) => {
                 self.context
                     .add_operation(Operation::GetLocal(local.offset() as u8));
@@ -237,7 +230,7 @@ where
                 Ok(())
             }
             None => {
-                let index = scope.add_local(*identifier);
+                let index = self.context.add_local(*identifier);
 
                 if index >= u8::MAX as usize {
                     self.report_error("Too many locals (max is 256).");
@@ -364,7 +357,12 @@ mod tests {
         );
         assert_eq!(
             executable.function(0),
-            Some(&Function::new(0, 1, vec![], vec![]))
+            Some(&Function::new(
+                0,
+                1,
+                vec![0, 0, 4, 1, 5, 1, 0, 1, 11],
+                vec![]
+            ))
         );
     }
 
