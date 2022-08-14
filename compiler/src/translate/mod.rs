@@ -1,5 +1,6 @@
 use crate::Program;
 use crate::{grammar, CompilationError, ErrorReporter};
+use std::mem;
 use tortuga_executable::{Executable, Function, Number, Operation, Text};
 
 mod capture;
@@ -90,16 +91,11 @@ where
 
     // TODO: Figure out how to denote the number of locals in the script.
     fn update_entrypoint(&mut self) -> TranslationResult<()> {
-        let root = self
-            .contexts
-            .pop()
-            .ok_or_else(|| TranslationError::from("Expected function context to not be empty."))?;
-        let script = self
-            .functions
-            .get_mut(0)
-            .ok_or_else(|| TranslationError::from("Expected script function to be present."))?;
+        let mut context = ScopeContext::default();
 
-        *script = Function::new(0, root.locals(), vec![], vec![]);
+        mem::swap(&mut self.context, &mut context);
+
+        self.functions.push(Function::from(context));
 
         Ok(())
     }

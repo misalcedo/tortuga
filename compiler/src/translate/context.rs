@@ -2,7 +2,7 @@ use crate::grammar::Identifier;
 use crate::translate::capture::Capture;
 use crate::translate::indices::IndexedSet;
 use crate::translate::local::Local;
-use tortuga_executable::{Code, Operation};
+use tortuga_executable::{Code, Function, Operation};
 
 #[derive(Clone, Debug)]
 pub struct ScopeContext<'a> {
@@ -58,5 +58,19 @@ impl<'a> ScopeContext<'a> {
 
     pub fn locals(&self) -> usize {
         self.locals.len()
+    }
+}
+
+impl<'a> From<ScopeContext<'a>> for Function {
+    fn from(context: ScopeContext<'a>) -> Self {
+        let captures: Vec<Capture> = context.captures.into();
+        let captures: Vec<bool> = captures.iter().map(|c| c.is_local()).collect();
+
+        Function::new(
+            context.parameters.len(),
+            context.locals.len(),
+            context.code,
+            captures,
+        )
     }
 }
