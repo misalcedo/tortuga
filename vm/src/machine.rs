@@ -144,7 +144,7 @@ impl<C: Courier> VirtualMachine<C> {
         let slot = self.read_byte()? as usize;
         let value = self.get_local(slot)?;
 
-        self.stack.push(value);
+        self.stack.push(value.inner());
 
         Ok(())
     }
@@ -160,7 +160,7 @@ impl<C: Courier> VirtualMachine<C> {
         let slot = self.read_byte()? as usize;
         let value = self.get_capture(slot)?;
 
-        self.stack.push(value);
+        self.stack.push(value.inner());
 
         Ok(())
     }
@@ -322,7 +322,7 @@ impl<C: Courier> VirtualMachine<C> {
         for &local in function.captures().iter() {
             let index = self.read_byte()? as usize;
             let value = if local {
-                self.get_local(index)?
+                self.capture_local(index)?
             } else {
                 self.get_capture(index)?
             };
@@ -458,9 +458,19 @@ impl<C: Courier> VirtualMachine<C> {
             .get_mut(index)
             .ok_or_else(|| RuntimeError::from(ErrorKind::UndefinedLocal(index, locals)))?;
 
-        *local = value;
+        local.update(value);
 
         Ok(())
+    }
+
+    fn capture_local(&mut self, index: usize) -> RuntimeResult<Value> {
+        let range = self.frame.locals();
+        let locals = range.len();
+        let local = self.stack[range]
+            .get_mut(index)
+            .ok_or_else(|| RuntimeError::from(ErrorKind::UndefinedLocal(index, locals)))?;
+
+        Ok(local.capture())
     }
 
     fn get_local(&mut self, index: usize) -> RuntimeResult<Value> {
@@ -481,7 +491,7 @@ impl<C: Courier> VirtualMachine<C> {
             .get_mut(index)
             .ok_or_else(|| RuntimeError::from(ErrorKind::UndefinedCapture(index, captures)))?;
 
-        *capture = value;
+        capture.update(value);
 
         Ok(())
     }
