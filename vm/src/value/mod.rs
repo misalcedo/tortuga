@@ -1,8 +1,10 @@
 mod extractors;
+mod iterate;
 mod operators;
 mod wrappers;
 
 use crate::{Closure, Identifier, Number, Text};
+use iterate::Iter;
 use std::cell::{Ref, RefCell};
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
@@ -15,10 +17,22 @@ pub enum Value {
     Text(Text),
     Closure(Closure),
     Identifier(Identifier),
+    Grouping(Rc<Vec<Value>>),
     Reference(Rc<RefCell<Value>>),
 }
 
 impl Value {
+    pub fn group(values: Vec<Self>) -> Self {
+        Value::Grouping(Rc::new(values))
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &Self> {
+        match self {
+            Value::Grouping(values) => Iter::Group(values.iter()),
+            _ => Iter::Single(Some(self)),
+        }
+    }
+
     pub fn update(&mut self, value: Self) {
         match self {
             Value::Reference(reference) => *reference.borrow_mut() = value,

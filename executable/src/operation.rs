@@ -32,6 +32,8 @@ pub enum Operation {
     Branch(u16),
     BranchIfZero(u16),
     BranchIfNonZero(u16),
+    Group(u8),
+    Separate,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -64,6 +66,8 @@ pub enum OperationCode {
     Branch,
     BranchIfZero,
     BranchIfNonZero,
+    Group,
+    Separate,
 }
 
 impl From<&Operation> for OperationCode {
@@ -96,6 +100,8 @@ impl From<&Operation> for OperationCode {
             Operation::Branch(_) => OperationCode::Branch,
             Operation::BranchIfZero(_) => OperationCode::BranchIfZero,
             Operation::BranchIfNonZero(_) => OperationCode::BranchIfNonZero,
+            Operation::Group(_) => OperationCode::Group,
+            Operation::Separate => OperationCode::Separate,
         }
     }
 }
@@ -236,6 +242,14 @@ impl Code for Vec<u8> {
 
                 self.extend_from_slice(&bytes);
                 self.extend_from_slice(&operand_bytes);
+            }
+            Operation::Group(operand) => {
+                let bytes = [u8::from(operation), *operand];
+                self.extend_from_slice(&bytes);
+            }
+            Operation::Separate => {
+                let bytes = [u8::from(operation)];
+                self.extend_from_slice(&bytes);
             }
         }
     }

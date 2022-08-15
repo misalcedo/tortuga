@@ -27,7 +27,7 @@ type RuntimeResult<T> = Result<T, RuntimeError>;
 type OperationResult = RuntimeResult<()>;
 
 impl<C: Courier> VirtualMachine<C> {
-    const OPERATIONS_TABLE: [fn(&mut VirtualMachine<C>) -> OperationResult; 27] = [
+    const OPERATIONS_TABLE: [fn(&mut VirtualMachine<C>) -> OperationResult; 29] = [
         Self::constant_number_operation,
         Self::constant_text_operation,
         Self::pop_operation,
@@ -55,6 +55,8 @@ impl<C: Courier> VirtualMachine<C> {
         Self::branch_operation,
         Self::branch_if_zero_operation,
         Self::branch_if_non_zero_operation,
+        Self::group_operation,
+        Self::separate_operation,
     ];
 
     pub fn new<E>(executable: E, courier: C) -> Self
@@ -369,6 +371,29 @@ impl<C: Courier> VirtualMachine<C> {
 
         if condition {
             self.frame.jump(jump);
+        }
+
+        Ok(())
+    }
+
+    fn group_operation(&mut self) -> OperationResult {
+        let parts = self.read_byte()? as usize;
+        let mut inner = Vec::with_capacity(parts);
+
+        for _ in 0..parts {
+            inner.push(self.pop_value()?);
+        }
+
+        self.stack.push(Value::group(inner));
+
+        Ok(())
+    }
+
+    fn separate_operation(&mut self) -> OperationResult {
+        let grouping = self.pop_value()?;
+
+        for part in grouping.iter() {
+            self.stack.push(part.clone());
         }
 
         Ok(())

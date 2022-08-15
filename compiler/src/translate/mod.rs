@@ -108,9 +108,9 @@ where
             ExpressionKind::Divide => self.simulate_binary(Operation::Divide),
             ExpressionKind::Multiply => self.simulate_binary(Operation::Multiply),
             ExpressionKind::Power => self.simulate_binary(Operation::Power),
-            ExpressionKind::Call => Ok(()),
-            ExpressionKind::Grouping => self.simulate_grouping(node.children()),
-            ExpressionKind::Condition => Ok(()),
+            ExpressionKind::Call => self.simulate_call(node),
+            ExpressionKind::Grouping => self.simulate_grouping(node),
+            ExpressionKind::Condition => self.simulate_condition(node),
             ExpressionKind::Inequality => self.simulate_negated_binary(Operation::Equal),
             ExpressionKind::LessThan => self.simulate_binary(Operation::Less),
             ExpressionKind::GreaterThan => self.simulate_binary(Operation::Greater),
@@ -147,11 +147,11 @@ where
         Ok(())
     }
 
-    fn simulate_call(&mut self) -> TranslationResult<()> {
+    fn simulate_call(&mut self, node: Node<'a, 'b>) -> TranslationResult<()> {
         Ok(())
     }
 
-    fn simulate_condition(&mut self) -> TranslationResult<()> {
+    fn simulate_condition(&mut self, node: Node<'a, 'b>) -> TranslationResult<()> {
         Ok(())
     }
 
@@ -194,7 +194,9 @@ where
         Ok(())
     }
 
-    fn simulate_grouping(&mut self, length: usize) -> TranslationResult<()> {
+    fn simulate_grouping(&mut self, node: Node<'a, 'b>) -> TranslationResult<()> {
+        let length = node.children();
+
         if length == 1 {
             Ok(())
         } else {

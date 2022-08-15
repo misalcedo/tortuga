@@ -183,7 +183,8 @@ where
 
     fn parse_call(&mut self) -> SyntacticalResult<ExpressionReference> {
         let callee = self.pop_child("Function call must have a callee.")?;
-        let mut children = self.parse_grouping_children(vec![callee])?;
+        let arguments = self.parse_grouping()?;
+        let mut children = vec![callee, arguments];
 
         if self.check(TokenKind::Question) {
             let condition = self.parse_condition()?;
