@@ -88,23 +88,21 @@ impl<'a, 'b> Iterator for Iter<'a, 'b> {
     fn next(&mut self) -> Option<Self::Item> {
         let node = self.stack.pop()?;
 
-        match node.expression {
-            Expression::Terminal(_) => Some(node),
-            Expression::Internal(_) if node.discovered => Some(node),
-            Expression::Internal(_) => {
-                self.stack.push(Node {
-                    discovered: true,
-                    ..node
-                });
+        if node.discovered {
+            Some(node)
+        } else {
+            self.stack.push(Node {
+                discovered: true,
+                ..node
+            });
 
-                for reference in node.expression.children().iter().rev() {
-                    if let Some(child) = node.new_child(reference.0) {
-                        self.stack.push(child);
-                    }
+            for reference in node.expression.children().iter().rev() {
+                if let Some(child) = node.new_child(reference.0) {
+                    self.stack.push(child);
                 }
-
-                Some(node)
             }
+
+            Some(node)
         }
     }
 }

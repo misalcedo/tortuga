@@ -83,13 +83,14 @@ impl Display for Program<'_> {
                         f.write_char(' ')?;
                     }
                 }
-                Expression::Terminal(terminal) => {
+                Expression::Terminal(terminal) if node.discovered() => {
                     write!(f, "{}", terminal)?;
 
                     if !is_last {
                         f.write_char(' ')?;
                     }
                 }
+                Expression::Terminal(_) => (),
             }
         }
 
