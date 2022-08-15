@@ -5,9 +5,8 @@ mod terminal;
 mod traversal;
 
 pub use crate::grammar::traversal::{Iter, PostOrderIterator, PreOrderIterator};
-pub use expression::{Expression, ExpressionReference, Internal, InternalKind, Terminal};
-use std::collections::BTreeSet;
-use std::fmt::{Display, Formatter, Write};
+pub use expression::{Expression, ExpressionKind, ExpressionReference};
+use std::fmt::{Display, Formatter};
 pub use terminal::{Identifier, Number, Uri};
 
 /// An ordered forest of [`Expression`]s.
@@ -15,12 +14,12 @@ pub use terminal::{Identifier, Number, Uri};
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Program<'a> {
     expressions: Vec<Expression<'a>>,
-    roots: BTreeSet<usize>,
+    roots: Vec<usize>,
 }
 
 impl<'a> Program<'a> {
     pub fn mark_root(&mut self, index: ExpressionReference) {
-        self.roots.insert(index.0);
+        self.roots.push(index.0);
     }
 
     pub fn insert<E: Into<Expression<'a>>>(&mut self, expression: E) -> ExpressionReference {
@@ -58,39 +57,40 @@ impl Display for Program<'_> {
 
         while let Some(node) = iterator.next() {
             let is_last = iterator.peek().map(|n| n.discovered()).unwrap_or(true);
+            let expression = node.expression();
 
-            match node.expression() {
-                Expression::Internal(internal) if node.discovered() => {
-                    match internal.kind() {
-                        InternalKind::Block => f.write_char(']')?,
-                        _ => f.write_char(')')?,
-                    }
+            if !node.discovered() && !expression.leaf() {
+                let open = match expression.kind() {
+                    ExpressionKind::Block => '[',
+                    _ => '(',
+                };
 
-                    if !is_last {
-                        f.write_char(' ')?;
-                    }
+                write!(f, "{}", open)?;
+
+                let kind = expression.kind().to_string();
+
+                write!(f, "{}", kind)?;
+
+                if !kind.is_empty() {
+                    write!(f, " ")?;
                 }
-                Expression::Internal(internal) => {
-                    match internal.kind() {
-                        InternalKind::Block => f.write_char('[')?,
-                        _ => f.write_char('(')?,
-                    }
+            } else if node.discovered() && !expression.leaf() {
+                let close = match expression.kind() {
+                    ExpressionKind::Block => ']',
+                    _ => ')',
+                };
 
-                    let kind = internal.kind().to_string();
-                    f.write_str(kind.as_str())?;
+                write!(f, "{}", close)?;
 
-                    if !kind.is_empty() {
-                        f.write_char(' ')?;
-                    }
+                if !is_last {
+                    write!(f, " ")?;
                 }
-                Expression::Terminal(terminal) if node.discovered() => {
-                    write!(f, "{}", terminal)?;
+            } else if node.discovered() && expression.leaf() {
+                write!(f, "{}", expression)?;
 
-                    if !is_last {
-                        f.write_char(' ')?;
-                    }
+                if !is_last {
+                    write!(f, " ")?;
                 }
-                Expression::Terminal(_) => (),
             }
         }
 
@@ -112,7 +112,7 @@ mod tests {
         let right = Number::positive("2");
         let right_index = program.insert(right.clone());
 
-        let add = Internal::new(InternalKind::Add, vec![left_index, right_index]);
+        let add = Expression::new(ExpressionKind::Add, vec![left_index, right_index]);
         let add_index = program.insert(add.clone());
 
         program.mark_root(add_index);
@@ -138,7 +138,7 @@ mod tests {
         let right = Number::positive("2");
         let right_index = program.insert(right.clone());
 
-        let grouping = Internal::new(InternalKind::Grouping, vec![left_index, right_index]);
+        let grouping = Expression::new(ExpressionKind::Grouping, vec![left_index, right_index]);
         let grouping_index = program.insert(grouping.clone());
 
         program.mark_root(grouping_index);
@@ -156,24 +156,25 @@ mod tests {
         let parameter = Identifier::from("x");
         let parameter_index = program.insert(parameter);
 
-        let declaration = Internal::new(InternalKind::Call, vec![function_index, parameter_index]);
+        let declaration =
+            Expression::new(ExpressionKind::Call, vec![function_index, parameter_index]);
         let declaration_index = program.insert(declaration);
 
         let left_index = program.insert(parameter);
         let right_index = program.insert(parameter);
 
-        let multiply = Internal::new(InternalKind::Multiply, vec![left_index, right_index]);
+        let multiply = Expression::new(ExpressionKind::Multiply, vec![left_index, right_index]);
         let multiply_index = program.insert(multiply);
 
-        let equality = Internal::new(
-            InternalKind::Equality,
+        let equality = Expression::new(
+            ExpressionKind::Equality,
             vec![declaration_index, multiply_index],
         );
         let equality_index = program.insert(equality);
 
         let invocation_index = program.insert(function);
         let argument_index = program.insert(Number::positive("2"));
-        let call = Internal::new(InternalKind::Call, vec![invocation_index, argument_index]);
+        let call = Expression::new(ExpressionKind::Call, vec![invocation_index, argument_index]);
         let call_index = program.insert(call);
 
         program.mark_root(equality_index);

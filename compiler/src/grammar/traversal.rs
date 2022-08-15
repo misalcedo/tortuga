@@ -1,4 +1,4 @@
-use crate::grammar::{Expression, InternalKind, Program};
+use crate::grammar::{Expression, ExpressionKind, Program};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Node<'a, 'b> {
@@ -27,19 +27,18 @@ where
 
     fn new_child(&self, index: usize) -> Option<Self> {
         let expression = self.program.expressions.get(index)?;
-        let scope = match self.expression {
-            Expression::Internal(internal) if internal.kind() == &InternalKind::Block => {
-                self.scope + 1
-            }
-            _ => self.scope,
+        let increment = if self.expression.kind() == &ExpressionKind::Block {
+            1
+        } else {
+            0
         };
 
         Some(Node {
             discovered: false,
+            scope: self.scope + increment,
             root: false,
             program: self.program,
             expression,
-            scope,
         })
     }
 

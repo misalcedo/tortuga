@@ -6,39 +6,39 @@ use crate::grammar::{Identifier, Number, Uri};
 use std::fmt::{Display, Formatter, Write};
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
-pub enum Expression<'a> {
-    Internal(Internal),
-    Terminal(Terminal<'a>),
+pub struct Expression<'a> {
+    kind: ExpressionKind<'a>,
+    children: Vec<ExpressionReference>,
 }
 
 impl<'a> Expression<'a> {
+    pub(crate) fn new(kind: ExpressionKind<'a>, children: Vec<ExpressionReference>) -> Self {
+        Expression { kind, children }
+    }
+
     pub(crate) fn children(&self) -> &[ExpressionReference] {
-        match self {
-            Expression::Internal(internal) => internal.children.as_slice(),
-            Expression::Terminal(_) => &[],
-        }
+        self.children.as_slice()
+    }
+
+    pub fn kind(&self) -> &ExpressionKind<'a> {
+        &self.kind
+    }
+
+    pub fn leaf(&self) -> bool {
+        self.children.is_empty()
     }
 }
 
 impl Display for Expression<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Expression::Internal(i) => write!(f, "{}", i),
-            Expression::Terminal(t) => write!(f, "{}", t),
-        }
+        write!(f, "{}", self.kind)
     }
 }
 
 impl Default for Expression<'_> {
     fn default() -> Self {
-        Expression::Terminal(Terminal::Identifier(Identifier::from("_")))
+        Expression::from(Identifier::from("_"))
     }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct Internal {
-    kind: InternalKind,
-    children: Vec<ExpressionReference>,
 }
 
 /// An opaque reference to an [`Expression`] inserted into a [`Program`].
@@ -46,28 +46,8 @@ pub struct Internal {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct ExpressionReference(pub(crate) usize);
 
-impl Display for Internal {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.kind)
-    }
-}
-
-impl Internal {
-    pub fn new(kind: InternalKind, children: Vec<ExpressionReference>) -> Self {
-        Internal { kind, children }
-    }
-
-    pub fn kind(&self) -> &InternalKind {
-        &self.kind
-    }
-
-    pub(crate) fn children(&self) -> &[ExpressionReference] {
-        self.children.as_slice()
-    }
-}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub enum InternalKind {
+pub enum ExpressionKind<'a> {
     Block,
     Equality,
     Modulo,
@@ -84,68 +64,60 @@ pub enum InternalKind {
     GreaterThan,
     LessThanOrEqualTo,
     GreaterThanOrEqualTo,
-}
-
-impl Display for InternalKind {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            InternalKind::Block => Ok(()),
-            InternalKind::Equality => f.write_char('='),
-            InternalKind::Modulo => f.write_char('%'),
-            InternalKind::Subtract => f.write_char('-'),
-            InternalKind::Add => f.write_char('+'),
-            InternalKind::Divide => f.write_char('/'),
-            InternalKind::Multiply => f.write_char('*'),
-            InternalKind::Power => f.write_char('^'),
-            InternalKind::Call => Ok(()),
-            InternalKind::Grouping => Ok(()),
-            InternalKind::Condition => f.write_char('?'),
-            InternalKind::Inequality => f.write_str("<>"),
-            InternalKind::LessThan => f.write_char('<'),
-            InternalKind::GreaterThan => f.write_char('>'),
-            InternalKind::LessThanOrEqualTo => f.write_str("<="),
-            InternalKind::GreaterThanOrEqualTo => f.write_str(">="),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub enum Terminal<'a> {
     Number(Number<'a>),
     Identifier(Identifier<'a>),
     Uri(Uri<'a>),
 }
 
-impl Display for Terminal<'_> {
+impl Display for ExpressionKind<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Terminal::Number(n) => write!(f, "{}", n),
-            Terminal::Identifier(i) => write!(f, "{}", i),
-            Terminal::Uri(u) => write!(f, "{}", u),
+            ExpressionKind::Block => Ok(()),
+            ExpressionKind::Equality => f.write_char('='),
+            ExpressionKind::Modulo => f.write_char('%'),
+            ExpressionKind::Subtract => f.write_char('-'),
+            ExpressionKind::Add => f.write_char('+'),
+            ExpressionKind::Divide => f.write_char('/'),
+            ExpressionKind::Multiply => f.write_char('*'),
+            ExpressionKind::Power => f.write_char('^'),
+            ExpressionKind::Call => Ok(()),
+            ExpressionKind::Grouping => Ok(()),
+            ExpressionKind::Condition => f.write_char('?'),
+            ExpressionKind::Inequality => f.write_str("<>"),
+            ExpressionKind::LessThan => f.write_char('<'),
+            ExpressionKind::GreaterThan => f.write_char('>'),
+            ExpressionKind::LessThanOrEqualTo => f.write_str("<="),
+            ExpressionKind::GreaterThanOrEqualTo => f.write_str(">="),
+            ExpressionKind::Number(n) => write!(f, "{}", n),
+            ExpressionKind::Identifier(i) => write!(f, "{}", i),
+            ExpressionKind::Uri(u) => write!(f, "{}", u),
         }
-    }
-}
-
-impl From<Internal> for Expression<'_> {
-    fn from(expression: Internal) -> Self {
-        Expression::Internal(expression)
     }
 }
 
 impl<'a> From<Number<'a>> for Expression<'a> {
     fn from(expression: Number<'a>) -> Self {
-        Expression::Terminal(Terminal::Number(expression))
+        Expression {
+            kind: ExpressionKind::Number(expression),
+            children: vec![],
+        }
     }
 }
 
 impl<'a> From<Identifier<'a>> for Expression<'a> {
     fn from(expression: Identifier<'a>) -> Self {
-        Expression::Terminal(Terminal::Identifier(expression))
+        Expression {
+            kind: ExpressionKind::Identifier(expression),
+            children: vec![],
+        }
     }
 }
 
 impl<'a> From<Uri<'a>> for Expression<'a> {
     fn from(expression: Uri<'a>) -> Self {
-        Expression::Terminal(Terminal::Uri(expression))
+        Expression {
+            kind: ExpressionKind::Uri(expression),
+            children: vec![],
+        }
     }
 }

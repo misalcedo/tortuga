@@ -6,7 +6,7 @@ mod error;
 mod precedence;
 
 use crate::grammar::{
-    ExpressionReference, Identifier, Internal, InternalKind, Number, Program, Uri,
+    Expression, ExpressionKind, ExpressionReference, Identifier, Number, Program, Uri,
 };
 use crate::scan::LexicalError;
 use crate::{CompilationError, ErrorReporter};
@@ -28,24 +28,24 @@ pub struct Parser<'a, Iterator, Reporter> {
 }
 
 type SyntacticalResult<Output> = Result<Output, SyntacticalError>;
-static OPERATOR_MAPPINGS: &[(TokenKind, InternalKind)] = &[
-    (TokenKind::Equal, InternalKind::Equality),
-    (TokenKind::Plus, InternalKind::Add),
-    (TokenKind::Minus, InternalKind::Subtract),
-    (TokenKind::Star, InternalKind::Multiply),
-    (TokenKind::Slash, InternalKind::Divide),
-    (TokenKind::Caret, InternalKind::Power),
-    (TokenKind::Percent, InternalKind::Modulo),
-    (TokenKind::NotEqual, InternalKind::Inequality),
-    (TokenKind::LessThan, InternalKind::LessThan),
+static OPERATOR_MAPPINGS: &[(TokenKind, ExpressionKind)] = &[
+    (TokenKind::Equal, ExpressionKind::Equality),
+    (TokenKind::Plus, ExpressionKind::Add),
+    (TokenKind::Minus, ExpressionKind::Subtract),
+    (TokenKind::Star, ExpressionKind::Multiply),
+    (TokenKind::Slash, ExpressionKind::Divide),
+    (TokenKind::Caret, ExpressionKind::Power),
+    (TokenKind::Percent, ExpressionKind::Modulo),
+    (TokenKind::NotEqual, ExpressionKind::Inequality),
+    (TokenKind::LessThan, ExpressionKind::LessThan),
     (
         TokenKind::LessThanOrEqualTo,
-        InternalKind::LessThanOrEqualTo,
+        ExpressionKind::LessThanOrEqualTo,
     ),
-    (TokenKind::GreaterThan, InternalKind::GreaterThan),
+    (TokenKind::GreaterThan, ExpressionKind::GreaterThan),
     (
         TokenKind::GreaterThanOrEqualTo,
-        InternalKind::GreaterThanOrEqualTo,
+        ExpressionKind::GreaterThanOrEqualTo,
     ),
 ];
 
@@ -155,7 +155,7 @@ where
 
         let right = self.pop_child("Binary operator must have a right-hand side expression")?;
         let left = self.pop_child("Binary operator must have a left-hand side expression")?;
-        let operation = Internal::new(*operator, vec![left, right]);
+        let operation = Expression::new(*operator, vec![left, right]);
 
         Ok(self.program.insert(operation))
     }
@@ -176,7 +176,7 @@ where
 
     fn parse_grouping(&mut self) -> SyntacticalResult<ExpressionReference> {
         let parts = self.parse_grouping_children(Vec::default())?;
-        let grouping = Internal::new(InternalKind::Grouping, parts);
+        let grouping = Expression::new(ExpressionKind::Grouping, parts);
 
         Ok(self.program.insert(grouping))
     }
@@ -191,7 +191,7 @@ where
             children.push(condition);
         }
 
-        let call = Internal::new(InternalKind::Call, children);
+        let call = Expression::new(ExpressionKind::Call, children);
 
         Ok(self.program.insert(call))
     }
@@ -203,7 +203,7 @@ where
         )?;
 
         let children = self.parse_grouping_children(Vec::default())?;
-        let condition = Internal::new(InternalKind::Condition, children);
+        let condition = Expression::new(ExpressionKind::Condition, children);
 
         Ok(self.program.insert(condition))
     }
@@ -245,7 +245,7 @@ where
 
         self.consume(TokenKind::RightBracket, "Expected ']' after block.")?;
 
-        let block = Internal::new(InternalKind::Block, statements);
+        let block = Expression::new(ExpressionKind::Block, statements);
 
         Ok(self.program.insert(block))
     }
@@ -456,7 +456,7 @@ impl<'a> TryFrom<&'a str> for Program<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::grammar::{Internal, InternalKind, Number};
+    use crate::grammar::{ExpressionKind, Number};
 
     #[test]
     fn math() {
@@ -471,13 +471,13 @@ mod tests {
         let middle = Number::positive("2");
         let middle_index = expected.insert(middle);
 
-        let inner_add = Internal::new(InternalKind::Add, vec![left_index, middle_index]);
+        let inner_add = Expression::new(ExpressionKind::Add, vec![left_index, middle_index]);
         let inner_add_index = expected.insert(inner_add);
 
         let right = Number::positive("1");
         let right_index = expected.insert(right);
 
-        let add = Internal::new(InternalKind::Add, vec![inner_add_index, right_index]);
+        let add = Expression::new(ExpressionKind::Add, vec![inner_add_index, right_index]);
         let add_index = expected.insert(add);
 
         expected.mark_root(add_index);
@@ -498,24 +498,25 @@ mod tests {
         let parameter = Identifier::from("x");
         let parameter_index = expected.insert(parameter);
 
-        let declaration = Internal::new(InternalKind::Call, vec![function_index, parameter_index]);
+        let declaration =
+            Expression::new(ExpressionKind::Call, vec![function_index, parameter_index]);
         let declaration_index = expected.insert(declaration);
 
         let left_index = expected.insert(parameter);
         let right_index = expected.insert(parameter);
 
-        let multiply = Internal::new(InternalKind::Multiply, vec![left_index, right_index]);
+        let multiply = Expression::new(ExpressionKind::Multiply, vec![left_index, right_index]);
         let multiply_index = expected.insert(multiply);
 
-        let equality = Internal::new(
-            InternalKind::Equality,
+        let equality = Expression::new(
+            ExpressionKind::Equality,
             vec![declaration_index, multiply_index],
         );
         let equality_index = expected.insert(equality);
 
         let invocation_index = expected.insert(function);
         let argument_index = expected.insert(Number::positive("2"));
-        let call = Internal::new(InternalKind::Call, vec![invocation_index, argument_index]);
+        let call = Expression::new(ExpressionKind::Call, vec![invocation_index, argument_index]);
         let call_index = expected.insert(call);
 
         expected.mark_root(equality_index);

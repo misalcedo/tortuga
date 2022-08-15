@@ -12,9 +12,7 @@ mod number;
 mod uri;
 mod value;
 
-use crate::grammar::{
-    Expression, Identifier, Internal, InternalKind, PostOrderIterator, Terminal, Uri,
-};
+use crate::grammar::{Expression, ExpressionKind, Identifier, PostOrderIterator, Uri};
 use context::ScopeContext;
 pub use error::TranslationError;
 use indices::IndexedSet;
@@ -89,34 +87,40 @@ where
     }
 
     fn simulate_expression(&mut self, expression: &Expression<'a>) -> TranslationResult<()> {
-        match expression {
-            Expression::Internal(internal) => self.simulate_internal(internal),
-            Expression::Terminal(terminal) => self.simulate_terminal(terminal),
-        }
-    }
-
-    fn simulate_internal(&mut self, internal: &Internal) -> TranslationResult<()> {
-        match internal.kind() {
-            InternalKind::Block => {}
-            InternalKind::Equality => self.simulate_equality()?,
-            InternalKind::Modulo => self.simulate_binary(Operation::Remainder)?,
-            InternalKind::Subtract => self.simulate_binary(Operation::Subtract)?,
-            InternalKind::Add => self.simulate_binary(Operation::Add)?,
-            InternalKind::Divide => self.simulate_binary(Operation::Divide)?,
-            InternalKind::Multiply => self.simulate_binary(Operation::Multiply)?,
-            InternalKind::Power => self.simulate_binary(Operation::Power)?,
-            InternalKind::Call => {}
-            InternalKind::Grouping => {}
-            InternalKind::Condition => {}
-            InternalKind::Inequality => self.simulate_negated_binary(Operation::Equal)?,
-            InternalKind::LessThan => self.simulate_binary(Operation::Less)?,
-            InternalKind::GreaterThan => self.simulate_binary(Operation::Greater)?,
-            InternalKind::LessThanOrEqualTo => self.simulate_negated_binary(Operation::Greater)?,
-            InternalKind::GreaterThanOrEqualTo => self.simulate_negated_binary(Operation::Less)?,
+        match expression.kind() {
+            ExpressionKind::Block => {}
+            ExpressionKind::Equality => self.simulate_equality()?,
+            ExpressionKind::Modulo => self.simulate_binary(Operation::Remainder)?,
+            ExpressionKind::Subtract => self.simulate_binary(Operation::Subtract)?,
+            ExpressionKind::Add => self.simulate_binary(Operation::Add)?,
+            ExpressionKind::Divide => self.simulate_binary(Operation::Divide)?,
+            ExpressionKind::Multiply => self.simulate_binary(Operation::Multiply)?,
+            ExpressionKind::Power => self.simulate_binary(Operation::Power)?,
+            ExpressionKind::Call => {}
+            ExpressionKind::Grouping => {}
+            ExpressionKind::Condition => {}
+            ExpressionKind::Inequality => self.simulate_negated_binary(Operation::Equal)?,
+            ExpressionKind::LessThan => self.simulate_binary(Operation::Less)?,
+            ExpressionKind::GreaterThan => self.simulate_binary(Operation::Greater)?,
+            ExpressionKind::LessThanOrEqualTo => {
+                self.simulate_negated_binary(Operation::Greater)?
+            }
+            ExpressionKind::GreaterThanOrEqualTo => {
+                self.simulate_negated_binary(Operation::Less)?
+            }
+            ExpressionKind::Number(number) => self.simulate_number(number),
+            ExpressionKind::Identifier(identifier) => self.simulate_identifier(identifier)?,
+            ExpressionKind::Uri(uri) => self.simulate_uri(uri),
         };
 
         Ok(())
     }
+
+    //     match terminal {
+    //     Expression::from(identifier) => ,
+    //     Terminal::Number(number) => ,
+    //     Terminal::Uri(uri) => ,
+    // };
 
     fn simulate_equality(&mut self) -> TranslationResult<()> {
         let value = self.pop()?;
@@ -199,16 +203,6 @@ where
             .ok_or_else(|| TranslationError::from("Invalid index for number constant."))
     }
 
-    fn simulate_terminal(&mut self, terminal: &Terminal<'a>) -> TranslationResult<()> {
-        match terminal {
-            Terminal::Identifier(identifier) => self.simulate_identifier(identifier)?,
-            Terminal::Number(number) => self.simulate_number(*number),
-            Terminal::Uri(uri) => self.simulate_uri(*uri),
-        };
-
-        Ok(())
-    }
-
     fn simulate_identifier(&mut self, identifier: &Identifier<'a>) -> TranslationResult<()> {
         match self.context.resolve_local(identifier) {
             Some(local) => {
@@ -230,15 +224,15 @@ where
         }
     }
 
-    fn simulate_uri(&mut self, uri: Uri<'a>) {
-        let constant = match Text::try_from(uri) {
+    fn simulate_uri(&mut self, uri: &Uri<'a>) {
+        let constant = match Text::try_from(*uri) {
             Ok(c) => c,
             Err(e) => {
                 self.report_error(e);
                 Text::default()
             }
         };
-        let index = self.texts.insert(uri, constant);
+        let index = self.texts.insert(*uri, constant);
 
         if index >= u8::MAX as usize {
             self.report_error("Too many URI constants (max is 256).");
@@ -249,15 +243,15 @@ where
         self.stack.push(Value::Text(Some(index)));
     }
 
-    fn simulate_number(&mut self, number: grammar::Number<'a>) {
-        let constant = match Number::try_from(number) {
+    fn simulate_number(&mut self, number: &grammar::Number<'a>) {
+        let constant = match Number::try_from(*number) {
             Ok(c) => c,
             Err(e) => {
                 self.report_error(e);
                 Number::default()
             }
         };
-        let index = self.numbers.insert(number, constant);
+        let index = self.numbers.insert(*number, constant);
 
         if index >= u8::MAX as usize {
             self.report_error("Too many number constants (max is 256).");
