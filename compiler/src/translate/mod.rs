@@ -198,11 +198,7 @@ where
 
     fn simulate_grouping(&mut self, length: usize) -> TranslationResult<()> {
         if length == 1 {
-            let inner = self
-                .next_node()
-                .ok_or_else(|| ErrorKind::MissingChildren(1, 0))?;
-
-            self.simulate_expression(inner)
+            Ok(())
         } else {
             Err(ErrorKind::InvalidGroupingSize(length).into())
         }
@@ -321,7 +317,7 @@ mod tests {
 
     #[test]
     fn add_numbers() {
-        let executable: Executable = Translation::try_from("2 + 40").unwrap().into();
+        let executable: Executable = Translation::try_from("(2 + 40)").unwrap().into();
 
         assert_eq!(
             executable.function(0).unwrap().code().as_slice(),
