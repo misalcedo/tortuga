@@ -1,10 +1,11 @@
 use std::fmt::{Display, Formatter};
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Value {
     Any,
     Uninitialized(usize),
     Closure,
+    Grouping(Vec<Value>),
     Number(Option<usize>),
     Text(Option<usize>),
 }
@@ -19,6 +20,21 @@ impl Display for Value {
             Value::Number(None) => write!(f, "Number"),
             Value::Text(Some(o)) => write!(f, "ConstantText({})", o),
             Value::Text(None) => write!(f, "Text"),
+            Value::Grouping(parts) => {
+                write!(f, "(")?;
+
+                let mut iterator = parts.iter().peekable();
+
+                while let Some(next) = iterator.next() {
+                    write!(f, "{}", next)?;
+
+                    if iterator.peek().is_some() {
+                        write!(f, ", ")?;
+                    }
+                }
+
+                write!(f, ")")
+            }
         }
     }
 }

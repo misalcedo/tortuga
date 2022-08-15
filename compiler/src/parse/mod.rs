@@ -499,8 +499,11 @@ mod tests {
         let parameter = Identifier::from("x");
         let parameter_index = expected.insert(parameter);
 
+        let parameters = Expression::new(ExpressionKind::Grouping, vec![parameter_index]);
+        let parameters_index = expected.insert(parameters);
+
         let declaration =
-            Expression::new(ExpressionKind::Call, vec![function_index, parameter_index]);
+            Expression::new(ExpressionKind::Call, vec![function_index, parameters_index]);
         let declaration_index = expected.insert(declaration);
 
         let left_index = expected.insert(parameter);
@@ -517,7 +520,12 @@ mod tests {
 
         let invocation_index = expected.insert(function);
         let argument_index = expected.insert(Number::positive("2"));
-        let call = Expression::new(ExpressionKind::Call, vec![invocation_index, argument_index]);
+        let arguments = Expression::new(ExpressionKind::Grouping, vec![argument_index]);
+        let arguments_index = expected.insert(arguments);
+        let call = Expression::new(
+            ExpressionKind::Call,
+            vec![invocation_index, arguments_index],
+        );
         let call_index = expected.insert(call);
 
         expected.mark_root(equality_index);

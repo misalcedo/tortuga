@@ -34,7 +34,8 @@ pub enum ErrorKind {
     InvalidNumber(ParseNumberError),
     InvalidUri(ParseUriError),
     MissingChildren(usize, usize), // expected, actual
-    InvalidGroupingSize(usize),
+    GroupTooLarge(usize),
+    InvalidGroupingSize(usize, usize), // expected, actual
     NoSuchLocal(usize),
     Unknown(String),
 }

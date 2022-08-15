@@ -97,7 +97,7 @@ where
         Ok(())
     }
 
-    fn simulate_expression(&mut self, mut node: Node<'a, 'b>) -> TranslationResult<()> {
+    fn simulate_expression(&mut self, node: Node<'a, 'b>) -> TranslationResult<()> {
         match node.expression().kind() {
             ExpressionKind::Block if node.discovered() => Ok(()),
             ExpressionKind::Block => Ok(()),
@@ -133,7 +133,7 @@ where
                 self.context
                     .local_mut(index)
                     .ok_or_else(|| TranslationError::from(ErrorKind::NoSuchLocal(index)))?
-                    .initialize(depth, value);
+                    .initialize(depth, value.clone());
 
                 self.context.add_operation(Operation::DefineLocal);
                 self.stack.push(value);
@@ -142,6 +142,7 @@ where
             Value::Closure => {}
             Value::Number(_) => {}
             Value::Text(_) => {}
+            Value::Grouping(_) => {}
         }
 
         Ok(())
@@ -197,10 +198,24 @@ where
     fn simulate_grouping(&mut self, node: Node<'a, 'b>) -> TranslationResult<()> {
         let length = node.children();
 
-        if length == 1 {
+        if length > u8::MAX as usize {
+            return Err(ErrorKind::GroupTooLarge(length).into());
+        }
+
+        let mut parts = vec![];
+
+        for _ in 0..length {
+            if let Some(part) = self.stack.pop() {
+                parts.push(part);
+            }
+        }
+
+        if parts.len() == length {
+            self.context.add_operation(Operation::Group(length as u8));
+            self.stack.push(Value::Grouping(parts));
             Ok(())
         } else {
-            Err(ErrorKind::InvalidGroupingSize(length).into())
+            Err(ErrorKind::InvalidGroupingSize(length, parts.len()).into())
         }
     }
 

@@ -3,7 +3,7 @@ use crate::grammar::Identifier;
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Local<'a> {
     name: Option<Identifier<'a>>,
     offset: usize,
