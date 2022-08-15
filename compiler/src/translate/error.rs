@@ -1,4 +1,5 @@
 use crate::translate::uri::ParseUriError;
+use crate::translate::value::Value;
 use std::fmt::{Display, Formatter};
 use tortuga_executable::ParseNumberError;
 
@@ -13,36 +14,25 @@ impl From<ErrorKind> for TranslationError {
     }
 }
 
-impl From<&str> for TranslationError {
-    fn from(kind: &str) -> Self {
-        TranslationError {
-            kind: ErrorKind::Unknown(kind.to_string()),
-        }
-    }
-}
-
-impl From<String> for TranslationError {
-    fn from(kind: String) -> Self {
-        TranslationError {
-            kind: ErrorKind::Unknown(kind),
-        }
-    }
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub enum ErrorKind {
     InvalidNumber(ParseNumberError),
     InvalidUri(ParseUriError),
+    OperandsMustBeNumbers(Value, Value),
     MissingChildren(usize, usize), // expected, actual
+    TooManyLocals(usize),
+    TooManyNumbers(usize),
+    TooManyUris(usize),
     GroupTooLarge(usize),
     InvalidGroupSize(usize, usize), // expected, actual
+    NoSuchNumber(usize),
+    NoSuchUri(usize),
     NoSuchLocal(usize),
     EmptyStack,
     EmptyContexts,
     ConditionWithoutAssignment,
     ExpectedEndOfBlock,
     ExpectedEndOfEquality,
-    Unknown(String),
 }
 
 impl Display for TranslationError {

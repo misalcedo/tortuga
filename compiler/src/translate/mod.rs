@@ -205,7 +205,7 @@ where
             }
             (Value::Any, Value::Any) => self.stack.push(Value::Any),
             (lhs, rhs) => {
-                self.report_error(format!("Operands must be numbers: {}, {}.", lhs, rhs));
+                self.report_error(ErrorKind::OperandsMustBeNumbers(lhs, rhs));
                 self.stack.push(Value::Any);
             }
         };
@@ -224,8 +224,8 @@ where
                 self.stack.push(Value::Number(None));
             }
             (Value::Any, Value::Any) => self.stack.push(Value::Any),
-            (_, _) => {
-                self.report_error("Operands must be numbers.");
+            (lhs, rhs) => {
+                self.report_error(ErrorKind::OperandsMustBeNumbers(lhs, rhs));
                 self.stack.push(Value::Any);
             }
         };
@@ -269,7 +269,7 @@ where
         self.numbers
             .get(index)
             .copied()
-            .ok_or_else(|| TranslationError::from("Invalid index for number constant."))
+            .ok_or_else(|| TranslationError::from(ErrorKind::NoSuchNumber(index)))
     }
 
     fn simulate_identifier(&mut self, identifier: &Identifier<'a>) -> TranslationResult<()> {
@@ -284,7 +284,7 @@ where
                 let index = self.context.add_local(*identifier);
 
                 if index >= u8::MAX as usize {
-                    self.report_error("Too many locals (max is 256).");
+                    self.report_error(ErrorKind::TooManyLocals(index));
                 }
 
                 self.stack.push(Value::Uninitialized(index));
@@ -304,7 +304,7 @@ where
         let index = self.texts.insert(*uri, constant);
 
         if index >= u8::MAX as usize {
-            self.report_error("Too many URI constants (max is 256).");
+            self.report_error(ErrorKind::TooManyUris(index));
         }
 
         self.context
@@ -325,7 +325,7 @@ where
         let index = self.numbers.insert(*number, constant);
 
         if index >= u8::MAX as usize {
-            self.report_error("Too many number constants (max is 256).");
+            self.report_error(ErrorKind::TooManyNumbers(index));
         }
 
         self.context
