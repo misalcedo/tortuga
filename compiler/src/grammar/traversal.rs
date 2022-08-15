@@ -31,6 +31,10 @@ where
         })
     }
 
+    pub fn children(&self) -> usize {
+        self.expression.children().len()
+    }
+
     pub fn discovered(&self) -> bool {
         self.discovered
     }

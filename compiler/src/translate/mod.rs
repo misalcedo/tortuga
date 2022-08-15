@@ -13,6 +13,7 @@ mod uri;
 mod value;
 
 use crate::grammar::{ExpressionKind, Identifier, Iter, Node, Uri};
+use crate::translate::error::ErrorKind;
 use context::ScopeContext;
 pub use error::TranslationError;
 use indices::IndexedSet;
@@ -68,11 +69,21 @@ where
     }
 
     fn simulate(&mut self) -> TranslationResult<()> {
-        while let Some(node) = self.iterator.next() {
+        while let Some(node) = self.next_node() {
             self.simulate_expression(node)?;
         }
 
         self.update_entrypoint()
+    }
+
+    fn next_node(&mut self) -> Option<Node<'a, 'b>> {
+        let mut node = self.iterator.next()?;
+
+        while !node.discovered() && node.expression().kind() != &ExpressionKind::Block {
+            node = self.iterator.next()?;
+        }
+
+        Some(node)
     }
 
     // TODO: Figure out how to denote the number of locals in the script.
@@ -86,42 +97,30 @@ where
         Ok(())
     }
 
-    fn simulate_expression(&mut self, node: Node<'a, 'b>) -> TranslationResult<()> {
+    fn simulate_expression(&mut self, mut node: Node<'a, 'b>) -> TranslationResult<()> {
         match node.expression().kind() {
-            ExpressionKind::Block if node.discovered() => {}
-            ExpressionKind::Block => {}
-            ExpressionKind::Equality => self.simulate_equality()?,
-            ExpressionKind::Modulo => self.simulate_binary(Operation::Remainder)?,
-            ExpressionKind::Subtract => self.simulate_binary(Operation::Subtract)?,
-            ExpressionKind::Add => self.simulate_binary(Operation::Add)?,
-            ExpressionKind::Divide => self.simulate_binary(Operation::Divide)?,
-            ExpressionKind::Multiply => self.simulate_binary(Operation::Multiply)?,
-            ExpressionKind::Power => self.simulate_binary(Operation::Power)?,
-            ExpressionKind::Call => {}
-            ExpressionKind::Grouping => {}
-            ExpressionKind::Condition => {}
-            ExpressionKind::Inequality => self.simulate_negated_binary(Operation::Equal)?,
-            ExpressionKind::LessThan => self.simulate_binary(Operation::Less)?,
-            ExpressionKind::GreaterThan => self.simulate_binary(Operation::Greater)?,
-            ExpressionKind::LessThanOrEqualTo => {
-                self.simulate_negated_binary(Operation::Greater)?
-            }
-            ExpressionKind::GreaterThanOrEqualTo => {
-                self.simulate_negated_binary(Operation::Less)?
-            }
+            ExpressionKind::Block if node.discovered() => Ok(()),
+            ExpressionKind::Block => Ok(()),
+            ExpressionKind::Equality => self.simulate_equality(),
+            ExpressionKind::Modulo => self.simulate_binary(Operation::Remainder),
+            ExpressionKind::Subtract => self.simulate_binary(Operation::Subtract),
+            ExpressionKind::Add => self.simulate_binary(Operation::Add),
+            ExpressionKind::Divide => self.simulate_binary(Operation::Divide),
+            ExpressionKind::Multiply => self.simulate_binary(Operation::Multiply),
+            ExpressionKind::Power => self.simulate_binary(Operation::Power),
+            ExpressionKind::Call => Ok(()),
+            ExpressionKind::Grouping => self.simulate_grouping(node.children()),
+            ExpressionKind::Condition => Ok(()),
+            ExpressionKind::Inequality => self.simulate_negated_binary(Operation::Equal),
+            ExpressionKind::LessThan => self.simulate_binary(Operation::Less),
+            ExpressionKind::GreaterThan => self.simulate_binary(Operation::Greater),
+            ExpressionKind::LessThanOrEqualTo => self.simulate_negated_binary(Operation::Greater),
+            ExpressionKind::GreaterThanOrEqualTo => self.simulate_negated_binary(Operation::Less),
             ExpressionKind::Number(number) => self.simulate_number(number),
-            ExpressionKind::Identifier(identifier) => self.simulate_identifier(identifier)?,
+            ExpressionKind::Identifier(identifier) => self.simulate_identifier(identifier),
             ExpressionKind::Uri(uri) => self.simulate_uri(uri),
-        };
-
-        Ok(())
+        }
     }
-
-    //     match terminal {
-    //     Expression::from(identifier) => ,
-    //     Terminal::Number(number) => ,
-    //     Terminal::Uri(uri) => ,
-    // };
 
     fn simulate_equality(&mut self) -> TranslationResult<()> {
         let value = self.pop()?;
@@ -197,6 +196,18 @@ where
         Ok(())
     }
 
+    fn simulate_grouping(&mut self, length: usize) -> TranslationResult<()> {
+        if length == 1 {
+            let inner = self
+                .next_node()
+                .ok_or_else(|| ErrorKind::MissingChildren(1, 0))?;
+
+            self.simulate_expression(inner)
+        } else {
+            Err(ErrorKind::InvalidGroupingSize(length).into())
+        }
+    }
+
     fn get_number(&mut self, index: usize) -> TranslationResult<Number> {
         self.numbers
             .get(index)
@@ -225,7 +236,7 @@ where
         }
     }
 
-    fn simulate_uri(&mut self, uri: &Uri<'a>) {
+    fn simulate_uri(&mut self, uri: &Uri<'a>) -> TranslationResult<()> {
         let constant = match Text::try_from(*uri) {
             Ok(c) => c,
             Err(e) => {
@@ -242,9 +253,11 @@ where
         self.context
             .add_operation(Operation::ConstantText(index as u8));
         self.stack.push(Value::Text(Some(index)));
+
+        Ok(())
     }
 
-    fn simulate_number(&mut self, number: &grammar::Number<'a>) {
+    fn simulate_number(&mut self, number: &grammar::Number<'a>) -> TranslationResult<()> {
         let constant = match Number::try_from(*number) {
             Ok(c) => c,
             Err(e) => {
@@ -261,6 +274,8 @@ where
         self.context
             .add_operation(Operation::ConstantNumber(index as u8));
         self.stack.push(Value::Number(Some(index)));
+
+        Ok(())
     }
 
     fn pop(&mut self) -> TranslationResult<Value> {

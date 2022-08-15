@@ -33,6 +33,8 @@ impl From<String> for TranslationError {
 pub enum ErrorKind {
     InvalidNumber(ParseNumberError),
     InvalidUri(ParseUriError),
+    MissingChildren(usize, usize), // expected, actual
+    InvalidGroupingSize(usize),
     Unknown(String),
 }
 
