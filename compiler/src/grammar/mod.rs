@@ -31,6 +31,10 @@ impl<'a> Program<'a> {
         ExpressionReference(index)
     }
 
+    pub fn iter(&self) -> Iter<'a, '_> {
+        self.into()
+    }
+
     pub fn iter_post_order(&self) -> PostOrderIterator<'a, '_> {
         self.into()
     }
@@ -50,14 +54,13 @@ impl<'a> Program<'a> {
 
 impl Display for Program<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let mut stack: Vec<(usize, bool)> = self.roots.iter().rev().map(|&r| (r, false)).collect();
+        let mut iterator = self.iter().peekable();
 
-        while let Some((index, discovered)) = stack.pop() {
-            let expression = self.expressions.get(index).ok_or(std::fmt::Error)?;
-            let is_last = stack.last().map(|(i, d)| *d).unwrap_or(true);
+        while let Some(node) = iterator.next() {
+            let is_last = iterator.peek().map(|n| n.discovered()).unwrap_or(true);
 
-            match expression {
-                Expression::Internal(internal) if discovered => {
+            match node.expression() {
+                Expression::Internal(internal) if node.discovered() => {
                     match internal.kind() {
                         InternalKind::Block => f.write_char(']')?,
                         _ => f.write_char(')')?,
@@ -68,12 +71,6 @@ impl Display for Program<'_> {
                     }
                 }
                 Expression::Internal(internal) => {
-                    stack.push((index, true));
-
-                    for child in internal.children().iter().rev() {
-                        stack.push((child.0, false));
-                    }
-
                     match internal.kind() {
                         InternalKind::Block => f.write_char('[')?,
                         _ => f.write_char('(')?,
