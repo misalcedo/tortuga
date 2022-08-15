@@ -1,5 +1,5 @@
 use crate::grammar::ExpressionReference;
-use crate::parse::SyntacticalError;
+use crate::parse::SyntaxError;
 use crate::Parser;
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
@@ -34,7 +34,7 @@ impl Precedence {
 }
 
 pub type ParseFunction<'a, I, R> =
-    fn(&mut Parser<'a, I, R>) -> Result<ExpressionReference, SyntacticalError>;
+    fn(&mut Parser<'a, I, R>) -> Result<ExpressionReference, SyntaxError>;
 
 #[derive(Clone, Copy)]
 pub struct ParseRule<'a, I, R> {

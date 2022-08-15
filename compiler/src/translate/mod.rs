@@ -12,7 +12,7 @@ mod number;
 mod uri;
 mod value;
 
-use crate::grammar::{ExpressionKind, Identifier, Iter, Node, Uri};
+use crate::grammar::{Expression, ExpressionKind, Identifier, Iter, Node, Uri};
 use crate::translate::error::ErrorKind;
 use context::ScopeContext;
 pub use error::TranslationError;
@@ -22,6 +22,7 @@ use value::Value;
 pub struct Translator<'a, Iterator, Reporter> {
     reporter: Reporter,
     iterator: Iterator,
+    equality: bool,
     context: ScopeContext<'a>,
     contexts: Vec<ScopeContext<'a>>,
     stack: Vec<Value>,
@@ -37,6 +38,7 @@ pub struct Translation<'a> {
 }
 
 type TranslationResult<Output> = Result<Output, TranslationError>;
+static UNDISCOVERED_KINDS: &[ExpressionKind] = &[ExpressionKind::Block, ExpressionKind::Equality];
 
 impl<'a, 'b, R> Translator<'a, Iter<'a, 'b>, R>
 where
@@ -47,6 +49,7 @@ where
         Translator {
             reporter,
             iterator: program.iter(),
+            equality: false,
             context: Default::default(),
             contexts: Default::default(),
             functions: Default::default(),
@@ -79,7 +82,7 @@ where
     fn next_node(&mut self) -> Option<Node<'a, 'b>> {
         let mut node = self.iterator.next()?;
 
-        while !node.discovered() && node.expression().kind() != &ExpressionKind::Block {
+        while !node.discovered() && !UNDISCOVERED_KINDS.contains(node.expression().kind()) {
             node = self.iterator.next()?;
         }
 
@@ -99,9 +102,8 @@ where
 
     fn simulate_expression(&mut self, node: Node<'a, 'b>) -> TranslationResult<()> {
         match node.expression().kind() {
-            ExpressionKind::Block if node.discovered() => Ok(()),
-            ExpressionKind::Block => Ok(()),
-            ExpressionKind::Equality => self.simulate_equality(),
+            ExpressionKind::Block => self.simulate_block(node),
+            ExpressionKind::Equality => self.simulate_equality(node),
             ExpressionKind::Modulo => self.simulate_binary(Operation::Remainder),
             ExpressionKind::Subtract => self.simulate_binary(Operation::Subtract),
             ExpressionKind::Add => self.simulate_binary(Operation::Add),
@@ -122,7 +124,11 @@ where
         }
     }
 
-    fn simulate_equality(&mut self) -> TranslationResult<()> {
+    fn simulate_block(&mut self, node: Node<'a, 'b>) -> TranslationResult<()> {
+        Ok(())
+    }
+
+    fn simulate_equality(&mut self, node: Node<'a, 'b>) -> TranslationResult<()> {
         let value = self.pop()?;
         let assignee = self.pop()?;
 

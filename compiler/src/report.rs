@@ -1,11 +1,11 @@
 use crate::error::CompilationError;
-use crate::parse::SyntacticalError;
+use crate::parse::SyntaxError;
 use crate::scan::LexicalError;
 use crate::translate::TranslationError;
 
 pub trait ErrorReporter {
     fn report_lexical_error(&mut self, error: LexicalError);
-    fn report_syntax_error(&mut self, error: SyntacticalError);
+    fn report_syntax_error(&mut self, error: SyntaxError);
     fn report_translation_error(&mut self, error: TranslationError);
     fn had_error(&self) -> bool;
 }
@@ -15,7 +15,7 @@ impl ErrorReporter for Vec<CompilationError> {
         self.push(error.into())
     }
 
-    fn report_syntax_error(&mut self, error: SyntacticalError) {
+    fn report_syntax_error(&mut self, error: SyntaxError) {
         self.push(error.into())
     }
 

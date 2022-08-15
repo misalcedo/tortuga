@@ -1,66 +1,44 @@
 //! Errors that may occur during lexical analysis.
 
-use crate::parse::SyntacticalError;
+use crate::parse::SyntaxError;
 use crate::scan::LexicalError;
 use crate::translate::TranslationError;
 use std::fmt::{self, Display, Formatter};
 
 /// An error that occurred while compiling source code.
 #[derive(Clone, Debug, PartialEq)]
-pub struct CompilationError {
-    message: String,
+pub enum CompilationError {
+    Lexical(LexicalError),
+    Syntax(SyntaxError),
+    Translation(TranslationError),
 }
 
 impl Display for CompilationError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.message)
+        match self {
+            CompilationError::Lexical(inner) => write!(f, "{}", inner),
+            CompilationError::Syntax(inner) => write!(f, "{}", inner),
+            CompilationError::Translation(inner) => write!(f, "{}", inner),
+        }
     }
 }
 
 impl std::error::Error for CompilationError {}
 
-impl CompilationError {
-    pub fn new(message: &str) -> Self {
-        CompilationError {
-            message: message.to_string(),
-        }
-    }
-}
-
 impl From<LexicalError> for CompilationError {
     fn from(error: LexicalError) -> Self {
-        CompilationError {
-            message: format!("{}", &error),
-        }
+        CompilationError::Lexical(error)
     }
 }
 
-impl From<SyntacticalError> for CompilationError {
-    fn from(error: SyntacticalError) -> Self {
-        CompilationError {
-            message: format!("{}", &error),
-        }
+impl From<SyntaxError> for CompilationError {
+    fn from(error: SyntaxError) -> Self {
+        CompilationError::Syntax(error)
     }
 }
 
 impl From<TranslationError> for CompilationError {
     fn from(error: TranslationError) -> Self {
-        CompilationError {
-            message: format!("{}", &error),
-        }
-    }
-}
-
-impl From<&str> for CompilationError {
-    fn from(error: &str) -> Self {
-        CompilationError {
-            message: error.to_string(),
-        }
-    }
-}
-
-impl From<String> for CompilationError {
-    fn from(error: String) -> Self {
-        CompilationError { message: error }
+        CompilationError::Translation(error)
     }
 }

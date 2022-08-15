@@ -13,7 +13,7 @@ mod unicode;
 pub use error::CompilationError;
 pub use grammar::Program;
 pub use location::Location;
-pub use parse::{Parser, SyntacticalError};
+pub use parse::{Parser, SyntaxError};
 pub use report::ErrorReporter;
 pub use scan::{LexicalError, Scanner};
 pub use token::{Token, TokenKind};

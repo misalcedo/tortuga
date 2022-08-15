@@ -11,7 +11,7 @@ use crate::grammar::{
 use crate::scan::LexicalError;
 use crate::{CompilationError, ErrorReporter};
 use crate::{Location, Scanner, Token, TokenKind};
-pub use error::SyntacticalError;
+pub use error::SyntaxError;
 use precedence::{ParseFunction, ParseRule, Precedence};
 use std::collections::HashMap;
 
@@ -27,7 +27,7 @@ pub struct Parser<'a, Iterator, Reporter> {
     end_location: Location,
 }
 
-type SyntacticalResult<Output> = Result<Output, SyntacticalError>;
+type SyntacticalResult<Output> = Result<Output, SyntaxError>;
 static OPERATOR_MAPPINGS: &[(TokenKind, ExpressionKind)] = &[
     (TokenKind::Equal, ExpressionKind::Equality),
     (TokenKind::Plus, ExpressionKind::Add),
@@ -91,7 +91,7 @@ where
         }
     }
 
-    fn synchronize(&mut self, error: SyntacticalError) {
+    fn synchronize(&mut self, error: SyntaxError) {
         self.reporter.report_syntax_error(error);
 
         loop {
@@ -146,7 +146,7 @@ where
             .iter()
             .find(|(kind, _)| self.consume_conditionally(*kind))
             .ok_or_else(|| {
-                SyntacticalError::new("Unsupported binary token.", self.current_location())
+                SyntaxError::new("Unsupported binary token.", self.current_location())
             })?;
 
         let precedence = self.rule_precedence(kind).next();
@@ -166,7 +166,7 @@ where
         let token = self.consume(TokenKind::Number, "Expected a number after the '-' sign.")?;
 
         if token.lexeme() == "0" {
-            Err(SyntacticalError::new("Cannot negate zero.", *token.start()))
+            Err(SyntaxError::new("Cannot negate zero.", *token.start()))
         } else {
             let number = Number::negative(token.lexeme());
 
@@ -296,8 +296,8 @@ where
                 self.advance();
                 Ok(token)
             }
-            Some(ref token) => Err(SyntacticalError::new(message, *token.start())),
-            None => Err(SyntacticalError::new(message, self.end_location)),
+            Some(ref token) => Err(SyntaxError::new(message, *token.start())),
+            None => Err(SyntaxError::new(message, self.end_location)),
         }
     }
 
@@ -321,7 +321,7 @@ where
     fn current_kind(&mut self) -> SyntacticalResult<TokenKind> {
         let token = self
             .current
-            .ok_or_else(|| SyntacticalError::new("Expected current token.", self.end_location))?;
+            .ok_or_else(|| SyntaxError::new("Expected current token.", self.end_location))?;
 
         Ok(*token.kind())
     }
@@ -341,10 +341,10 @@ where
             .unwrap_or(self.end_location)
     }
 
-    fn pop_child(&mut self, message: &str) -> Result<ExpressionReference, SyntacticalError> {
+    fn pop_child(&mut self, message: &str) -> Result<ExpressionReference, SyntaxError> {
         self.children
             .pop()
-            .ok_or_else(|| SyntacticalError::new(message, self.current_location()))
+            .ok_or_else(|| SyntaxError::new(message, self.current_location()))
     }
 
     fn rule_precedence(&mut self, kind: &TokenKind) -> Precedence {
@@ -356,23 +356,25 @@ where
 
     fn rule_prefix(&mut self, kind: &TokenKind) -> SyntacticalResult<ParseFunction<'a, I, R>> {
         let location = self.current_location();
-        let rule = self.rules.get(kind).ok_or_else(|| {
-            SyntacticalError::new("No parse rule for the current token.", location)
-        })?;
+        let rule = self
+            .rules
+            .get(kind)
+            .ok_or_else(|| SyntaxError::new("No parse rule for the current token.", location))?;
         rule.prefix()
             .copied()
-            .ok_or_else(|| SyntacticalError::new("Unable to parse prefix token.", location))
+            .ok_or_else(|| SyntaxError::new("Unable to parse prefix token.", location))
     }
 
     fn rule_infix(&mut self, kind: &TokenKind) -> SyntacticalResult<ParseFunction<'a, I, R>> {
         let location = self.current_location();
-        let rule = self.rules.get(kind).ok_or_else(|| {
-            SyntacticalError::new("No parse rule for the current token.", location)
-        })?;
+        let rule = self
+            .rules
+            .get(kind)
+            .ok_or_else(|| SyntaxError::new("No parse rule for the current token.", location))?;
 
         rule.infix()
             .copied()
-            .ok_or_else(|| SyntacticalError::new("Unable to parse infix token.", location))
+            .ok_or_else(|| SyntaxError::new("Unable to parse infix token.", location))
     }
 
     fn rules() -> HashMap<TokenKind, ParseRule<'a, I, R>> {

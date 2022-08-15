@@ -12,14 +12,14 @@ use rustyline::validate::{ValidationContext, ValidationResult, Validator};
 use rustyline::{error::ReadlineError, Editor, Helper};
 use std::io::{stderr, stdout, Write};
 use tortuga_compiler::{
-    CompilationError, ErrorReporter, LexicalError, Parser, Scanner, SyntacticalError, Translation,
+    CompilationError, ErrorReporter, LexicalError, Parser, Scanner, SyntaxError, Translation,
     TranslationError,
 };
 use tortuga_vm::VirtualMachine;
 use tracing::error;
 
 #[derive(Default)]
-struct PromptHelper(Option<SyntacticalError>, Vec<CompilationError>);
+struct PromptHelper(Option<SyntaxError>, Vec<CompilationError>);
 
 /// The prompt used to communicate with a user.
 pub struct Prompt {
@@ -82,7 +82,7 @@ impl ErrorReporter for PromptHelper {
         self.1.push(error.into());
     }
 
-    fn report_syntax_error(&mut self, error: SyntacticalError) {
+    fn report_syntax_error(&mut self, error: SyntaxError) {
         self.0 = Some(error.clone());
         self.1.push(error.into());
     }
