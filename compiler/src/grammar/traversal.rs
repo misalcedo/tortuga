@@ -1,10 +1,8 @@
-use crate::grammar::{Expression, ExpressionKind, Program};
+use crate::grammar::{Expression, Program};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Node<'a, 'b> {
     discovered: bool,
-    scope: usize,
-    root: bool,
     program: &'b Program<'a>,
     expression: &'b Expression<'a>,
 }
@@ -18,8 +16,6 @@ where
 
         Some(Node {
             discovered: false,
-            scope: 0,
-            root: true,
             program,
             expression,
         })
@@ -27,16 +23,9 @@ where
 
     fn new_child(&self, index: usize) -> Option<Self> {
         let expression = self.program.expressions.get(index)?;
-        let increment = if self.expression.kind() == &ExpressionKind::Block {
-            1
-        } else {
-            0
-        };
 
         Some(Node {
             discovered: false,
-            scope: self.scope + increment,
-            root: false,
             program: self.program,
             expression,
         })
@@ -44,14 +33,6 @@ where
 
     pub fn discovered(&self) -> bool {
         self.discovered
-    }
-
-    pub fn scope(&self) -> usize {
-        self.scope
-    }
-
-    pub fn root(&self) -> bool {
-        self.root
     }
 
     pub fn program(&self) -> &'b Program<'a> {

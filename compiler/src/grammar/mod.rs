@@ -4,7 +4,7 @@ mod expression;
 mod terminal;
 mod traversal;
 
-pub use crate::grammar::traversal::{Iter, PostOrderIterator, PreOrderIterator};
+pub use crate::grammar::traversal::{Iter, Node, PostOrderIterator, PreOrderIterator};
 pub use expression::{Expression, ExpressionKind, ExpressionReference};
 use std::fmt::{Display, Formatter};
 pub use terminal::{Identifier, Number, Uri};

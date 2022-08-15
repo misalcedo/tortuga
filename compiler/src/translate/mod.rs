@@ -12,7 +12,7 @@ mod number;
 mod uri;
 mod value;
 
-use crate::grammar::{Expression, ExpressionKind, Identifier, PostOrderIterator, Uri};
+use crate::grammar::{ExpressionKind, Identifier, Iter, Node, Uri};
 use context::ScopeContext;
 pub use error::TranslationError;
 use indices::IndexedSet;
@@ -37,7 +37,7 @@ pub struct Translation<'a> {
 
 type TranslationResult<Output> = Result<Output, TranslationError>;
 
-impl<'a, 'b, R> Translator<'a, PostOrderIterator<'a, 'b>, R>
+impl<'a, 'b, R> Translator<'a, Iter<'a, 'b>, R>
 where
     'a: 'b,
     R: ErrorReporter,
@@ -45,7 +45,7 @@ where
     pub fn new(program: &'b Program<'a>, reporter: R) -> Self {
         Translator {
             reporter,
-            iterator: program.iter_post_order(),
+            iterator: program.iter(),
             context: Default::default(),
             contexts: Default::default(),
             functions: Default::default(),
@@ -69,7 +69,7 @@ where
 
     fn simulate(&mut self) -> TranslationResult<()> {
         while let Some(node) = self.iterator.next() {
-            self.simulate_expression(node.expression())?;
+            self.simulate_expression(node)?;
         }
 
         self.update_entrypoint()
@@ -86,8 +86,9 @@ where
         Ok(())
     }
 
-    fn simulate_expression(&mut self, expression: &Expression<'a>) -> TranslationResult<()> {
-        match expression.kind() {
+    fn simulate_expression(&mut self, node: Node<'a, 'b>) -> TranslationResult<()> {
+        match node.expression().kind() {
+            ExpressionKind::Block if node.discovered() => {}
             ExpressionKind::Block => {}
             ExpressionKind::Equality => self.simulate_equality()?,
             ExpressionKind::Modulo => self.simulate_binary(Operation::Remainder)?,
