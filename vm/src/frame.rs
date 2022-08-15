@@ -57,10 +57,6 @@ impl CallFrame {
         self.cursor += offset;
     }
 
-    fn start_frame(&self) -> usize {
-        self.start_stack
-    }
-
     fn end_frame(&self) -> usize {
         self.start_captures() + self.captures
     }
