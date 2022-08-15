@@ -129,15 +129,13 @@ where
         match assignee {
             Value::Uninitialized(index) => {
                 let depth = self.contexts.len();
-                let local = self
-                    .context
+
+                self.context
                     .local_mut(index)
-                    .ok_or_else(|| {
-                        TranslationError::from("Unable to find local in current scope.")
-                    })?
+                    .ok_or_else(|| TranslationError::from(ErrorKind::NoSuchLocal(index)))?
                     .initialize(depth, value);
 
-                self.context.add_operation(Operation::SetLocal(local as u8));
+                self.context.add_operation(Operation::DefineLocal);
                 self.stack.push(value);
             }
             Value::Any => {}
@@ -308,7 +306,7 @@ impl<'a> TryFrom<&'a str> for Translation<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tortuga_executable::OperationCode;
+    use tortuga_executable::{OperationCode, ToCode};
 
     #[test]
     fn undefined_variable() {
@@ -334,29 +332,21 @@ mod tests {
     #[test]
     fn add_with_variable() {
         let executable: Executable = Translation::try_from("x = 2\nx + 40").unwrap().into();
-
+        let code = vec![
+            Operation::ConstantNumber(0),
+            Operation::DefineLocal,
+            Operation::GetLocal(1),
+            Operation::ConstantNumber(1),
+            Operation::Add,
+        ]
+        .to_code();
         assert_eq!(
             executable.function(0).unwrap().code().as_slice(),
-            &[
-                OperationCode::ConstantNumber as u8,
-                0,
-                OperationCode::SetLocal as u8,
-                1,
-                OperationCode::GetLocal as u8,
-                1,
-                OperationCode::ConstantNumber as u8,
-                1,
-                OperationCode::Add as u8
-            ]
+            code.as_slice()
         );
         assert_eq!(
             executable.function(0),
-            Some(&Function::new(
-                0,
-                1,
-                vec![0, 0, 4, 1, 5, 1, 0, 1, 11],
-                vec![]
-            ))
+            Some(&Function::new(0, 1, code, vec![]))
         );
     }
 
