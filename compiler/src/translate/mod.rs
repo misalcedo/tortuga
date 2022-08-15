@@ -12,7 +12,7 @@ mod number;
 mod uri;
 mod value;
 
-use crate::grammar::{Expression, ExpressionKind, Identifier, Iter, Node, Uri};
+use crate::grammar::{ExpressionKind, Identifier, Iter, Node, Uri};
 use crate::translate::error::ErrorKind;
 use context::ScopeContext;
 pub use error::TranslationError;
@@ -22,7 +22,6 @@ use value::Value;
 pub struct Translator<'a, Iterator, Reporter> {
     reporter: Reporter,
     iterator: Iterator,
-    equality: bool,
     context: ScopeContext<'a>,
     contexts: Vec<ScopeContext<'a>>,
     stack: Vec<Value>,
@@ -49,7 +48,6 @@ where
         Translator {
             reporter,
             iterator: program.iter(),
-            equality: false,
             context: Default::default(),
             contexts: Default::default(),
             functions: Default::default(),
@@ -76,7 +74,7 @@ where
             self.simulate_expression(node)?;
         }
 
-        self.update_entrypoint()
+        self.simulate_program()
     }
 
     fn next_node(&mut self) -> Option<Node<'a, 'b>> {
@@ -90,10 +88,14 @@ where
     }
 
     // TODO: Figure out how to denote the number of locals in the script.
-    fn update_entrypoint(&mut self) -> TranslationResult<()> {
+    fn simulate_program(&mut self) -> TranslationResult<()> {
         let mut context = ScopeContext::default();
 
         mem::swap(&mut self.context, &mut context);
+
+        if !self.contexts.is_empty() {
+            self.report_error(ErrorKind::ExpectedEndOfBlock);
+        }
 
         self.functions.push(Function::from(context));
 
@@ -101,6 +103,9 @@ where
     }
 
     fn simulate_expression(&mut self, node: Node<'a, 'b>) -> TranslationResult<()> {
+        // TODO: Remove
+        println!("Node: {:?}:{}", node.expression().kind(), node.discovered());
+
         match node.expression().kind() {
             ExpressionKind::Block => self.simulate_block(node),
             ExpressionKind::Equality => self.simulate_equality(node),
@@ -125,11 +130,37 @@ where
     }
 
     fn simulate_block(&mut self, node: Node<'a, 'b>) -> TranslationResult<()> {
+        if node.discovered() {
+            let mut context = self
+                .contexts
+                .pop()
+                .ok_or_else(|| TranslationError::from(ErrorKind::EmptyContexts))?;
+
+            mem::swap(&mut context, &mut self.context);
+
+            let function = Function::from(context);
+            let index = self.functions.len();
+
+            self.functions.push(function);
+            self.stack.push(Value::Function(index));
+        } else {
+            let mut context = ScopeContext::default();
+
+            mem::swap(&mut context, &mut self.context);
+        }
+
         Ok(())
     }
 
     fn simulate_equality(&mut self, node: Node<'a, 'b>) -> TranslationResult<()> {
-        let value = self.pop()?;
+        let mut condition = None;
+        let mut value = self.pop()?;
+
+        if value == Value::Boolean {
+            condition = Some(value);
+            value = self.pop()?;
+        }
+
         let assignee = self.pop()?;
 
         match assignee {
@@ -144,11 +175,12 @@ where
                 self.context.add_operation(Operation::DefineLocal);
                 self.stack.push(value);
             }
-            Value::Any => {}
-            Value::Closure => {}
-            Value::Number(_) => {}
-            Value::Text(_) => {}
-            Value::Grouping(_) => {}
+            Value::Any => self.stack.push(Value::Any),
+            _ if condition.is_none() => self.stack.push(Value::Boolean),
+            _ => {
+                self.report_error(ErrorKind::ConditionWithoutAssignment);
+                self.stack.push(Value::Any);
+            }
         }
 
         Ok(())
@@ -216,12 +248,20 @@ where
             }
         }
 
-        if parts.len() == length {
+        if parts.len() == length && length > 1 {
             self.context.add_operation(Operation::Group(length as u8));
             self.stack.push(Value::Grouping(parts));
             Ok(())
+        } else if parts.len() == length && length == 1 {
+            let inner = parts
+                .pop()
+                .ok_or_else(|| TranslationError::from(ErrorKind::InvalidGroupSize(1, 0)))?;
+
+            self.stack.push(inner);
+
+            Ok(())
         } else {
-            Err(ErrorKind::InvalidGroupingSize(length, parts.len()).into())
+            Err(ErrorKind::InvalidGroupSize(length, parts.len()).into())
         }
     }
 
@@ -298,7 +338,7 @@ where
     fn pop(&mut self) -> TranslationResult<Value> {
         self.stack
             .pop()
-            .ok_or_else(|| TranslationError::from("Translation value stack is unexpectedly empty."))
+            .ok_or_else(|| TranslationError::from(ErrorKind::EmptyStack))
     }
 
     fn report_error<E: Into<TranslationError>>(&mut self, error: E) {
@@ -339,16 +379,16 @@ mod tests {
     #[test]
     fn add_numbers() {
         let executable: Executable = Translation::try_from("(2 + 40)").unwrap().into();
+        let code = vec![
+            Operation::ConstantNumber(0),
+            Operation::ConstantNumber(1),
+            Operation::Add,
+        ]
+        .to_code();
 
         assert_eq!(
             executable.function(0).unwrap().code().as_slice(),
-            &[
-                OperationCode::ConstantNumber as u8,
-                0,
-                OperationCode::ConstantNumber as u8,
-                1,
-                OperationCode::Add as u8
-            ]
+            code.as_slice()
         );
     }
 

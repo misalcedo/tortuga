@@ -28,10 +28,10 @@ impl<'a> Default for ScopeContext<'a> {
 }
 
 impl<'a> ScopeContext<'a> {
-    pub fn new(name: &'a str) -> Self {
+    pub fn new(name: &'a str, depth: usize) -> Self {
         ScopeContext {
             name: Some(name),
-            depth: 0,
+            depth,
             code: vec![],
             parameters: Default::default(),
             locals: IndexedSet::default(),

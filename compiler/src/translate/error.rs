@@ -1,4 +1,3 @@
-use crate::grammar::ExpressionKind;
 use crate::translate::uri::ParseUriError;
 use std::fmt::{Display, Formatter};
 use tortuga_executable::ParseNumberError;
@@ -36,8 +35,11 @@ pub enum ErrorKind {
     InvalidUri(ParseUriError),
     MissingChildren(usize, usize), // expected, actual
     GroupTooLarge(usize),
-    InvalidGroupingSize(usize, usize), // expected, actual
+    InvalidGroupSize(usize, usize), // expected, actual
     NoSuchLocal(usize),
+    EmptyStack,
+    EmptyContexts,
+    ConditionWithoutAssignment,
     ExpectedEndOfBlock,
     ExpectedEndOfEquality,
     Unknown(String),
