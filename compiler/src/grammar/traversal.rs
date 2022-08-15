@@ -1,114 +1,156 @@
 use crate::grammar::{Expression, InternalKind, Program};
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct PreOrderIterator<'a, 'b> {
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Node<'a, 'b> {
+    discovered: bool,
+    scope: usize,
+    root: bool,
     program: &'b Program<'a>,
-    stack: Vec<(usize, usize)>,
+    expression: &'b Expression<'a>,
 }
+
+impl<'a, 'b> Node<'a, 'b>
+where
+    'a: 'b,
+{
+    fn new(program: &'b Program<'a>, index: usize) -> Option<Self> {
+        let expression = program.expressions.get(index)?;
+
+        Some(Node {
+            discovered: false,
+            scope: 0,
+            root: true,
+            program,
+            expression,
+        })
+    }
+
+    fn new_child(&self, index: usize) -> Option<Self> {
+        let expression = self.program.expressions.get(index)?;
+        let scope = match self.expression {
+            Expression::Internal(internal) if internal.kind() == &InternalKind::Block => {
+                self.scope + 1
+            }
+            _ => self.scope,
+        };
+
+        Some(Node {
+            discovered: false,
+            root: false,
+            program: self.program,
+            expression,
+            scope,
+        })
+    }
+
+    pub fn discovered(&self) -> bool {
+        self.discovered
+    }
+
+    pub fn scope(&self) -> usize {
+        self.scope
+    }
+
+    pub fn root(&self) -> bool {
+        self.root
+    }
+
+    pub fn program(&self) -> &'b Program<'a> {
+        self.program
+    }
+
+    pub fn expression(&self) -> &'b Expression<'a> {
+        self.expression
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Iter<'a, 'b> {
+    stack: Vec<Node<'a, 'b>>,
+}
+
+impl<'a, 'b> From<&'b Program<'a>> for Iter<'a, 'b> {
+    fn from(program: &'b Program<'a>) -> Self {
+        Iter {
+            stack: program
+                .roots
+                .iter()
+                .rev()
+                .filter_map(|&i| Node::new(program, i))
+                .collect(),
+        }
+    }
+}
+
+impl<'a, 'b> Iterator for Iter<'a, 'b> {
+    type Item = Node<'a, 'b>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let node = self.stack.pop()?;
+
+        match node.expression {
+            Expression::Terminal(_) => Some(node),
+            Expression::Internal(_) if node.discovered => Some(node),
+            Expression::Internal(_) => {
+                self.stack.push(Node {
+                    discovered: true,
+                    ..node
+                });
+
+                for reference in node.expression.children().iter().rev() {
+                    if let Some(child) = node.new_child(reference.0) {
+                        self.stack.push(child);
+                    }
+                }
+
+                Some(node)
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct PreOrderIterator<'a, 'b>(Iter<'a, 'b>);
 
 impl<'a, 'b> From<&'b Program<'a>> for PreOrderIterator<'a, 'b> {
     fn from(program: &'b Program<'a>) -> Self {
-        PreOrderIterator {
-            program,
-            stack: program.roots.iter().rev().map(|&r| (0, r)).collect(),
-        }
+        PreOrderIterator(program.into())
     }
 }
 
 impl<'a, 'b> Iterator for PreOrderIterator<'a, 'b> {
-    type Item = (usize, &'b Expression<'a>);
+    type Item = Node<'a, 'b>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let (scope_depth, index) = self.stack.pop()?;
-        let expression = self.program.expressions.get(index)?;
+        let mut node = self.0.next()?;
 
-        if let Expression::Internal(internal) = expression {
-            let increment = if internal.kind() == &InternalKind::Block {
-                1
-            } else {
-                0
-            };
-
-            for child in internal.children().iter().rev() {
-                self.stack.push((scope_depth + increment, child.0));
-            }
+        while node.discovered {
+            node = self.0.next()?;
         }
 
-        Some((scope_depth, expression))
+        Some(node)
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct PostOrderIterator<'a, 'b> {
-    program: &'b Program<'a>,
-    stack: Vec<(usize, usize, bool)>,
-}
+pub struct PostOrderIterator<'a, 'b>(Iter<'a, 'b>);
 
 impl<'a, 'b> From<&'b Program<'a>> for PostOrderIterator<'a, 'b> {
     fn from(program: &'b Program<'a>) -> Self {
-        PostOrderIterator {
-            program,
-            stack: program.roots.iter().rev().map(|&i| (0, i, false)).collect(),
-        }
+        PostOrderIterator(program.into())
     }
 }
 
 impl<'a, 'b> Iterator for PostOrderIterator<'a, 'b> {
-    type Item = (usize, &'b Expression<'a>);
+    type Item = Node<'a, 'b>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            let (scope_depth, index, discovered) = self.stack.pop()?;
-            let expression = self.program.expressions.get(index)?;
+        let mut node = self.0.next()?;
 
-            match expression {
-                Expression::Terminal(_) => return Some((scope_depth, expression)),
-                Expression::Internal(_) if discovered => return Some((scope_depth, expression)),
-                Expression::Internal(internal) => {
-                    self.stack.push((scope_depth, index, true));
-
-                    let increment = if internal.kind() == &InternalKind::Block {
-                        1
-                    } else {
-                        0
-                    };
-
-                    for child in internal.children().iter().rev() {
-                        self.stack.push((scope_depth + increment, child.0, false));
-                    }
-                }
-            }
+        while !node.discovered {
+            node = self.0.next()?;
         }
-    }
-}
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct IteratorWithoutScopeDepth<Iterator> {
-    inner: Iterator,
-}
-
-pub trait WithoutScopeDepth: Sized {
-    fn without_scope_depth(self) -> IteratorWithoutScopeDepth<Self>;
-}
-
-impl<'a, 'b, I> WithoutScopeDepth for I
-where
-    'a: 'b,
-    I: Iterator<Item = (usize, &'b Expression<'a>)>,
-{
-    fn without_scope_depth(self) -> IteratorWithoutScopeDepth<Self> {
-        IteratorWithoutScopeDepth { inner: self }
-    }
-}
-
-impl<'a, 'b, I> Iterator for IteratorWithoutScopeDepth<I>
-where
-    'a: 'b,
-    I: Iterator<Item = (usize, &'b Expression<'a>)>,
-{
-    type Item = &'b Expression<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        Some(self.inner.next()?.1)
+        Some(node)
     }
 }

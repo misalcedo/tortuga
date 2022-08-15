@@ -11,6 +11,15 @@ pub enum Expression<'a> {
     Terminal(Terminal<'a>),
 }
 
+impl<'a> Expression<'a> {
+    pub(crate) fn children(&self) -> &[ExpressionReference] {
+        match self {
+            Expression::Internal(internal) => internal.children.as_slice(),
+            Expression::Terminal(_) => &[],
+        }
+    }
+}
+
 impl Display for Expression<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -50,14 +59,6 @@ impl Internal {
 
     pub fn kind(&self) -> &InternalKind {
         &self.kind
-    }
-
-    pub fn len(&self) -> usize {
-        self.children.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.children.is_empty()
     }
 
     pub(crate) fn children(&self) -> &[ExpressionReference] {

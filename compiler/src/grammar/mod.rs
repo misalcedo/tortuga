@@ -4,7 +4,7 @@ mod expression;
 mod terminal;
 mod traversal;
 
-pub use crate::grammar::traversal::{PostOrderIterator, PreOrderIterator, WithoutScopeDepth};
+pub use crate::grammar::traversal::{Iter, PostOrderIterator, PreOrderIterator};
 pub use expression::{Expression, ExpressionReference, Internal, InternalKind, Terminal};
 use std::collections::BTreeSet;
 use std::fmt::{Display, Formatter, Write};
@@ -103,7 +103,6 @@ impl Display for Program<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::grammar::traversal::WithoutScopeDepth;
 
     #[test]
     fn add() {
@@ -123,7 +122,7 @@ mod tests {
         let expected: Vec<Expression<'static>> = vec![left.into(), right.into(), add.into()];
         let actual: Vec<Expression<'static>> = program
             .iter_post_order()
-            .without_scope_depth()
+            .map(|n| n.expression())
             .cloned()
             .collect();
 

@@ -25,10 +25,10 @@ pub struct Translator<'a, Iterator, Reporter> {
     iterator: Iterator,
     context: ScopeContext<'a>,
     contexts: Vec<ScopeContext<'a>>,
+    stack: Vec<Value>,
     functions: Vec<Function>,
     numbers: IndexedSet<grammar::Number<'a>, Number>,
     texts: IndexedSet<Uri<'a>, Text>,
-    stack: Vec<Value>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -49,11 +49,11 @@ where
             reporter,
             iterator: program.iter_post_order(),
             context: Default::default(),
-            contexts: vec![],
-            functions: vec![],
+            contexts: Default::default(),
+            functions: Default::default(),
+            stack: Default::default(),
             numbers: Default::default(),
             texts: Default::default(),
-            stack: Default::default(),
         }
     }
 
@@ -70,20 +70,8 @@ where
     }
 
     fn simulate(&mut self) -> TranslationResult<()> {
-        let mut previous_depth = 0;
-
-        while let Some((depth, expression)) = self.iterator.next() {
-            if previous_depth < depth {
-                self.contexts.push(ScopeContext::default());
-            } else if previous_depth > depth {
-                self.contexts.pop().ok_or_else(|| {
-                    TranslationError::from("Expected context stack to not be empty.")
-                })?;
-            }
-
-            previous_depth = depth;
-
-            self.simulate_expression(expression)?;
+        while let Some(node) = self.iterator.next() {
+            self.simulate_expression(node.expression())?;
         }
 
         self.update_entrypoint()
