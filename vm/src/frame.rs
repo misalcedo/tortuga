@@ -1,5 +1,5 @@
 use crate::{Function, Value};
-use std::ops::{Index, IndexMut, Range};
+use std::ops::{Index, IndexMut, Range, RangeFrom};
 use std::rc::Rc;
 
 /// Closure, Parameters, Locals, Captures
@@ -45,11 +45,19 @@ impl CallFrame {
         self.start_captures()..self.end_frame()
     }
 
+    pub fn temporaries(&self) -> RangeFrom<usize> {
+        self.end_frame()..
+    }
+
+    pub fn all(&self) -> RangeFrom<usize> {
+        self.start_stack..
+    }
+
     pub fn jump(&mut self, offset: usize) {
         self.cursor += offset;
     }
 
-    pub fn start_frame(&self) -> usize {
+    fn start_frame(&self) -> usize {
         self.start_stack
     }
 

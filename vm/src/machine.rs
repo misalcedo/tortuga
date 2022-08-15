@@ -115,9 +115,10 @@ impl<C: Courier> VirtualMachine<C> {
     }
 
     fn pop_operation(&mut self) -> OperationResult {
-        match self.stack.pop() {
-            Some(_) => Ok(()),
-            None => Err(ErrorKind::EmptyStack.into()),
+        if self.stack[self.frame.temporaries()].is_empty() || self.stack.pop().is_none() {
+            Err(ErrorKind::EmptyStack.into())
+        } else {
+            Ok(())
         }
     }
 
@@ -413,7 +414,7 @@ impl<C: Courier> VirtualMachine<C> {
     fn exit_function(&mut self) -> RuntimeResult<Option<Value>> {
         let result = self.stack.pop();
 
-        self.stack.drain(self.frame.start_frame()..);
+        self.stack.drain(self.frame.all());
 
         let mut frame = self
             .frames
