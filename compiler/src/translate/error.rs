@@ -24,6 +24,7 @@ pub enum ErrorKind {
     TooManyNumbers(usize),
     TooManyUris(usize),
     GroupTooLarge(usize),
+    EmptyGroup,
     InvalidGroupSize(usize, usize), // expected, actual
     NoSuchFunction(usize),
     NoSuchNumber(usize),

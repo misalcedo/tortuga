@@ -288,31 +288,28 @@ where
         let length = node.children();
 
         if length > u8::MAX as usize {
-            return Err(ErrorKind::GroupTooLarge(length).into());
-        }
-
-        let mut parts = vec![];
-
-        for _ in 0..length {
-            if let Some(part) = self.stack.pop() {
-                parts.push(part);
-            }
-        }
-
-        if parts.len() == length && length > 1 {
-            self.context.add_operation(Operation::Group(length as u8));
-            self.stack.push(Value::Group(parts));
-            Ok(())
-        } else if parts.len() == length && length == 1 {
-            let inner = parts
-                .pop()
-                .ok_or_else(|| TranslationError::from(ErrorKind::InvalidGroupSize(1, 0)))?;
-
-            self.stack.push(inner);
-
+            Err(ErrorKind::GroupTooLarge(length).into())
+        } else if length < 1 {
+            Err(ErrorKind::EmptyGroup.into())
+        } else if length == 1 {
             Ok(())
         } else {
-            Err(ErrorKind::InvalidGroupSize(length, parts.len()).into())
+            let mut parts = vec![];
+
+            for _ in 0..length {
+                if let Some(part) = self.stack.pop() {
+                    parts.push(part);
+                }
+            }
+
+            if parts.len() == length {
+                self.context.add_operation(Operation::Group(length as u8));
+                self.stack.push(Value::Group(parts));
+
+                Ok(())
+            } else {
+                Err(ErrorKind::InvalidGroupSize(length, parts.len()).into())
+            }
         }
     }
 
