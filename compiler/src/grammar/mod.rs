@@ -34,14 +34,6 @@ impl<'a> Program<'a> {
         self.into()
     }
 
-    pub fn iter_post_order(&self) -> PostOrderIterator<'a, '_> {
-        self.into()
-    }
-
-    pub fn iter_pre_order(&self) -> PreOrderIterator<'a, '_> {
-        self.into()
-    }
-
     pub fn len(&self) -> usize {
         self.expressions.len()
     }
@@ -117,9 +109,10 @@ mod tests {
 
         program.mark_root(add_index);
 
-        let expected: Vec<Expression<'static>> = vec![left.into(), right.into(), add.into()];
-        let actual: Vec<Expression<'static>> = program
-            .iter_post_order()
+        let expected: Vec<Expression<'_>> = vec![left.into(), right.into(), add.into()];
+        let actual: Vec<Expression<'_>> = program
+            .iter()
+            .post_order()
             .map(|n| n.expression())
             .cloned()
             .collect();
@@ -181,5 +174,58 @@ mod tests {
         program.mark_root(call_index);
 
         assert_eq!("(= (f x) (* x x)) (f 2)", program.to_string().as_str());
+    }
+
+    #[test]
+    fn roots() {
+        let mut program = Program::default();
+
+        let function = Identifier::from("f");
+        let function_index = program.insert(function);
+
+        let parameter = Identifier::from("x");
+        let parameter_index = program.insert(parameter);
+
+        let declaration =
+            Expression::new(ExpressionKind::Call, vec![function_index, parameter_index]);
+        let declaration_index = program.insert(declaration);
+
+        let left_index = program.insert(parameter);
+        let right_index = program.insert(parameter);
+
+        let multiply = Expression::new(ExpressionKind::Multiply, vec![left_index, right_index]);
+        let multiply_index = program.insert(multiply);
+
+        let equality = Expression::new(
+            ExpressionKind::Equality,
+            vec![declaration_index, multiply_index],
+        );
+        let equality_index = program.insert(equality);
+
+        let invocation_index = program.insert(function);
+        let argument_index = program.insert(Number::positive("2"));
+        let call = Expression::new(ExpressionKind::Call, vec![invocation_index, argument_index]);
+        let call_index = program.insert(call);
+
+        program.mark_root(equality_index);
+        program.mark_root(call_index);
+
+        let nodes: Vec<Node<'_, '_>> = program.iter().roots().collect();
+
+        assert_eq!(
+            vec![
+                Node::new(&program, equality_index.0).unwrap(),
+                Node::new(&program, call_index.0).unwrap()
+            ],
+            nodes
+        );
+
+        let mut iterator = program.iter();
+
+        iterator.next();
+
+        let partial_nodes: Vec<Node<'_, '_>> = iterator.roots().collect();
+
+        assert_eq!(vec![Node::new(&program, call_index.0).unwrap()], nodes);
     }
 }

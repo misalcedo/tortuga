@@ -1,5 +1,6 @@
 use crate::Program;
 use crate::{grammar, CompilationError, ErrorReporter};
+use std::iter::Peekable;
 use std::mem;
 use tortuga_executable::{Executable, Function, Number, Operation, Text};
 
@@ -40,8 +41,9 @@ pub struct Translation<'a> {
 
 type TranslationResult<Output> = Result<Output, TranslationError>;
 static UNDISCOVERED_KINDS: &[ExpressionKind] = &[ExpressionKind::Block];
+static CALL_KINDS: &[ExpressionKind] = &[ExpressionKind::Call, ExpressionKind::Condition];
 
-impl<'a, 'b, R> Translator<'a, Iter<'a, 'b>, R>
+impl<'a, 'b, R> Translator<'a, Peekable<Iter<'a, 'b>>, R>
 where
     'a: 'b,
     R: ErrorReporter,
@@ -49,7 +51,7 @@ where
     pub fn new(program: &'b Program<'a>, reporter: R) -> Self {
         Translator {
             reporter,
-            iterator: program.iter(),
+            iterator: program.iter().peekable(),
             context: Default::default(),
             contexts: Default::default(),
             functions: Default::default(),
@@ -211,23 +213,19 @@ where
                     .get(index)
                     .ok_or_else(|| TranslationError::from(ErrorKind::NoSuchFunction(index)))?;
 
-                let arguments_group = arguments;
-                let arguments = match &arguments_group {
-                    Value::Group(parts) if parts.len() == 1 => match parts.as_slice() {
-                        [Value::Group(inner)] => inner.as_slice(),
-                        _ => parts.as_slice(),
-                    },
-                    Value::Group(parts) => parts.as_slice(),
-                    _ => &[],
-                };
+                let kind = function.kind();
 
-                if function.parameters() == arguments {
+                if kind == arguments {
+                    if kind.len() != arguments.len() {
+                        self.context.add_operation(Operation::Separate);
+                    }
+
                     self.context.add_operation(Operation::Call(index as u8));
                     self.stack.extend_from_slice(function.results());
                 } else {
                     self.report_error(ErrorKind::InvalidArguments(
                         function.parameters().to_vec(),
-                        arguments.to_vec(),
+                        vec![arguments],
                     ));
                     self.stack.push(Value::Any);
                 }
@@ -309,7 +307,11 @@ where
             }
 
             if parts.len() == length {
-                self.context.add_operation(Operation::Group(length as u8));
+                match self.iterator.peek() {
+                    Some(next) if CALL_KINDS.contains(next.expression().kind()) => {}
+                    _ => self.context.add_operation(Operation::Group(length as u8)),
+                };
+
                 self.stack.push(Value::Group(parts));
 
                 Ok(())

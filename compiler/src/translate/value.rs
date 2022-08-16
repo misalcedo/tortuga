@@ -13,6 +13,16 @@ pub enum Value {
     Function(Vec<Value>, Vec<Value>),
 }
 
+impl Value {
+    pub fn len(&self) -> usize {
+        match self {
+            Value::Group(a) => a.len(),
+            Value::Function(a, _) => a.len(),
+            _ => 1,
+        }
+    }
+}
+
 impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {

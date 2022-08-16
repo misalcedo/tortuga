@@ -1,9 +1,10 @@
-use crate::grammar::{Expression, Program};
+use crate::grammar::{Expression, ExpressionReference, Program};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Node<'a, 'b> {
     discovered: bool,
     program: &'b Program<'a>,
+    depth: usize,
     expression: &'b Expression<'a>,
 }
 
@@ -11,11 +12,12 @@ impl<'a, 'b> Node<'a, 'b>
 where
     'a: 'b,
 {
-    fn new(program: &'b Program<'a>, index: usize) -> Option<Self> {
+    pub(crate) fn new(program: &'b Program<'a>, index: usize) -> Option<Self> {
         let expression = program.expressions.get(index)?;
 
         Some(Node {
             discovered: false,
+            depth: 0,
             program,
             expression,
         })
@@ -27,6 +29,7 @@ where
         Some(Node {
             discovered: false,
             program: self.program,
+            depth: self.depth + 1,
             expression,
         })
     }
@@ -37,6 +40,10 @@ where
 
     pub fn discovered(&self) -> bool {
         self.discovered
+    }
+
+    pub fn root(&self) -> bool {
+        self.depth == 0
     }
 
     pub fn program(&self) -> &'b Program<'a> {
@@ -51,6 +58,20 @@ where
 #[derive(Clone, Debug, PartialEq)]
 pub struct Iter<'a, 'b> {
     stack: Vec<Node<'a, 'b>>,
+}
+
+impl<'a, 'b> Iter<'a, 'b> {
+    pub fn pre_order(self) -> PreOrderIterator<'a, 'b> {
+        PreOrderIterator(self)
+    }
+
+    pub fn post_order(self) -> PostOrderIterator<'a, 'b> {
+        PostOrderIterator(self)
+    }
+
+    pub fn roots(self) -> RootIterator<'a, 'b> {
+        RootIterator(self)
+    }
 }
 
 impl<'a, 'b> From<&'b Program<'a>> for Iter<'a, 'b> {
@@ -134,5 +155,22 @@ impl<'a, 'b> Iterator for PostOrderIterator<'a, 'b> {
         }
 
         Some(node)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct RootIterator<'a, 'b>(Iter<'a, 'b>);
+
+impl<'a, 'b> From<&'b Program<'a>> for RootIterator<'a, 'b> {
+    fn from(program: &'b Program<'a>) -> Self {
+        RootIterator(program.into())
+    }
+}
+
+impl<'a, 'b> Iterator for RootIterator<'a, 'b> {
+    type Item = Node<'a, 'b>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.stack.pop().filter(|n| n.root())
     }
 }
