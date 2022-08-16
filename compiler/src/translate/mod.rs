@@ -6,6 +6,7 @@ use tortuga_executable::{Executable, Function, Number, Operation, Text};
 mod capture;
 mod context;
 mod error;
+mod function;
 mod indices;
 mod local;
 mod number;
@@ -16,6 +17,7 @@ use crate::grammar::{ExpressionKind, Identifier, Iter, Node, Uri};
 use crate::translate::error::ErrorKind;
 use context::ScopeContext;
 pub use error::TranslationError;
+use function::TypedFunction;
 use indices::IndexedSet;
 use value::Value;
 
@@ -25,7 +27,7 @@ pub struct Translator<'a, Iterator, Reporter> {
     context: ScopeContext<'a>,
     contexts: Vec<ScopeContext<'a>>,
     stack: Vec<Value>,
-    functions: Vec<Function>,
+    functions: Vec<TypedFunction>,
     numbers: IndexedSet<grammar::Number<'a>, Number>,
     texts: IndexedSet<Uri<'a>, Text>,
 }
@@ -37,7 +39,7 @@ pub struct Translation<'a> {
 }
 
 type TranslationResult<Output> = Result<Output, TranslationError>;
-static UNDISCOVERED_KINDS: &[ExpressionKind] = &[ExpressionKind::Block, ExpressionKind::Equality];
+static UNDISCOVERED_KINDS: &[ExpressionKind] = &[ExpressionKind::Block];
 
 impl<'a, 'b, R> Translator<'a, Iter<'a, 'b>, R>
 where
@@ -57,6 +59,10 @@ where
         }
     }
 
+    // TODO:
+    // * Prevents blocks outside of assignment.
+    // * Prevent local variable in an assignment that is not a block.
+    // * Check function type signatures.
     pub fn translate(mut self) -> Result<Executable, R> {
         if let Err(e) = self.simulate() {
             self.report_error(e);
@@ -65,7 +71,9 @@ where
         if self.reporter.had_error() {
             Err(self.reporter)
         } else {
-            Ok(Executable::new(self.functions, self.numbers, self.texts))
+            let functions: Vec<Function> = self.functions.into_iter().map(Function::from).collect();
+
+            Ok(Executable::new(functions, self.numbers, self.texts))
         }
     }
 
@@ -97,7 +105,9 @@ where
             self.report_error(ErrorKind::ExpectedEndOfBlock);
         }
 
-        self.functions.push(Function::from(context));
+        let function = Function::from(context);
+        self.functions
+            .push(TypedFunction::new(function, vec![], vec![]));
 
         Ok(())
     }
@@ -141,8 +151,9 @@ where
             let function = Function::from(context);
             let index = self.functions.len();
 
-            self.functions.push(function);
-            self.stack.push(Value::Function(index));
+            self.functions
+                .push(TypedFunction::new(function, vec![], vec![]));
+            self.stack.push(Value::Function(vec![], vec![]));
         } else {
             let mut context = ScopeContext::default();
 
@@ -187,6 +198,46 @@ where
     }
 
     fn simulate_call(&mut self, node: Node<'a, 'b>) -> TranslationResult<()> {
+        let arguments = self.pop()?;
+        let callee = self.pop()?;
+
+        match callee {
+            Value::Uninitialized(index) => {
+                // TODO create undefined function type and leave local undefined.
+            }
+            Value::Closure(Some(index)) => {
+                let function = self
+                    .functions
+                    .get(index)
+                    .ok_or_else(|| TranslationError::from(ErrorKind::NoSuchFunction(index)))?;
+
+                let arguments_group = arguments;
+                let arguments = match &arguments_group {
+                    Value::Group(parts) if parts.len() == 1 => match parts.as_slice() {
+                        [Value::Group(inner)] => inner.as_slice(),
+                        _ => parts.as_slice(),
+                    },
+                    Value::Group(parts) => parts.as_slice(),
+                    _ => &[],
+                };
+
+                if function.parameters() == arguments {
+                    self.context.add_operation(Operation::Call(index as u8));
+                    self.stack.extend_from_slice(function.results());
+                } else {
+                    self.report_error(ErrorKind::InvalidArguments(
+                        function.parameters().to_vec(),
+                        arguments.to_vec(),
+                    ));
+                    self.stack.push(Value::Any);
+                }
+            }
+            _ => {
+                self.report_error(ErrorKind::NotCallable(callee));
+                self.stack.push(Value::Any);
+            }
+        }
+
         Ok(())
     }
 
@@ -250,7 +301,7 @@ where
 
         if parts.len() == length && length > 1 {
             self.context.add_operation(Operation::Group(length as u8));
-            self.stack.push(Value::Grouping(parts));
+            self.stack.push(Value::Group(parts));
             Ok(())
         } else if parts.len() == length && length == 1 {
             let inner = parts
@@ -369,7 +420,7 @@ impl<'a> TryFrom<&'a str> for Translation<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tortuga_executable::{OperationCode, ToCode};
+    use tortuga_executable::ToCode;
 
     #[test]
     fn undefined_variable() {
@@ -417,6 +468,16 @@ mod tests {
     fn add_wrong_types() {
         assert_eq!(
             Translation::try_from("\"Hello\" + 42").unwrap_err().len(),
+            1
+        );
+    }
+
+    #[test]
+    fn simple() {
+        assert_eq!(
+            Translation::try_from(include_str!("../../../examples/simple.ta"))
+                .unwrap_err()
+                .len(),
             1
         );
     }

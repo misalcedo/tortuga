@@ -25,9 +25,12 @@ pub enum ErrorKind {
     TooManyUris(usize),
     GroupTooLarge(usize),
     InvalidGroupSize(usize, usize), // expected, actual
+    NoSuchFunction(usize),
     NoSuchNumber(usize),
     NoSuchUri(usize),
     NoSuchLocal(usize),
+    NotCallable(Value),
+    InvalidArguments(Vec<Value>, Vec<Value>), // parameters, arguments
     EmptyStack,
     EmptyContexts,
     ConditionWithoutAssignment,
