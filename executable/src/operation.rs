@@ -14,8 +14,11 @@ pub enum Operation {
     SetCapture(CaptureOffset),
     GetCapture(CaptureOffset),
     Equal,
+    NotEqual,
     Greater,
+    GreaterOrEqual,
     Less,
+    LessOrEqual,
     Add,
     Subtract,
     Multiply,
@@ -48,8 +51,11 @@ pub enum OperationCode {
     SetCapture,
     GetCapture,
     Equal,
+    NotEqual,
     Greater,
+    GreaterOrEqual,
     Less,
+    LessOrEqual,
     Add,
     Subtract,
     Multiply,
@@ -82,8 +88,11 @@ impl From<&Operation> for OperationCode {
             Operation::SetCapture(_) => OperationCode::SetCapture,
             Operation::GetCapture(_) => OperationCode::GetCapture,
             Operation::Equal => OperationCode::Equal,
+            Operation::NotEqual => OperationCode::NotEqual,
             Operation::Greater => OperationCode::Greater,
+            Operation::GreaterOrEqual => OperationCode::GreaterOrEqual,
             Operation::Less => OperationCode::Less,
+            Operation::LessOrEqual => OperationCode::LessOrEqual,
             Operation::Add => OperationCode::Add,
             Operation::Subtract => OperationCode::Subtract,
             Operation::Multiply => OperationCode::Multiply,
@@ -133,14 +142,6 @@ impl Code for Vec<u8> {
                 let bytes = [u8::from(operation), *operand];
                 self.extend_from_slice(&bytes);
             }
-            Operation::Pop => {
-                let bytes = [u8::from(operation)];
-                self.extend_from_slice(&bytes);
-            }
-            Operation::DefineLocal => {
-                let bytes = [u8::from(operation)];
-                self.extend_from_slice(&bytes);
-            }
             Operation::SetLocal(operand) => {
                 let bytes = [u8::from(operation), *operand];
                 self.extend_from_slice(&bytes);
@@ -157,70 +158,14 @@ impl Code for Vec<u8> {
                 let bytes = [u8::from(operation), *operand];
                 self.extend_from_slice(&bytes);
             }
-            Operation::Equal => {
-                let bytes = [u8::from(operation)];
-                self.extend_from_slice(&bytes);
-            }
-            Operation::Greater => {
-                let bytes = [u8::from(operation)];
-                self.extend_from_slice(&bytes);
-            }
-            Operation::Less => {
-                let bytes = [u8::from(operation)];
-                self.extend_from_slice(&bytes);
-            }
-            Operation::Add => {
-                let bytes = [u8::from(operation)];
-                self.extend_from_slice(&bytes);
-            }
-            Operation::Subtract => {
-                let bytes = [u8::from(operation)];
-                self.extend_from_slice(&bytes);
-            }
-            Operation::Multiply => {
-                let bytes = [u8::from(operation)];
-                self.extend_from_slice(&bytes);
-            }
-            Operation::Divide => {
-                let bytes = [u8::from(operation)];
-                self.extend_from_slice(&bytes);
-            }
-            Operation::Remainder => {
-                let bytes = [u8::from(operation)];
-                self.extend_from_slice(&bytes);
-            }
-            Operation::Power => {
-                let bytes = [u8::from(operation)];
-                self.extend_from_slice(&bytes);
-            }
-            Operation::And => {
-                let bytes = [u8::from(operation)];
-                self.extend_from_slice(&bytes);
-            }
-            Operation::Or => {
-                let bytes = [u8::from(operation)];
-                self.extend_from_slice(&bytes);
-            }
-            Operation::Not => {
-                let bytes = [u8::from(operation)];
-                self.extend_from_slice(&bytes);
-            }
             Operation::Call(operand) => {
                 let bytes = [u8::from(operation), *operand];
-                self.extend_from_slice(&bytes);
-            }
-            Operation::Send => {
-                let bytes = [u8::from(operation)];
                 self.extend_from_slice(&bytes);
             }
             Operation::Closure(operand, operands) => {
                 let bytes = [u8::from(operation), *operand];
                 self.extend_from_slice(&bytes);
                 self.extend_from_slice(operands);
-            }
-            Operation::Return => {
-                let bytes = [u8::from(operation)];
-                self.extend_from_slice(&bytes);
             }
             Operation::Branch(operand) => {
                 let bytes = [u8::from(operation)];
@@ -247,7 +192,7 @@ impl Code for Vec<u8> {
                 let bytes = [u8::from(operation), *operand];
                 self.extend_from_slice(&bytes);
             }
-            Operation::Separate => {
+            _ => {
                 let bytes = [u8::from(operation)];
                 self.extend_from_slice(&bytes);
             }

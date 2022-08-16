@@ -224,13 +224,13 @@ mod tests {
         let nodes: Vec<Node<'_, '_>> = program.roots().collect();
 
         for n in program.iter() {
-            if n.depth() == 0 {
-                println!("ALL({}): {:?}", n.depth(), n.expression().kind())
+            if n.height() == 0 {
+                println!("ALL({}): {:?}", n.height(), n.expression().kind())
             }
         }
 
         for n in program.iter().filter(|n| n.root()) {
-            println!("ROOTS({}): {:?}", n.depth(), n.expression().kind())
+            println!("ROOTS({}): {:?}", n.height(), n.expression().kind())
         }
 
         assert_eq!(expected, nodes);

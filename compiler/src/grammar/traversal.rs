@@ -1,9 +1,9 @@
-use crate::grammar::{Expression, ExpressionReference, Program};
+use crate::grammar::{Expression, Program};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Node<'a, 'b> {
     discovered: bool,
-    depth: usize,
+    height: usize,
     expression: &'b Expression<'a>,
     program: &'b Program<'a>,
 }
@@ -17,7 +17,7 @@ where
 
         Some(Node {
             discovered: false,
-            depth: 0,
+            height: 0,
             program,
             expression,
         })
@@ -29,13 +29,16 @@ where
         Some(Node {
             discovered: false,
             program: self.program,
-            depth: self.depth + 1,
+            height: self.height + 1,
             expression,
         })
     }
 
-    pub fn children(&self) -> usize {
-        self.expression.children().len()
+    pub fn children(&self) -> impl ExactSizeIterator<Item = Node<'a, 'b>> + '_ {
+        self.expression
+            .children()
+            .iter()
+            .filter_map(|r| self.new_child(r.0))
     }
 
     pub fn discovered(&self) -> bool {
@@ -43,11 +46,11 @@ where
     }
 
     pub fn root(&self) -> bool {
-        self.depth == 0
+        self.height == 0
     }
 
-    pub fn depth(&self) -> usize {
-        self.depth
+    pub fn height(&self) -> usize {
+        self.height
     }
 
     pub fn program(&self) -> &'b Program<'a> {

@@ -27,7 +27,7 @@ type RuntimeResult<T> = Result<T, RuntimeError>;
 type OperationResult = RuntimeResult<()>;
 
 impl<C: Courier> VirtualMachine<C> {
-    const OPERATIONS_TABLE: [fn(&mut VirtualMachine<C>) -> OperationResult; 29] = [
+    const OPERATIONS_TABLE: [fn(&mut VirtualMachine<C>) -> OperationResult; 32] = [
         Self::constant_number_operation,
         Self::constant_text_operation,
         Self::pop_operation,
@@ -37,8 +37,11 @@ impl<C: Courier> VirtualMachine<C> {
         Self::set_capture_operation,
         Self::get_capture_operation,
         Self::equal_operation,
+        Self::not_equal_operation,
         Self::greater_operation,
+        Self::greater_or_equal_operation,
         Self::less_operation,
+        Self::less_or_equal_operation,
         Self::add_operation,
         Self::subtract_operation,
         Self::multiply_operation,
@@ -176,6 +179,14 @@ impl<C: Courier> VirtualMachine<C> {
         Ok(())
     }
 
+    fn not_equal_operation(&mut self) -> OperationResult {
+        let value = Value::from(self.compare()? != 0);
+
+        self.stack.push(value);
+
+        Ok(())
+    }
+
     fn greater_operation(&mut self) -> OperationResult {
         let value = Value::from(self.compare()? == 1);
 
@@ -184,8 +195,24 @@ impl<C: Courier> VirtualMachine<C> {
         Ok(())
     }
 
+    fn greater_or_equal_operation(&mut self) -> OperationResult {
+        let value = Value::from(self.compare()? >= 0);
+
+        self.stack.push(value);
+
+        Ok(())
+    }
+
     fn less_operation(&mut self) -> OperationResult {
         let value = Value::from(self.compare()? == -1);
+
+        self.stack.push(value);
+
+        Ok(())
+    }
+
+    fn less_or_equal_operation(&mut self) -> OperationResult {
+        let value = Value::from(self.compare()? <= 0);
 
         self.stack.push(value);
 

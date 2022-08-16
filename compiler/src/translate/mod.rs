@@ -1,6 +1,5 @@
 use crate::Program;
 use crate::{grammar, CompilationError, ErrorReporter};
-use std::iter::Peekable;
 use std::mem;
 use tortuga_executable::{Executable, Function, Number, Operation, Text};
 
@@ -14,7 +13,7 @@ mod number;
 mod uri;
 mod value;
 
-use crate::grammar::{ExpressionKind, Identifier, Iter, Node, Uri};
+use crate::grammar::{ExpressionKind, Identifier, Node, Uri};
 use crate::translate::error::ErrorKind;
 use context::ScopeContext;
 pub use error::TranslationError;
@@ -22,12 +21,11 @@ use function::TypedFunction;
 use indices::IndexedSet;
 use value::Value;
 
-pub struct Translator<'a, Iterator, Reporter> {
+pub struct Translator<'a, Reporter> {
     reporter: Reporter,
-    iterator: Iterator,
+    program: Program<'a>,
     context: ScopeContext<'a>,
     contexts: Vec<ScopeContext<'a>>,
-    stack: Vec<Value>,
     functions: Vec<TypedFunction>,
     numbers: IndexedSet<grammar::Number<'a>, Number>,
     texts: IndexedSet<Uri<'a>, Text>,
@@ -40,22 +38,20 @@ pub struct Translation<'a> {
 }
 
 type TranslationResult<Output> = Result<Output, TranslationError>;
-static UNDISCOVERED_KINDS: &[ExpressionKind] = &[ExpressionKind::Block];
-static CALL_KINDS: &[ExpressionKind] = &[ExpressionKind::Call, ExpressionKind::Condition];
+type SimulationResult = Result<Value, TranslationError>;
 
-impl<'a, 'b, R> Translator<'a, Peekable<Iter<'a, 'b>>, R>
+impl<'a, 'b, R> Translator<'a, R>
 where
     'a: 'b,
     R: ErrorReporter,
 {
-    pub fn new(program: &'b Program<'a>, reporter: R) -> Self {
+    pub fn new(program: Program<'a>, reporter: R) -> Self {
         Translator {
             reporter,
-            iterator: program.iter().peekable(),
+            program,
             context: Default::default(),
             contexts: Default::default(),
             functions: Default::default(),
-            stack: Default::default(),
             numbers: Default::default(),
             texts: Default::default(),
         }
@@ -65,7 +61,7 @@ where
     // * Prevents blocks outside of assignment.
     // * Prevent local variable in an assignment that is not a block.
     // * Check function type signatures.
-    pub fn translate(mut self) -> Result<Executable, R> {
+    pub fn translate(mut self) -> Result<Translation<'a>, R> {
         if let Err(e) = self.simulate() {
             self.report_error(e);
         }
@@ -74,31 +70,27 @@ where
             Err(self.reporter)
         } else {
             let functions: Vec<Function> = self.functions.into_iter().map(Function::from).collect();
+            let executable = Executable::new(functions, self.numbers, self.texts);
 
-            Ok(Executable::new(functions, self.numbers, self.texts))
+            Ok(Translation {
+                input: self.program,
+                output: executable,
+            })
         }
     }
 
-    fn simulate(&mut self) -> TranslationResult<()> {
-        while let Some(node) = self.next_node() {
-            self.simulate_expression(node)?;
+    fn simulate(&mut self) -> SimulationResult {
+        let mut iterator = self.program.roots();
+
+        while let Some(root) = iterator.next() {
+            self.simulate_expression(root)?;
         }
 
         self.simulate_program()
     }
 
-    fn next_node(&mut self) -> Option<Node<'a, 'b>> {
-        let mut node = self.iterator.next()?;
-
-        while !node.discovered() && !UNDISCOVERED_KINDS.contains(node.expression().kind()) {
-            node = self.iterator.next()?;
-        }
-
-        Some(node)
-    }
-
     // TODO: Figure out how to denote the number of locals in the script.
-    fn simulate_program(&mut self) -> TranslationResult<()> {
+    fn simulate_program(&mut self) -> SimulationResult {
         let mut context = ScopeContext::default();
 
         mem::swap(&mut self.context, &mut context);
@@ -111,37 +103,34 @@ where
         self.functions
             .push(TypedFunction::new(function, vec![], vec![]));
 
-        Ok(())
+        Ok(Value::Any)
     }
 
-    fn simulate_expression(&mut self, node: Node<'a, 'b>) -> TranslationResult<()> {
-        // TODO: Remove
-        println!("Node: {:?}:{}", node.expression().kind(), node.discovered());
-
+    fn simulate_expression(&mut self, node: Node<'a, 'b>) -> TranslationResult<Value> {
         match node.expression().kind() {
             ExpressionKind::Block => self.simulate_block(node),
             ExpressionKind::Equality => self.simulate_equality(node),
-            ExpressionKind::Modulo => self.simulate_binary(Operation::Remainder),
-            ExpressionKind::Subtract => self.simulate_binary(Operation::Subtract),
-            ExpressionKind::Add => self.simulate_binary(Operation::Add),
-            ExpressionKind::Divide => self.simulate_binary(Operation::Divide),
-            ExpressionKind::Multiply => self.simulate_binary(Operation::Multiply),
-            ExpressionKind::Power => self.simulate_binary(Operation::Power),
+            ExpressionKind::Modulo => self.simulate_binary(node, Operation::Remainder),
+            ExpressionKind::Subtract => self.simulate_binary(node, Operation::Subtract),
+            ExpressionKind::Add => self.simulate_binary(node, Operation::Add),
+            ExpressionKind::Divide => self.simulate_binary(node, Operation::Divide),
+            ExpressionKind::Multiply => self.simulate_binary(node, Operation::Multiply),
+            ExpressionKind::Power => self.simulate_binary(node, Operation::Power),
             ExpressionKind::Call => self.simulate_call(node),
-            ExpressionKind::Grouping => self.simulate_grouping(node),
+            ExpressionKind::Grouping => self.simulate_grouping(node, true),
             ExpressionKind::Condition => self.simulate_condition(node),
-            ExpressionKind::Inequality => self.simulate_negated_binary(Operation::Equal),
-            ExpressionKind::LessThan => self.simulate_binary(Operation::Less),
-            ExpressionKind::GreaterThan => self.simulate_binary(Operation::Greater),
-            ExpressionKind::LessThanOrEqualTo => self.simulate_negated_binary(Operation::Greater),
-            ExpressionKind::GreaterThanOrEqualTo => self.simulate_negated_binary(Operation::Less),
+            ExpressionKind::Inequality => self.simulate_binary(node, Operation::Equal),
+            ExpressionKind::LessThan => self.simulate_binary(node, Operation::Less),
+            ExpressionKind::GreaterThan => self.simulate_binary(node, Operation::Greater),
+            ExpressionKind::LessThanOrEqualTo => self.simulate_binary(node, Operation::Greater),
+            ExpressionKind::GreaterThanOrEqualTo => self.simulate_binary(node, Operation::Less),
             ExpressionKind::Number(number) => self.simulate_number(number),
             ExpressionKind::Identifier(identifier) => self.simulate_identifier(identifier),
             ExpressionKind::Uri(uri) => self.simulate_uri(uri),
         }
     }
 
-    fn simulate_block(&mut self, node: Node<'a, 'b>) -> TranslationResult<()> {
+    fn simulate_block(&mut self, node: Node<'a, 'b>) -> SimulationResult {
         if node.discovered() {
             let mut context = self
                 .contexts
@@ -162,10 +151,10 @@ where
             mem::swap(&mut context, &mut self.context);
         }
 
-        Ok(())
+        Ok(Value::Any)
     }
 
-    fn simulate_equality(&mut self, node: Node<'a, 'b>) -> TranslationResult<()> {
+    fn simulate_equality(&mut self, node: Node<'a, 'b>) -> SimulationResult {
         let mut condition = None;
         let mut value = self.pop()?;
 
@@ -196,10 +185,11 @@ where
             }
         }
 
-        Ok(())
+        Ok(Value::Any)
     }
 
-    fn simulate_call(&mut self, node: Node<'a, 'b>) -> TranslationResult<()> {
+    fn simulate_call(&mut self, node: Node<'a, 'b>) -> TranslationResult<Value> {
+        let children = node.children();
         let arguments = self.pop()?;
         let callee = self.pop()?;
 
@@ -236,58 +226,52 @@ where
             }
         }
 
-        Ok(())
+        Ok(Value::Any)
     }
 
-    fn simulate_condition(&mut self, node: Node<'a, 'b>) -> TranslationResult<()> {
-        Ok(())
+    fn simulate_condition(&mut self, node: Node<'a, 'b>) -> SimulationResult {
+        Ok(Value::Any)
     }
 
-    fn simulate_binary(&mut self, operation: Operation) -> TranslationResult<()> {
-        let b = self.pop()?;
-        let a = self.pop()?;
+    fn simulate_binary(&mut self, node: Node<'a, 'b>, operation: Operation) -> SimulationResult {
+        let mut children = node.children();
+        let mut length = 0;
 
-        match (a, b) {
-            (Value::Number(_), Value::Number(_)) => {
-                self.context.add_operation(operation);
-                self.stack.push(Value::Number(None));
-            }
-            (Value::Any, Value::Number(_))
-            | (Value::Any, Value::Any)
-            | (Value::Number(_), Value::Any) => self.stack.push(Value::Any),
-            (lhs, rhs) => {
-                self.report_error(ErrorKind::OperandsMustBeNumbers(lhs, rhs));
-                self.stack.push(Value::Any);
-            }
-        };
+        let lhs = children
+            .next()
+            .ok_or_else(|| TranslationError::from(ErrorKind::MissingChildren(2, length)))?;
+        let lhs = self.simulate_expression(lhs)?;
 
-        Ok(())
+        length += 1;
+
+        let rhs = children
+            .next()
+            .ok_or_else(|| TranslationError::from(ErrorKind::MissingChildren(2, length)))?;
+        let rhs = self.simulate_expression(rhs)?;
+
+        length += 1;
+        length += children.count();
+
+        if length != 2 {
+            self.report_error(ErrorKind::TooManyChildren(2, length));
+        }
+
+        let value = Value::Number(None);
+
+        if lhs == value && rhs == value {
+            self.context.add_operation(operation);
+            Ok(value)
+        } else {
+            self.report_error(ErrorKind::OperandsMustBeNumbers(lhs, rhs));
+            Ok(Value::Any)
+        }
     }
 
-    fn simulate_negated_binary(&mut self, operation: Operation) -> TranslationResult<()> {
-        let b = self.pop()?;
-        let a = self.pop()?;
+    fn simulate_grouping(&mut self, node: Node<'a, 'b>, emit_operation: bool) -> SimulationResult {
+        self.assert_kind(&node, ExpressionKind::Grouping)?;
 
-        match (a, b) {
-            (Value::Number(_), Value::Number(_)) => {
-                self.context.add_operation(Operation::Not);
-                self.context.add_operation(operation);
-                self.stack.push(Value::Number(None));
-            }
-            (Value::Any, Value::Number(_))
-            | (Value::Any, Value::Any)
-            | (Value::Number(_), Value::Any) => self.stack.push(Value::Any),
-            (lhs, rhs) => {
-                self.report_error(ErrorKind::OperandsMustBeNumbers(lhs, rhs));
-                self.stack.push(Value::Any);
-            }
-        };
-
-        Ok(())
-    }
-
-    fn simulate_grouping(&mut self, node: Node<'a, 'b>) -> TranslationResult<()> {
-        let length = node.children();
+        let mut children = node.children();
+        let length = children.len();
 
         if length > u8::MAX as usize {
             self.report_error(ErrorKind::GroupTooLarge(length));
@@ -296,45 +280,33 @@ where
         if length < 1 {
             Err(ErrorKind::EmptyGroup.into())
         } else if length == 1 {
-            Ok(())
+            let child = children
+                .next()
+                .ok_or_else(|| TranslationError::from(ErrorKind::EmptyGroup))?;
+
+            self.simulate_expression(child)
         } else {
             let mut parts = vec![];
 
-            for _ in 0..length {
-                if let Some(part) = self.stack.pop() {
-                    parts.push(part);
-                }
+            for child in children {
+                parts.push(self.simulate_expression(child)?);
             }
 
-            if parts.len() == length {
-                match self.iterator.peek() {
-                    Some(next) if CALL_KINDS.contains(next.expression().kind()) => {}
-                    _ => self.context.add_operation(Operation::Group(length as u8)),
-                };
-
-                self.stack.push(Value::Group(parts));
-
-                Ok(())
-            } else {
-                Err(ErrorKind::InvalidGroupSize(length, parts.len()).into())
+            if emit_operation {
+                self.context.add_operation(Operation::Group(length as u8));
             }
+
+            Ok(Value::Group(parts))
         }
     }
 
-    fn get_number(&mut self, index: usize) -> TranslationResult<Number> {
-        self.numbers
-            .get(index)
-            .copied()
-            .ok_or_else(|| TranslationError::from(ErrorKind::NoSuchNumber(index)))
-    }
-
-    fn simulate_identifier(&mut self, identifier: &Identifier<'a>) -> TranslationResult<()> {
+    fn simulate_identifier(&mut self, identifier: &Identifier<'a>) -> SimulationResult {
         match self.context.resolve_local(identifier) {
             Some(local) => {
                 self.context
                     .add_operation(Operation::GetLocal(local.offset() as u8));
-                self.stack.push(local.kind().clone());
-                Ok(())
+
+                Ok(local.kind().clone())
             }
             None => {
                 let index = self.context.add_local(*identifier);
@@ -343,13 +315,12 @@ where
                     self.report_error(ErrorKind::TooManyLocals(index));
                 }
 
-                self.stack.push(Value::Uninitialized(index));
-                Ok(())
+                Ok(Value::Uninitialized(index))
             }
         }
     }
 
-    fn simulate_uri(&mut self, uri: &Uri<'a>) -> TranslationResult<()> {
+    fn simulate_uri(&mut self, uri: &Uri<'a>) -> SimulationResult {
         let constant = match Text::try_from(*uri) {
             Ok(c) => c,
             Err(e) => {
@@ -365,12 +336,11 @@ where
 
         self.context
             .add_operation(Operation::ConstantText(index as u8));
-        self.stack.push(Value::Text(Some(index)));
 
-        Ok(())
+        Ok(Value::Text(Some(index)))
     }
 
-    fn simulate_number(&mut self, number: &grammar::Number<'a>) -> TranslationResult<()> {
+    fn simulate_number(&mut self, number: &grammar::Number<'a>) -> SimulationResult {
         let constant = match Number::try_from(*number) {
             Ok(c) => c,
             Err(e) => {
@@ -386,15 +356,18 @@ where
 
         self.context
             .add_operation(Operation::ConstantNumber(index as u8));
-        self.stack.push(Value::Number(Some(index)));
 
-        Ok(())
+        Ok(Value::Number(Some(index)))
     }
 
-    fn pop(&mut self) -> TranslationResult<Value> {
-        self.stack
-            .pop()
-            .ok_or_else(|| TranslationError::from(ErrorKind::EmptyStack))
+    fn assert_kind(&mut self, node: &Node, expected: ExpressionKind) -> TranslationResult<()> {
+        let actual = node.expression().kind();
+
+        if actual == &expected {
+            Ok(())
+        } else {
+            Err(ErrorKind::ExpectedKind(expected.to_string(), actual.to_string()).into())
+        }
     }
 
     fn report_error<E: Into<TranslationError>>(&mut self, error: E) {
@@ -413,12 +386,8 @@ impl<'a> TryFrom<&'a str> for Translation<'a> {
 
     fn try_from(input: &'a str) -> Result<Self, Self::Error> {
         let program = Program::try_from(input)?;
-        let executable = Translator::new(&program, Vec::default()).translate()?;
 
-        Ok(Translation {
-            input: program,
-            output: executable,
-        })
+        Translator::new(program, Vec::default()).translate()
     }
 }
 

@@ -1,3 +1,4 @@
+use crate::grammar::ExpressionKind;
 use crate::translate::uri::ParseUriError;
 use crate::translate::value::Value;
 use std::fmt::{Display, Formatter};
@@ -20,23 +21,21 @@ pub enum ErrorKind {
     InvalidUri(ParseUriError),
     OperandsMustBeNumbers(Value, Value),
     MissingChildren(usize, usize), // expected, actual
+    TooManyChildren(usize, usize), // expected, actual
     TooManyLocals(usize),
     TooManyNumbers(usize),
     TooManyUris(usize),
     GroupTooLarge(usize),
     EmptyGroup,
-    InvalidGroupSize(usize, usize), // expected, actual
     NoSuchFunction(usize),
     NoSuchNumber(usize),
     NoSuchUri(usize),
     NoSuchLocal(usize),
     NotCallable(Value),
     InvalidArguments(Vec<Value>, Vec<Value>), // parameters, arguments
-    EmptyStack,
     EmptyContexts,
     ConditionWithoutAssignment,
-    ExpectedEndOfBlock,
-    ExpectedEndOfEquality,
+    ExpectedKind(String, String), // expected, actual
 }
 
 impl Display for TranslationError {
