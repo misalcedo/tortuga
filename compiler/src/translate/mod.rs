@@ -288,8 +288,10 @@ where
         let length = node.children();
 
         if length > u8::MAX as usize {
-            Err(ErrorKind::GroupTooLarge(length).into())
-        } else if length < 1 {
+            self.report_error(ErrorKind::GroupTooLarge(length));
+        }
+
+        if length < 1 {
             Err(ErrorKind::EmptyGroup.into())
         } else if length == 1 {
             Ok(())
