@@ -4,7 +4,9 @@ mod expression;
 mod terminal;
 mod traversal;
 
-pub use crate::grammar::traversal::{Iter, Node, PostOrderIterator, PreOrderIterator};
+pub use crate::grammar::traversal::{
+    Iter, Node, NodeIterator, PostOrderIterator, PreOrderIterator, RootIterator,
+};
 pub use expression::{Expression, ExpressionKind, ExpressionReference};
 use std::fmt::{Display, Formatter};
 pub use terminal::{Identifier, Number, Uri};
@@ -31,6 +33,10 @@ impl<'a> Program<'a> {
     }
 
     pub fn iter(&self) -> Iter<'a, '_> {
+        self.into()
+    }
+
+    pub fn roots(&self) -> RootIterator<'a, '_, std::slice::Iter<'_, usize>> {
         self.into()
     }
 
@@ -93,6 +99,7 @@ impl Display for Program<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::grammar::traversal::NodeIterator;
 
     #[test]
     fn add() {
@@ -210,22 +217,22 @@ mod tests {
         program.mark_root(equality_index);
         program.mark_root(call_index);
 
-        let nodes: Vec<Node<'_, '_>> = program.iter().roots().collect();
+        let expected = vec![
+            Node::new(&program, equality_index.0).unwrap(),
+            Node::new(&program, call_index.0).unwrap(),
+        ];
+        let nodes: Vec<Node<'_, '_>> = program.roots().collect();
 
-        assert_eq!(
-            vec![
-                Node::new(&program, equality_index.0).unwrap(),
-                Node::new(&program, call_index.0).unwrap()
-            ],
-            nodes
-        );
+        for n in program.iter() {
+            if n.depth() == 0 {
+                println!("ALL({}): {:?}", n.depth(), n.expression().kind())
+            }
+        }
 
-        let mut iterator = program.iter();
+        for n in program.iter().filter(|n| n.root()) {
+            println!("ROOTS({}): {:?}", n.depth(), n.expression().kind())
+        }
 
-        iterator.next();
-
-        let partial_nodes: Vec<Node<'_, '_>> = iterator.roots().collect();
-
-        assert_eq!(vec![Node::new(&program, call_index.0).unwrap()], nodes);
+        assert_eq!(expected, nodes);
     }
 }
