@@ -254,7 +254,9 @@ where
                 self.context.add_operation(operation);
                 self.stack.push(Value::Number(None));
             }
-            (Value::Any, Value::Any) => self.stack.push(Value::Any),
+            (Value::Any, Value::Number(_))
+            | (Value::Any, Value::Any)
+            | (Value::Number(_), Value::Any) => self.stack.push(Value::Any),
             (lhs, rhs) => {
                 self.report_error(ErrorKind::OperandsMustBeNumbers(lhs, rhs));
                 self.stack.push(Value::Any);
@@ -274,7 +276,9 @@ where
                 self.context.add_operation(operation);
                 self.stack.push(Value::Number(None));
             }
-            (Value::Any, Value::Any) => self.stack.push(Value::Any),
+            (Value::Any, Value::Number(_))
+            | (Value::Any, Value::Any)
+            | (Value::Number(_), Value::Any) => self.stack.push(Value::Any),
             (lhs, rhs) => {
                 self.report_error(ErrorKind::OperandsMustBeNumbers(lhs, rhs));
                 self.stack.push(Value::Any);
