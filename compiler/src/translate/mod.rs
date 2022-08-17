@@ -264,13 +264,7 @@ where
     }
 
     fn simulate_uri(&mut self, uri: &Uri<'a>) -> SimulationResult {
-        let constant = match Text::try_from(*uri) {
-            Ok(c) => c,
-            Err(e) => {
-                self.report_error(e);
-                Text::default()
-            }
-        };
+        let constant = Text::from(*uri);
         let index = self.texts.insert(*uri, constant);
 
         if index >= u8::MAX as usize {

@@ -127,6 +127,7 @@ impl<'a> Scanner<'a> {
         while self.matches_closure(|c| c != '"') {}
 
         if self.matches('"') {
+            // TODO: Validate URI here.
             self.new_token(TokenKind::Uri)
         } else {
             self.new_error(UNTERMINATED_STRING)
