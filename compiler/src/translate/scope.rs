@@ -2,6 +2,7 @@ use crate::grammar::Identifier;
 use crate::translate::capture::Capture;
 use crate::translate::indices::IndexedSet;
 use crate::translate::local::Local;
+use crate::translate::value::Value;
 use tortuga_executable::{Code, Function, Operation};
 
 #[derive(Clone, Debug, Default)]
@@ -10,27 +11,42 @@ pub struct Scope<'a> {
     code: Vec<u8>,
     parameters: IndexedSet<Identifier<'a>, Local<'a>>,
     locals: IndexedSet<Identifier<'a>, Local<'a>>,
-    captures: IndexedSet<Option<Identifier<'a>>, Capture>,
+    captures: Vec<Capture>,
 }
 
 impl<'a> Scope<'a> {
     pub fn new(&self) -> Self {
         Scope {
             depth: self.depth + 1,
-            code: vec![],
+            code: Default::default(),
             parameters: Default::default(),
-            locals: IndexedSet::default(),
+            locals: Default::default(),
             captures: Default::default(),
         }
     }
 
-    pub fn add_operation(&mut self, operation: Operation) {
+    pub fn push_operation(&mut self, operation: Operation) {
         self.code.push_operation(&operation);
     }
 
-    pub fn add_local(&mut self, name: Identifier<'a>) -> usize {
+    pub fn push_local(&mut self, name: Identifier<'a>) -> usize {
         self.locals
             .insert_with(name, |index| Local::new(name, index + 1))
+    }
+
+    pub fn push_capture(&mut self, enclosing_index: usize, local: bool, kind: Value) -> usize {
+        let index = self.captures.len();
+
+        self.captures
+            .push(Capture::new(enclosing_index, local, kind));
+
+        index
+    }
+
+    pub fn capture_local(&mut self, local: &Local<'a>) {
+        if let Some(local) = self.locals.get_mut(local.index()) {
+            local.capture();
+        }
     }
 
     pub fn resolve_local(&self, name: &Identifier<'a>) -> Option<Local<'a>> {
@@ -44,12 +60,20 @@ impl<'a> Scope<'a> {
     pub fn locals(&self) -> usize {
         self.locals.len()
     }
+
+    pub fn captures(&self) -> usize {
+        self.captures.len()
+    }
+
+    pub fn capture(&self, index: usize) -> Option<Capture> {
+        self.captures.get(index).cloned()
+    }
 }
 
 impl<'a> From<Scope<'a>> for Function {
     fn from(context: Scope<'a>) -> Self {
         let captures: Vec<Capture> = context.captures.into();
-        let captures: Vec<bool> = captures.iter().map(|c| c.is_local()).collect();
+        let captures: Vec<bool> = captures.iter().map(|c| c.local()).collect();
 
         Function::new(
             context.parameters.len(),

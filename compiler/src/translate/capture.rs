@@ -1,19 +1,26 @@
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd)]
+use crate::translate::value::Value;
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Capture {
     index: usize,
-    is_local: bool,
+    local: bool,
+    kind: Value,
 }
 
 impl Capture {
-    pub fn new(index: usize, is_local: bool) -> Self {
-        Capture { index, is_local }
+    pub fn new(index: usize, local: bool, kind: Value) -> Self {
+        Capture { index, local, kind }
     }
 
     pub fn index(&self) -> usize {
         self.index
     }
 
-    pub fn is_local(&self) -> bool {
-        self.is_local
+    pub fn local(&self) -> bool {
+        self.local
+    }
+
+    pub fn kind(&self) -> &Value {
+        &self.kind
     }
 }

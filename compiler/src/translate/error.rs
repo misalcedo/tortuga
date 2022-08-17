@@ -21,6 +21,7 @@ pub enum ErrorKind {
     MissingChildren(RangeInclusive<usize>, usize), // expected, actual
     TooManyChildren(RangeInclusive<usize>, usize), // expected, actual
     TooManyLocals(usize),
+    TooManyCaptures(usize),
     TooManyNumbers(usize),
     TooManyUris(usize),
     TooManyFunctions(usize),
@@ -33,12 +34,13 @@ pub enum ErrorKind {
     NotCallable(Value),
     NotAssignable(Value),
     InvalidArguments(Value, Value), // parameters, arguments
-    EmptyContexts,
+    EmptyScopes,
     BlockOutsideFunction,
     ConditionOutsideFunction,
     ComparisonOutsideCondition(Operation),
     InvalidCondition(String),
     ExpectedKind(String, String), // expected, actual
+    ReferenceSelfInInitializer(String),
 }
 
 impl Display for TranslationError {

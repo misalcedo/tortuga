@@ -54,6 +54,10 @@ impl<'a> Local<'a> {
         self.offset
     }
 
+    pub fn index(&self) -> usize {
+        self.offset.checked_sub(1).unwrap_or(0)
+    }
+
     pub fn is_captured(&self) -> bool {
         self.is_captured
     }

@@ -14,7 +14,9 @@ mod uri;
 mod value;
 
 use crate::grammar::{ExpressionKind, Identifier, Node, Uri};
+use crate::translate::capture::Capture;
 use crate::translate::error::ErrorKind;
+use crate::translate::local::Local;
 pub use error::TranslationError;
 use function::TypedFunction;
 use indices::IndexedSet;
@@ -24,8 +26,8 @@ use value::Value;
 #[derive(Clone)]
 pub struct Translator<'a, Reporter> {
     reporter: Reporter,
-    context: Scope<'a>,
-    contexts: Vec<Scope<'a>>,
+    scope: Scope<'a>,
+    scopes: Vec<Scope<'a>>,
     functions: Vec<TypedFunction>,
     numbers: IndexedSet<grammar::Number<'a>, Number>,
     texts: IndexedSet<Uri<'a>, Text>,
@@ -48,8 +50,8 @@ where
     pub fn new(reporter: R) -> Self {
         Translator {
             reporter,
-            context: Default::default(),
-            contexts: Default::default(),
+            scope: Default::default(),
+            scopes: Default::default(),
             functions: Default::default(),
             numbers: Default::default(),
             texts: Default::default(),
@@ -92,9 +94,9 @@ where
     fn simulate_program(&mut self) -> SimulationResult {
         let mut context = Scope::default();
 
-        mem::swap(&mut self.context, &mut context);
+        mem::swap(&mut self.scope, &mut context);
 
-        if !self.contexts.is_empty() {
+        if !self.scopes.is_empty() {
             //TODO: self.report_error(ErrorKind::ExpectedEndOfBlock);
         }
 
@@ -175,32 +177,32 @@ where
                     .next()
                     .ok_or_else(|| TranslationError::from(ErrorKind::MissingChildren(2..=2, 1)))?;
                 let value = self.simulate_expression(value)?;
-                let depth = self.contexts.len();
+                let depth = self.scopes.len();
 
-                self.context
+                self.scope
                     .local_mut(index)
                     .ok_or_else(|| TranslationError::from(ErrorKind::NoSuchLocal(index)))?
                     .initialize(depth, value.clone());
 
-                self.context.add_operation(Operation::DefineLocal);
+                self.scope.push_operation(Operation::DefineLocal);
 
                 Ok(value)
             }
             Value::Uninitialized(local_index, Some(function_index)) => {
-                let depth = self.contexts.len();
+                let depth = self.scopes.len();
                 let function = self.functions.get_mut(function_index).ok_or_else(|| {
                     TranslationError::from(ErrorKind::NoSuchFunction(function_index))
                 })?;
                 let value = Value::Closure(function_index);
 
-                self.context
+                self.scope
                     .local_mut(local_index)
                     .ok_or_else(|| TranslationError::from(ErrorKind::NoSuchLocal(local_index)))?
                     .initialize(depth, value.clone());
 
-                self.context
-                    .add_operation(Operation::Closure(function_index as u8, vec![]));
-                self.context.add_operation(Operation::DefineLocal);
+                self.scope
+                    .push_operation(Operation::Closure(function_index as u8, vec![]));
+                self.scope.push_operation(Operation::DefineLocal);
 
                 Ok(value)
             }
@@ -216,21 +218,21 @@ where
         match node.expression().kind() {
             ExpressionKind::Block => {
                 let mut result = Value::None;
-                let nested = self.context.new(); // TODO: get from uninitialized function.
-                let parent = mem::replace(&mut self.context, nested);
+                let nested = self.scope.new(); // TODO: get from uninitialized function.
+                let parent = mem::replace(&mut self.scope, nested);
 
-                self.contexts.push(parent);
+                self.scopes.push(parent);
 
                 for child in node.children() {
                     result = self.simulate_expression(child)?;
                 }
 
                 let parent = self
-                    .contexts
+                    .scopes
                     .pop()
-                    .ok_or_else(|| TranslationError::from(ErrorKind::EmptyContexts))?;
+                    .ok_or_else(|| TranslationError::from(ErrorKind::EmptyScopes))?;
 
-                self.context = parent;
+                self.scope = parent;
 
                 Ok(result)
             }
@@ -284,10 +286,10 @@ where
 
                 if parameters == &arguments {
                     if parameters.len() != arguments.len() {
-                        self.context.add_operation(Operation::Separate);
+                        self.scope.push_operation(Operation::Separate);
                     }
 
-                    self.context.add_operation(Operation::Call(index as u8));
+                    self.scope.push_operation(Operation::Call(index as u8));
 
                     Ok(function.results().clone())
                 } else {
@@ -296,7 +298,7 @@ where
                 }
             }
             Value::Any => {
-                self.context.add_operation(Operation::Call(0 as u8)); // TODO: Allow calling closures in parameters.
+                self.scope.push_operation(Operation::Call(0 as u8)); // TODO: Allow calling closures in parameters.
                 Ok(Value::Any)
             }
             _ => {
@@ -361,7 +363,7 @@ where
         let value = Value::Number(None);
 
         if lhs == value && rhs == value {
-            self.context.add_operation(operation);
+            self.scope.push_operation(operation);
             Ok(value)
         } else {
             self.report_error(ErrorKind::OperandsMustBeNumbers(lhs, rhs));
@@ -372,7 +374,7 @@ where
     fn simulate_grouping(&mut self, node: Node<'a, 'b>, emit_operation: bool) -> SimulationResult {
         self.assert_kind(&node, ExpressionKind::Grouping)?;
 
-        let mut children = node.children();
+        let children = node.children();
         let length = children.len();
 
         if length > u8::MAX as usize {
@@ -390,7 +392,7 @@ where
             }
 
             if emit_operation && parts.len() > 1 {
-                self.context.add_operation(Operation::Group(length as u8));
+                self.scope.push_operation(Operation::Group(length as u8));
             }
 
             Ok(Value::group(parts))
@@ -398,22 +400,29 @@ where
     }
 
     fn simulate_identifier(&mut self, identifier: &Identifier<'a>) -> SimulationResult {
-        match self.context.resolve_local(identifier) {
+        match self.resolve_local(identifier) {
             Some(local) => {
-                self.context
-                    .add_operation(Operation::GetLocal(local.offset() as u8));
+                self.scope
+                    .push_operation(Operation::GetLocal(local.offset() as u8));
 
                 Ok(local.into())
             }
-            None => {
-                let index = self.context.add_local(*identifier);
-
-                if index >= u8::MAX as usize {
-                    self.report_error(ErrorKind::TooManyLocals(index));
+            None => match self.resolve_capture(identifier)? {
+                Some(capture) => {
+                    self.scope
+                        .push_operation(Operation::GetCapture(capture.index() as u8));
+                    Ok(capture.kind().clone())
                 }
+                None => {
+                    let index = self.scope.push_local(*identifier);
 
-                Ok(Value::Uninitialized(index, None))
-            }
+                    if index >= u8::MAX as usize {
+                        self.report_error(ErrorKind::TooManyLocals(index));
+                    }
+
+                    Ok(Value::Uninitialized(index, None))
+                }
+            },
         }
     }
 
@@ -425,8 +434,8 @@ where
             self.report_error(ErrorKind::TooManyUris(index));
         }
 
-        self.context
-            .add_operation(Operation::ConstantText(index as u8));
+        self.scope
+            .push_operation(Operation::ConstantText(index as u8));
 
         Ok(Value::Text(Some(index)))
     }
@@ -445,10 +454,61 @@ where
             self.report_error(ErrorKind::TooManyNumbers(index));
         }
 
-        self.context
-            .add_operation(Operation::ConstantNumber(index as u8));
+        self.scope
+            .push_operation(Operation::ConstantNumber(index as u8));
 
         Ok(Value::Number(Some(index)))
+    }
+
+    fn resolve_capture(&mut self, name: &Identifier<'a>) -> TranslationResult<Option<Capture>> {
+        let mut iterator = self.scopes.iter_mut().chain(Some(&mut self.scope));
+        let mut capture = None;
+
+        while let Some(enclosing) = iterator.next() {
+            if let Some(local) = enclosing.resolve_local(name) {
+                enclosing.capture_local(&local);
+
+                capture = Some((local.index(), local.kind().clone()));
+
+                break;
+            }
+        }
+
+        let (mut index, kind) = match capture {
+            None => return Ok(None),
+            Some(p) => p,
+        };
+        let scope = iterator
+            .next()
+            .ok_or_else(|| TranslationError::from(ErrorKind::EmptyScopes))?;
+
+        index = scope.push_capture(index, true, kind.clone());
+
+        if scope.captures() > u8::MAX as usize {
+            self.reporter
+                .report_translation_error(ErrorKind::TooManyCaptures(scope.captures()).into());
+        }
+
+        while let Some(scope) = iterator.next() {
+            index = scope.push_capture(index, false, kind.clone());
+
+            if scope.captures() > u8::MAX as usize {
+                self.reporter
+                    .report_translation_error(ErrorKind::TooManyCaptures(scope.captures()).into());
+            }
+        }
+
+        Ok(self.scope.capture(index))
+    }
+
+    fn resolve_local(&mut self, name: &Identifier<'a>) -> Option<Local<'a>> {
+        let local = self.scope.resolve_local(name)?;
+
+        if local.depth().is_none() {
+            self.report_error(ErrorKind::ReferenceSelfInInitializer(name.to_string()));
+        }
+
+        Some(local)
     }
 
     fn assert_kind(&mut self, node: &Node, expected: ExpressionKind) -> TranslationResult<()> {
@@ -477,7 +537,7 @@ impl<'a> TryFrom<&'a str> for Translation<'a> {
 
     fn try_from(input: &'a str) -> Result<Self, Self::Error> {
         let program = Program::try_from(input)?;
-        let mut translator = Translator::new(vec![]);
+        let translator = Translator::new(vec![]);
 
         translator.translate(program)
     }
