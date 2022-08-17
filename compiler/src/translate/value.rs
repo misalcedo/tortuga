@@ -6,8 +6,7 @@ pub enum Value {
     #[default]
     Any,
     None,
-    Uninitialized(usize),
-    UninitializedFunction(usize, usize),
+    Uninitialized(usize, Option<usize>),
     Closure(usize),
     Boolean,
     Group(Vec<Value>),
@@ -68,8 +67,6 @@ impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Any, _) | (_, Self::Any) => true,
-            (Self::UninitializedFunction(_, _), _) => self.iter().eq(other.iter()),
-            (_, Self::UninitializedFunction(_, _)) => self.iter().eq(other.iter()),
             (Self::Group(_), _) => self.iter().eq(other.iter()),
             (_, Self::Group(_)) => self.iter().eq(other.iter()),
             (Self::Function(ap, ar), Self::Function(bp, br)) => ap == bp && ar == br,
@@ -85,8 +82,7 @@ impl Display for Value {
         match self {
             Value::Any => write!(f, "{:?}", self),
             Value::None => write!(f, "{:?}", self),
-            Value::Uninitialized(_) => write!(f, "{:?}", self),
-            Value::UninitializedFunction(_, _) => write!(f, "{:?}", self),
+            Value::Uninitialized(_, _) => write!(f, "{:?}", self),
             Value::Closure(_) => write!(f, "{:?}", self),
             Value::Boolean => write!(f, "{:?}", self),
             Value::Number(Some(o)) => write!(f, "ConstantNumber({})", o),

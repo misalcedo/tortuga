@@ -170,7 +170,7 @@ where
         let assignee = self.simulate_expression(assignee)?;
 
         match assignee {
-            Value::Uninitialized(index) => {
+            Value::Uninitialized(index, None) => {
                 let value = children
                     .next()
                     .ok_or_else(|| TranslationError::from(ErrorKind::MissingChildren(2..=2, 1)))?;
@@ -186,7 +186,7 @@ where
 
                 Ok(value)
             }
-            Value::UninitializedFunction(local_index, function_index) => {
+            Value::Uninitialized(local_index, Some(function_index)) => {
                 let depth = self.contexts.len();
                 let function = self.functions.get_mut(function_index).ok_or_else(|| {
                     TranslationError::from(ErrorKind::NoSuchFunction(function_index))
@@ -264,7 +264,7 @@ where
         };
 
         match callee {
-            Value::Uninitialized(local) => {
+            Value::Uninitialized(local, None) => {
                 let index = self.functions.len();
 
                 self.functions.push(TypedFunction::default());
@@ -273,7 +273,7 @@ where
                     self.report_error(ErrorKind::TooManyFunctions(length));
                 }
 
-                Ok(Value::UninitializedFunction(local, index))
+                Ok(Value::Uninitialized(local, Some(index)))
             }
             Value::Closure(index) => {
                 let function = self
@@ -412,7 +412,7 @@ where
                     self.report_error(ErrorKind::TooManyLocals(index));
                 }
 
-                Ok(Value::Uninitialized(index))
+                Ok(Value::Uninitialized(index, None))
             }
         }
     }
