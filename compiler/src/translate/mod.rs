@@ -107,7 +107,10 @@ where
 
     fn simulate_expression(&mut self, node: Node<'a, 'b>) -> TranslationResult<Value> {
         match node.expression().kind() {
-            ExpressionKind::Block => self.simulate_block(node),
+            ExpressionKind::Block => {
+                self.report_error(ErrorKind::BlockOutsideFunction);
+                Ok(Value::Any)
+            }
             ExpressionKind::Equality => self.simulate_equality(node),
             ExpressionKind::Modulo => self.simulate_binary(node, Operation::Remainder),
             ExpressionKind::Subtract => self.simulate_binary(node, Operation::Subtract),
@@ -121,19 +124,34 @@ where
                 self.report_error(ErrorKind::ConditionOutsideFunction);
                 Ok(Value::Any)
             }
-            ExpressionKind::Inequality => self.simulate_binary(node, Operation::Equal),
-            ExpressionKind::LessThan => self.simulate_binary(node, Operation::Less),
-            ExpressionKind::GreaterThan => self.simulate_binary(node, Operation::Greater),
-            ExpressionKind::LessThanOrEqualTo => self.simulate_binary(node, Operation::Greater),
-            ExpressionKind::GreaterThanOrEqualTo => self.simulate_binary(node, Operation::Less),
+            ExpressionKind::Inequality => {
+                self.report_error(ErrorKind::ComparisonOutsideCondition(Operation::NotEqual));
+                Ok(Value::Any)
+            }
+            ExpressionKind::LessThan => {
+                self.report_error(ErrorKind::ComparisonOutsideCondition(Operation::Less));
+                Ok(Value::Any)
+            }
+            ExpressionKind::GreaterThan => {
+                self.report_error(ErrorKind::ComparisonOutsideCondition(Operation::Greater));
+                Ok(Value::Any)
+            }
+            ExpressionKind::LessThanOrEqualTo => {
+                self.report_error(ErrorKind::ComparisonOutsideCondition(
+                    Operation::LessOrEqual,
+                ));
+                Ok(Value::Any)
+            }
+            ExpressionKind::GreaterThanOrEqualTo => {
+                self.report_error(ErrorKind::ComparisonOutsideCondition(
+                    Operation::GreaterOrEqual,
+                ));
+                Ok(Value::Any)
+            }
             ExpressionKind::Number(number) => self.simulate_number(number),
             ExpressionKind::Identifier(identifier) => self.simulate_identifier(identifier),
             ExpressionKind::Uri(uri) => self.simulate_uri(uri),
         }
-    }
-
-    fn simulate_block(&mut self, node: Node<'a, 'b>) -> SimulationResult {
-        Ok(Value::Any)
     }
 
     fn simulate_equality(&mut self, node: Node<'a, 'b>) -> SimulationResult {
@@ -151,13 +169,24 @@ where
             .ok_or_else(|| TranslationError::from(ErrorKind::MissingChildren(2..=2, 0)))?;
         let assignee = self.simulate_expression(assignee)?;
 
-        let value = children
-            .next()
-            .ok_or_else(|| TranslationError::from(ErrorKind::MissingChildren(2..=2, 1)))?;
-        let value = self.simulate_expression(value)?;
-
         match assignee {
             Value::Uninitialized(index) => {
+                let value = children
+                    .next()
+                    .ok_or_else(|| TranslationError::from(ErrorKind::MissingChildren(2..=2, 1)))?;
+                let value = self.simulate_expression(value)?;
+                let depth = self.contexts.len();
+
+                self.context
+                    .local_mut(index)
+                    .ok_or_else(|| TranslationError::from(ErrorKind::NoSuchLocal(index)))?
+                    .initialize(depth, value.clone());
+
+                self.context.add_operation(Operation::DefineLocal);
+
+                Ok(value)
+            }
+            Value::UninitializedFunction(index, parameters) => {
                 let depth = self.contexts.len();
 
                 self.context
@@ -175,6 +204,10 @@ where
                 Ok(Value::Any)
             }
         }
+    }
+
+    fn simulate_block(&mut self, node: Node<'a, 'b>) -> SimulationResult {
+        self.simulate_expression(node)
     }
 
     fn simulate_call(&mut self, node: Node<'a, 'b>) -> TranslationResult<Value> {
@@ -234,7 +267,38 @@ where
     }
 
     fn simulate_condition(&mut self, node: Node<'a, 'b>) -> SimulationResult {
-        Ok(Value::Any)
+        self.assert_kind(&node, ExpressionKind::Condition)?;
+
+        match node.expression().kind() {
+            ExpressionKind::Equality => {
+                self.simulate_binary(node, Operation::Equal)?;
+                Ok(Value::Boolean)
+            }
+            ExpressionKind::Inequality => {
+                self.simulate_binary(node, Operation::NotEqual)?;
+                Ok(Value::Boolean)
+            }
+            ExpressionKind::LessThan => {
+                self.simulate_binary(node, Operation::Less)?;
+                Ok(Value::Boolean)
+            }
+            ExpressionKind::GreaterThan => {
+                self.simulate_binary(node, Operation::Greater)?;
+                Ok(Value::Boolean)
+            }
+            ExpressionKind::LessThanOrEqualTo => {
+                self.simulate_binary(node, Operation::LessOrEqual)?;
+                Ok(Value::Boolean)
+            }
+            ExpressionKind::GreaterThanOrEqualTo => {
+                self.simulate_binary(node, Operation::GreaterOrEqual)?;
+                Ok(Value::Boolean)
+            }
+            kind => {
+                self.report_error(ErrorKind::InvalidCondition(kind.to_string()));
+                Ok(Value::Any)
+            }
+        }
     }
 
     fn simulate_binary(&mut self, node: Node<'a, 'b>, operation: Operation) -> SimulationResult {

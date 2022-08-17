@@ -1,7 +1,7 @@
 use crate::translate::value::Value;
 use std::fmt::{Display, Formatter};
 use std::ops::RangeInclusive;
-use tortuga_executable::ParseNumberError;
+use tortuga_executable::{Operation, ParseNumberError};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TranslationError {
@@ -33,7 +33,10 @@ pub enum ErrorKind {
     NotAssignable(Value),
     InvalidArguments(Value, Value), // parameters, arguments
     EmptyContexts,
+    BlockOutsideFunction,
     ConditionOutsideFunction,
+    ComparisonOutsideCondition(Operation),
+    InvalidCondition(String),
     ExpectedKind(String, String), // expected, actual
 }
 
