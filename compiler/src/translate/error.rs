@@ -1,5 +1,6 @@
 use crate::translate::value::Value;
 use std::fmt::{Display, Formatter};
+use std::ops::RangeInclusive;
 use tortuga_executable::ParseNumberError;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -17,8 +18,8 @@ impl From<ErrorKind> for TranslationError {
 pub enum ErrorKind {
     InvalidNumber(ParseNumberError),
     OperandsMustBeNumbers(Value, Value),
-    MissingChildren(usize, usize), // expected, actual
-    TooManyChildren(usize, usize), // expected, actual
+    MissingChildren(RangeInclusive<usize>, usize), // expected, actual
+    TooManyChildren(RangeInclusive<usize>, usize), // expected, actual
     TooManyLocals(usize),
     TooManyNumbers(usize),
     TooManyUris(usize),

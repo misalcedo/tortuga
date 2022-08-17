@@ -7,7 +7,7 @@ pub enum Value {
     Any,
     None,
     Uninitialized(usize),
-    Closure(Option<usize>),
+    Closure(usize),
     Boolean,
     Group(Vec<Value>),
     Number(Option<usize>),
@@ -156,7 +156,7 @@ mod tests {
         assert_ne!(
             Value::function(
                 Value::group(vec![Value::Boolean]),
-                Value::group(vec![Value::Closure(None)])
+                Value::group(vec![Value::Closure(0)])
             ),
             Value::function(Value::group(vec![Value::Boolean]), Value::group(vec![]))
         );
@@ -164,7 +164,7 @@ mod tests {
 
     #[test]
     fn closure() {
-        assert_eq!(Value::Closure(None), Value::Closure(Some(1)));
+        assert_eq!(Value::Closure(0), Value::Closure(1));
     }
 
     #[test]

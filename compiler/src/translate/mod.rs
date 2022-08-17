@@ -138,24 +138,45 @@ where
     }
 
     fn simulate_call(&mut self, node: Node<'a, 'b>) -> TranslationResult<Value> {
-        let arguments = Value::None;
-        let callee = Value::None;
+        self.assert_kind(&node, ExpressionKind::Call)?;
+
+        let mut children = node.children();
+        let length = children.len();
+
+        if !(2..=3).contains(&length) {
+            self.report_error(ErrorKind::TooManyChildren(2..=3, length));
+        }
+
+        let callee = children
+            .next()
+            .ok_or_else(|| TranslationError::from(ErrorKind::MissingChildren(2..=3, 0)))?;
+        let callee = self.simulate_callable(callee)?;
+
+        let arguments = children
+            .next()
+            .ok_or_else(|| TranslationError::from(ErrorKind::MissingChildren(2..=3, 1)))?;
+        let arguments = self.simulate_grouping(arguments, false)?;
+
+        let condition = match children.next() {
+            None => Value::None,
+            Some(condition) => self.simulate_condition(condition)?,
+        };
 
         match callee {
             Value::Uninitialized(index) => {
                 // TODO create undefined function type and leave local undefined.
                 Ok(Value::Any)
             }
-            Value::Closure(Some(index)) => {
+            Value::Closure(index) => {
                 let function = self
                     .functions
                     .get(index)
                     .ok_or_else(|| TranslationError::from(ErrorKind::NoSuchFunction(index)))?;
 
-                let kind = function.kind();
+                let parameters = function.parameters();
 
-                if kind == arguments {
-                    if kind.len() != arguments.len() {
+                if parameters == &arguments {
+                    if parameters.len() != arguments.len() {
                         self.context.add_operation(Operation::Separate);
                     }
 
@@ -163,10 +184,7 @@ where
 
                     Ok(function.results().clone())
                 } else {
-                    self.report_error(ErrorKind::InvalidArguments(
-                        function.parameters().clone(),
-                        arguments,
-                    ));
+                    self.report_error(ErrorKind::InvalidArguments(parameters.clone(), arguments));
                     Ok(Value::Any)
                 }
             }
@@ -177,6 +195,10 @@ where
         }
     }
 
+    fn simulate_callable(&mut self, node: Node<'a, 'b>) -> SimulationResult {
+        self.simulate_expression(node)
+    }
+
     fn simulate_condition(&mut self, node: Node<'a, 'b>) -> SimulationResult {
         Ok(Value::Any)
     }
@@ -185,17 +207,17 @@ where
         let mut children = node.children();
 
         if children.len() != 2 {
-            self.report_error(ErrorKind::TooManyChildren(2, children.len()));
+            self.report_error(ErrorKind::TooManyChildren(2..=2, children.len()));
         }
 
         let lhs = children
             .next()
-            .ok_or_else(|| TranslationError::from(ErrorKind::MissingChildren(2, 0)))?;
+            .ok_or_else(|| TranslationError::from(ErrorKind::MissingChildren(2..=2, 0)))?;
         let lhs = self.simulate_expression(lhs)?;
 
         let rhs = children
             .next()
-            .ok_or_else(|| TranslationError::from(ErrorKind::MissingChildren(2, 1)))?;
+            .ok_or_else(|| TranslationError::from(ErrorKind::MissingChildren(2..=2, 1)))?;
         let rhs = self.simulate_expression(rhs)?;
 
         let value = Value::Number(None);
