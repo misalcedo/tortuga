@@ -150,23 +150,20 @@ where
         let callee = children
             .next()
             .ok_or_else(|| TranslationError::from(ErrorKind::MissingChildren(2..=3, 0)))?;
-        let callee = self.simulate_callable(callee)?;
+        let callee = self.simulate_expression(callee)?;
 
         let arguments = children
             .next()
             .ok_or_else(|| TranslationError::from(ErrorKind::MissingChildren(2..=3, 1)))?;
         let arguments = self.simulate_grouping(arguments, false)?;
 
-        let condition = match children.next() {
+        let _condition = match children.next() {
             None => Value::None,
             Some(condition) => self.simulate_condition(condition)?,
         };
 
         match callee {
-            Value::Uninitialized(index) => {
-                // TODO create undefined function type and leave local undefined.
-                Ok(Value::Any)
-            }
+            Value::Uninitialized(index) => Ok(Value::uninitialized_function(index, arguments)),
             Value::Closure(index) => {
                 let function = self
                     .functions
@@ -188,18 +185,9 @@ where
                     Ok(Value::Any)
                 }
             }
+            Value::Any => Ok(Value::Any),
             _ => {
                 self.report_error(ErrorKind::NotCallable(callee));
-                Ok(Value::Any)
-            }
-        }
-    }
-
-    fn simulate_callable(&mut self, node: Node<'a, 'b>) -> SimulationResult {
-        match self.simulate_expression(node)? {
-            value @ Value::Closure(_) => Ok(value),
-            value => {
-                self.report_error(ErrorKind::NotCallable(value));
                 Ok(Value::Any)
             }
         }
