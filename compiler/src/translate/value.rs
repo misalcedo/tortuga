@@ -1,24 +1,64 @@
 use std::fmt::{Display, Formatter};
 use std::mem;
 
-#[derive(Clone, Debug, Eq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Default, Eq, Ord, PartialOrd, Hash)]
 pub enum Value {
+    #[default]
     Any,
+    None,
     Uninitialized(usize),
     Closure(Option<usize>),
     Boolean,
     Group(Vec<Value>),
     Number(Option<usize>),
     Text(Option<usize>),
-    Function(Vec<Value>, Vec<Value>),
+    Function(Box<Value>, Box<Value>),
 }
 
 impl Value {
+    pub fn group(mut group: Vec<Value>) -> Self {
+        if group.is_empty() {
+            Value::None
+        } else if group.len() == 1 {
+            group.pop().unwrap_or_default()
+        } else {
+            Value::Group(group)
+        }
+    }
+
+    pub fn function(parameters: Value, results: Value) -> Self {
+        Value::Function(parameters.into(), results.into())
+    }
+
     pub fn len(&self) -> usize {
         match self {
             Value::Group(a) => a.len(),
             Value::Function(a, _) => a.len(),
             _ => 1,
+        }
+    }
+
+    pub fn iter(&self) -> Iter<'_> {
+        match self {
+            Value::Group(a) => Iter::Group(a.iter()),
+            Value::Function(a, _) => a.iter(),
+            _ => Iter::Singleton(Some(self)),
+        }
+    }
+}
+
+pub enum Iter<'a> {
+    Singleton(Option<&'a Value>),
+    Group(std::slice::Iter<'a, Value>),
+}
+
+impl<'a> Iterator for Iter<'a> {
+    type Item = &'a Value;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Iter::Singleton(a) => a.take(),
+            Iter::Group(a) => a.next(),
         }
     }
 }
@@ -27,12 +67,11 @@ impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Any, _) | (_, Self::Any) => true,
-            (Self::Function(a, _), Self::Group(b)) if a.len() == b.len() => a == b,
-            (Self::Group(a), Self::Function(b, _)) if a.len() == b.len() => a == b,
-            (Self::Group(a), b) if a.len() == 1 => &a[0] == b,
-            (a, Self::Group(b)) if b.len() == 1 => a == &b[0],
-            (Self::Function(aa, ar), Self::Function(ba, br)) => aa == ba && ar == br,
-            (Self::Group(a), Self::Group(b)) => a.iter().eq(b),
+            (Self::Group(_), _) => self.iter().eq(other.iter()),
+            (_, Self::Group(_)) => self.iter().eq(other.iter()),
+            (Self::Function(ap, ar), Self::Function(bp, br)) => ap == bp && ar == br,
+            (Self::Function(_, _), _) => self.iter().eq(other.iter()),
+            (_, Self::Function(_, _)) => self.iter().eq(other.iter()),
             (a, b) => mem::discriminant(a) == mem::discriminant(b),
         }
     }
@@ -42,6 +81,7 @@ impl Display for Value {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Value::Any => write!(f, "{:?}", self),
+            Value::None => write!(f, "{:?}", self),
             Value::Uninitialized(_) => write!(f, "{:?}", self),
             Value::Closure(_) => write!(f, "{:?}", self),
             Value::Boolean => write!(f, "{:?}", self),
@@ -65,7 +105,7 @@ impl Display for Value {
                 write!(f, ")")
             }
             Value::Function(parameters, results) => {
-                write!(f, "Function({} => {})", parameters.len(), results.len())
+                write!(f, "Function({} => {})", parameters, results)
             }
         }
     }
@@ -83,39 +123,42 @@ mod tests {
 
     #[test]
     fn groups() {
-        assert_eq!(Value::Group(vec![Value::Boolean]), Value::Boolean);
-        assert_eq!(Value::Boolean, Value::Group(vec![Value::Boolean]));
+        assert_eq!(Value::group(vec![Value::Boolean]), Value::Boolean);
+        assert_eq!(Value::Boolean, Value::group(vec![Value::Boolean]));
         assert_eq!(
-            Value::Group(vec![Value::Boolean]),
-            Value::Group(vec![Value::Boolean])
+            Value::group(vec![Value::Boolean]),
+            Value::group(vec![Value::Boolean])
         );
         assert_ne!(
-            Value::Group(vec![Value::Boolean, Value::Boolean]),
-            Value::Group(vec![Value::Boolean])
+            Value::group(vec![Value::Boolean, Value::Boolean]),
+            Value::group(vec![Value::Boolean])
         );
         assert_ne!(
-            Value::Group(vec![Value::Boolean]),
-            Value::Group(vec![Value::Text(None)])
+            Value::group(vec![Value::Boolean]),
+            Value::group(vec![Value::Text(None)])
         );
     }
 
     #[test]
     fn functions() {
         assert_eq!(
-            Value::Function(vec![Value::Boolean], vec![]),
-            Value::Group(vec![Value::Boolean])
+            Value::function(Value::Boolean, Value::None),
+            Value::group(vec![Value::Boolean])
         );
         assert_eq!(
-            Value::Function(vec![Value::Boolean], vec![]),
-            Value::Function(vec![Value::Boolean], vec![])
+            Value::function(Value::Boolean, Value::None),
+            Value::function(Value::group(vec![Value::Boolean]), Value::None)
         );
         assert_eq!(
-            Value::Group(vec![Value::Group(vec![Value::Boolean])]),
-            Value::Function(vec![Value::Boolean], vec![])
+            Value::group(vec![Value::group(vec![Value::Boolean])]),
+            Value::function(Value::group(vec![Value::Boolean]), Value::group(vec![]))
         );
         assert_ne!(
-            Value::Function(vec![Value::Boolean], vec![Value::Closure(None)]),
-            Value::Function(vec![Value::Boolean], vec![])
+            Value::function(
+                Value::group(vec![Value::Boolean]),
+                Value::group(vec![Value::Closure(None)])
+            ),
+            Value::function(Value::group(vec![Value::Boolean]), Value::group(vec![]))
         );
     }
 

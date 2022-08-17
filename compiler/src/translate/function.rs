@@ -1,14 +1,15 @@
 use crate::translate::value::Value;
 use tortuga_executable::Function;
 
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct TypedFunction {
     function: Function,
-    parameters: Vec<Value>,
-    results: Vec<Value>,
+    parameters: Value,
+    results: Value,
 }
 
 impl TypedFunction {
-    pub fn new(function: Function, parameters: Vec<Value>, results: Vec<Value>) -> Self {
+    pub fn new(function: Function, parameters: Value, results: Value) -> Self {
         TypedFunction {
             function,
             parameters,
@@ -16,15 +17,15 @@ impl TypedFunction {
         }
     }
     pub fn kind(&self) -> Value {
-        Value::Function(self.parameters.clone(), self.results.clone())
+        Value::function(self.parameters.clone(), self.results.clone())
     }
 
-    pub fn parameters(&self) -> &[Value] {
-        self.parameters.as_slice()
+    pub fn parameters(&self) -> &Value {
+        &self.parameters
     }
 
-    pub fn results(&self) -> &[Value] {
-        self.results.as_slice()
+    pub fn results(&self) -> &Value {
+        &self.results
     }
 }
 

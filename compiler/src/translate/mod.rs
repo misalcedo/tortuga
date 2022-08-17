@@ -21,9 +21,9 @@ use function::TypedFunction;
 use indices::IndexedSet;
 use value::Value;
 
+#[derive(Clone)]
 pub struct Translator<'a, Reporter> {
     reporter: Reporter,
-    program: Program<'a>,
     context: ScopeContext<'a>,
     contexts: Vec<ScopeContext<'a>>,
     functions: Vec<TypedFunction>,
@@ -31,7 +31,7 @@ pub struct Translator<'a, Reporter> {
     texts: IndexedSet<Uri<'a>, Text>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Translation<'a> {
     input: Program<'a>,
     output: Executable,
@@ -45,10 +45,9 @@ where
     'a: 'b,
     R: ErrorReporter,
 {
-    pub fn new(program: Program<'a>, reporter: R) -> Self {
+    pub fn new(reporter: R) -> Self {
         Translator {
             reporter,
-            program,
             context: Default::default(),
             contexts: Default::default(),
             functions: Default::default(),
@@ -61,8 +60,8 @@ where
     // * Prevents blocks outside of assignment.
     // * Prevent local variable in an assignment that is not a block.
     // * Check function type signatures.
-    pub fn translate(mut self) -> Result<Translation<'a>, R> {
-        if let Err(e) = self.simulate() {
+    pub fn translate(mut self, program: Program<'a>) -> Result<Translation<'a>, R> {
+        if let Err(e) = self.simulate(&program) {
             self.report_error(e);
         }
 
@@ -73,14 +72,14 @@ where
             let executable = Executable::new(functions, self.numbers, self.texts);
 
             Ok(Translation {
-                input: self.program,
+                input: program,
                 output: executable,
             })
         }
     }
 
-    fn simulate(&mut self) -> SimulationResult {
-        let mut iterator = self.program.roots();
+    fn simulate(&mut self, program: &Program<'a>) -> SimulationResult {
+        let mut iterator = program.roots();
 
         while let Some(root) = iterator.next() {
             self.simulate_expression(root)?;
@@ -101,7 +100,7 @@ where
 
         let function = Function::from(context);
         self.functions
-            .push(TypedFunction::new(function, vec![], vec![]));
+            .push(TypedFunction::new(function, Value::None, Value::None));
 
         Ok(Value::Any)
     }
@@ -131,70 +130,21 @@ where
     }
 
     fn simulate_block(&mut self, node: Node<'a, 'b>) -> SimulationResult {
-        if node.discovered() {
-            let mut context = self
-                .contexts
-                .pop()
-                .ok_or_else(|| TranslationError::from(ErrorKind::EmptyContexts))?;
-
-            mem::swap(&mut context, &mut self.context);
-
-            let function = Function::from(context);
-            let index = self.functions.len();
-
-            self.functions
-                .push(TypedFunction::new(function, vec![], vec![]));
-            Ok(Value::Function(vec![], vec![]))
-        } else {
-            let mut context = ScopeContext::default();
-
-            mem::swap(&mut context, &mut self.context);
-
-            Ok(Value::Any)
-        }
+        Ok(Value::Any)
     }
 
     fn simulate_equality(&mut self, node: Node<'a, 'b>) -> SimulationResult {
-        let mut condition = None;
-        let mut value = self.pop()?;
-
-        if value == Value::Boolean {
-            condition = Some(value);
-            value = self.pop()?;
-        }
-
-        let assignee = self.pop()?;
-
-        match assignee {
-            Value::Uninitialized(index) => {
-                let depth = self.contexts.len();
-
-                self.context
-                    .local_mut(index)
-                    .ok_or_else(|| TranslationError::from(ErrorKind::NoSuchLocal(index)))?
-                    .initialize(depth, value.clone());
-
-                self.context.add_operation(Operation::DefineLocal);
-                self.stack.push(value);
-            }
-            Value::Any => self.stack.push(Value::Any),
-            _ if condition.is_none() => self.stack.push(Value::Boolean),
-            _ => {
-                self.report_error(ErrorKind::ConditionWithoutAssignment);
-                self.stack.push(Value::Any);
-            }
-        }
-
         Ok(Value::Any)
     }
 
     fn simulate_call(&mut self, node: Node<'a, 'b>) -> TranslationResult<Value> {
-        let arguments = self.pop()?;
-        let callee = self.pop()?;
+        let arguments = Value::None;
+        let callee = Value::None;
 
         match callee {
             Value::Uninitialized(index) => {
                 // TODO create undefined function type and leave local undefined.
+                Ok(Value::Any)
             }
             Value::Closure(Some(index)) => {
                 let function = self
@@ -210,22 +160,21 @@ where
                     }
 
                     self.context.add_operation(Operation::Call(index as u8));
-                    self.stack.extend_from_slice(function.results());
+
+                    Ok(function.results().clone())
                 } else {
                     self.report_error(ErrorKind::InvalidArguments(
-                        function.parameters().to_vec(),
-                        vec![arguments],
+                        function.parameters().clone(),
+                        arguments,
                     ));
-                    self.stack.push(Value::Any);
+                    Ok(Value::Any)
                 }
             }
             _ => {
                 self.report_error(ErrorKind::NotCallable(callee));
-                self.stack.push(Value::Any);
+                Ok(Value::Any)
             }
         }
-
-        Ok(Value::Any)
     }
 
     fn simulate_condition(&mut self, node: Node<'a, 'b>) -> SimulationResult {
@@ -233,28 +182,21 @@ where
     }
 
     fn simulate_binary(&mut self, node: Node<'a, 'b>, operation: Operation) -> SimulationResult {
-        let children = node.children();
-        let length = children.length();
-        let iterator = children.into_iter();
+        let mut children = node.children();
+
+        if children.len() != 2 {
+            self.report_error(ErrorKind::TooManyChildren(2, children.len()));
+        }
 
         let lhs = children
             .next()
-            .ok_or_else(|| TranslationError::from(ErrorKind::MissingChildren(2, length)))?;
+            .ok_or_else(|| TranslationError::from(ErrorKind::MissingChildren(2, 0)))?;
         let lhs = self.simulate_expression(lhs)?;
-
-        length += 1;
 
         let rhs = children
             .next()
-            .ok_or_else(|| TranslationError::from(ErrorKind::MissingChildren(2, length)))?;
+            .ok_or_else(|| TranslationError::from(ErrorKind::MissingChildren(2, 1)))?;
         let rhs = self.simulate_expression(rhs)?;
-
-        length += 1;
-        length += children.count();
-
-        if length != 2 {
-            self.report_error(ErrorKind::TooManyChildren(2, length));
-        }
 
         let value = Value::Number(None);
 
@@ -387,8 +329,9 @@ impl<'a> TryFrom<&'a str> for Translation<'a> {
 
     fn try_from(input: &'a str) -> Result<Self, Self::Error> {
         let program = Program::try_from(input)?;
+        let mut translator = Translator::new(vec![]);
 
-        Translator::new(program, Vec::default()).translate()
+        translator.translate(program)
     }
 }
 

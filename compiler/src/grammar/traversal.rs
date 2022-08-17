@@ -180,16 +180,14 @@ where
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct ReferenceIterator<'a, 'b, Iterator>(&'b Program<'a>, usize, Iterator);
+pub struct ReferenceIterator<'a, 'b, Iterator>(&'b Program<'a>, Iterator);
 
 impl<'a, 'b> From<&'b Program<'a>> for ReferenceIterator<'a, 'b, std::slice::Iter<'b, usize>>
 where
     'a: 'b,
 {
     fn from(program: &'b Program<'a>) -> Self {
-        let roots = &program.roots[..];
-
-        ReferenceIterator(program, roots.len(), roots.iter())
+        ReferenceIterator(program, program.roots.iter())
     }
 }
 
@@ -199,9 +197,7 @@ where
     'a: 'b,
 {
     fn from(node: Node<'a, 'b>) -> Self {
-        let children = node.expression.children();
-
-        ReferenceIterator(node.program, children.len(), children.iter())
+        ReferenceIterator(node.program, node.expression.children().iter())
     }
 }
 
@@ -214,22 +210,20 @@ where
     type Item = Node<'a, 'b>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let index = self.2.next()?;
+        let index = self.1.next()?;
 
         Node::new(self.0, (*index).into())
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        self.2.size_hint()
+        self.1.size_hint()
     }
 }
 
-impl<'a, 'b, I> ReferenceIterator<'a, 'b, I>
+impl<'a, 'b, I, U> ExactSizeIterator for ReferenceIterator<'a, 'b, I>
 where
     'a: 'b,
-    I: Iterator<Item = usize>,
+    I: Iterator<Item = &'b U>,
+    U: Into<usize> + Copy + 'b,
 {
-    pub fn total(&self) -> usize {
-        self.1
-    }
 }

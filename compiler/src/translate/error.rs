@@ -31,7 +31,7 @@ pub enum ErrorKind {
     NoSuchUri(usize),
     NoSuchLocal(usize),
     NotCallable(Value),
-    InvalidArguments(Vec<Value>, Vec<Value>), // parameters, arguments
+    InvalidArguments(Value, Value), // parameters, arguments
     EmptyContexts,
     ConditionWithoutAssignment,
     ExpectedKind(String, String), // expected, actual
