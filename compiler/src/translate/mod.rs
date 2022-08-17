@@ -117,7 +117,10 @@ where
             ExpressionKind::Power => self.simulate_binary(node, Operation::Power),
             ExpressionKind::Call => self.simulate_call(node),
             ExpressionKind::Grouping => self.simulate_grouping(node, true),
-            ExpressionKind::Condition => self.simulate_condition(node),
+            ExpressionKind::Condition => {
+                self.report_error(ErrorKind::ConditionOutsideFunction);
+                Ok(Value::Any)
+            }
             ExpressionKind::Inequality => self.simulate_binary(node, Operation::Equal),
             ExpressionKind::LessThan => self.simulate_binary(node, Operation::Less),
             ExpressionKind::GreaterThan => self.simulate_binary(node, Operation::Greater),
@@ -134,7 +137,44 @@ where
     }
 
     fn simulate_equality(&mut self, node: Node<'a, 'b>) -> SimulationResult {
-        Ok(Value::Any)
+        self.assert_kind(&node, ExpressionKind::Equality)?;
+
+        let mut children = node.children();
+        let length = children.len();
+
+        if length > 2 {
+            self.report_error(ErrorKind::TooManyChildren(2..=2, length));
+        }
+
+        let assignee = children
+            .next()
+            .ok_or_else(|| TranslationError::from(ErrorKind::MissingChildren(2..=2, 0)))?;
+        let assignee = self.simulate_expression(assignee)?;
+
+        let value = children
+            .next()
+            .ok_or_else(|| TranslationError::from(ErrorKind::MissingChildren(2..=2, 1)))?;
+        let value = self.simulate_expression(value)?;
+
+        match assignee {
+            Value::Uninitialized(index) => {
+                let depth = self.contexts.len();
+
+                self.context
+                    .local_mut(index)
+                    .ok_or_else(|| TranslationError::from(ErrorKind::NoSuchLocal(index)))?
+                    .initialize(depth, value.clone());
+
+                self.context.add_operation(Operation::DefineLocal);
+
+                Ok(value)
+            }
+            Value::Any => Ok(Value::Any),
+            _ => {
+                self.report_error(ErrorKind::NotAssignable(assignee));
+                Ok(Value::Any)
+            }
+        }
     }
 
     fn simulate_call(&mut self, node: Node<'a, 'b>) -> TranslationResult<Value> {
@@ -143,7 +183,7 @@ where
         let mut children = node.children();
         let length = children.len();
 
-        if !(2..=3).contains(&length) {
+        if length > 3 {
             self.report_error(ErrorKind::TooManyChildren(2..=3, length));
         }
 

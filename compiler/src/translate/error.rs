@@ -30,9 +30,10 @@ pub enum ErrorKind {
     NoSuchUri(usize),
     NoSuchLocal(usize),
     NotCallable(Value),
+    NotAssignable(Value),
     InvalidArguments(Value, Value), // parameters, arguments
     EmptyContexts,
-    ConditionWithoutAssignment,
+    ConditionOutsideFunction,
     ExpectedKind(String, String), // expected, actual
 }
 
