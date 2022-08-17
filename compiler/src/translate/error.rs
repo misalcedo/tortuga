@@ -1,4 +1,3 @@
-use crate::grammar::ExpressionKind;
 use crate::translate::uri::ParseUriError;
 use crate::translate::value::Value;
 use std::fmt::{Display, Formatter};

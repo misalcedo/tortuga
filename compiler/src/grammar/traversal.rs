@@ -1,4 +1,4 @@
-use crate::grammar::{Expression, Program};
+use crate::grammar::{Expression, ExpressionReference, Program};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Node<'a, 'b> {
@@ -34,11 +34,8 @@ where
         })
     }
 
-    pub fn children(&self) -> impl ExactSizeIterator<Item = Node<'a, 'b>> + '_ {
-        self.expression
-            .children()
-            .iter()
-            .filter_map(|r| self.new_child(r.0))
+    pub fn children(&self) -> ReferenceIterator<'a, 'b, std::slice::Iter<'b, ExpressionReference>> {
+        (*self).into()
     }
 
     pub fn discovered(&self) -> bool {
@@ -183,24 +180,56 @@ where
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct RootIterator<'a, 'b, Iterator>(&'b Program<'a>, Iterator);
+pub struct ReferenceIterator<'a, 'b, Iterator>(&'b Program<'a>, usize, Iterator);
 
-impl<'a, 'b> From<&'b Program<'a>> for RootIterator<'a, 'b, std::slice::Iter<'b, usize>> {
+impl<'a, 'b> From<&'b Program<'a>> for ReferenceIterator<'a, 'b, std::slice::Iter<'b, usize>>
+where
+    'a: 'b,
+{
     fn from(program: &'b Program<'a>) -> Self {
-        RootIterator(program, program.roots.iter())
+        let roots = &program.roots[..];
+
+        ReferenceIterator(program, roots.len(), roots.iter())
     }
 }
 
-impl<'a, 'b, I> Iterator for RootIterator<'a, 'b, I>
+impl<'a, 'b> From<Node<'a, 'b>>
+    for ReferenceIterator<'a, 'b, std::slice::Iter<'b, ExpressionReference>>
 where
     'a: 'b,
-    I: Iterator<Item = &'b usize>,
+{
+    fn from(node: Node<'a, 'b>) -> Self {
+        let children = node.expression.children();
+
+        ReferenceIterator(node.program, children.len(), children.iter())
+    }
+}
+
+impl<'a, 'b, I, U> Iterator for ReferenceIterator<'a, 'b, I>
+where
+    'a: 'b,
+    I: Iterator<Item = &'b U>,
+    U: Into<usize> + Copy + 'b,
 {
     type Item = Node<'a, 'b>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let index = self.1.next()?;
+        let index = self.2.next()?;
 
-        Node::new(self.0, *index)
+        Node::new(self.0, (*index).into())
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.2.size_hint()
+    }
+}
+
+impl<'a, 'b, I> ReferenceIterator<'a, 'b, I>
+where
+    'a: 'b,
+    I: Iterator<Item = usize>,
+{
+    pub fn total(&self) -> usize {
+        self.1
     }
 }

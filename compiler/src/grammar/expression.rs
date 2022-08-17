@@ -46,6 +46,12 @@ impl Default for Expression<'_> {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct ExpressionReference(pub(crate) usize);
 
+impl From<ExpressionReference> for usize {
+    fn from(reference: ExpressionReference) -> Self {
+        reference.0
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum ExpressionKind<'a> {
     Block,

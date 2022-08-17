@@ -5,7 +5,7 @@ mod terminal;
 mod traversal;
 
 pub use crate::grammar::traversal::{
-    Iter, Node, NodeIterator, PostOrderIterator, PreOrderIterator, RootIterator,
+    Iter, Node, NodeIterator, PostOrderIterator, PreOrderIterator, ReferenceIterator,
 };
 pub use expression::{Expression, ExpressionKind, ExpressionReference};
 use std::fmt::{Display, Formatter};
@@ -36,7 +36,7 @@ impl<'a> Program<'a> {
         self.into()
     }
 
-    pub fn roots(&self) -> RootIterator<'a, '_, std::slice::Iter<'_, usize>> {
+    pub fn roots(&self) -> ReferenceIterator<'a, '_, std::slice::Iter<'_, usize>> {
         self.into()
     }
 

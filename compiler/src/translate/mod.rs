@@ -96,7 +96,7 @@ where
         mem::swap(&mut self.context, &mut context);
 
         if !self.contexts.is_empty() {
-            self.report_error(ErrorKind::ExpectedEndOfBlock);
+            //TODO: self.report_error(ErrorKind::ExpectedEndOfBlock);
         }
 
         let function = Function::from(context);
@@ -144,14 +144,14 @@ where
 
             self.functions
                 .push(TypedFunction::new(function, vec![], vec![]));
-            self.stack.push(Value::Function(vec![], vec![]));
+            Ok(Value::Function(vec![], vec![]))
         } else {
             let mut context = ScopeContext::default();
 
             mem::swap(&mut context, &mut self.context);
-        }
 
-        Ok(Value::Any)
+            Ok(Value::Any)
+        }
     }
 
     fn simulate_equality(&mut self, node: Node<'a, 'b>) -> SimulationResult {
@@ -189,7 +189,6 @@ where
     }
 
     fn simulate_call(&mut self, node: Node<'a, 'b>) -> TranslationResult<Value> {
-        let children = node.children();
         let arguments = self.pop()?;
         let callee = self.pop()?;
 
@@ -234,8 +233,9 @@ where
     }
 
     fn simulate_binary(&mut self, node: Node<'a, 'b>, operation: Operation) -> SimulationResult {
-        let mut children = node.children();
-        let mut length = 0;
+        let children = node.children();
+        let length = children.length();
+        let iterator = children.into_iter();
 
         let lhs = children
             .next()
@@ -270,7 +270,7 @@ where
     fn simulate_grouping(&mut self, node: Node<'a, 'b>, emit_operation: bool) -> SimulationResult {
         self.assert_kind(&node, ExpressionKind::Grouping)?;
 
-        let mut children = node.children();
+        let children = node.children();
         let length = children.len();
 
         if length > u8::MAX as usize {
@@ -281,6 +281,7 @@ where
             Err(ErrorKind::EmptyGroup.into())
         } else if length == 1 {
             let child = children
+                .into_iter()
                 .next()
                 .ok_or_else(|| TranslationError::from(ErrorKind::EmptyGroup))?;
 
