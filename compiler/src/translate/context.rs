@@ -4,9 +4,8 @@ use crate::translate::indices::IndexedSet;
 use crate::translate::local::Local;
 use tortuga_executable::{Code, Function, Operation};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct ScopeContext<'a> {
-    name: Option<&'a str>,
     depth: usize,
     code: Vec<u8>,
     parameters: IndexedSet<Identifier<'a>, Local<'a>>,
@@ -14,24 +13,10 @@ pub struct ScopeContext<'a> {
     captures: IndexedSet<Option<Identifier<'a>>, Capture>,
 }
 
-impl<'a> Default for ScopeContext<'a> {
-    fn default() -> Self {
-        ScopeContext {
-            name: None,
-            depth: 0,
-            code: vec![],
-            parameters: Default::default(),
-            locals: IndexedSet::default(),
-            captures: IndexedSet::default(),
-        }
-    }
-}
-
 impl<'a> ScopeContext<'a> {
-    pub fn new(name: &'a str, depth: usize) -> Self {
+    pub fn new(&self) -> Self {
         ScopeContext {
-            name: Some(name),
-            depth,
+            depth: self.depth + 1,
             code: vec![],
             parameters: Default::default(),
             locals: IndexedSet::default(),

@@ -186,14 +186,20 @@ where
 
                 Ok(value)
             }
-            Value::UninitializedFunction(index, parameters) => {
+            Value::UninitializedFunction(local_index, function_index) => {
                 let depth = self.contexts.len();
+                let function = self.functions.get_mut(function_index).ok_or_else(|| {
+                    TranslationError::from(ErrorKind::NoSuchFunction(function_index))
+                })?;
+                let value = Value::Closure(function_index);
 
                 self.context
-                    .local_mut(index)
-                    .ok_or_else(|| TranslationError::from(ErrorKind::NoSuchLocal(index)))?
+                    .local_mut(local_index)
+                    .ok_or_else(|| TranslationError::from(ErrorKind::NoSuchLocal(local_index)))?
                     .initialize(depth, value.clone());
 
+                self.context
+                    .add_operation(Operation::Closure(function_index as u8, vec![]));
                 self.context.add_operation(Operation::DefineLocal);
 
                 Ok(value)
@@ -207,7 +213,29 @@ where
     }
 
     fn simulate_block(&mut self, node: Node<'a, 'b>) -> SimulationResult {
-        self.simulate_expression(node)
+        match node.expression().kind() {
+            ExpressionKind::Block => {
+                let mut result = Value::None;
+                let nested = self.context.new(); // TODO: get from uninitialized function.
+                let parent = mem::replace(&mut self.context, nested);
+
+                self.contexts.push(parent);
+
+                for child in node.children() {
+                    result = self.simulate_expression(child)?;
+                }
+
+                let parent = self
+                    .contexts
+                    .pop()
+                    .ok_or_else(|| TranslationError::from(ErrorKind::EmptyContexts))?;
+
+                self.context = parent;
+
+                Ok(result)
+            }
+            _ => self.simulate_expression(node),
+        }
     }
 
     fn simulate_call(&mut self, node: Node<'a, 'b>) -> TranslationResult<Value> {
@@ -236,13 +264,22 @@ where
         };
 
         match callee {
-            Value::Uninitialized(index) => Ok(Value::uninitialized_function(index, arguments)),
+            Value::Uninitialized(local) => {
+                let index = self.functions.len();
+
+                self.functions.push(TypedFunction::default());
+
+                if index > u8::MAX as usize {
+                    self.report_error(ErrorKind::TooManyFunctions(length));
+                }
+
+                Ok(Value::UninitializedFunction(local, index))
+            }
             Value::Closure(index) => {
                 let function = self
                     .functions
                     .get(index)
                     .ok_or_else(|| TranslationError::from(ErrorKind::NoSuchFunction(index)))?;
-
                 let parameters = function.parameters();
 
                 if parameters == &arguments {
@@ -258,7 +295,10 @@ where
                     Ok(Value::Any)
                 }
             }
-            Value::Any => Ok(Value::Any),
+            Value::Any => {
+                self.context.add_operation(Operation::Call(0 as u8)); // TODO: Allow calling closures in parameters.
+                Ok(Value::Any)
+            }
             _ => {
                 self.report_error(ErrorKind::NotCallable(callee));
                 Ok(Value::Any)
@@ -381,7 +421,7 @@ where
         let constant = Text::from(*uri);
         let index = self.texts.insert(*uri, constant);
 
-        if index >= u8::MAX as usize {
+        if index > u8::MAX as usize {
             self.report_error(ErrorKind::TooManyUris(index));
         }
 
@@ -401,7 +441,7 @@ where
         };
         let index = self.numbers.insert(*number, constant);
 
-        if index >= u8::MAX as usize {
+        if index > u8::MAX as usize {
             self.report_error(ErrorKind::TooManyNumbers(index));
         }
 
@@ -482,6 +522,7 @@ mod tests {
             Operation::Add,
         ]
         .to_code();
+
         assert_eq!(
             executable.function(0).unwrap().code().as_slice(),
             code.as_slice()
@@ -502,11 +543,22 @@ mod tests {
 
     #[test]
     fn simple() {
-        assert_eq!(
+        let executable: Executable =
             Translation::try_from(include_str!("../../../examples/simple.ta"))
-                .unwrap_err()
-                .len(),
-            1
+                .unwrap()
+                .into();
+        let code = vec![
+            Operation::ConstantNumber(0),
+            Operation::DefineLocal,
+            Operation::GetLocal(1),
+            Operation::ConstantNumber(1),
+            Operation::Add,
+        ]
+        .to_code();
+
+        assert_eq!(
+            executable.function(0).unwrap().code().as_slice(),
+            code.as_slice()
         );
     }
 

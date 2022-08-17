@@ -135,6 +135,10 @@ impl<C: Courier> VirtualMachine<C> {
 
         self.set_local(slot)?;
 
+        let value = self.get_local(slot)?;
+
+        self.stack.push(value.inner());
+
         Ok(())
     }
 

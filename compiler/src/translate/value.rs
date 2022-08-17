@@ -7,7 +7,7 @@ pub enum Value {
     Any,
     None,
     Uninitialized(usize),
-    UninitializedFunction(usize, Box<Value>),
+    UninitializedFunction(usize, usize),
     Closure(usize),
     Boolean,
     Group(Vec<Value>),
@@ -31,10 +31,6 @@ impl Value {
         Value::Function(parameters.into(), results.into())
     }
 
-    pub fn uninitialized_function(local: usize, parameters: Value) -> Self {
-        Value::UninitializedFunction(local, parameters.into())
-    }
-
     pub fn len(&self) -> usize {
         match self {
             Value::Group(a) => a.len(),
@@ -46,7 +42,6 @@ impl Value {
     pub fn iter(&self) -> Iter<'_> {
         match self {
             Value::Group(a) => Iter::Group(a.iter()),
-            Value::UninitializedFunction(_, a) => a.iter(),
             Value::Function(a, _) => a.iter(),
             _ => Iter::Singleton(Some(self)),
         }

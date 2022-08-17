@@ -1,7 +1,7 @@
 use crate::translate::value::Value;
 use tortuga_executable::Function;
 
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct TypedFunction {
     function: Function,
     parameters: Value,

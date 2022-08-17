@@ -23,6 +23,7 @@ pub enum ErrorKind {
     TooManyLocals(usize),
     TooManyNumbers(usize),
     TooManyUris(usize),
+    TooManyFunctions(usize),
     GroupTooLarge(usize),
     EmptyGroup,
     NoSuchFunction(usize),
