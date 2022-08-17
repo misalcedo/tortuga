@@ -196,7 +196,13 @@ where
     }
 
     fn simulate_callable(&mut self, node: Node<'a, 'b>) -> SimulationResult {
-        self.simulate_expression(node)
+        match self.simulate_expression(node)? {
+            value @ Value::Closure(_) => Ok(value),
+            value => {
+                self.report_error(ErrorKind::NotCallable(value));
+                Ok(Value::Any)
+            }
+        }
     }
 
     fn simulate_condition(&mut self, node: Node<'a, 'b>) -> SimulationResult {
