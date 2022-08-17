@@ -212,7 +212,7 @@ where
     fn simulate_grouping(&mut self, node: Node<'a, 'b>, emit_operation: bool) -> SimulationResult {
         self.assert_kind(&node, ExpressionKind::Grouping)?;
 
-        let children = node.children();
+        let mut children = node.children();
         let length = children.len();
 
         if length > u8::MAX as usize {
@@ -220,14 +220,8 @@ where
         }
 
         if length < 1 {
-            Err(ErrorKind::EmptyGroup.into())
-        } else if length == 1 {
-            let child = children
-                .into_iter()
-                .next()
-                .ok_or_else(|| TranslationError::from(ErrorKind::EmptyGroup))?;
-
-            self.simulate_expression(child)
+            self.report_error(ErrorKind::EmptyGroup);
+            Ok(Value::Any)
         } else {
             let mut parts = vec![];
 
@@ -239,7 +233,7 @@ where
                 self.context.add_operation(Operation::Group(length as u8));
             }
 
-            Ok(Value::Group(parts))
+            Ok(Value::group(parts))
         }
     }
 
@@ -249,7 +243,7 @@ where
                 self.context
                     .add_operation(Operation::GetLocal(local.offset() as u8));
 
-                Ok(local.kind().clone())
+                Ok(local.into())
             }
             None => {
                 let index = self.context.add_local(*identifier);

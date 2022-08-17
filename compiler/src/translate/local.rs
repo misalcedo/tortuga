@@ -84,3 +84,9 @@ impl<'a> Hash for Local<'a> {
         self.name.hash(state)
     }
 }
+
+impl<'a> From<Local<'a>> for Value {
+    fn from(local: Local<'a>) -> Self {
+        local.kind
+    }
+}
