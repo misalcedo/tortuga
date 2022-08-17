@@ -4,28 +4,28 @@ use std::mem;
 use tortuga_executable::{Executable, Function, Number, Operation, Text};
 
 mod capture;
-mod context;
 mod error;
 mod function;
 mod indices;
 mod local;
 mod number;
+mod scope;
 mod uri;
 mod value;
 
 use crate::grammar::{ExpressionKind, Identifier, Node, Uri};
 use crate::translate::error::ErrorKind;
-use context::ScopeContext;
 pub use error::TranslationError;
 use function::TypedFunction;
 use indices::IndexedSet;
+use scope::Scope;
 use value::Value;
 
 #[derive(Clone)]
 pub struct Translator<'a, Reporter> {
     reporter: Reporter,
-    context: ScopeContext<'a>,
-    contexts: Vec<ScopeContext<'a>>,
+    context: Scope<'a>,
+    contexts: Vec<Scope<'a>>,
     functions: Vec<TypedFunction>,
     numbers: IndexedSet<grammar::Number<'a>, Number>,
     texts: IndexedSet<Uri<'a>, Text>,
@@ -90,7 +90,7 @@ where
 
     // TODO: Figure out how to denote the number of locals in the script.
     fn simulate_program(&mut self) -> SimulationResult {
-        let mut context = ScopeContext::default();
+        let mut context = Scope::default();
 
         mem::swap(&mut self.context, &mut context);
 

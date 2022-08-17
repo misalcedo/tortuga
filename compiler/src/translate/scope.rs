@@ -5,7 +5,7 @@ use crate::translate::local::Local;
 use tortuga_executable::{Code, Function, Operation};
 
 #[derive(Clone, Debug, Default)]
-pub struct ScopeContext<'a> {
+pub struct Scope<'a> {
     depth: usize,
     code: Vec<u8>,
     parameters: IndexedSet<Identifier<'a>, Local<'a>>,
@@ -13,9 +13,9 @@ pub struct ScopeContext<'a> {
     captures: IndexedSet<Option<Identifier<'a>>, Capture>,
 }
 
-impl<'a> ScopeContext<'a> {
+impl<'a> Scope<'a> {
     pub fn new(&self) -> Self {
-        ScopeContext {
+        Scope {
             depth: self.depth + 1,
             code: vec![],
             parameters: Default::default(),
@@ -46,8 +46,8 @@ impl<'a> ScopeContext<'a> {
     }
 }
 
-impl<'a> From<ScopeContext<'a>> for Function {
-    fn from(context: ScopeContext<'a>) -> Self {
+impl<'a> From<Scope<'a>> for Function {
+    fn from(context: Scope<'a>) -> Self {
         let captures: Vec<Capture> = context.captures.into();
         let captures: Vec<bool> = captures.iter().map(|c| c.is_local()).collect();
 
