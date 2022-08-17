@@ -229,7 +229,7 @@ where
                 parts.push(self.simulate_expression(child)?);
             }
 
-            if emit_operation {
+            if emit_operation && parts.len() > 1 {
                 self.context.add_operation(Operation::Group(length as u8));
             }
 
@@ -335,11 +335,13 @@ mod tests {
 
     #[test]
     fn add_numbers() {
-        let executable: Executable = Translation::try_from("(2 + 40)").unwrap().into();
+        let executable: Executable = Translation::try_from("(4 + 40) - 2").unwrap().into();
         let code = vec![
             Operation::ConstantNumber(0),
             Operation::ConstantNumber(1),
             Operation::Add,
+            Operation::ConstantNumber(2),
+            Operation::Subtract,
         ]
         .to_code();
 
