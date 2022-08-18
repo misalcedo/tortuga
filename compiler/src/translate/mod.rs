@@ -1,6 +1,7 @@
 use crate::Program;
 use crate::{grammar, CompilationError, ErrorReporter};
 use std::mem;
+use std::slice::Iter;
 use tortuga_executable::{Executable, Function, Number, Operation, Text};
 
 mod capture;
@@ -13,7 +14,9 @@ mod scope;
 mod uri;
 mod value;
 
-use crate::grammar::{ExpressionKind, Identifier, Node, Uri};
+use crate::grammar::{
+    ExpressionKind, ExpressionReference, Identifier, Node, ReferenceIterator, Uri,
+};
 use crate::translate::capture::Capture;
 use crate::translate::error::ErrorKind;
 use crate::translate::local::Local;
@@ -28,7 +31,7 @@ pub struct Translator<'a, Reporter> {
     reporter: Reporter,
     scope: Scope<'a>,
     scopes: Vec<Scope<'a>>,
-    functions: Vec<TypedFunction>,
+    functions: Vec<TypedFunction<'a>>,
     numbers: IndexedSet<grammar::Number<'a>, Number>,
     texts: IndexedSet<Uri<'a>, Text>,
 }
@@ -52,7 +55,7 @@ where
             reporter,
             scope: Default::default(),
             scopes: Default::default(),
-            functions: Default::default(),
+            functions: vec![TypedFunction::default()],
             numbers: Default::default(),
             texts: Default::default(),
         }
@@ -70,7 +73,18 @@ where
         if self.reporter.had_error() {
             Err(self.reporter)
         } else {
-            let functions: Vec<Function> = self.functions.into_iter().map(Function::from).collect();
+            let functions: Vec<Function> = self
+                .functions
+                .into_iter()
+                .map(Function::try_from)
+                .filter_map(|r| match r {
+                    Ok(f) => Some(f),
+                    Err(e) => {
+                        self.reporter.report_translation_error(e);
+                        None
+                    }
+                })
+                .collect();
             let executable = Executable::new(functions, self.numbers, self.texts);
 
             Ok(Translation {
@@ -92,27 +106,30 @@ where
 
     // TODO: Figure out how to denote the number of locals in the script.
     fn simulate_program(&mut self) -> SimulationResult {
-        let mut context = Scope::default();
-
-        mem::swap(&mut self.scope, &mut context);
+        let scope = mem::replace(&mut self.scope, Scope::default());
 
         if !self.scopes.is_empty() {
-            //TODO: self.report_error(ErrorKind::ExpectedEndOfBlock);
+            self.report_error(ErrorKind::BlockNotTerminated);
         }
 
-        let function = Function::from(context);
-        self.functions
-            .push(TypedFunction::new(function, Value::None, Value::None));
+        let index = scope.function();
+        let function = self
+            .functions
+            .get_mut(index)
+            .ok_or_else(|| TranslationError::from(ErrorKind::NoSuchFunction(index)))?;
 
-        Ok(Value::Any)
+        if function.initialize(scope).is_some() {
+            Err(ErrorKind::FunctionAlreadyInitialized(index).into())
+        } else {
+            Ok(Value::None)
+        }
     }
 
     fn simulate_expression(&mut self, node: Node<'a, 'b>) -> TranslationResult<Value> {
         match node.expression().kind() {
-            ExpressionKind::Block => {
-                self.report_error(ErrorKind::BlockOutsideFunction);
-                Ok(Value::Any)
-            }
+            ExpressionKind::Number(number) => self.simulate_number(number),
+            ExpressionKind::Identifier(identifier) => self.simulate_identifier(identifier),
+            ExpressionKind::Uri(uri) => self.simulate_uri(uri),
             ExpressionKind::Equality => self.simulate_equality(node),
             ExpressionKind::Modulo => self.simulate_binary(node, Operation::Remainder),
             ExpressionKind::Subtract => self.simulate_binary(node, Operation::Subtract),
@@ -121,38 +138,22 @@ where
             ExpressionKind::Multiply => self.simulate_binary(node, Operation::Multiply),
             ExpressionKind::Power => self.simulate_binary(node, Operation::Power),
             ExpressionKind::Call => self.simulate_call(node),
-            ExpressionKind::Grouping => self.simulate_grouping(node, true),
+            ExpressionKind::Grouping => self.simulate_grouping(node),
+            ExpressionKind::Inequality => self.simulate_binary(node, Operation::NotEqual),
+            ExpressionKind::LessThan => self.simulate_binary(node, Operation::Less),
+            ExpressionKind::GreaterThan => self.simulate_binary(node, Operation::Greater),
+            ExpressionKind::LessThanOrEqualTo => self.simulate_binary(node, Operation::LessOrEqual),
+            ExpressionKind::GreaterThanOrEqualTo => {
+                self.simulate_binary(node, Operation::GreaterOrEqual)
+            }
+            ExpressionKind::Block => {
+                self.report_error(ErrorKind::BlockOutsideFunction);
+                Ok(Value::Any)
+            }
             ExpressionKind::Condition => {
                 self.report_error(ErrorKind::ConditionOutsideFunction);
                 Ok(Value::Any)
             }
-            ExpressionKind::Inequality => {
-                self.report_error(ErrorKind::ComparisonOutsideCondition(Operation::NotEqual));
-                Ok(Value::Any)
-            }
-            ExpressionKind::LessThan => {
-                self.report_error(ErrorKind::ComparisonOutsideCondition(Operation::Less));
-                Ok(Value::Any)
-            }
-            ExpressionKind::GreaterThan => {
-                self.report_error(ErrorKind::ComparisonOutsideCondition(Operation::Greater));
-                Ok(Value::Any)
-            }
-            ExpressionKind::LessThanOrEqualTo => {
-                self.report_error(ErrorKind::ComparisonOutsideCondition(
-                    Operation::LessOrEqual,
-                ));
-                Ok(Value::Any)
-            }
-            ExpressionKind::GreaterThanOrEqualTo => {
-                self.report_error(ErrorKind::ComparisonOutsideCondition(
-                    Operation::GreaterOrEqual,
-                ));
-                Ok(Value::Any)
-            }
-            ExpressionKind::Number(number) => self.simulate_number(number),
-            ExpressionKind::Identifier(identifier) => self.simulate_identifier(identifier),
-            ExpressionKind::Uri(uri) => self.simulate_uri(uri),
         }
     }
 
@@ -166,87 +167,40 @@ where
             self.report_error(ErrorKind::TooManyChildren(2..=2, length));
         }
 
-        let assignee = children
+        let lhs = children
             .next()
             .ok_or_else(|| TranslationError::from(ErrorKind::MissingChildren(2..=2, 0)))?;
-        let assignee = self.simulate_expression(assignee)?;
+        let rhs = children
+            .next()
+            .ok_or_else(|| TranslationError::from(ErrorKind::MissingChildren(2..=2, 1)))?;
 
-        match assignee {
-            Value::Uninitialized(index, None) => {
-                let value = children
-                    .next()
-                    .ok_or_else(|| TranslationError::from(ErrorKind::MissingChildren(2..=2, 1)))?;
-                let value = self.simulate_expression(value)?;
-                let depth = self.scopes.len();
-
-                self.scope
-                    .local_mut(index)
-                    .ok_or_else(|| TranslationError::from(ErrorKind::NoSuchLocal(index)))?
-                    .initialize(depth, value.clone());
-
-                self.scope.push_operation(Operation::DefineLocal);
-
-                Ok(value)
+        match lhs.expression().kind() {
+            ExpressionKind::Call => self.simulate_function_declaration(lhs, rhs),
+            ExpressionKind::Identifier(identifier) => {
+                self.simulate_variable_assignment(identifier, rhs)
             }
-            Value::Uninitialized(local_index, Some(function_index)) => {
-                let depth = self.scopes.len();
-                let function = self.functions.get_mut(function_index).ok_or_else(|| {
-                    TranslationError::from(ErrorKind::NoSuchFunction(function_index))
-                })?;
-                let value = Value::Closure(function_index);
-
-                self.scope
-                    .local_mut(local_index)
-                    .ok_or_else(|| TranslationError::from(ErrorKind::NoSuchLocal(local_index)))?
-                    .initialize(depth, value.clone());
-
-                self.scope
-                    .push_operation(Operation::Closure(function_index as u8, vec![]));
-                self.scope.push_operation(Operation::DefineLocal);
-
-                Ok(value)
-            }
-            Value::Any => Ok(Value::Any),
             _ => {
-                self.report_error(ErrorKind::NotAssignable(assignee));
-                Ok(Value::Any)
+                self.simulate_expression(lhs)?;
+                self.simulate_expression(rhs)?;
+
+                self.scope.push_operation(Operation::Equal);
+
+                Ok(Value::Boolean)
             }
         }
     }
 
-    fn simulate_block(&mut self, node: Node<'a, 'b>) -> SimulationResult {
-        match node.expression().kind() {
-            ExpressionKind::Block => {
-                let mut result = Value::None;
-                let nested = self.scope.new(); // TODO: get from uninitialized function.
-                let parent = mem::replace(&mut self.scope, nested);
+    fn simulate_function_declaration(
+        &mut self,
+        call: Node<'a, 'b>,
+        rhs: Node<'a, 'b>,
+    ) -> SimulationResult {
+        self.assert_kind(&call, ExpressionKind::Call)?;
 
-                self.scopes.push(parent);
-
-                for child in node.children() {
-                    result = self.simulate_expression(child)?;
-                }
-
-                let parent = self
-                    .scopes
-                    .pop()
-                    .ok_or_else(|| TranslationError::from(ErrorKind::EmptyScopes))?;
-
-                self.scope = parent;
-
-                Ok(result)
-            }
-            _ => self.simulate_expression(node),
-        }
-    }
-
-    fn simulate_call(&mut self, node: Node<'a, 'b>) -> TranslationResult<Value> {
-        self.assert_kind(&node, ExpressionKind::Call)?;
-
-        let mut children = node.children();
+        let mut children = call.children();
         let length = children.len();
 
-        if length > 3 {
+        if length > 2 {
             self.report_error(ErrorKind::TooManyChildren(2..=3, length));
         }
 
@@ -255,28 +209,137 @@ where
             .ok_or_else(|| TranslationError::from(ErrorKind::MissingChildren(2..=3, 0)))?;
         let callee = self.simulate_expression(callee)?;
 
-        let arguments = children
-            .next()
-            .ok_or_else(|| TranslationError::from(ErrorKind::MissingChildren(2..=3, 1)))?;
-        let arguments = self.simulate_grouping(arguments, false)?;
-
-        let _condition = match children.next() {
-            None => Value::None,
-            Some(condition) => self.simulate_condition(condition)?,
-        };
-
         match callee {
-            Value::Uninitialized(local, None) => {
-                let index = self.functions.len();
+            Value::Uninitialized(index) => {
+                let parameters = children
+                    .next()
+                    .ok_or_else(|| TranslationError::from(ErrorKind::MissingChildren(2..=3, 1)))?;
+                let function = self.functions.len();
+                let depth = self.scopes.len();
+                let value = Value::Closure(function);
 
-                self.functions.push(TypedFunction::default());
-
-                if index > u8::MAX as usize {
-                    self.report_error(ErrorKind::TooManyFunctions(length));
+                if function > u8::MAX as usize {
+                    self.report_error(ErrorKind::TooManyFunctions(function));
                 }
 
-                Ok(Value::Uninitialized(local, Some(index)))
+                self.scope
+                    .local_mut(index)
+                    .ok_or_else(|| TranslationError::from(ErrorKind::NoSuchLocal(index)))?
+                    .initialize(depth, value.clone());
+
+                let scope = self.scope.new(function);
+
+                self.scopes.push(mem::replace(&mut self.scope, scope));
+
+                let parameters = self.simulate_parameters(function, parameters)?;
+
+                let condition = children.next();
+                let rhs = self.simulate_block(rhs)?;
+
+                self.functions.push(TypedFunction::new(parameters, rhs));
+
+                let enclosing = self
+                    .scopes
+                    .pop()
+                    .ok_or_else(|| TranslationError::from(ErrorKind::EmptyScopes))?;
+                let scope = mem::replace(&mut self.scope, enclosing);
+                let captures = scope.capture_offsets().map(|offset| offset as u8).collect();
+
+                self.scope
+                    .push_operation(Operation::Closure(function as u8, captures));
+                self.scope.push_operation(Operation::DefineLocal);
+
+                self.functions
+                    .get_mut(scope.function())
+                    .ok_or_else(|| {
+                        TranslationError::from(ErrorKind::NoSuchFunction(scope.function()))
+                    })?
+                    .initialize(scope);
+
+                Ok(value)
             }
+            _ => self.simulate_call_closure(&mut children, callee),
+        }
+    }
+
+    fn simulate_block(&mut self, block: Node<'a, 'b>) -> SimulationResult {
+        match block.expression().kind() {
+            ExpressionKind::Block => {
+                let children = block.children();
+                let mut result = Value::None;
+
+                if children.len() == 0 {
+                    self.report_error(ErrorKind::EmptyBlock);
+                }
+
+                for child in children {
+                    result = self.simulate_expression(child)?;
+                }
+
+                Ok(result)
+            }
+            _ => self.simulate_expression(block),
+        }
+    }
+
+    fn simulate_variable_assignment(
+        &mut self,
+        identifier: &Identifier<'a>,
+        rhs: Node<'a, 'b>,
+    ) -> SimulationResult {
+        let lhs = self.simulate_identifier(identifier)?;
+        let rhs = self.simulate_expression(rhs)?;
+
+        match lhs {
+            Value::Uninitialized(index) => {
+                let depth = self.scopes.len();
+
+                self.scope
+                    .local_mut(index)
+                    .ok_or_else(|| TranslationError::from(ErrorKind::NoSuchLocal(index)))?
+                    .initialize(depth, rhs.clone());
+
+                self.scope.push_operation(Operation::DefineLocal);
+
+                Ok(rhs)
+            }
+            _ => {
+                self.scope.push_operation(Operation::Equal);
+
+                Ok(Value::Boolean)
+            }
+        }
+    }
+
+    fn simulate_call(&mut self, node: Node<'a, 'b>) -> SimulationResult {
+        self.assert_kind(&node, ExpressionKind::Call)?;
+
+        let mut children = node.children();
+        let length = children.len();
+
+        if length > 2 {
+            self.report_error(ErrorKind::TooManyChildren(2..=2, length));
+        }
+
+        let callee = children
+            .next()
+            .ok_or_else(|| TranslationError::from(ErrorKind::MissingChildren(2..=2, 0)))?;
+        let callee = self.simulate_expression(callee)?;
+
+        self.simulate_call_closure(&mut children, callee)
+    }
+
+    fn simulate_call_closure(
+        &mut self,
+        children: &mut ReferenceIterator<'a, 'b, Iter<'b, ExpressionReference>>,
+        callee: Value,
+    ) -> SimulationResult {
+        let arguments = children
+            .next()
+            .ok_or_else(|| TranslationError::from(ErrorKind::MissingChildren(2..=2, 1)))?;
+        let arguments = self.simulate_grouping(arguments)?;
+
+        match callee {
             Value::Closure(index) => {
                 let function = self
                     .functions
@@ -296,10 +359,6 @@ where
                     self.report_error(ErrorKind::InvalidArguments(parameters.clone(), arguments));
                     Ok(Value::Any)
                 }
-            }
-            Value::Any => {
-                self.scope.push_operation(Operation::Call(0 as u8)); // TODO: Allow calling closures in parameters.
-                Ok(Value::Any)
             }
             _ => {
                 self.report_error(ErrorKind::NotCallable(callee));
@@ -371,7 +430,48 @@ where
         }
     }
 
-    fn simulate_grouping(&mut self, node: Node<'a, 'b>, emit_operation: bool) -> SimulationResult {
+    fn simulate_parameters(&mut self, function: usize, node: Node<'a, 'b>) -> SimulationResult {
+        self.assert_kind(&node, ExpressionKind::Grouping)?;
+
+        let children = node.children();
+        let length = children.len();
+
+        if length > u8::MAX as usize {
+            self.report_error(ErrorKind::GroupTooLarge(length));
+        }
+
+        if length < 1 {
+            self.report_error(ErrorKind::EmptyGroup);
+            Ok(Value::Any)
+        } else {
+            let mut parts = vec![];
+
+            for (index, child) in children.enumerate() {
+                let parameter = match child.expression().kind() {
+                    ExpressionKind::Identifier(identifier) => {
+                        self.simulate_identifier(identifier)?
+                    }
+                    kind => {
+                        self.report_error(ErrorKind::ExpectedKind(
+                            "Identifier".to_string(),
+                            kind.to_string(),
+                        ));
+                        Value::Any
+                    }
+                };
+
+                if !matches!(parameter, Value::Uninitialized(_)) {
+                    self.report_error(ErrorKind::LocalInFunctionSignature(function, index));
+                }
+
+                parts.push(Value::Any);
+            }
+
+            Ok(Value::group(parts))
+        }
+    }
+
+    fn simulate_grouping(&mut self, node: Node<'a, 'b>) -> SimulationResult {
         self.assert_kind(&node, ExpressionKind::Grouping)?;
 
         let children = node.children();
@@ -391,7 +491,7 @@ where
                 parts.push(self.simulate_expression(child)?);
             }
 
-            if emit_operation && parts.len() > 1 {
+            if parts.len() > 1 {
                 self.scope.push_operation(Operation::Group(length as u8));
             }
 
@@ -420,7 +520,7 @@ where
                         self.report_error(ErrorKind::TooManyLocals(index));
                     }
 
-                    Ok(Value::Uninitialized(index, None))
+                    Ok(Value::Uninitialized(index))
                 }
             },
         }

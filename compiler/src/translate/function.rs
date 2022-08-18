@@ -1,21 +1,35 @@
+use crate::translate::error::ErrorKind;
+use crate::translate::scope::Scope;
 use crate::translate::value::Value;
+use crate::TranslationError;
 use tortuga_executable::Function;
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct TypedFunction {
-    function: Function,
+#[derive(Clone, Debug)]
+pub struct TypedFunction<'a> {
+    scope: Option<Scope<'a>>,
     parameters: Value,
     results: Value,
 }
 
-impl TypedFunction {
-    pub fn new(function: Function, parameters: Value, results: Value) -> Self {
+impl Default for TypedFunction<'_> {
+    fn default() -> Self {
         TypedFunction {
-            function,
+            scope: None,
+            parameters: Value::None,
+            results: Value::None,
+        }
+    }
+}
+
+impl<'a> TypedFunction<'a> {
+    pub fn new(parameters: Value, results: Value) -> Self {
+        TypedFunction {
+            scope: None,
             parameters,
             results,
         }
     }
+
     pub fn kind(&self) -> Value {
         Value::function(self.parameters.clone(), self.results.clone())
     }
@@ -27,10 +41,20 @@ impl TypedFunction {
     pub fn results(&self) -> &Value {
         &self.results
     }
+
+    pub fn initialize(&mut self, scope: Scope<'a>) -> Option<Scope<'a>> {
+        self.scope.replace(scope)
+    }
 }
 
-impl From<TypedFunction> for Function {
-    fn from(function: TypedFunction) -> Self {
-        function.function
+impl<'a> TryFrom<TypedFunction<'a>> for Function {
+    type Error = TranslationError;
+
+    fn try_from(function: TypedFunction) -> Result<Self, Self::Error> {
+        let scope = function
+            .scope
+            .ok_or_else(|| TranslationError::from(ErrorKind::PartiallyDeclaredFunction))?;
+
+        Ok(scope.into())
     }
 }

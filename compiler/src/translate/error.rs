@@ -32,15 +32,19 @@ pub enum ErrorKind {
     NoSuchUri(usize),
     NoSuchLocal(usize),
     NotCallable(Value),
-    NotAssignable(Value),
     InvalidArguments(Value, Value), // parameters, arguments
     EmptyScopes,
+    EmptyBlock,
     BlockOutsideFunction,
     ConditionOutsideFunction,
     ComparisonOutsideCondition(Operation),
     InvalidCondition(String),
     ExpectedKind(String, String), // expected, actual
     ReferenceSelfInInitializer(String),
+    PartiallyDeclaredFunction,
+    FunctionAlreadyInitialized(usize),
+    LocalInFunctionSignature(usize, usize), // function, parameter
+    BlockNotTerminated,
 }
 
 impl Display for TranslationError {

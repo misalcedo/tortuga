@@ -6,7 +6,7 @@ pub enum Value {
     #[default]
     Any,
     None,
-    Uninitialized(usize, Option<usize>),
+    Uninitialized(usize),
     Closure(usize),
     Boolean,
     Group(Vec<Value>),
@@ -82,7 +82,7 @@ impl Display for Value {
         match self {
             Value::Any => write!(f, "{:?}", self),
             Value::None => write!(f, "{:?}", self),
-            Value::Uninitialized(_, _) => write!(f, "{:?}", self),
+            Value::Uninitialized(_) => write!(f, "{:?}", self),
             Value::Closure(_) => write!(f, "{:?}", self),
             Value::Boolean => write!(f, "{:?}", self),
             Value::Number(Some(o)) => write!(f, "ConstantNumber({})", o),

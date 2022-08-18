@@ -9,14 +9,16 @@ use tortuga_executable::{Code, Function, Operation};
 pub struct Scope<'a> {
     depth: usize,
     code: Vec<u8>,
+    function: usize,
     parameters: IndexedSet<Identifier<'a>, Local<'a>>,
     locals: IndexedSet<Identifier<'a>, Local<'a>>,
     captures: Vec<Capture>,
 }
 
 impl<'a> Scope<'a> {
-    pub fn new(&self) -> Self {
+    pub fn new(&self, function: usize) -> Self {
         Scope {
+            function,
             depth: self.depth + 1,
             code: Default::default(),
             parameters: Default::default(),
@@ -57,12 +59,20 @@ impl<'a> Scope<'a> {
         self.locals.get_mut(index)
     }
 
+    pub fn function(&self) -> usize {
+        self.function
+    }
+
     pub fn locals(&self) -> usize {
         self.locals.len()
     }
 
     pub fn captures(&self) -> usize {
         self.captures.len()
+    }
+
+    pub fn capture_offsets(&self) -> impl Iterator<Item = usize> + '_ {
+        self.captures.iter().map(|c| c.index())
     }
 
     pub fn capture(&self, index: usize) -> Option<Capture> {

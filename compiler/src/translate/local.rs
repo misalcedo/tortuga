@@ -28,7 +28,7 @@ impl<'a> Local<'a> {
             name: Some(name),
             offset,
             depth: None,
-            kind: Value::Uninitialized(offset, None),
+            kind: Value::Uninitialized(offset),
             is_captured: false,
         }
     }
