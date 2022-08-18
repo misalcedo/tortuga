@@ -7,7 +7,6 @@ use crate::{CallFrame, Number};
 use crate::{Courier, Text};
 use std::cmp::Ordering;
 use std::mem;
-use tortuga_executable::OperationCode;
 
 #[derive(Clone, Debug)]
 pub struct VirtualMachine<Courier> {

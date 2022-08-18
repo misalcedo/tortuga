@@ -55,18 +55,16 @@ where
             reporter,
             scope: Default::default(),
             scopes: Default::default(),
-            functions: vec![TypedFunction::default()],
+            functions: Default::default(),
             numbers: Default::default(),
             texts: Default::default(),
         }
     }
 
     // TODO:
-    // * Prevents blocks outside of assignment.
     // * Prevent local variable in an assignment that is not a block.
-    // * Check function type signatures.
     pub fn translate(mut self, program: Program<'a>) -> Result<Translation<'a>, R> {
-        if let Err(e) = self.simulate(&program) {
+        if let Err(e) = self.simulate_program(&program) {
             self.report_error(e);
         }
 
@@ -94,18 +92,19 @@ where
         }
     }
 
-    fn simulate(&mut self, program: &Program<'a>) -> SimulationResult {
-        let mut iterator = program.roots();
+    fn simulate_program(&mut self, program: &Program<'a>) -> SimulationResult {
+        let mut iterator = program.roots().peekable();
+
+        self.functions.push(TypedFunction::default());
 
         while let Some(root) = iterator.next() {
-            self.simulate_expression(root)?;
+            if iterator.peek().is_some() {
+                self.simulate_statement(root)?;
+            } else {
+                self.simulate_expression(root)?;
+            }
         }
 
-        self.simulate_program()
-    }
-
-    // TODO: Figure out how to denote the number of locals in the script.
-    fn simulate_program(&mut self) -> SimulationResult {
         self.scope.push_operation(Operation::Return);
 
         let scope = mem::replace(&mut self.scope, Scope::default());
@@ -125,6 +124,16 @@ where
         } else {
             Ok(Value::None)
         }
+    }
+
+    fn simulate_statement(&mut self, node: Node<'a, 'b>) -> SimulationResult {
+        let value = self.simulate_expression(node)?;
+
+        if Value::None != value {
+            self.scope.push_operation(Operation::Pop);
+        }
+
+        Ok(value)
     }
 
     fn simulate_expression(&mut self, node: Node<'a, 'b>) -> TranslationResult<Value> {
@@ -260,7 +269,7 @@ where
                     })?
                     .initialize(scope);
 
-                Ok(value)
+                Ok(Value::None)
             }
             _ => self.simulate_call_closure(&mut children, callee),
         }
@@ -269,15 +278,19 @@ where
     fn simulate_block(&mut self, block: Node<'a, 'b>) -> SimulationResult {
         let result = match block.expression().kind() {
             ExpressionKind::Block => {
-                let children = block.children();
+                let mut children = block.children().peekable();
                 let mut result = Value::None;
 
                 if children.len() == 0 {
                     self.report_error(ErrorKind::EmptyBlock);
                 }
 
-                for child in children {
-                    result = self.simulate_expression(child)?;
+                while let Some(child) = children.next() {
+                    if children.peek().is_some() {
+                        result = self.simulate_statement(child)?;
+                    } else {
+                        result = self.simulate_expression(child)?;
+                    }
                 }
 
                 Ok(result)
@@ -309,7 +322,7 @@ where
 
                 self.scope.push_operation(Operation::DefineLocal);
 
-                Ok(rhs)
+                Ok(Value::None)
             }
             _ => {
                 self.scope.push_operation(Operation::Equal);
@@ -787,6 +800,26 @@ mod tests {
     fn undefined() {
         assert_eq!(
             Translation::try_from(include_str!("../../../examples/undefined.ta"))
+                .unwrap_err()
+                .len(),
+            1
+        );
+    }
+
+    #[test]
+    fn alias() {
+        assert_eq!(
+            Translation::try_from(include_str!("../../../examples/alias.ta"))
+                .unwrap_err()
+                .len(),
+            1
+        );
+    }
+
+    #[test]
+    fn redefine() {
+        assert_eq!(
+            Translation::try_from(include_str!("../../../examples/redefine.ta"))
                 .unwrap_err()
                 .len(),
             1
