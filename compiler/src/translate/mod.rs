@@ -352,7 +352,8 @@ where
                         self.scope.push_operation(Operation::Separate);
                     }
 
-                    self.scope.push_operation(Operation::Call(index as u8));
+                    self.scope
+                        .push_operation(Operation::Call(parameters.len() as u8));
 
                     Ok(function.results().clone())
                 } else {
@@ -724,7 +725,7 @@ mod tests {
             Operation::Call(1),
             Operation::GetLocal(2),
             Operation::ConstantNumber(0),
-            Operation::Call(2),
+            Operation::Call(1),
             Operation::Subtract,
             Operation::ConstantNumber(3),
             Operation::Equal,
