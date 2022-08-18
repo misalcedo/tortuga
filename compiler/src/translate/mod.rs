@@ -113,17 +113,9 @@ where
             self.report_error(ErrorKind::BlockNotTerminated);
         }
 
-        let index = scope.function();
-        let function = self
-            .functions
-            .get_mut(index)
-            .ok_or_else(|| TranslationError::from(ErrorKind::NoSuchFunction(index)))?;
+        self.initialize_function(scope)?;
 
-        if function.initialize(scope).is_some() {
-            Err(ErrorKind::FunctionAlreadyInitialized(index).into())
-        } else {
-            Ok(Value::None)
-        }
+        Ok(Value::None)
     }
 
     fn simulate_statement(&mut self, node: Node<'a, 'b>) -> SimulationResult {
@@ -262,17 +254,26 @@ where
                     .push_operation(Operation::Closure(function as u8, captures));
                 self.scope.push_operation(Operation::DefineLocal);
 
-                self.functions
-                    .get_mut(scope.function())
-                    .ok_or_else(|| {
-                        TranslationError::from(ErrorKind::NoSuchFunction(scope.function()))
-                    })?
-                    .initialize(scope);
+                self.initialize_function(scope)?;
 
                 Ok(Value::None)
             }
             _ => self.simulate_call_closure(&mut children, callee),
         }
+    }
+
+    fn initialize_function(&mut self, scope: Scope<'a>) -> TranslationResult<()> {
+        let index = scope.function();
+        let function = self
+            .functions
+            .get_mut(index)
+            .ok_or_else(|| TranslationError::from(ErrorKind::NoSuchFunction(index)))?;
+
+        if function.initialize(scope).is_some() {
+            self.report_error(ErrorKind::FunctionAlreadyInitialized(index));
+        }
+
+        Ok(())
     }
 
     fn simulate_block(&mut self, block: Node<'a, 'b>) -> SimulationResult {
