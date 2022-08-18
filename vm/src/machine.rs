@@ -135,10 +135,6 @@ impl<C: Courier> VirtualMachine<C> {
 
         self.set_local(slot)?;
 
-        let value = self.get_local(slot)?;
-
-        self.stack.push(value.inner());
-
         Ok(())
     }
 
@@ -461,15 +457,7 @@ impl<C: Courier> VirtualMachine<C> {
         }
 
         if !function.captures().is_empty() {
-            let range = self.frame.locals();
-            let locals = range.len();
-            let value = self.stack[range]
-                .get(0)
-                .ok_or_else(|| RuntimeError::from(ErrorKind::UndefinedLocal(0, locals)))?;
-            let captures = match value {
-                Value::Closure(closure) => closure.captures(),
-                _ => return Err(ErrorKind::ExpectedClosure(value.clone()).into()),
-            };
+            let captures = closure.captures();
 
             self.stack.extend_from_slice(&captures)
         }
