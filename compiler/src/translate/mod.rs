@@ -445,6 +445,7 @@ where
             Ok(Value::Any)
         } else {
             let mut parts = vec![];
+            let depth = self.scopes.len();
 
             for (index, child) in children.enumerate() {
                 let parameter = match child.expression().kind() {
@@ -460,8 +461,14 @@ where
                     }
                 };
 
-                if !matches!(parameter, Value::Uninitialized(_)) {
-                    self.report_error(ErrorKind::LocalInFunctionSignature(function, index));
+                match parameter {
+                    Value::Uninitialized(index) => {
+                        self.scope
+                            .local_mut(index)
+                            .ok_or_else(|| TranslationError::from(ErrorKind::NoSuchLocal(index)))?
+                            .initialize(depth, Value::Any);
+                    }
+                    _ => self.report_error(ErrorKind::LocalInFunctionSignature(function, index)),
                 }
 
                 parts.push(Value::Any);
@@ -568,13 +575,13 @@ where
             if let Some(local) = enclosing.resolve_local(name) {
                 enclosing.capture_local(&local);
 
-                capture = Some((local.index(), local.kind().clone()));
+                capture = Some((local.offset(), local.kind().clone()));
 
                 break;
             }
         }
 
-        let (mut index, kind) = match capture {
+        let (mut offset, kind) = match capture {
             None => return Ok(None),
             Some(p) => p,
         };
@@ -582,7 +589,7 @@ where
             .next()
             .ok_or_else(|| TranslationError::from(ErrorKind::EmptyScopes))?;
 
-        index = scope.push_capture(index, true, kind.clone());
+        offset = scope.push_capture(offset, true, kind.clone());
 
         if scope.captures() > u8::MAX as usize {
             self.reporter
@@ -590,7 +597,7 @@ where
         }
 
         while let Some(scope) = iterator.next() {
-            index = scope.push_capture(index, false, kind.clone());
+            offset = scope.push_capture(offset, false, kind.clone());
 
             if scope.captures() > u8::MAX as usize {
                 self.reporter
@@ -598,7 +605,7 @@ where
             }
         }
 
-        Ok(self.scope.capture(index))
+        Ok(self.scope.capture(offset))
     }
 
     fn resolve_local(&mut self, name: &Identifier<'a>) -> Option<Local<'a>> {
@@ -707,7 +714,29 @@ mod tests {
             Translation::try_from(include_str!("../../../examples/simple.ta"))
                 .unwrap()
                 .into();
-        let code = vec![
+        let script = vec![
+            Operation::Closure(1, vec![]),
+            Operation::DefineLocal,
+            Operation::Closure(2, vec![1]),
+            Operation::DefineLocal,
+            Operation::GetLocal(1),
+            Operation::ConstantNumber(0),
+            Operation::Call(1),
+            Operation::GetLocal(2),
+            Operation::ConstantNumber(0),
+            Operation::Call(2),
+            Operation::Subtract,
+            Operation::ConstantNumber(3),
+            Operation::Equal,
+        ]
+        .to_code();
+
+        assert_eq!(
+            executable.function(0).unwrap().code().as_slice(),
+            script.as_slice()
+        );
+
+        let f = vec![
             Operation::ConstantNumber(0),
             Operation::DefineLocal,
             Operation::GetLocal(1),
@@ -715,10 +744,22 @@ mod tests {
             Operation::Add,
         ]
         .to_code();
-
         assert_eq!(
-            executable.function(0).unwrap().code().as_slice(),
-            code.as_slice()
+            executable.function(1).unwrap().code().as_slice(),
+            f.as_slice()
+        );
+
+        let g = vec![
+            Operation::ConstantNumber(0),
+            Operation::DefineLocal,
+            Operation::GetLocal(1),
+            Operation::ConstantNumber(1),
+            Operation::Add,
+        ]
+        .to_code();
+        assert_eq!(
+            executable.function(2).unwrap().code().as_slice(),
+            g.as_slice()
         );
     }
 
