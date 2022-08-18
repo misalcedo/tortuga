@@ -2,18 +2,28 @@ use crate::translate::value::Value;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Capture {
-    index: usize,
+    parent: usize,
+    offset: usize,
     local: bool,
     kind: Value,
 }
 
 impl Capture {
-    pub fn new(index: usize, local: bool, kind: Value) -> Self {
-        Capture { index, local, kind }
+    pub fn new(parent: usize, offset: usize, local: bool, kind: Value) -> Self {
+        Capture {
+            parent,
+            offset,
+            local,
+            kind,
+        }
     }
 
-    pub fn index(&self) -> usize {
-        self.index
+    pub fn parent(&self) -> usize {
+        self.parent
+    }
+
+    pub fn offset(&self) -> usize {
+        self.offset
     }
 
     pub fn local(&self) -> bool {

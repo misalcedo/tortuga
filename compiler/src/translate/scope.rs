@@ -40,7 +40,7 @@ impl<'a> Scope<'a> {
         let index = self.captures.len();
 
         self.captures
-            .push(Capture::new(enclosing_index, local, kind));
+            .push(Capture::new(enclosing_index, index, local, kind));
 
         index
     }
@@ -72,7 +72,7 @@ impl<'a> Scope<'a> {
     }
 
     pub fn capture_offsets(&self) -> impl Iterator<Item = usize> + '_ {
-        self.captures.iter().map(|c| c.index())
+        self.captures.iter().map(|c| c.parent())
     }
 
     pub fn capture(&self, index: usize) -> Option<Capture> {

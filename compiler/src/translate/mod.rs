@@ -517,7 +517,7 @@ where
             None => match self.resolve_capture(identifier)? {
                 Some(capture) => {
                     self.scope
-                        .push_operation(Operation::GetCapture(capture.index() as u8));
+                        .push_operation(Operation::GetCapture(capture.offset() as u8));
                     Ok(capture.kind().clone())
                 }
                 None => {
