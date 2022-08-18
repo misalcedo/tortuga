@@ -15,6 +15,7 @@ use tortuga_compiler::{
     CompilationError, ErrorReporter, LexicalError, Parser, Scanner, SyntaxError, Translation,
     TranslationError,
 };
+use tortuga_executable::Executable;
 use tortuga_vm::VirtualMachine;
 use tracing::error;
 
@@ -135,9 +136,12 @@ pub fn run_prompt() -> Result<(), CommandLineError> {
 
                 match Translation::try_from(script.as_str()) {
                     Ok(translation) => {
-                        machine.set_executable(translation);
+                        let executable = Executable::from(translation);
+                        let function = executable.functions().checked_sub(1).unwrap_or(0);
 
-                        match machine.run() {
+                        machine.set_executable(executable);
+
+                        match machine.call(function, &[]) {
                             Ok(Some(value)) => writeln!(stdout(), "=> {}", value)?,
                             Ok(None) => writeln!(stdout(), "=>")?,
                             Err(error) => writeln!(stderr(), "=> {}", error)?,

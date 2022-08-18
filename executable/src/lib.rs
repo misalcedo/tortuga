@@ -44,4 +44,8 @@ impl Executable {
     pub fn function(&self, index: usize) -> Option<&Function> {
         self.functions.get(index)
     }
+
+    pub fn functions(&self) -> usize {
+        self.functions.len()
+    }
 }

@@ -10,7 +10,7 @@ pub fn run(source: &str) -> Result<(), CommandLineError> {
     let executable = Translation::try_from(source)?;
     let mut machine = VirtualMachine::new(executable, ());
 
-    match machine.run() {
+    match machine.call(0, &[]) {
         Ok(Some(value)) => Ok(writeln!(stdout(), "{}", value)?),
         Ok(None) => Ok(writeln!(stdout(), "")?),
         Err(error) => Ok(writeln!(stderr(), "{}", error)?),
