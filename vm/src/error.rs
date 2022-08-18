@@ -29,6 +29,7 @@ pub enum ErrorKind {
     TooManyLocals(usize),
     UndefinedLocal(usize, usize),          // requested, defined
     UndefinedCapture(usize, usize),        // requested, defined
+    StackTooSmall(usize, usize),           // expected, actual,
     WrongNumberOfParameters(usize, usize), // expected, actual,
     MissingCallable(usize),
     FunctionMissingReturn(usize),

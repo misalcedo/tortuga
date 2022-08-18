@@ -433,7 +433,7 @@ impl<C: Courier> VirtualMachine<C> {
     fn enter_function(&mut self, arity: usize) -> RuntimeResult<()> {
         let locals = 1 + arity;
         let start_stack = self.stack.len().checked_sub(locals).ok_or_else(|| {
-            RuntimeError::from(ErrorKind::WrongNumberOfParameters(locals, self.stack.len()))
+            RuntimeError::from(ErrorKind::StackTooSmall(locals, self.stack.len()))
         })?;
         let closure = Closure::try_from(
             self.stack
