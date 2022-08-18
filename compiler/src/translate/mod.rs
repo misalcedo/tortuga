@@ -737,11 +737,17 @@ mod tests {
         );
 
         let f = vec![
-            Operation::ConstantNumber(0),
-            Operation::DefineLocal,
             Operation::GetLocal(1),
+            Operation::ConstantNumber(0),
+            Operation::Power,
             Operation::ConstantNumber(1),
+            Operation::GetLocal(1),
+            Operation::Multiply,
             Operation::Add,
+            Operation::ConstantNumber(2),
+            Operation::ConstantNumber(0),
+            Operation::Divide,
+            Operation::Subtract,
         ]
         .to_code();
         assert_eq!(
@@ -750,10 +756,10 @@ mod tests {
         );
 
         let g = vec![
-            Operation::ConstantNumber(0),
-            Operation::DefineLocal,
+            Operation::ConstantNumber(3),
+            Operation::GetCapture(0),
             Operation::GetLocal(1),
-            Operation::ConstantNumber(1),
+            Operation::Call(1),
             Operation::Add,
         ]
         .to_code();

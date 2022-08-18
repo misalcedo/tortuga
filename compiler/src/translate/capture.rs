@@ -20,7 +20,7 @@ impl Capture {
         self.local
     }
 
-    pub fn kind(&self) -> &Value {
-        &self.kind
+    pub fn kind(&self) -> Value {
+        self.kind.clone()
     }
 }
