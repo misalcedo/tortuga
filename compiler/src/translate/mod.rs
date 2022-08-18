@@ -799,30 +799,28 @@ mod tests {
     #[test]
     fn undefined() {
         assert_eq!(
-            Translation::try_from(include_str!("../../../examples/undefined.ta"))
-                .unwrap_err()
-                .len(),
-            1
+            Translation::try_from(include_str!("../../../examples/undefined.ta")).unwrap_err(),
+            vec![CompilationError::from(TranslationError::from(
+                ErrorKind::NotCallable(Value::Uninitialized(1))
+            ))]
         );
     }
 
     #[test]
     fn alias() {
-        assert_eq!(
-            Translation::try_from(include_str!("../../../examples/alias.ta"))
+        assert!(
+            !Translation::try_from(include_str!("../../../examples/alias.ta"))
                 .unwrap_err()
-                .len(),
-            1
+                .is_empty(),
         );
     }
 
     #[test]
     fn redefine() {
-        assert_eq!(
-            Translation::try_from(include_str!("../../../examples/redefine.ta"))
+        assert!(
+            !Translation::try_from(include_str!("../../../examples/redefine.ta"))
                 .unwrap_err()
-                .len(),
-            1
+                .is_empty(),
         );
     }
 
