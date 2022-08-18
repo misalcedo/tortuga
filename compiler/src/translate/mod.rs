@@ -106,6 +106,8 @@ where
 
     // TODO: Figure out how to denote the number of locals in the script.
     fn simulate_program(&mut self) -> SimulationResult {
+        self.scope.push_operation(Operation::Return);
+
         let scope = mem::replace(&mut self.scope, Scope::default());
 
         if !self.scopes.is_empty() {
@@ -265,7 +267,7 @@ where
     }
 
     fn simulate_block(&mut self, block: Node<'a, 'b>) -> SimulationResult {
-        match block.expression().kind() {
+        let result = match block.expression().kind() {
             ExpressionKind::Block => {
                 let children = block.children();
                 let mut result = Value::None;
@@ -281,7 +283,11 @@ where
                 Ok(result)
             }
             _ => self.simulate_expression(block),
-        }
+        };
+
+        self.scope.push_operation(Operation::Return);
+
+        result
     }
 
     fn simulate_variable_assignment(
@@ -672,6 +678,7 @@ mod tests {
             Operation::Add,
             Operation::ConstantNumber(2),
             Operation::Subtract,
+            Operation::Return,
         ]
         .to_code();
 
@@ -690,6 +697,7 @@ mod tests {
             Operation::GetLocal(1),
             Operation::ConstantNumber(1),
             Operation::Add,
+            Operation::Return,
         ]
         .to_code();
 
@@ -731,6 +739,7 @@ mod tests {
             Operation::Subtract,
             Operation::ConstantNumber(3),
             Operation::Equal,
+            Operation::Return,
         ]
         .to_code();
 
@@ -751,6 +760,7 @@ mod tests {
             Operation::ConstantNumber(0),
             Operation::Divide,
             Operation::Subtract,
+            Operation::Return,
         ]
         .to_code();
         assert_eq!(
@@ -764,6 +774,7 @@ mod tests {
             Operation::GetLocal(1),
             Operation::Call(1),
             Operation::Add,
+            Operation::Return,
         ]
         .to_code();
         assert_eq!(
