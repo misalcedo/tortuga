@@ -88,7 +88,7 @@ impl<C: Courier> VirtualMachine<C> {
         self.stack.push(closure.into());
         self.stack.extend_from_slice(arguments);
 
-        self.enter_function(index)?;
+        self.enter_function(arguments.len())?;
 
         while let Some(index) = self.frame.next() {
             let operation = self.get_operation(index as usize)?;
@@ -430,21 +430,31 @@ impl<C: Courier> VirtualMachine<C> {
         Ok(())
     }
 
-    fn enter_function(&mut self, index: usize) -> RuntimeResult<()> {
+    fn enter_function(&mut self, arity: usize) -> RuntimeResult<()> {
+        let locals = 1 + arity;
+        let start_stack = self.stack.len().checked_sub(locals).ok_or_else(|| {
+            RuntimeError::from(ErrorKind::WrongNumberOfParameters(locals, self.stack.len()))
+        })?;
+        let closure = Closure::try_from(
+            self.stack
+                .get(start_stack)
+                .cloned()
+                .ok_or_else(|| RuntimeError::from(ErrorKind::MissingCallable(start_stack)))?,
+        )
+        .map_err(|e| RuntimeError::from(ErrorKind::ExpectedClosure(e)))?;
         let function = self
             .executable
-            .function(index)
-            .ok_or_else(|| RuntimeError::from(ErrorKind::NoSuchFunction(index)))?;
+            .function(closure.function())
+            .ok_or_else(|| RuntimeError::from(ErrorKind::NoSuchFunction(closure.function())))?;
 
-        let parameters = 1 + function.arity();
-        let start_stack = self.stack.len().checked_sub(parameters).ok_or_else(|| {
-            RuntimeError::from(ErrorKind::NotEnoughParameters(parameters, self.stack.len()))
-        })?;
-        let mut frame = CallFrame::new(start_stack, function);
+        if function.arity() != arity {
+            return Err(ErrorKind::WrongNumberOfParameters(function.arity(), arity).into());
+        }
 
-        mem::swap(&mut frame, &mut self.frame);
-
-        self.frames.push(frame);
+        self.frames.push(mem::replace(
+            &mut self.frame,
+            CallFrame::new(start_stack, function),
+        ));
 
         for _ in 0..function.locals() {
             self.stack.push(Value::default());

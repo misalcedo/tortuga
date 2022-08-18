@@ -27,9 +27,10 @@ pub enum ErrorKind {
     NoSuchConstant(usize),
     NoSuchFunction(usize),
     TooManyLocals(usize),
-    UndefinedLocal(usize, usize),      // requested, defined
-    UndefinedCapture(usize, usize),    // requested, defined
-    NotEnoughParameters(usize, usize), // expected, actual,
+    UndefinedLocal(usize, usize),          // requested, defined
+    UndefinedCapture(usize, usize),        // requested, defined
+    WrongNumberOfParameters(usize, usize), // expected, actual,
+    MissingCallable(usize),
     FunctionMissingReturn(usize),
 }
 
