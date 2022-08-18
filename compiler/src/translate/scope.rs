@@ -10,7 +10,7 @@ pub struct Scope<'a> {
     depth: usize,
     code: Vec<u8>,
     function: usize,
-    parameters: IndexedSet<Identifier<'a>, Local<'a>>,
+    arity: usize,
     locals: IndexedSet<Identifier<'a>, Local<'a>>,
     captures: Vec<Capture>,
 }
@@ -21,7 +21,7 @@ impl<'a> Scope<'a> {
             function,
             depth: self.depth + 1,
             code: Default::default(),
-            parameters: Default::default(),
+            arity: Default::default(),
             locals: Default::default(),
             captures: Default::default(),
         }
@@ -49,6 +49,10 @@ impl<'a> Scope<'a> {
         if let Some(local) = self.locals.get_mut(local.index()) {
             local.capture();
         }
+    }
+
+    pub fn set_arity(&mut self, arity: usize) {
+        self.arity = arity;
     }
 
     pub fn resolve_local(&self, name: &Identifier<'a>) -> Option<Local<'a>> {
@@ -85,11 +89,6 @@ impl<'a> From<Scope<'a>> for Function {
         let captures: Vec<Capture> = context.captures.into();
         let captures: Vec<bool> = captures.iter().map(|c| c.local()).collect();
 
-        Function::new(
-            context.parameters.len(),
-            context.locals.len(),
-            context.code,
-            captures,
-        )
+        Function::new(context.arity, context.locals.len(), context.code, captures)
     }
 }

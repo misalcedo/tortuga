@@ -233,6 +233,8 @@ where
 
                 let parameters = self.simulate_parameters(function, parameters)?;
 
+                self.scope.set_arity(parameters.iter().count());
+
                 let condition = children.next();
                 let rhs = self.simulate_block(rhs)?;
 
