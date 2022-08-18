@@ -33,6 +33,7 @@ fn execute() -> Result<(), CommandLineError> {
     let arguments = Arguments::parse_from_args();
 
     arguments.verbosity.apply()?;
+
     run_subcommand(arguments)
 }
 

@@ -1,5 +1,5 @@
 use crate::CommandLineError;
-use clap::{AppSettings, Args, Parser, Subcommand};
+use clap::{AppSettings, ArgGroup, Args, Parser, Subcommand};
 use std::fs::File;
 use std::io::{stdin, Read};
 use std::path::PathBuf;
@@ -29,22 +29,16 @@ impl Arguments {
 }
 
 /// Tortuga input either from stdin, a file, or inline.
-#[derive(Args, Clone, Debug, Eq, PartialEq)]
+#[derive(Parser, Clone, Debug, Eq, PartialEq)]
+#[clap(group = ArgGroup::new("input").multiple(false))]
 pub struct Input {
     /// The path of a file to use as input.
-    #[clap(short, long, conflicts_with("expression"))]
+    #[clap(short, long, group = "input")]
     pub path: Option<PathBuf>,
-    /// An inline expression to use as input.
-    #[clap(short, long, conflicts_with("path"), forbid_empty_values(true))]
-    pub expression: String,
 }
 
 impl ToString for Input {
     fn to_string(&self) -> String {
-        if !self.expression.is_empty() {
-            return self.expression.clone();
-        }
-
         let mut buffer = String::new();
         let result = match self.path.as_ref() {
             None => stdin().read_to_string(&mut buffer),
@@ -117,20 +111,6 @@ pub struct PromptCommand;
 #[derive(Clone, Debug, Eq, Parser, PartialEq)]
 /// Compile and run a file.
 pub struct RunCommand {
-    #[clap(flatten)]
-    pub input: Input,
-}
-
-#[derive(Clone, Debug, Eq, Parser, PartialEq)]
-/// Parses a file and prints the syntax tree.
-pub struct ParseCommand {
-    #[clap(flatten)]
-    pub input: Input,
-}
-
-#[derive(Clone, Debug, Eq, Parser, PartialEq)]
-/// Performs lexical analysis on a file and prints the annotated token sequence.
-pub struct ScanCommand {
     #[clap(flatten)]
     pub input: Input,
 }
