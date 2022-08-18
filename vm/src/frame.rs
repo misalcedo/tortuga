@@ -38,7 +38,7 @@ impl CallFrame {
     }
 
     pub fn locals(&self) -> Range<usize> {
-        self.start_stack..self.start_captures()
+        self.start_stack..self.end_locals()
     }
 
     pub fn captures(&self) -> Range<usize> {
@@ -85,7 +85,15 @@ impl CallFrame {
     }
 
     fn start_captures(&self) -> usize {
-        self.start_stack + 1 + self.parameters + self.defined_locals
+        self.start_locals() + self.locals
+    }
+
+    fn end_locals(&self) -> usize {
+        self.start_locals() + self.defined_locals
+    }
+
+    fn start_locals(&self) -> usize {
+        self.start_stack + 1 + self.parameters
     }
 }
 

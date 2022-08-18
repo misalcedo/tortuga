@@ -7,6 +7,7 @@ use crate::{CallFrame, Number};
 use crate::{Courier, Text};
 use std::cmp::Ordering;
 use std::mem;
+use tortuga_executable::OperationCode;
 
 #[derive(Clone, Debug)]
 pub struct VirtualMachine<Courier> {
@@ -87,7 +88,6 @@ impl<C: Courier> VirtualMachine<C> {
 
         self.stack.push(closure.into());
         self.stack.extend_from_slice(arguments);
-
         self.enter_function(arguments.len())?;
 
         while let Some(index) = self.frame.next() {
@@ -350,11 +350,11 @@ impl<C: Courier> VirtualMachine<C> {
 
         let mut captures = Vec::with_capacity(function.captures().len());
         for &local in function.captures().iter() {
-            let index = self.read_byte()? as usize;
+            let offset = self.read_byte()? as usize;
             let value = if local {
-                self.capture_local(index)?
+                self.capture_local(offset)?
             } else {
-                self.get_capture(index)?
+                self.get_capture(offset)?
             };
 
             captures.push(value);
@@ -457,9 +457,7 @@ impl<C: Courier> VirtualMachine<C> {
         }
 
         if !function.captures().is_empty() {
-            let captures = closure.captures();
-
-            self.stack.extend_from_slice(&captures)
+            self.stack.extend_from_slice(&closure.captures());
         }
 
         Ok(())
