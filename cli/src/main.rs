@@ -43,3 +43,26 @@ fn run_subcommand(arguments: Arguments) -> Result<(), CommandLineError> {
         Commands::Run(command) => run(command.input.to_string().as_str()),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tortuga_compiler::Translation;
+    use tortuga_vm::{Value, VirtualMachine};
+
+    #[test]
+    fn simple() {
+        let executable = Translation::try_from(include_str!("../../examples/simple.ta")).unwrap();
+        let mut vm = VirtualMachine::new(executable, ());
+
+        assert_eq!(vm.call(0, &[]), Ok(Some(Value::from(0))));
+    }
+
+    #[test]
+    fn grouping() {
+        let executable = Translation::try_from(include_str!("../../examples/grouping.ta")).unwrap();
+        let mut vm = VirtualMachine::new(executable, ());
+
+        assert_eq!(vm.call(0, &[]), Ok(Some(Value::from(32))));
+    }
+}

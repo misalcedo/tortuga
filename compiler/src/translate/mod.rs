@@ -141,7 +141,7 @@ where
             ExpressionKind::Multiply => self.simulate_binary(node, Operation::Multiply),
             ExpressionKind::Power => self.simulate_binary(node, Operation::Power),
             ExpressionKind::Call => self.simulate_call(node),
-            ExpressionKind::Grouping => self.simulate_grouping(node),
+            ExpressionKind::Grouping => self.simulate_grouping(node, None),
             ExpressionKind::Inequality => self.simulate_binary(node, Operation::NotEqual),
             ExpressionKind::LessThan => self.simulate_binary(node, Operation::Less),
             ExpressionKind::GreaterThan => self.simulate_binary(node, Operation::Greater),
@@ -359,10 +359,15 @@ where
         let arguments = children
             .next()
             .ok_or_else(|| TranslationError::from(ErrorKind::MissingChildren(2..=2, 1)))?;
-        let arguments = self.simulate_grouping(arguments)?;
 
         match callee {
             Value::Closure(index) => {
+                let expect = self
+                    .functions
+                    .get(index)
+                    .map(TypedFunction::parameters)
+                    .map(Value::len);
+                let arguments = self.simulate_grouping(arguments, expect)?;
                 let function = self
                     .functions
                     .get(index)
@@ -370,10 +375,6 @@ where
                 let parameters = function.parameters();
 
                 if parameters == &arguments {
-                    if parameters.len() != arguments.len() {
-                        self.scope.push_operation(Operation::Separate);
-                    }
-
                     self.scope
                         .push_operation(Operation::Call(parameters.len() as u8));
 
@@ -501,7 +502,7 @@ where
         }
     }
 
-    fn simulate_grouping(&mut self, node: Node<'a, 'b>) -> SimulationResult {
+    fn simulate_grouping(&mut self, node: Node<'a, 'b>, expect: Option<usize>) -> SimulationResult {
         self.assert_kind(&node, ExpressionKind::Grouping)?;
 
         let children = node.children();
@@ -521,9 +522,15 @@ where
                 parts.push(self.simulate_expression(child)?);
             }
 
-            if parts.len() > 1 {
-                self.scope.push_operation(Operation::Group(length as u8));
-            }
+            match (expect, parts.as_slice()) {
+                (Some(expect), [Value::Group(actual)]) if expect == actual.len() => {
+                    self.scope.push_operation(Operation::Separate)
+                }
+                (None, _) if parts.len() > 1 => {
+                    self.scope.push_operation(Operation::Group(length as u8))
+                }
+                _ => {}
+            };
 
             Ok(Value::group(parts))
         }
@@ -788,6 +795,65 @@ mod tests {
             Operation::GetLocal(1),
             Operation::Call(1),
             Operation::Add,
+            Operation::Return,
+        ]
+        .to_code();
+        assert_eq!(
+            executable.function(2).unwrap().code().as_slice(),
+            g.as_slice()
+        );
+    }
+
+    #[test]
+    fn grouping() {
+        let executable: Executable =
+            Translation::try_from(include_str!("../../../examples/grouping.ta"))
+                .unwrap()
+                .into();
+        let script = vec![
+            Operation::ConstantNumber(0),
+            Operation::ConstantNumber(1),
+            Operation::Group(2),
+            Operation::DefineLocal,
+            Operation::Closure(1, vec![]),
+            Operation::DefineLocal,
+            Operation::Closure(2, vec![]),
+            Operation::DefineLocal,
+            Operation::GetLocal(2),
+            Operation::GetLocal(1),
+            Operation::Separate,
+            Operation::Call(2),
+            Operation::GetLocal(3),
+            Operation::ConstantNumber(0),
+            Operation::Call(1),
+            Operation::Add,
+            Operation::Return,
+        ]
+        .to_code();
+
+        assert_eq!(
+            executable.function(0).unwrap().code().as_slice(),
+            script.as_slice()
+        );
+
+        let f = vec![
+            Operation::GetLocal(1),
+            Operation::GetLocal(2),
+            Operation::Power,
+            Operation::Return,
+        ]
+        .to_code();
+        assert_eq!(
+            executable.function(1).unwrap().code().as_slice(),
+            f.as_slice()
+        );
+
+        let g = vec![
+            Operation::GetLocal(1),
+            Operation::GetLocal(1),
+            Operation::Multiply,
+            Operation::GetLocal(1),
+            Operation::Multiply,
             Operation::Return,
         ]
         .to_code();
