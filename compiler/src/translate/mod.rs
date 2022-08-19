@@ -519,7 +519,15 @@ where
             let mut parts = vec![];
 
             for child in children {
-                parts.push(self.simulate_expression(child)?);
+                let value = match child.expression().kind() {
+                    ExpressionKind::Grouping => {
+                        self.report_error(ErrorKind::UnnecessaryParenthesis);
+                        self.simulate_grouping(child, expect)?
+                    }
+                    _ => self.simulate_expression(child)?,
+                };
+
+                parts.push(value);
             }
 
             match (expect, parts.as_slice()) {
@@ -827,6 +835,11 @@ mod tests {
             Operation::ConstantNumber(0),
             Operation::Call(1),
             Operation::Add,
+            Operation::GetLocal(2),
+            Operation::ConstantNumber(2),
+            Operation::ConstantNumber(0),
+            Operation::Call(2),
+            Operation::Subtract,
             Operation::Return,
         ]
         .to_code();
@@ -869,6 +882,16 @@ mod tests {
             Translation::try_from(include_str!("../../../examples/undefined.ta")).unwrap_err(),
             vec![CompilationError::from(TranslationError::from(
                 ErrorKind::NotCallable(Value::Uninitialized(1))
+            ))]
+        );
+    }
+
+    #[test]
+    fn extra_parenthesis() {
+        assert_eq!(
+            Translation::try_from("f(x, y) = x ^ y\nf((4, 2))").unwrap_err(),
+            vec![CompilationError::from(TranslationError::from(
+                ErrorKind::UnnecessaryParenthesis
             ))]
         );
     }

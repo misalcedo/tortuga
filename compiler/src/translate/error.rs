@@ -27,6 +27,7 @@ pub enum ErrorKind {
     TooManyFunctions(usize),
     GroupTooLarge(usize),
     EmptyGroup,
+    UnnecessaryParenthesis,
     NoSuchFunction(usize),
     NoSuchNumber(usize),
     NoSuchUri(usize),

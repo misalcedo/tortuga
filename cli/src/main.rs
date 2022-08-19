@@ -63,6 +63,6 @@ mod tests {
         let executable = Translation::try_from(include_str!("../../examples/grouping.ta")).unwrap();
         let mut vm = VirtualMachine::new(executable, ());
 
-        assert_eq!(vm.call(0, &[]), Ok(Some(Value::from(32))));
+        assert_eq!(vm.call(0, &[]), Ok(Some(Value::from(16))));
     }
 }
