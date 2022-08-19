@@ -520,7 +520,7 @@ where
 
             for child in children {
                 let value = match child.expression().kind() {
-                    ExpressionKind::Grouping => {
+                    ExpressionKind::Grouping if length == 1 => {
                         self.report_error(ErrorKind::UnnecessaryParenthesis);
                         self.simulate_grouping(child, expect)?
                     }
@@ -893,6 +893,25 @@ mod tests {
             vec![CompilationError::from(TranslationError::from(
                 ErrorKind::UnnecessaryParenthesis
             ))]
+        );
+    }
+
+    #[test]
+    fn nested_grouping() {
+        let executable: Executable = Translation::try_from("x = (1, (2, 3))").unwrap().into();
+        let script = vec![
+            Operation::ConstantNumber(0),
+            Operation::ConstantNumber(1),
+            Operation::ConstantNumber(2),
+            Operation::Group(2),
+            Operation::Group(2),
+            Operation::DefineLocal,
+            Operation::Return,
+        ]
+        .to_code();
+        assert_eq!(
+            executable.function(0).unwrap().code().as_slice(),
+            script.as_slice()
         );
     }
 
