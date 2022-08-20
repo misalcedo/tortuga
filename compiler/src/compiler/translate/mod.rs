@@ -2,6 +2,7 @@ use crate::compiler::{CompilationError, ErrorReporter};
 use crate::{Executable, Function, Number, Operation, Program, Text};
 use std::mem;
 use std::slice::Iter;
+use std::str::FromStr;
 
 mod capture;
 mod error;
@@ -668,6 +669,14 @@ where
 
     fn report_error<E: Into<TranslationError>>(&mut self, error: E) {
         self.reporter.report_translation_error(error.into());
+    }
+}
+
+impl FromStr for Executable {
+    type Err = Vec<CompilationError>;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Translation::try_from(s)?.into())
     }
 }
 

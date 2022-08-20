@@ -1,8 +1,10 @@
 use super::error::{ErrorKind, RuntimeError};
 use super::CallFrame;
+use crate::compiler::CompilationError;
 use crate::{Closure, Courier, Executable, Identifier, Number, Text, Value};
 use std::cmp::Ordering;
 use std::mem;
+use std::str::FromStr;
 
 #[derive(Clone, Debug)]
 pub struct VirtualMachine<Courier> {
@@ -594,6 +596,19 @@ impl<C: Courier> VirtualMachine<C> {
         self.frame.read_u16().map_err(|actual| {
             RuntimeError::from(ErrorKind::InvalidOperand(mem::size_of::<u16>(), actual))
         })
+    }
+}
+
+impl FromStr for Value {
+    type Err = Result<RuntimeError, Vec<CompilationError>>;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let executable = s.parse().map_err(|e| Err(e))?;
+        let mut vm = VirtualMachine::new(executable, ());
+
+        vm.call(0, &[])
+            .map_err(|e| Ok(e))
+            .ok_or_else(|| Ok(RuntimeError::from(ErrorKind::EmptyStack)))
     }
 }
 
