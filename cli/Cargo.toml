@@ -30,8 +30,6 @@ log = "0.4"
 rustyline = { version = "10" }
 thiserror = "1.0"
 tortuga-compiler = { path = "../compiler" }
-tortuga-executable = { path = "../executable" }
-tortuga-vm = { path = "../vm" }
 tracing = "0.1"
 tracing-log = { version = "0.1" }
 tracing-subscriber = { version = "0.3" }
