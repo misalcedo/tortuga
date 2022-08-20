@@ -2,7 +2,6 @@ use super::error::{ErrorKind, RuntimeError};
 use super::CallFrame;
 use crate::{Closure, Courier, Executable, Identifier, NullCourier, Number, Text, Value};
 use std::cmp::Ordering;
-use std::convert::Infallible;
 use std::mem;
 
 #[derive(Clone, Debug)]
