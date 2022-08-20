@@ -16,10 +16,6 @@ use run::run;
 use std::io::ErrorKind::BrokenPipe;
 
 use crate::arguments::{Arguments, Commands};
-use mimalloc::MiMalloc;
-
-#[global_allocator]
-static GLOBAL: MiMalloc = MiMalloc;
 
 fn main() {
     match execute() {

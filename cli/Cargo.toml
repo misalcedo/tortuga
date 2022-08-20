@@ -21,16 +21,13 @@ tracing = { version = "0.1", default-features = false }
 tracing-subscriber = { version = "0.3", default-features = false, features = ["env-filter", "fmt"] }
 
 [target.'cfg(unix)'.dev-dependencies]
-pprof = { version = "0.6", features = ["criterion", "flamegraph", "protobuf"] }
+pprof = { version = "0.10.0", features = ["criterion", "flamegraph", "protobuf"] }
 
 [dependencies]
 clap = { version = "3.2", features = ["derive"] }
 colored = { version = "2.0.0" }
-lazy_static = "1.4"
 log = "0.4"
-mimalloc = { version = "0.1.27" }
 rustyline = { version = "10" }
-regex = "1"
 thiserror = "1.0"
 tortuga-compiler = { path = "../compiler" }
 tortuga-executable = { path = "../executable" }
