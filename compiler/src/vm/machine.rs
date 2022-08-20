@@ -1,10 +1,9 @@
 use super::error::{ErrorKind, RuntimeError};
 use super::CallFrame;
-use crate::compiler::CompilationError;
-use crate::{Closure, Courier, Executable, Identifier, Number, Text, Value};
+use crate::{Closure, Courier, Executable, Identifier, NoOpCourier, Number, Text, Value};
 use std::cmp::Ordering;
+use std::convert::Infallible;
 use std::mem;
-use std::str::FromStr;
 
 #[derive(Clone, Debug)]
 pub struct VirtualMachine<Courier> {
@@ -15,9 +14,9 @@ pub struct VirtualMachine<Courier> {
     frames: Vec<CallFrame>,
 }
 
-impl Default for VirtualMachine<()> {
+impl Default for VirtualMachine<NoOpCourier> {
     fn default() -> Self {
-        VirtualMachine::new(Executable::default(), ())
+        VirtualMachine::new(Executable::default(), NoOpCourier)
     }
 }
 
@@ -599,16 +598,14 @@ impl<C: Courier> VirtualMachine<C> {
     }
 }
 
-impl FromStr for Value {
-    type Err = Result<RuntimeError, Vec<CompilationError>>;
+impl TryFrom<Executable> for Value {
+    type Error = RuntimeError;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let executable = s.parse().map_err(|e| Err(e))?;
-        let mut vm = VirtualMachine::new(executable, ());
+    fn try_from(executable: Executable) -> Result<Self, Self::Error> {
+        let mut vm = VirtualMachine::new(executable, NoOpCourier);
+        let result = vm.call(0, &[])?;
 
-        vm.call(0, &[])
-            .map_err(|e| Ok(e))
-            .ok_or_else(|| Ok(RuntimeError::from(ErrorKind::EmptyStack)))
+        result.ok_or_else(|| RuntimeError::from(ErrorKind::EmptyStack))
     }
 }
 
@@ -629,7 +626,7 @@ mod tests {
         ];
         let main = Function::new(0, 1, operations.to_code(), vec![]);
         let executable = Executable::new(vec![main], vec![2.into(), 40.into()], vec![]);
-        let mut machine = VirtualMachine::new(executable, ());
+        let mut machine = VirtualMachine::new(executable, NoOpCourier);
 
         assert_eq!(machine.call(0, &[]), Ok(Some(Value::from(42))));
     }

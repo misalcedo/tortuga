@@ -1,13 +1,13 @@
 use crate::{Identifier, Value};
 
+pub struct NoOpCourier;
+
 pub trait Courier {
     fn deliver(&mut self, to: Identifier, message: Value);
 }
 
-impl Courier for () {
-    fn deliver(&mut self, to: Identifier, message: Value) {
-        println!("Deliver {:?} to {:?}", message, to);
-    }
+impl Courier for NoOpCourier {
+    fn deliver(&mut self, _: Identifier, _: Value) {}
 }
 
 impl<F> Courier for F

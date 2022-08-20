@@ -9,7 +9,7 @@ mod machine;
 mod value;
 
 pub use closure::Closure;
-pub use courier::Courier;
+pub use courier::{Courier, NoOpCourier};
 pub(crate) use frame::CallFrame;
 pub use identifier::Identifier;
 pub use machine::VirtualMachine;
