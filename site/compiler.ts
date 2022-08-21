@@ -1,12 +1,12 @@
 import init from "./pkg/tortuga_site.js";
 import { run }  from "./pkg/tortuga_site.js";
 
-export function compileThenRun() {
+function compileThenRun(event) {
     init("./pkg/tortuga_site_bg.wasm")
         .then(compileThenRunWasm)
         .catch(console.error);
 
-    return false;
+    event.preventDefault();
 }
 
 function compileThenRunWasm() {
@@ -17,3 +17,5 @@ function compileThenRunWasm() {
 
     output.innerText = result;
 }
+
+document.getElementById("form").addEventListener("submit", compileThenRun);
