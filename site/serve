@@ -1,2 +1,3 @@
-deno bundle compiler.ts compiler.js
+wasm-pack build --target web
+tsc -t es6 compiler.ts
 $HOME/.deno/bin/file_server .

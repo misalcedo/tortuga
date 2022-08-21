@@ -3,4 +3,3 @@
 /.idea
 /out
 Cargo.lock
-/site/compiler.js

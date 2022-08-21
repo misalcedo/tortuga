@@ -2,10 +2,27 @@
 <html>
     <head>
         <meta charset="UTF-8" />
-        <title>Hello World - Rust</title>
+        <title>Tortuga Playground</title>
         <script type="module" src="./compiler.js"></script>
     </head>
     <body>
-        Hello, World!
+        <h1>Tortuga Playground</h1>
+        <p>Try tortuga entirely in your browser with <a href="https://webassembly.org/">WebAssembly</a>.</p>
+        <p>Click the "Run" button to execute the code in your browser!</p>
+
+        <br>
+
+        <form onsubmit="return compileThenRun()">
+            <p><label for="code">Code To Run:</label></p>
+
+            <textarea id="code" name="code" rows="12" cols="80" autofocus></textarea>
+
+            <br>
+
+            <input type="submit" value="Run">
+        </form>
+
+        <p>Output:</p>
+        <pre id="output"></pre>
     </body>
 </html>
