@@ -3,7 +3,6 @@
     <head>
         <meta charset="UTF-8" />
         <title>Tortuga Playground</title>
-        <script type="module" src="./compiler.js"></script>
     </head>
     <body>
         <h1>Tortuga Playground</h1>
@@ -24,5 +23,29 @@
 
         <p>Output:</p>
         <pre id="output"></pre>
+
+        <script type="module">
+            import init from "./pkg/tortuga_site.js";
+            import { run }  from "./pkg/tortuga_site.js";
+
+            function compileThenRun(event) {
+                init("./pkg/tortuga_site_bg.wasm")
+                    .then(compileThenRunWasm)
+                    .catch(console.error);
+
+                event.preventDefault();
+            }
+
+            function compileThenRunWasm() {
+                const input = document.getElementById("code");
+                const code = input.value;
+                const result = run(code);
+                const output = document.getElementById("output");
+
+                output.innerText = result;
+            }
+
+            document.getElementById("form").addEventListener("submit", compileThenRun);
+        </script>
     </body>
 </html>
