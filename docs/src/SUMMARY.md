@@ -6,6 +6,7 @@
 
 - [Getting Started](getting-started.md)
     - [Installation](installation.md)
+    - [Playground](playground.md)
     - [Factorial](factorial.md)
     - [Command-Line Interface](cli.md)
 

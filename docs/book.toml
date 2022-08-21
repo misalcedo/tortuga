@@ -4,3 +4,15 @@ language = "en"
 multilingual = false
 src = "src"
 title = "Tortuga Programming Language"
+
+[output.html.playground]
+editable = true
+runnable = true
+
+[output.html]
+default-theme = "dark"
+preferred-dark-theme = "navy"
+curly-quotes = true
+mathjax-support = false
+additional-js = ["editor.js", "compiler.js"]
+no-section-label = false
