@@ -8,6 +8,7 @@ title = "Tortuga Programming Language"
 [output.html.playground]
 editable = true
 runnable = true
+line-numbers = true
 
 [output.html]
 default-theme = "dark"
