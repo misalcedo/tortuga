@@ -611,7 +611,8 @@ impl TryFrom<Executable> for Value {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Function, Operation, ToCode};
+    use crate::{Function, NullCourier, Operation, ToCode};
+    use std::str::FromStr;
 
     #[test]
     fn add_with_local() {
@@ -628,5 +629,22 @@ mod tests {
         let mut machine = VirtualMachine::new(executable, NullCourier);
 
         assert_eq!(machine.call(0, &[]), Ok(Some(Value::from(42))));
+    }
+
+    #[test]
+    fn simple() {
+        let executable = Executable::from_str(include_str!("../../../examples/simple.ta")).unwrap();
+        let mut vm = VirtualMachine::new(executable, NullCourier);
+
+        assert_eq!(vm.call(0, &[]), Ok(Some(Value::from(0))));
+    }
+
+    #[test]
+    fn grouping() {
+        let executable =
+            Executable::from_str(include_str!("../../../examples/grouping.ta")).unwrap();
+        let mut vm = VirtualMachine::new(executable, NullCourier);
+
+        assert_eq!(vm.call(0, &[]), Ok(Some(Value::from(16))));
     }
 }

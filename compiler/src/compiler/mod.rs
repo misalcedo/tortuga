@@ -7,6 +7,7 @@ mod scan;
 mod token;
 mod translate;
 mod unicode;
+mod validate;
 
 pub use error::CompilationError;
 pub use grammar::Program;
@@ -16,3 +17,4 @@ pub use report::ErrorReporter;
 pub use scan::{LexicalError, Scanner};
 pub use token::{Token, TokenKind};
 pub use translate::{Translation, TranslationError, Translator};
+pub use validate::{ValidationResult, Validator};

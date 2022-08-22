@@ -11,16 +11,12 @@ use rustyline::line_buffer::LineBuffer;
 use rustyline::validate::{ValidationContext, ValidationResult, Validator};
 use rustyline::{error::ReadlineError, Editor, Helper};
 use std::io::{stderr, stdout, Write};
-use tortuga_compiler::{
-    CompilationError, ErrorReporter, LexicalError, Parser, Scanner, SyntaxError, Translation,
-    TranslationError,
-};
-use tortuga_executable::Executable;
-use tortuga_vm::VirtualMachine;
+use std::str::FromStr;
+use tortuga_compiler::{Executable, VirtualMachine};
 use tracing::error;
 
 #[derive(Default)]
-struct PromptHelper(Option<SyntaxError>, Vec<CompilationError>);
+struct PromptHelper;
 
 /// The prompt used to communicate with a user.
 pub struct Prompt {
@@ -78,40 +74,28 @@ impl Hinter for PromptHelper {
     type Hint = String;
 }
 
-impl ErrorReporter for PromptHelper {
-    fn report_lexical_error(&mut self, error: LexicalError) {
-        self.1.push(error.into());
-    }
-
-    fn report_syntax_error(&mut self, error: SyntaxError) {
-        self.0 = Some(error.clone());
-        self.1.push(error.into());
-    }
-
-    fn report_translation_error(&mut self, error: TranslationError) {
-        self.1.push(error.into());
-    }
-
-    fn had_error(&self) -> bool {
-        !self.1.is_empty()
-    }
-}
-
 impl Validator for PromptHelper {
     fn validate(&self, ctx: &mut ValidationContext) -> Result<ValidationResult, ReadlineError> {
         if ctx.input().trim().is_empty() {
             return Ok(ValidationResult::Valid(None));
         }
 
-        let scanner = Scanner::from(ctx.input());
-        let parser = Parser::new(scanner, PromptHelper::default());
+        let validator = tortuga_compiler::Validator::default();
 
-        match parser.parse() {
-            Ok(_) => Ok(ValidationResult::Valid(None)),
-            Err(PromptHelper(Some(error), _)) if error.is_incomplete() => {
-                Ok(ValidationResult::Invalid(Some(format!("\t{}", error))))
+        match validator.validate(ctx.input()) {
+            tortuga_compiler::ValidationResult::Valid => Ok(ValidationResult::Valid(None)),
+            tortuga_compiler::ValidationResult::Invalid(errors) => {
+                let mut error = String::new();
+
+                for e in errors {
+                    error.push('\t');
+                    error.push_str(e.to_string().as_str());
+                    error.push('\n');
+                }
+
+                Ok(ValidationResult::Invalid(Some(error)))
             }
-            Err(_) => Ok(ValidationResult::Incomplete),
+            tortuga_compiler::ValidationResult::Incomplete => Ok(ValidationResult::Incomplete),
         }
     }
 }
@@ -134,9 +118,8 @@ pub fn run_prompt() -> Result<(), CommandLineError> {
                 script.push_str(input.as_str());
                 script.push('\n');
 
-                match Translation::try_from(script.as_str()) {
-                    Ok(translation) => {
-                        let executable = Executable::from(translation);
+                match Executable::from_str(script.as_str()) {
+                    Ok(executable) => {
                         let function = executable.functions().checked_sub(1).unwrap_or(0);
 
                         machine.set_executable(executable);

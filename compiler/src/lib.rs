@@ -4,7 +4,9 @@ mod compiler;
 mod executable;
 mod vm;
 
-pub use compiler::{CompilationError, Program};
+pub use compiler::{
+    CompilationError, ErrorReporter, LexicalError, Program, ValidationResult, Validator,
+};
 pub use executable::{
     Code, Executable, Function, Number, Operation, OperationCode, ParseNumberError, Text, ToCode,
 };

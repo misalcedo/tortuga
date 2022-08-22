@@ -2,13 +2,13 @@
 
 use crate::CommandLineError;
 use std::io::{stderr, stdout, Write};
-use tortuga_compiler::Translation;
-use tortuga_vm::VirtualMachine;
+use std::str::FromStr;
+use tortuga_compiler::{Executable, NullCourier, VirtualMachine};
 
 /// Parses the given source as a Tortuga [`Program`] and executes it.
 pub fn run(source: &str) -> Result<(), CommandLineError> {
-    let executable = Translation::try_from(source)?;
-    let mut machine = VirtualMachine::new(executable, ());
+    let executable = Executable::from_str(source)?;
+    let mut machine = VirtualMachine::new(executable, NullCourier);
 
     match machine.call(0, &[]) {
         Ok(Some(value)) => Ok(writeln!(stdout(), "{}", value)?),
