@@ -26,7 +26,7 @@ impl Value {
         Value::Grouping(Rc::new(values))
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &Self> {
+    pub fn iter(&self) -> Iter<'_> {
         match self {
             Value::Grouping(values) => Iter::Group(values.iter()),
             _ => Iter::Single(Some(self)),
@@ -106,7 +106,24 @@ impl Display for Value {
             Value::Closure(c) => write!(f, "{}", c),
             Value::Identifier(i) => write!(f, "{}", i),
             Value::Text(t) => write!(f, "{}", t),
-            _ => unreachable!("A reference value should always resolve to a non-reference value."),
+            Value::Grouping(parts) => {
+                write!(f, "(")?;
+
+                let mut iterator = parts.iter().peekable();
+
+                while let Some(next) = iterator.next() {
+                    write!(f, "{}", next)?;
+
+                    if iterator.peek().is_some() {
+                        write!(f, ", ")?;
+                    }
+                }
+
+                write!(f, ")")
+            }
+            Value::Reference(_) => {
+                unreachable!("A reference value should always resolve to a non-reference value.")
+            }
         }
     }
 }

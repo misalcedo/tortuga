@@ -414,7 +414,7 @@ impl<C: Courier> VirtualMachine<C> {
     fn separate_operation(&mut self) -> OperationResult {
         let grouping = self.pop_value()?;
 
-        for part in grouping.iter() {
+        for part in grouping.iter().rev() {
             self.stack.push(part.clone());
         }
 
@@ -645,6 +645,6 @@ mod tests {
             Executable::from_str(include_str!("../../../examples/grouping.ta")).unwrap();
         let mut vm = VirtualMachine::new(executable, NullCourier);
 
-        assert_eq!(vm.call(0, &[]), Ok(Some(Value::from(16))));
+        assert_eq!(vm.call(0, &[]), Ok(Some(Value::from(-65))));
     }
 }
