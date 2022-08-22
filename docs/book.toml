@@ -14,5 +14,5 @@ default-theme = "dark"
 preferred-dark-theme = "navy"
 curly-quotes = true
 mathjax-support = false
-additional-js = ["editor.js", "compiler.js"]
+additional-js = ["compiler.js"]
 no-section-label = false

@@ -12,6 +12,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v1.3.0
+      - name: Build with WASM Pack
+        working-directory: ./site
+        run: |
+          curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+          wasm-pack build --target web
       - name: Validate Links
         uses: reiddraper/freshlinks@v0.1.1
         with:
@@ -20,6 +30,11 @@ jobs:
         run: |
           curl -sSL https://github.com/rust-lang/mdBook/releases/download/v0.4.15/mdbook-v0.4.15-x86_64-unknown-linux-gnu.tar.gz | tar -xz --directory=/tmp
           /tmp/mdbook build docs
+      - name: Copy Overrides
+        working-directory: ./docs
+        run: cp editor.js book/editor.js
+      - name: Copy WASM Pack
+        run: mv site/pkg docs/book/pkg
       - uses: JamesIves/github-pages-deploy-action@4.1.8
         with:
           branch: gh-pages
