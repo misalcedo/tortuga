@@ -1,4 +1,4 @@
-# Tortuga Playground
+# Playground
 Try tortuga entirely in your browser with [WebAssembly](https://webassembly.org/).
 
 Click the play button to execute the code directly in your browser!
