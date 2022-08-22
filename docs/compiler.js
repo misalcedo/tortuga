@@ -155,7 +155,4 @@ function initialize_code_blocks() {
     playgrounds.forEach(initialize_playground);
     code_blocks.forEach(handle_hiding_boring);
     playgrounds.forEach(run_editable);
-
-    console.log(code_blocks);
-    console.log(playgrounds);
 }
