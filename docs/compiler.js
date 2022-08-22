@@ -52,7 +52,7 @@ function run_editable(playground_block) {
         return;
     }
 
-    const code_block = playground_block.querySelector("code");
+    const code_block = playground_block.querySelector("code.language-tortuga");
 
     if (!code_block.classList.contains("editable")) {
         return;
@@ -156,5 +156,6 @@ function initialize_code_blocks() {
     code_blocks.forEach(handle_hiding_boring);
     playgrounds.forEach(run_editable);
 
-    console.log("Hello, world!");
+    console.log(code_blocks);
+    console.log(playgrounds);
 }
