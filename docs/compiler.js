@@ -2,7 +2,6 @@
 
 import init from "./pkg/tortuga_site.js";
 import { run }  from "./pkg/tortuga_site.js";
-import { playground_text }  from "./book.js";
 
 init("./pkg/tortuga_site_bg.wasm")
     .then(initialize_code_blocks)
