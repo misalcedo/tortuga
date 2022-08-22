@@ -14,10 +14,9 @@ function update_play_button(pre_block) {
     // skip if code is `no_run`
     if (pre_block.querySelector('code').classList.contains("no_run")) {
         play_button.classList.add("hidden");
-        return;
+    } else {
+        play_button.classList.remove("hidden");
     }
-
-    play_button.classList.remove("hidden");
 }
 
 function run_tortuga_code(code_block) {
@@ -75,11 +74,86 @@ function run_editable(playground_block) {
     });
 }
 
+function handle_hiding_boring(block) {
+    const lines = Array.from(block.querySelectorAll('.boring'));
+
+    // If no lines were hidden, return
+    if (!lines.length) { return; }
+
+    block.classList.add("hide-boring");
+
+    const buttons = document.createElement('div');
+    buttons.className = 'buttons';
+    buttons.innerHTML = "<button class=\"fa fa-eye\" title=\"Show hidden lines\" aria-label=\"Show hidden lines\"></button>";
+
+    // add expand button
+    const pre_block = block.parentNode;
+    pre_block.insertBefore(buttons, pre_block.firstChild);
+
+    pre_block.querySelector('.buttons').addEventListener('click', function (e) {
+        if (e.target.classList.contains('fa-eye')) {
+            e.target.classList.remove('fa-eye');
+            e.target.classList.add('fa-eye-slash');
+            e.target.title = 'Hide lines';
+            e.target.setAttribute('aria-label', e.target.title);
+
+            block.classList.remove('hide-boring');
+        } else if (e.target.classList.contains('fa-eye-slash')) {
+            e.target.classList.remove('fa-eye-slash');
+            e.target.classList.add('fa-eye');
+            e.target.title = 'Show hidden lines';
+            e.target.setAttribute('aria-label', e.target.title);
+
+            block.classList.add('hide-boring');
+        }
+    });
+}
+
+function initialize_playground(pre_block) {
+    // Add play button
+    var buttons = pre_block.querySelector(".buttons");
+    if (!buttons) {
+        buttons = document.createElement('div');
+        buttons.className = 'buttons';
+        pre_block.insertBefore(buttons, pre_block.firstChild);
+    }
+
+    const runCodeButton = document.createElement('button');
+    runCodeButton.className = 'fa fa-play play-button';
+    runCodeButton.hidden = true;
+    runCodeButton.title = 'Run this code';
+    runCodeButton.setAttribute('aria-label', runCodeButton.title);
+
+    buttons.insertBefore(runCodeButton, buttons.firstChild);
+    runCodeButton.addEventListener('click', function (e) {
+        run_tortuga_code(pre_block);
+    });
+
+    update_play_button(pre_block);
+
+    const code_block = pre_block.querySelector("code");
+    if (window.ace && code_block.classList.contains("editable")) {
+        const undoChangesButton = document.createElement('button');
+        undoChangesButton.className = 'fa fa-history reset-button';
+        undoChangesButton.title = 'Undo changes';
+        undoChangesButton.setAttribute('aria-label', undoChangesButton.title);
+
+        buttons.insertBefore(undoChangesButton, buttons.firstChild);
+
+        undoChangesButton.addEventListener('click', () => {
+            let editor = window.ace.edit(code_block);
+            editor.setValue(editor.originalCode);
+            editor.clearSelection();
+        });
+    }
+}
+
 function initialize_code_blocks() {
     const code_blocks = Array.from(document.querySelectorAll("pre code.language-tortuga"));
     const playgrounds = code_blocks.map(c => c.parentNode);
 
-    playgrounds.forEach(update_play_button);
+    playgrounds.forEach(initialize_playground);
+    code_blocks.forEach(handle_hiding_boring);
     playgrounds.forEach(run_editable);
 
     console.log("Hello, world!");
