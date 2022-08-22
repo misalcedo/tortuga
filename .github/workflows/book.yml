@@ -35,6 +35,11 @@ jobs:
         run: cp editor.js book/editor.js
       - name: Copy WASM Pack
         run: mv site/pkg docs/book/pkg
+      - name: Bundle Compiler Module
+        working-directory: docs/book
+        run: |
+          curl -fsSL https://deno.land/x/install/install.sh | sh
+          deno bundle compiler.js compiler.js
       - uses: JamesIves/github-pages-deploy-action@4.1.8
         with:
           branch: gh-pages

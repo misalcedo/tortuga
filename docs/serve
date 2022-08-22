@@ -1,0 +1,14 @@
+#! /usr/bin/env bash
+
+mdbook build
+
+cp editor.js book/editor.js
+
+pushd ../site
+wasm-pack build --target web
+mv pkg ../docs/book/pkg
+popd
+
+pushd book
+deno bundle compiler.js compiler.js
+$HOME/.deno/bin/file_server .
