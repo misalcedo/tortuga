@@ -12,6 +12,9 @@ jobs:
   publish:
     name: Publish to crates.io
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: [ tortuga, tortuga-cli, tortuga-playground ]
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
@@ -22,4 +25,4 @@ jobs:
       - name: Publish to Crates.io
         run: |
           cargo login ${{ secrets.CRATES_IO_TOKEN }}
-          cargo publish
+          cargo publish -p ${{ matrix.package }}
