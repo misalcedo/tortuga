@@ -24,10 +24,10 @@ concurrency:
 
 jobs:
   deploy:
+    name: Deploy Book to Github Pages
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    name: Publish Book to Github Pages
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
