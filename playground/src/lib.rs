@@ -32,10 +32,10 @@ impl std::error::Error for PlaygroundError {}
 impl Display for PlaygroundError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            PlaygroundError::Runtime(error) => write!(f, "{}", error)?,
+            PlaygroundError::Runtime(error) => writeln!(f, "{}", error)?,
             PlaygroundError::Compilation(errors) => {
                 for error in errors {
-                    write!(f, "{}", error)?;
+                    writeln!(f, "{}", error)?;
                 }
             }
         }

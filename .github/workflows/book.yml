@@ -18,7 +18,7 @@ jobs:
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v1.3.0
       - name: Build with WASM Pack
-        working-directory: ./site
+        working-directory: ./playground
         run: |
           curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
           wasm-pack build --target web
@@ -34,7 +34,7 @@ jobs:
         working-directory: ./docs
         run: cp editor.js book/editor.js
       - name: Copy WASM Pack
-        run: mv site/pkg docs/book/pkg
+        run: mv playground/pkg docs/book/pkg
       - name: Bundle Compiler Module
         working-directory: docs/book
         run: |

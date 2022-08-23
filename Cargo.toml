@@ -3,5 +3,5 @@
 members = [
     "cli",
     "compiler",
-    "site",
+    "playground",
 ]

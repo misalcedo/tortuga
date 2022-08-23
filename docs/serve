@@ -4,11 +4,11 @@ mdbook build
 
 cp editor.js book/editor.js
 
-pushd ../site
+pushd ../playground || exit
 wasm-pack build --target web
 mv pkg ../docs/book/pkg
-popd
+popd || exit
 
-pushd book
+pushd book || exit
 deno bundle compiler.js compiler.js
-$HOME/.deno/bin/file_server .
+"$HOME"/.deno/bin/file_server .
