@@ -1,6 +1,6 @@
 use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
-use tortuga_compiler::{CompilationError, Executable, RuntimeError, Value};
+use tortuga::{CompilationError, Executable, RuntimeError, Value};
 use wasm_bindgen::prelude::*;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
