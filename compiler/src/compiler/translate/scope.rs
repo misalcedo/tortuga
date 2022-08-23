@@ -3,12 +3,12 @@ use crate::compiler::translate::capture::Capture;
 use crate::compiler::translate::indices::IndexedSet;
 use crate::compiler::translate::local::Local;
 use crate::compiler::translate::value::Value;
-use crate::{Code, Function, Operation};
+use crate::{Function, Operation, ToCode};
 
 #[derive(Clone, Debug, Default)]
 pub struct Scope<'a> {
     depth: usize,
-    code: Vec<u8>,
+    code: Vec<Operation>,
     function: usize,
     arity: usize,
     locals: IndexedSet<Identifier<'a>, Local<'a>>,
@@ -28,7 +28,7 @@ impl<'a> Scope<'a> {
     }
 
     pub fn push_operation(&mut self, operation: Operation) {
-        self.code.push_operation(&operation);
+        self.code.push(operation);
     }
 
     pub fn push_local(&mut self, name: Identifier<'a>) -> usize {
@@ -89,6 +89,11 @@ impl<'a> From<Scope<'a>> for Function {
         let captures: Vec<Capture> = context.captures.into();
         let captures: Vec<bool> = captures.iter().map(|c| c.local()).collect();
 
-        Function::new(context.arity, context.locals.len(), context.code, captures)
+        Function::new(
+            context.arity,
+            context.locals.len(),
+            context.code.to_code(),
+            captures,
+        )
     }
 }
