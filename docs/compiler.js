@@ -1,9 +1,9 @@
 "use strict";
 
-import init from "./pkg/tortuga_site.js";
-import { run }  from "./pkg/tortuga_site.js";
+import init from "./pkg/tortuga_playground.js";
+import { run }  from "./pkg/tortuga_playground.js";
 
-init("./pkg/tortuga_site_bg.wasm")
+init("./pkg/tortuga_playground_bg.wasm")
     .then(initialize_code_blocks)
     .catch(console.error)
 
