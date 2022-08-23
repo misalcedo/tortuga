@@ -11,14 +11,14 @@ After you download the asset for your system, use the tools for your operating s
 Alternatively, you can install any version of tortuga from source using `cargo` with: 
 
 ```console
-cargo install tortuga
+cargo install tortuga-cli
 ```
 
 ## Embedded
 To embed the language in a Rust program, add the `tortuga` crate as a dependency in your `Cargo.toml`:
 
 ```toml
-tortuga = { version = "*", default-features = false }
+tortuga = { version = "*" }
 ```
 
 ## Docker
