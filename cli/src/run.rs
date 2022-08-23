@@ -3,7 +3,7 @@
 use crate::CommandLineError;
 use std::io::{stderr, stdout, Write};
 use std::str::FromStr;
-use tortuga_compiler::{Executable, NullCourier, VirtualMachine};
+use tortuga::{Executable, NullCourier, VirtualMachine};
 
 /// Parses the given source as a Tortuga [`Program`] and executes it.
 pub fn run(source: &str) -> Result<(), CommandLineError> {

@@ -1,5 +1,5 @@
 [package]
-name = "tortuga"
+name = "tortuga-cli"
 description = "Compiler and runtime for the Tortuga programming language."
 version = "0.5.5"
 authors = ["Miguel D. Salcedo <miguel@salcedo.cc>"]
@@ -29,7 +29,7 @@ colored = { version = "2.0.0" }
 log = "0.4"
 rustyline = { version = "10" }
 thiserror = "1.0"
-tortuga-compiler = { path = "../compiler" }
+tortuga = { path = "../compiler" }
 tracing = "0.1"
 tracing-log = { version = "0.1" }
 tracing-subscriber = { version = "0.3" }

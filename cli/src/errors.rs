@@ -1,5 +1,5 @@
 use thiserror::Error;
-use tortuga_compiler::CompilationError;
+use tortuga::CompilationError;
 
 /// An error that occurred while executing the Command-Line interface.
 #[derive(Error, Debug)]
@@ -15,10 +15,10 @@ pub enum CommandLineError {
     #[error("Encountered an error prompting the user for input. {0}")]
     PromptError(#[from] rustyline::error::ReadlineError),
     #[error("Encountered compilation errors.")]
-    Compiler(Vec<tortuga_compiler::CompilationError>),
+    Compiler(Vec<tortuga::CompilationError>),
 }
 
-impl From<Vec<tortuga_compiler::CompilationError>> for CommandLineError {
+impl From<Vec<tortuga::CompilationError>> for CommandLineError {
     fn from(errors: Vec<CompilationError>) -> Self {
         CommandLineError::Compiler(errors)
     }

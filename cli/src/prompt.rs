@@ -12,7 +12,7 @@ use rustyline::validate::{ValidationContext, ValidationResult, Validator};
 use rustyline::{error::ReadlineError, Editor, Helper};
 use std::io::{stderr, stdout, Write};
 use std::str::FromStr;
-use tortuga_compiler::{Executable, VirtualMachine};
+use tortuga::{Executable, VirtualMachine};
 use tracing::error;
 
 #[derive(Default)]
@@ -80,11 +80,11 @@ impl Validator for PromptHelper {
             return Ok(ValidationResult::Valid(None));
         }
 
-        let validator = tortuga_compiler::Validator::default();
+        let validator = tortuga::Validator::default();
 
         match validator.validate(ctx.input()) {
-            tortuga_compiler::ValidationResult::Valid => Ok(ValidationResult::Valid(None)),
-            tortuga_compiler::ValidationResult::Invalid(errors) => {
+            tortuga::ValidationResult::Valid => Ok(ValidationResult::Valid(None)),
+            tortuga::ValidationResult::Invalid(errors) => {
                 let mut error = String::new();
 
                 for e in errors {
@@ -95,7 +95,7 @@ impl Validator for PromptHelper {
 
                 Ok(ValidationResult::Invalid(Some(error)))
             }
-            tortuga_compiler::ValidationResult::Incomplete => Ok(ValidationResult::Incomplete),
+            tortuga::ValidationResult::Incomplete => Ok(ValidationResult::Incomplete),
         }
     }
 }

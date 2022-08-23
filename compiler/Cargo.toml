@@ -1,6 +1,12 @@
 [package]
-name = "tortuga-compiler"
-version = "0.1.0"
+name = "tortuga"
+description = "Compiler, virtual machine, and cluster system for the Tortuga programming language."
+version = "0.6.0"
+authors = ["Miguel D. Salcedo <miguel@salcedo.cc>"]
 edition = "2021"
+license = "Apache-2.0"
+homepage = "https://tortuga.salcedo.cc"
+repository = "https://github.com/misalcedo/tortuga"
+documentation = "https://docs.rs/tortuga"
 
 [dependencies]
