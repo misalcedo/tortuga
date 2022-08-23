@@ -2,7 +2,10 @@ name: Compatability
 
 on:
   push:
-    paths: [ "src/**", "bin/**", "examples/**", "benches/**", "Cargo.toml"]
+    paths-ignore:
+      - ".github/**"
+      - "docs/**"
+      - "examples/**"
   workflow_dispatch: {}
 
 env:
