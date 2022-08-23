@@ -33,6 +33,6 @@ fn execute() -> Result<(), CommandLineError> {
 fn run_subcommand(arguments: Arguments) -> Result<(), CommandLineError> {
     match arguments.command.unwrap_or_default() {
         Commands::Prompt(_) => run_prompt(),
-        Commands::Run(command) => run(command.to_string().as_str()),
+        Commands::Run(command) => run(command.to_string().as_str(), command.arguments.as_slice()),
     }
 }

@@ -40,7 +40,7 @@ pub struct Verbosity {
         action(ArgAction::Count)
     )]
     /// Make the program more talkative.
-    pub verbose: usize,
+    pub verbose: u8,
     #[clap(short, long, global(true), help_heading("VERBOSITY"), conflicts_with_all(&["verbose", "trace"]))]
     /// Print debug messages.
     pub debug: bool,

@@ -906,6 +906,16 @@ mod tests {
     }
 
     #[test]
+    fn single_identifier() {
+        assert_eq!(
+            Translation::try_from("foo").unwrap_err(),
+            vec![CompilationError::from(TranslationError::from(
+                ErrorKind::NoSuchLocal(0)
+            ))]
+        );
+    }
+
+    #[test]
     fn nested_grouping() {
         let executable: Executable = Translation::try_from("x = (1, (2, 3))").unwrap().into();
         let script = vec![
