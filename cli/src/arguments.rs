@@ -3,7 +3,6 @@ use clap::{AppSettings, ArgAction, ArgGroup, Args, Parser, Subcommand};
 use std::fs::File;
 use std::io::{stdin, Read};
 use std::path::PathBuf;
-use tortuga::Value;
 use tracing::subscriber::set_global_default;
 use tracing::Level;
 use tracing_log::LogTracer;
@@ -89,8 +88,8 @@ pub struct RunCommand {
     #[clap(short, long, forbid_empty_values(true), group = "input")]
     pub expression: Option<String>,
     /// Arguments for the script to pass to the virtual machine.
-    #[clap(short, long, forbid_empty_values(true), action(ArgAction::Append))]
-    pub arguments: Vec<Value>,
+    #[clap(short, long, action(ArgAction::Append))]
+    pub arguments: Vec<String>,
 }
 
 impl ToString for RunCommand {
