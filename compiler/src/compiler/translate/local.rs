@@ -33,9 +33,10 @@ impl<'a> Local<'a> {
         }
     }
 
-    pub fn initialize(&mut self, depth: usize, kind: Value) {
+    pub fn initialize(&mut self, depth: usize, kind: Value) -> usize {
         self.depth = Some(depth);
         self.kind = kind;
+        self.offset
     }
 
     pub fn depth(&self) -> Option<usize> {

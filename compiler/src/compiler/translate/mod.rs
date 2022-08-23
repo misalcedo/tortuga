@@ -95,6 +95,7 @@ where
 
     fn simulate_program(&mut self, program: &Program<'a>) -> SimulationResult {
         let mut iterator = program.roots().peekable();
+        let mut result = Value::None;
 
         self.functions.push(TypedFunction::default());
 
@@ -102,7 +103,7 @@ where
             if iterator.peek().is_some() {
                 self.simulate_statement(root)?;
             } else {
-                self.simulate_expression(root)?;
+                result = self.simulate_expression(root)?;
             }
         }
 
@@ -116,7 +117,7 @@ where
 
         self.initialize_function(scope)?;
 
-        Ok(Value::None)
+        Ok(result)
     }
 
     fn simulate_statement(&mut self, node: Node<'a, 'b>) -> SimulationResult {
@@ -226,7 +227,8 @@ where
                     self.report_error(ErrorKind::TooManyFunctions(function));
                 }
 
-                self.scope
+                let offset = self
+                    .scope
                     .local_mut(index)
                     .ok_or_else(|| TranslationError::from(ErrorKind::NoSuchLocal(index)))?
                     .initialize(depth, value.clone());
@@ -254,10 +256,11 @@ where
                 self.scope
                     .push_operation(Operation::Closure(function as u8, captures));
                 self.scope.push_operation(Operation::DefineLocal);
+                self.scope.push_operation(Operation::GetLocal(offset as u8));
 
                 self.initialize_function(scope)?;
 
-                Ok(Value::None)
+                Ok(value)
             }
             _ => self.simulate_call_closure(&mut children, callee),
         }
@@ -316,15 +319,16 @@ where
         match lhs {
             Value::Uninitialized(index) => {
                 let depth = self.scopes.len();
-
-                self.scope
+                let offset = self
+                    .scope
                     .local_mut(index)
                     .ok_or_else(|| TranslationError::from(ErrorKind::NoSuchLocal(index)))?
                     .initialize(depth, rhs.clone());
 
                 self.scope.push_operation(Operation::DefineLocal);
+                self.scope.push_operation(Operation::GetLocal(offset as u8));
 
-                Ok(Value::None)
+                Ok(rhs)
             }
             _ => {
                 self.scope.push_operation(Operation::Equal);
@@ -733,6 +737,8 @@ mod tests {
             Operation::ConstantNumber(0),
             Operation::DefineLocal,
             Operation::GetLocal(1),
+            Operation::Pop,
+            Operation::GetLocal(1),
             Operation::ConstantNumber(1),
             Operation::Add,
             Operation::Return,
@@ -766,8 +772,12 @@ mod tests {
         let script = vec![
             Operation::Closure(1, vec![]),
             Operation::DefineLocal,
+            Operation::GetLocal(1),
+            Operation::Pop,
             Operation::Closure(2, vec![1]),
             Operation::DefineLocal,
+            Operation::GetLocal(2),
+            Operation::Pop,
             Operation::GetLocal(1),
             Operation::ConstantNumber(0),
             Operation::Call(1),
@@ -832,10 +842,16 @@ mod tests {
             Operation::ConstantNumber(1),
             Operation::Group(2),
             Operation::DefineLocal,
+            Operation::GetLocal(1),
+            Operation::Pop,
             Operation::Closure(1, vec![]),
             Operation::DefineLocal,
+            Operation::GetLocal(2),
+            Operation::Pop,
             Operation::Closure(2, vec![]),
             Operation::DefineLocal,
+            Operation::GetLocal(3),
+            Operation::Pop,
             Operation::GetLocal(2),
             Operation::GetLocal(1),
             Operation::Separate,
@@ -925,6 +941,7 @@ mod tests {
             Operation::Group(2),
             Operation::Group(2),
             Operation::DefineLocal,
+            Operation::GetLocal(1),
             Operation::Return,
         ]
         .to_code();
