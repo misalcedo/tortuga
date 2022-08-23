@@ -1,6 +1,6 @@
 name: Linters
 
-on: [ push, workflow_dispatch ]
+on: [ pull_request, workflow_dispatch ]
 
 env:
   CARGO_TERM_COLOR: always
@@ -21,20 +21,11 @@ jobs:
       - name: Lint
         uses: actions-rs/cargo@v1
         with:
-          command: fix
+          command: clippy
           args: --all-features
       - name: Format
         uses: actions-rs/cargo@v1
         with:
           command: fmt
-      - name: Upload formatting and lint fixes
-        if: ${{ github.ref == 'refs/heads/main' }}
-        run: |
-          if [ -n "$(git status --porcelain)" ]
-          then
-            git config user.name "Upload lint fixes from CI"
-            git config user.email ""
-            git add .
-            git commit -m "Automatically fix lint failures and format code."
-            git push
-          fi
+          args: --check --all-features
+
