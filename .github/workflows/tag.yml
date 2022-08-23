@@ -16,7 +16,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG=v$(cargo metadata --no-deps --quiet | jq -r '.packages[0] | .version')
+          TAG=v$(cargo metadata --no-deps --quiet | jq -r '.packages[] | select(.name=="tortuga-cli") | .version')
 
           git fetch --tags
 
