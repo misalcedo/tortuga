@@ -1,5 +1,5 @@
 <!DOCTYPE HTML>
-<html lang="en" class="sidebar-visible no-js light">
+<html lang="en" class="sidebar-visible no-js dark">
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
@@ -30,7 +30,7 @@
         <!-- Provide site root to javascript -->
         <script type="text/javascript">
             var path_to_root = "";
-            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "dark";
         </script>
 
         <!-- Work around some values being stored in localStorage wrapped in quotes -->
@@ -56,7 +56,7 @@
             if (theme === null || theme === undefined) { theme = default_theme; }
             var html = document.querySelector('html');
             html.classList.remove('no-js')
-            html.classList.remove('light')
+            html.classList.remove('dark')
             html.classList.add(theme);
             html.classList.add('js');
         </script>
@@ -75,7 +75,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="introduction.html">Introduction</a></li><li class="chapter-item expanded "><a href="getting-started.html"><strong aria-hidden="true">1.</strong> Getting Started</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.1.</strong> Installation</a></li><li class="chapter-item expanded "><a href="factorial.html" class="active"><strong aria-hidden="true">1.2.</strong> Factorial</a></li><li class="chapter-item expanded "><a href="cli.html"><strong aria-hidden="true">1.3.</strong> Command-Line Interface</a></li></ol></li><li class="chapter-item expanded "><a href="design.html"><strong aria-hidden="true">2.</strong> Design</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">3.</strong> Grammar</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="introduction.html">Introduction</a></li><li class="chapter-item expanded "><a href="getting-started.html"><strong aria-hidden="true">1.</strong> Getting Started</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.1.</strong> Installation</a></li><li class="chapter-item expanded "><a href="playground.html"><strong aria-hidden="true">1.2.</strong> Playground</a></li><li class="chapter-item expanded "><a href="factorial.html" class="active"><strong aria-hidden="true">1.3.</strong> Factorial</a></li><li class="chapter-item expanded "><a href="cli.html"><strong aria-hidden="true">1.4.</strong> Command-Line Interface</a></li></ol></li><li class="chapter-item expanded "><a href="design.html"><strong aria-hidden="true">2.</strong> Design</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">3.</strong> Grammar</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -93,7 +93,7 @@
                             <i class="fa fa-paint-brush"></i>
                         </button>
                         <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
-                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
@@ -140,15 +140,17 @@
 <p>All numbers in the Tortuga Programming Language are signed real numbers. Since factorial is only defined for non-negative integers, our implementation will round all real numbers to their nearest integer and report an error for non-negative numbers.</p>
 <h2 id="copy--paste"><a class="header" href="#copy--paste">Copy &amp; Paste</a></h2>
 <p>Create a file named <code>factorial.ta</code> with the following contents:</p>
-<pre><code class="language-tortuga">@floor(@n &gt;= 0) = n - (n % 1)
+<pre><code class="language-tortuga">round(n) = round(n, n % 1)
+round(n, remainder) ? (remainder &gt;= 0.5) = 1 + n - (n % 1)
+round(n, remainder) ? (remainder &lt; 0.5) = n - (n % 1)
 
-@round(@n &gt;= 0) = round(floor(n), n % 1)
-@round(@n &gt;= 0, @remainder &gt;= 0.5) = 1 + n
-@round(@n &gt;= 0, @remainder &lt; 0.5) = n
+; base case
+factorial(n) ? (n = 0) = 1
 
-@factorial(@n = 0) = 1
-@factorial(@n &gt; 0) = [
-    @i = round(n)
+; factorial
+; inductive case
+factorial(n) ? (n &gt; 0) = [
+    i = round(n)
     i * factorial(i - 1)
 ]
 
@@ -165,7 +167,7 @@ The Tortuga Programming Language automatically prints the value of the last expr
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="installation.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="playground.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
                             <a rel="next" href="cli.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
@@ -177,7 +179,7 @@ The Tortuga Programming Language automatically prints the value of the last expr
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="installation.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="playground.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
                     <a rel="next" href="cli.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
@@ -188,8 +190,16 @@ The Tortuga Programming Language automatically prints the value of the last expr
         </div>
 
         <script type="text/javascript">
+            window.playground_line_numbers = true;
+        </script>
+        <script type="text/javascript">
             window.playground_copyable = true;
         </script>
+        <script src="ace.js" type="text/javascript" charset="utf-8"></script>
+        <script src="editor.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mode-rust.js" type="text/javascript" charset="utf-8"></script>
+        <script src="theme-dawn.js" type="text/javascript" charset="utf-8"></script>
+        <script src="theme-tomorrow_night.js" type="text/javascript" charset="utf-8"></script>
         <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
         <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
         <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
@@ -198,5 +208,6 @@ The Tortuga Programming Language automatically prints the value of the last expr
         <script src="book.js" type="text/javascript" charset="utf-8"></script>
 
         <!-- Custom JS scripts -->
+        <script type="text/javascript" src="compiler.js"></script>
     </body>
 </html>
