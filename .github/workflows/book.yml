@@ -3,7 +3,10 @@ name: Publish Book
 on:
   push:
     branches: [ main ]
-    paths: [ 'docs/**' ]
+    paths:
+      - 'compiler/**'
+      - 'docs/**'
+      - 'playground/**'
   workflow_dispatch: {}
 
 jobs:
@@ -39,7 +42,7 @@ jobs:
         working-directory: docs/book
         run: |
           curl -fsSL https://deno.land/x/install/install.sh | sh
-          deno bundle compiler.js compiler.js
+          "$HOME"/.deno/bin/deno bundle compiler.js compiler.js
       - uses: JamesIves/github-pages-deploy-action@4.1.8
         with:
           branch: gh-pages
