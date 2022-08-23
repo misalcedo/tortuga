@@ -28,37 +28,6 @@ impl Arguments {
     }
 }
 
-/// Tortuga input either from stdin, a file, or inline.
-#[derive(Parser, Clone, Debug, Eq, PartialEq)]
-#[clap(group = ArgGroup::new("input").multiple(false))]
-pub struct Input {
-    /// The path of a file to use as input.
-    #[clap(short, long, group = "input")]
-    pub path: Option<PathBuf>,
-}
-
-impl ToString for Input {
-    fn to_string(&self) -> String {
-        let mut buffer = String::new();
-        let result = match self.path.as_ref() {
-            None => stdin().read_to_string(&mut buffer),
-            Some(path) => File::open(path)
-                .expect(
-                    format!(
-                        "Unable to open file at {}.",
-                        path.as_os_str().to_string_lossy()
-                    )
-                    .as_str(),
-                )
-                .read_to_string(&mut buffer),
-        };
-
-        result.expect("Unable to read input to a string.");
-
-        buffer
-    }
-}
-
 /// Set the logging verbosity or level.
 #[derive(Args, Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Verbosity {
@@ -109,10 +78,41 @@ impl Verbosity {
 pub struct PromptCommand;
 
 #[derive(Clone, Debug, Eq, Parser, PartialEq)]
-/// Compile and run a file.
+#[clap(group = ArgGroup::new("input").multiple(false))]
+/// Compile and run a program from stdin, a file, or inline.
 pub struct RunCommand {
-    #[clap(flatten)]
-    pub input: Input,
+    /// The path of a file to use as input.
+    #[clap(group = "input")]
+    pub path: Option<PathBuf>,
+    /// An inline expression to use as input.
+    #[clap(short, long, forbid_empty_values(true), group = "input")]
+    pub expression: Option<String>,
+}
+
+impl ToString for RunCommand {
+    fn to_string(&self) -> String {
+        if let Some(expression) = self.expression.as_ref() {
+            return expression.clone();
+        }
+
+        let mut buffer = String::new();
+        let result = match self.path.as_ref() {
+            None => stdin().read_to_string(&mut buffer),
+            Some(path) => File::open(path)
+                .expect(
+                    format!(
+                        "Unable to open file at {}.",
+                        path.as_os_str().to_string_lossy()
+                    )
+                    .as_str(),
+                )
+                .read_to_string(&mut buffer),
+        };
+
+        result.expect("Unable to read input to a string.");
+
+        buffer
+    }
 }
 
 /// The sub-command to execute.
