@@ -1,9 +1,6 @@
 //! Public interface of the tortuga compiler.
 
 mod about;
-
-pub use about::*;
-
 mod arguments;
 mod errors;
 mod prompt;

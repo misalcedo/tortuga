@@ -1,4 +1,4 @@
-use crate::CommandLineError;
+use crate::{about, CommandLineError};
 use clap::{AppSettings, ArgGroup, Args, Parser, Subcommand};
 use std::fs::File;
 use std::io::{stdin, Read};
@@ -8,7 +8,7 @@ use tracing::Level;
 use tracing_log::LogTracer;
 
 #[derive(Clone, Debug, Eq, Parser, PartialEq)]
-#[clap(author, version, about)]
+#[clap(name = about::PROGRAM, author = about::AUTHORS, version = about::VERSION, about = about::DESCRIPTION)]
 #[clap(global_setting(AppSettings::PropagateVersion))]
 #[clap(global_setting(AppSettings::InferLongArgs))]
 #[clap(global_setting(AppSettings::InferSubcommands))]

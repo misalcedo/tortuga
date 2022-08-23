@@ -2,7 +2,7 @@ name: Upload Artifacts
 
 on:
   release:
-    types: [created, published]
+    types: [ created, published ]
   workflow_dispatch: {}
 
 env:
@@ -51,7 +51,7 @@ jobs:
           FILE: tortuga
         shell: bash
         run: |
-          TAG=v$(cargo metadata --no-deps --quiet | jq -r '.packages[0] | .version')
+          TAG=$(cargo metadata --no-deps --quiet | jq -r '.packages[] | select(.name=="tortuga-cli") | .version')
           ASSET="$FILE-$TAG-$TARGET"
           
           pushd $DIR
