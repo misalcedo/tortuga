@@ -34,3 +34,72 @@ More concrete examples are pending finalizing the grammar. However, some basic e
 
 ## Versioning
 Tortuga adheres to [Semantic Versioning](https://semver.org/). You can use `tortuga version` or `tortuga -V` to determine the version of a Tortuga installation.
+
+## Benchmarks
+Run using `cargo bench`.
+
+```bash
+Tortuga Fibonnaci/tortuga::runtime::interpret::Interpreter/fibonacci(0)                                                                             
+                        time:   [10.927 us 10.961 us 10.998 us]
+Found 2 outliers among 100 measurements (2.00%)
+  2 (2.00%) high severe
+Tortuga Fibonnaci/tortuga::runtime::interpret::Interpreter/fibonacci(1)                                                                             
+                        time:   [10.898 us 10.990 us 11.090 us]
+Found 10 outliers among 100 measurements (10.00%)
+  1 (1.00%) low severe
+  6 (6.00%) low mild
+  2 (2.00%) high mild
+  1 (1.00%) high severe
+Tortuga Fibonnaci/tortuga::runtime::interpret::Interpreter/fibonacci(2)                                                                             
+                        time:   [22.979 us 23.090 us 23.188 us]
+Found 12 outliers among 100 measurements (12.00%)
+  2 (2.00%) low severe
+  7 (7.00%) low mild
+  3 (3.00%) high mild
+Tortuga Fibonnaci/tortuga::runtime::interpret::Interpreter/fibonacci(3)                                                                             
+                        time:   [35.145 us 35.282 us 35.400 us]
+Found 13 outliers among 100 measurements (13.00%)
+  3 (3.00%) low severe
+  2 (2.00%) low mild
+  6 (6.00%) high mild
+  2 (2.00%) high severe
+Tortuga Fibonnaci/tortuga::runtime::interpret::Interpreter/fibonacci(4)                                                                            
+                        time:   [58.662 us 58.937 us 59.185 us]
+Found 12 outliers among 100 measurements (12.00%)
+  1 (1.00%) low severe
+  8 (8.00%) low mild
+  3 (3.00%) high mild
+Tortuga Fibonnaci/tortuga::runtime::interpret::Interpreter/fibonacci(5)                                                                            
+                        time:   [94.610 us 95.028 us 95.369 us]
+Found 5 outliers among 100 measurements (5.00%)
+  1 (1.00%) low severe
+  2 (2.00%) low mild
+  1 (1.00%) high mild
+  1 (1.00%) high severe
+Tortuga Fibonnaci/tortuga::runtime::interpret::Interpreter/fibonacci(6)                                                                            
+                        time:   [155.05 us 155.41 us 155.74 us]
+Found 10 outliers among 100 measurements (10.00%)
+  3 (3.00%) low mild
+  4 (4.00%) high mild
+  3 (3.00%) high severe
+Tortuga Fibonnaci/tortuga::runtime::interpret::Interpreter/fibonacci(7)                                                                            
+                        time:   [249.85 us 250.68 us 251.48 us]
+Found 7 outliers among 100 measurements (7.00%)
+  4 (4.00%) low mild
+  2 (2.00%) high mild
+  1 (1.00%) high severe
+Tortuga Fibonnaci/tortuga::runtime::interpret::Interpreter/fibonacci(8)                                                                            
+                        time:   [405.06 us 406.98 us 408.57 us]
+Found 17 outliers among 100 measurements (17.00%)
+  3 (3.00%) low severe
+  9 (9.00%) low mild
+  3 (3.00%) high mild
+  2 (2.00%) high severe
+Tortuga Fibonnaci/tortuga::runtime::interpret::Interpreter/fibonacci(9)                                                                            
+                        time:   [659.07 us 661.90 us 665.23 us]
+Found 12 outliers among 100 measurements (12.00%)
+  3 (3.00%) low severe
+  5 (5.00%) low mild
+  1 (1.00%) high mild
+  3 (3.00%) high severe
+```
