@@ -1,20 +1,38 @@
-name: Publish Book
+name: Deploy Book to Pages
 
 on:
+  # Runs on pushes targeting the default branch
   push:
-    branches: [ main ]
+    branches: [$default-branch]
     paths:
       - 'compiler/**'
       - 'docs/**'
       - 'playground/**'
-  workflow_dispatch: {}
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one concurrent deployment
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
 
 jobs:
-  publish:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     name: Publish Book to Github Pages
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+      - name: Setup Pages
+        uses: actions/configure-pages@v1
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -37,13 +55,17 @@ jobs:
         working-directory: ./docs
         run: cp editor.js book/editor.js
       - name: Copy WASM Pack
-        run: mv playground/pkg docs/book/pkg
+        run: cp -r playground/pkg docs/book/pkg
       - name: Bundle Compiler Module
         working-directory: docs/book
         run: |
           curl -fsSL https://deno.land/x/install/install.sh | sh
           "$HOME"/.deno/bin/deno bundle compiler.js compiler.js
-      - uses: JamesIves/github-pages-deploy-action@4.1.8
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v1
         with:
-          branch: gh-pages
-          folder: docs/book
+          # Upload only the book
+          path: 'docs/book'
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v1
