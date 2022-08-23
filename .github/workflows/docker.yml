@@ -22,7 +22,7 @@ jobs:
       - name: Build and push
         run: |
           IMAGE=ghcr.io/${{ github.repository }}
-          TAG=$(cargo metadata --no-deps --quiet | jq -r '.packages[0] | .version')
+          TAG=$(cargo metadata --no-deps --quiet | jq -r '.packages[] | select(.name=="tortuga-cli") | .version')
 
           docker build . -t $IMAGE:$TAG -t $IMAGE:latest
           docker push --all-tags $IMAGE
