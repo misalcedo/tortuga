@@ -9,4 +9,8 @@ homepage = "https://tortuga.salcedo.cc"
 repository = "https://github.com/misalcedo/tortuga"
 documentation = "https://docs.rs/tortuga"
 
+[profile.release]
+lto = true
+debug = true
+
 [dependencies]
