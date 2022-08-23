@@ -3,6 +3,7 @@ use super::CallFrame;
 use crate::{Closure, Courier, Executable, Identifier, NullCourier, Number, Text, Value};
 use std::cmp::Ordering;
 use std::mem;
+use std::str::FromStr;
 
 #[derive(Clone, Debug)]
 pub struct VirtualMachine<Courier> {
@@ -605,6 +606,18 @@ impl TryFrom<Executable> for Value {
         let result = vm.call(0, &[])?;
 
         result.ok_or_else(|| RuntimeError::from(ErrorKind::EmptyStack))
+    }
+}
+
+impl FromStr for Value {
+    type Err = RuntimeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let executable = s
+            .parse::<Executable>()
+            .map_err(|_| RuntimeError::from(ErrorKind::UnsupportedType(Value::none())))?;
+
+        Value::try_from(executable)
     }
 }
 

@@ -26,6 +26,10 @@ impl Value {
         Value::Grouping(Rc::new(values))
     }
 
+    pub fn none() -> Self {
+        Value::Grouping(Rc::new(vec![]))
+    }
+
     pub fn iter(&self) -> Iter<'_> {
         match self {
             Value::Grouping(values) => Iter::Group(values.iter()),

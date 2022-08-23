@@ -1,13 +1,14 @@
 use crate::{about, CommandLineError};
-use clap::{AppSettings, ArgGroup, Args, Parser, Subcommand};
+use clap::{AppSettings, ArgAction, ArgGroup, Args, Parser, Subcommand};
 use std::fs::File;
 use std::io::{stdin, Read};
 use std::path::PathBuf;
+use tortuga::Value;
 use tracing::subscriber::set_global_default;
 use tracing::Level;
 use tracing_log::LogTracer;
 
-#[derive(Clone, Debug, Eq, Parser, PartialEq)]
+#[derive(Clone, Debug, Parser, PartialEq)]
 #[clap(name = about::PROGRAM, author = about::AUTHORS, version = about::VERSION, about = about::DESCRIPTION)]
 #[clap(global_setting(AppSettings::PropagateVersion))]
 #[clap(global_setting(AppSettings::InferLongArgs))]
@@ -37,7 +38,7 @@ pub struct Verbosity {
         global(true),
         help_heading("VERBOSITY"),
         conflicts_with_all(&["debug", "trace"]),
-        parse(from_occurrences)
+        action(ArgAction::Count)
     )]
     /// Make the program more talkative.
     pub verbose: usize,
@@ -77,7 +78,7 @@ impl Verbosity {
 /// Run an interactive prompt to interpret source code in a read-evaluate-print loop.
 pub struct PromptCommand;
 
-#[derive(Clone, Debug, Eq, Parser, PartialEq)]
+#[derive(Clone, Debug, Parser, PartialEq)]
 #[clap(group = ArgGroup::new("input").multiple(false))]
 /// Compile and run a program from stdin, a file, or inline.
 pub struct RunCommand {
@@ -87,6 +88,9 @@ pub struct RunCommand {
     /// An inline expression to use as input.
     #[clap(short, long, forbid_empty_values(true), group = "input")]
     pub expression: Option<String>,
+    /// Arguments for the script to pass to the virtual machine.
+    #[clap(short, long, forbid_empty_values(true), action(ArgAction::Append))]
+    pub arguments: Vec<Value>,
 }
 
 impl ToString for RunCommand {
@@ -116,7 +120,7 @@ impl ToString for RunCommand {
 }
 
 /// The sub-command to execute.
-#[derive(Clone, Debug, Eq, PartialEq, Subcommand)]
+#[derive(Clone, Debug, PartialEq, Subcommand)]
 pub enum Commands {
     Prompt(PromptCommand),
     Run(RunCommand),
