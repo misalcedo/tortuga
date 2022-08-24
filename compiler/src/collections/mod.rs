@@ -3,3 +3,4 @@ mod indices;
 mod stack;
 
 pub use indices::IndexedSet;
+pub use stack::NonEmptyStack;

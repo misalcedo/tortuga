@@ -1,3 +1,4 @@
+mod analysis;
 mod error;
 pub mod grammar;
 mod location;
