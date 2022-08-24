@@ -5,6 +5,7 @@ mod capture;
 mod error;
 mod function;
 mod local;
+mod result;
 mod types;
 
 use crate::collections::NonEmptyStack;
@@ -16,6 +17,7 @@ pub use error::AnalysisError;
 use error::ErrorKind;
 pub use function::Function;
 pub use local::Local;
+pub use result::Analysis;
 pub use types::Type;
 
 type AnalysisResult = Result<Type, AnalysisError>;
@@ -35,23 +37,6 @@ pub struct SemanticAnalyzer<'a, Reporter> {
     assignments: HashSet<ExpressionReference>,
     functions: NonEmptyStack<Function<'a>>,
     types: HashMap<ExpressionReference, Type>,
-}
-
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct Analysis<'a> {
-    input: Program<'a>,
-    functions: NonEmptyStack<Function<'a>>,
-    types: HashMap<ExpressionReference, Type>,
-}
-
-impl<'a> Analysis<'a> {
-    pub fn new<R>(program: Program<'a>, analyzer: SemanticAnalyzer<'a, R>) -> Self {
-        Analysis {
-            input: program,
-            functions: analyzer.functions,
-            types: analyzer.types,
-        }
-    }
 }
 
 impl<'a, 'b, R> SemanticAnalyzer<'a, R>
@@ -148,5 +133,12 @@ mod tests {
                 ErrorKind::UnusedExpression
             ))]
         );
+    }
+
+    #[test]
+    fn assignment() {
+        assert!(Analysis::try_from("x = 42\nx")
+            .unwrap()
+            .is_assignment(&ExpressionReference(0)));
     }
 }
