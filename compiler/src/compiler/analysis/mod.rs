@@ -1,5 +1,4 @@
 use crate::{CompilationError, ErrorReporter, Program};
-use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 
 mod capture;
@@ -8,7 +7,7 @@ mod function;
 mod local;
 mod types;
 
-use crate::collections::{IndexedSet, NonEmptyStack};
+use crate::collections::NonEmptyStack;
 use crate::grammar::{
     ExpressionKind, ExpressionReference, Identifier, Node, ReferenceIterator, Uri,
 };
@@ -118,10 +117,36 @@ where
     }
 
     fn analyze_expression(&mut self, expression: Node<'a, 'b>) -> AnalysisResult {
-        Ok(Type::None)
+        Ok(Type::Number(None))
     }
 
     fn report_error<E: Into<AnalysisError>>(&mut self, error: E) {
         self.reporter.report_analysis_error(error.into());
+    }
+}
+
+impl<'a> TryFrom<&'a str> for Analysis<'a> {
+    type Error = Vec<CompilationError>;
+
+    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
+        let program = Program::try_from(value)?;
+        let analyzer = SemanticAnalyzer::new(vec![]);
+
+        analyzer.analyze(program)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unused() {
+        assert_eq!(
+            Analysis::try_from("4ad5").unwrap_err(),
+            vec![CompilationError::from(AnalysisError::from(
+                ErrorKind::UnusedExpression
+            ))]
+        );
     }
 }

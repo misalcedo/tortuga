@@ -1,7 +1,7 @@
 use std::fmt::{Display, Formatter};
 use std::mem;
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(Clone, Debug, Default, Eq, Ord, PartialOrd, Hash)]
 pub enum Type {
     #[default]
     None,
@@ -12,6 +12,12 @@ pub enum Type {
     Text(Option<usize>),
     Function(Box<Type>, Box<Type>, Box<Type>),
     Reference(ReferenceKind, usize),
+}
+
+impl PartialEq for Type {
+    fn eq(&self, other: &Self) -> bool {
+        mem::discriminant(self) == mem::discriminant(other)
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
@@ -39,14 +45,12 @@ impl Type {
     pub fn converts_to(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Error, _) | (_, Self::Error) => true,
-            (Self::Group(_), _) => self.iter().eq(other.iter()),
-            (_, Self::Group(_)) => self.iter().eq(other.iter()),
             (Self::Function(ap, ac, ar), Self::Function(bp, bc, br)) => {
-                ap == bp && ac == bc && ar == br
+                ap.converts_to(bp) && ac.converts_to(bc) && ar.converts_to(br)
             }
-            (Self::Function(_, _, _), _) => self.iter().eq(other.iter()),
-            (_, Self::Function(_, _, _)) => self.iter().eq(other.iter()),
-            (a, b) => mem::discriminant(a) == mem::discriminant(b),
+            (_, Self::Function(parameters, _, _)) => self.iter().eq(parameters.iter()),
+            (Self::Group(_), _) | (_, Self::Group(_)) => self.iter().eq(other.iter()),
+            (a, b) => a == b,
         }
     }
 
@@ -70,6 +74,7 @@ impl Type {
 pub enum Iter<'a> {
     Singleton(Option<&'a Type>),
     Group(std::slice::Iter<'a, Type>),
+    Function(Box<Self>, Box<Self>, Box<Self>),
 }
 
 impl<'a> Iterator for Iter<'a> {
@@ -79,6 +84,7 @@ impl<'a> Iterator for Iter<'a> {
         match self {
             Iter::Singleton(a) => a.take(),
             Iter::Group(a) => a.next(),
+            Iter::Function(a, b, c) => a.next().or_else(|| b.next()).or_else(|| c.next()),
         }
     }
 }
@@ -118,15 +124,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn any() {
-        assert_eq!(Type::Error, Type::Boolean);
-        assert_eq!(Type::Boolean, Type::Error);
+    fn error() {
+        assert!(Type::Error.converts_to(&Type::Boolean));
+        assert!(Type::Boolean.converts_to(&Type::Error));
+        assert_eq!(Type::Error, Type::Error);
+        assert_ne!(Type::Error, Type::Boolean);
     }
 
     #[test]
     fn groups() {
         assert_eq!(Type::group(vec![Type::Boolean]), Type::Boolean);
-        assert_eq!(Type::Boolean, Type::group(vec![Type::Boolean]));
+        assert!(Type::Boolean.converts_to(&Type::group(vec![Type::Boolean])));
         assert_eq!(
             Type::group(vec![Type::Boolean]),
             Type::group(vec![Type::Boolean])
@@ -143,23 +151,27 @@ mod tests {
 
     #[test]
     fn functions() {
-        assert_eq!(
-            Type::function(Type::Boolean, Type::None, Type::None),
-            Type::group(vec![Type::Boolean])
+        assert!(
+            Type::group(vec![Type::Boolean]).converts_to(&Type::function(
+                Type::Boolean,
+                Type::None,
+                Type::None
+            ))
         );
+        assert!(!Type::function(Type::Boolean, Type::None, Type::None)
+            .converts_to(&Type::group(vec![Type::Boolean])));
         assert_eq!(
             Type::function(Type::Boolean, Type::None, Type::None),
             Type::function(Type::group(vec![Type::Boolean]), Type::None, Type::None)
         );
-        assert_eq!(
-            Type::group(vec![Type::group(vec![Type::Boolean])]),
-            Type::function(
-                Type::group(vec![Type::Boolean]),
+        assert!(
+            Type::group(vec![Type::Boolean]).converts_to(&Type::function(
+                Type::Boolean,
                 Type::None,
-                Type::group(vec![])
-            )
+                Type::Boolean
+            ))
         );
-        assert_ne!(
+        assert_eq!(
             Type::function(
                 Type::group(vec![Type::Boolean]),
                 Type::None,
@@ -171,6 +183,16 @@ mod tests {
                 Type::group(vec![])
             )
         );
+        assert!(!Type::function(
+            Type::group(vec![Type::Boolean]),
+            Type::None,
+            Type::group(vec![Type::Reference(ReferenceKind::Function, 0)])
+        )
+        .converts_to(&Type::function(
+            Type::group(vec![Type::Boolean]),
+            Type::None,
+            Type::group(vec![])
+        )));
     }
 
     #[test]
@@ -183,6 +205,7 @@ mod tests {
 
     #[test]
     fn number() {
+        assert_eq!(Type::Number(None), Type::Number(Some(1)));
         assert_eq!(Type::Number(None), Type::Number(Some(1)));
     }
 
