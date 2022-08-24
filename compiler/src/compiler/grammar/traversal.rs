@@ -1,9 +1,11 @@
 use crate::compiler::grammar::{Expression, ExpressionReference, Program};
+use crate::grammar::ExpressionKind;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Node<'a, 'b> {
     discovered: bool,
     height: usize,
+    reference: usize,
     expression: &'b Expression<'a>,
     program: &'b Program<'a>,
 }
@@ -18,6 +20,7 @@ where
         Some(Node {
             discovered: false,
             height: 0,
+            reference: index,
             program,
             expression,
         })
@@ -30,12 +33,17 @@ where
             discovered: false,
             program: self.program,
             height: self.height + 1,
+            reference: index,
             expression,
         })
     }
 
     pub fn children(&self) -> ReferenceIterator<'a, 'b, std::slice::Iter<'b, ExpressionReference>> {
         (*self).into()
+    }
+
+    pub fn reference(&self) -> ExpressionReference {
+        ExpressionReference(self.reference)
     }
 
     pub fn discovered(&self) -> bool {
@@ -52,6 +60,10 @@ where
 
     pub fn program(&self) -> &'b Program<'a> {
         self.program
+    }
+
+    pub fn kind(&self) -> &'b ExpressionKind<'a> {
+        self.expression.kind()
     }
 
     pub fn expression(&self) -> &'b Expression<'a> {

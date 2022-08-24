@@ -1,5 +1,6 @@
 //! Errors that may occur during lexical analysis.
 
+use crate::compiler::analysis::AnalysisError;
 use crate::compiler::parse::SyntaxError;
 use crate::compiler::scan::LexicalError;
 use crate::compiler::translate::TranslationError;
@@ -10,6 +11,7 @@ use std::fmt::{self, Display, Formatter};
 pub enum CompilationError {
     Lexical(LexicalError),
     Syntax(SyntaxError),
+    Analysis(AnalysisError),
     Translation(TranslationError),
 }
 
@@ -18,6 +20,7 @@ impl Display for CompilationError {
         match self {
             CompilationError::Lexical(inner) => write!(f, "{}", inner),
             CompilationError::Syntax(inner) => write!(f, "{}", inner),
+            CompilationError::Analysis(inner) => write!(f, "{}", inner),
             CompilationError::Translation(inner) => write!(f, "{}", inner),
         }
     }
@@ -34,6 +37,12 @@ impl From<LexicalError> for CompilationError {
 impl From<SyntaxError> for CompilationError {
     fn from(error: SyntaxError) -> Self {
         CompilationError::Syntax(error)
+    }
+}
+
+impl From<AnalysisError> for CompilationError {
+    fn from(error: AnalysisError) -> Self {
+        CompilationError::Analysis(error)
     }
 }
 

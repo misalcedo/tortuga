@@ -1,15 +1,15 @@
-use crate::compiler::analysis::value::Value;
+use super::Type;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Capture {
     parent: usize,
     offset: usize,
     local: bool,
-    kind: Value,
+    kind: Type,
 }
 
 impl Capture {
-    pub fn new(parent: usize, offset: usize, local: bool, kind: Value) -> Self {
+    pub fn new(parent: usize, offset: usize, local: bool, kind: Type) -> Self {
         Capture {
             parent,
             offset,
@@ -30,7 +30,7 @@ impl Capture {
         self.local
     }
 
-    pub fn kind(&self) -> Value {
+    pub fn kind(&self) -> Type {
         self.kind.clone()
     }
 }

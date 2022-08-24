@@ -1,4 +1,4 @@
-use crate::compiler::analysis::value::Value;
+use crate::compiler::analysis::types::Type;
 use crate::{Operation, ParseNumberError};
 use std::fmt::{Display, Formatter};
 use std::ops::RangeInclusive;
@@ -16,36 +16,8 @@ impl From<ErrorKind> for AnalysisError {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ErrorKind {
-    InvalidNumber(ParseNumberError),
-    OperandsMustBeNumbers(Value, Value),
-    MissingChildren(RangeInclusive<usize>, usize), // expected, actual
-    TooManyChildren(RangeInclusive<usize>, usize), // expected, actual
-    TooManyLocals(usize),
-    TooManyCaptures(usize),
-    TooManyNumbers(usize),
-    TooManyUris(usize),
-    TooManyFunctions(usize),
-    GroupTooLarge(usize),
-    EmptyGroup,
-    UnnecessaryParenthesis,
-    NoSuchFunction(usize),
-    NoSuchNumber(usize),
-    NoSuchUri(usize),
-    NoSuchLocal(usize),
-    NotCallable(Value),
-    InvalidArguments(Value, Value), // parameters, arguments
-    EmptyScopes,
-    EmptyBlock,
-    BlockOutsideFunction,
-    ConditionOutsideFunction,
-    ComparisonOutsideCondition(Operation),
-    InvalidCondition(String),
-    ExpectedKind(String, String), // expected, actual
-    ReferenceSelfInInitializer(String),
-    PartiallyDeclaredFunction,
-    FunctionAlreadyInitialized(usize),
-    LocalInFunctionSignature(usize, usize), // function, parameter
-    BlockNotTerminated,
+    EmptyProgram,
+    UnusedExpression,
 }
 
 impl Display for AnalysisError {

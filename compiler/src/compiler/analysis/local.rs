@@ -1,39 +1,30 @@
-use super::value::Value;
+use super::types::Type;
 use crate::compiler::grammar::Identifier;
+use std::borrow::{Borrow, Cow};
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Local<'a> {
-    name: Option<Identifier<'a>>,
+    name: Cow<'a, str>,
     offset: usize,
     depth: Option<usize>,
     is_captured: bool,
-    kind: Value,
+    kind: Type,
 }
 
 impl<'a> Local<'a> {
-    pub fn initialized(kind: Value) -> Self {
-        Local {
-            name: None,
-            offset: 0,
-            depth: Some(0),
-            is_captured: false,
-            kind,
-        }
-    }
-
     pub fn new(name: Identifier<'a>, offset: usize) -> Self {
         Local {
-            name: Some(name),
+            name: name.as_str().into(),
             offset,
             depth: None,
-            kind: Value::Uninitialized(offset),
+            kind: Type::default(),
             is_captured: false,
         }
     }
 
-    pub fn initialize(&mut self, depth: usize, kind: Value) -> usize {
+    pub fn initialize(&mut self, depth: usize, kind: Type) -> usize {
         self.depth = Some(depth);
         self.kind = kind;
         self.offset
@@ -43,11 +34,11 @@ impl<'a> Local<'a> {
         self.depth
     }
 
-    pub fn name(&self) -> Option<Identifier<'a>> {
-        self.name
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
-    pub fn kind(&self) -> &Value {
+    pub fn kind(&self) -> &Type {
         &self.kind
     }
 
@@ -74,24 +65,18 @@ impl<'a> Local<'a> {
 
 impl<'a, 'b> PartialEq<Identifier<'b>> for Local<'a> {
     fn eq(&self, other: &Identifier<'b>) -> bool {
-        self.name.as_ref() == Some(other)
+        self.name.borrow() == other.as_str()
     }
 }
 
 impl<'a, 'b> PartialOrd<Identifier<'b>> for Local<'a> {
     fn partial_cmp(&self, other: &Identifier<'b>) -> Option<Ordering> {
-        self.name?.partial_cmp(other)
+        self.name.borrow().partial_cmp(other.as_str())
     }
 }
 
 impl<'a> Hash for Local<'a> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.name.hash(state)
-    }
-}
-
-impl<'a> From<Local<'a>> for Value {
-    fn from(local: Local<'a>) -> Self {
-        local.kind
+        self.name.hash(state);
     }
 }
