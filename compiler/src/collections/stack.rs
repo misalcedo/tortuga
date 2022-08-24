@@ -8,6 +8,14 @@ pub struct NonEmptyStack<Item> {
 }
 
 impl<I> NonEmptyStack<I> {
+    pub fn len(&self) -> usize {
+        self.rest.len() + 1
+    }
+
+    pub fn is_empty(&self) -> bool {
+        false
+    }
+
     pub fn top(&self) -> &I {
         &self.top
     }

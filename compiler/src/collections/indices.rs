@@ -7,6 +7,16 @@ pub struct IndexedSet<Key, Value = Key> {
     indices: HashMap<Key, usize>,
 }
 
+impl<K, V: PartialEq> PartialEq for IndexedSet<K, V> {
+    fn eq(&self, other: &Self) -> bool {
+        self.instances.eq(&other.instances)
+    }
+
+    fn ne(&self, other: &Self) -> bool {
+        self.instances.ne(&other.instances)
+    }
+}
+
 impl<K, V> Default for IndexedSet<K, V> {
     fn default() -> Self {
         IndexedSet {

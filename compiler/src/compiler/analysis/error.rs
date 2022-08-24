@@ -18,6 +18,7 @@ impl From<ErrorKind> for AnalysisError {
 pub enum ErrorKind {
     EmptyProgram,
     UnusedExpression,
+    InvalidNumber(ParseNumberError),
 }
 
 impl Display for AnalysisError {

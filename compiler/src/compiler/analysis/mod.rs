@@ -4,6 +4,7 @@ use std::collections::{HashMap, HashSet};
 
 mod capture;
 mod error;
+mod function;
 mod local;
 mod types;
 
@@ -14,20 +15,12 @@ use crate::grammar::{
 pub use capture::Capture;
 pub use error::AnalysisError;
 use error::ErrorKind;
+pub use function::Function;
 pub use local::Local;
 pub use types::Type;
 
 type AnalysisResult = Result<Type, AnalysisError>;
-
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct Function<'a> {
-    depth: usize,
-    index: usize,
-    parameters: Type,
-    results: Type,
-    captures: IndexedSet<Cow<'a, str>, Capture>,
-    locals: IndexedSet<Cow<'a, str>, Local<'a>>,
-}
+static STATEMENT_KINDS: &[ExpressionKind<'static>] = &[ExpressionKind::Equality];
 
 /// Analyze a [`Program`] to:
 /// * Ensure type safety.
@@ -93,7 +86,7 @@ where
         }
     }
 
-    fn analyze_program(mut self, program: &Program<'a>) -> AnalysisResult {
+    fn analyze_program(&mut self, program: &Program<'a>) -> AnalysisResult {
         let mut iterator = program.roots().peekable();
         let mut result = Type::None;
 
@@ -108,8 +101,8 @@ where
         Ok(result)
     }
 
-    fn analyze_statement(mut self, statement: Node<'a, 'b>) -> AnalysisResult {
-        if statement.kind() == ExpressionKind::Equality {
+    fn analyze_statement(&mut self, statement: Node<'a, 'b>) -> AnalysisResult {
+        if STATEMENT_KINDS.contains(statement.kind()) {
             let reference = statement.reference();
 
             self.analyze_expression(statement)?;
@@ -123,7 +116,8 @@ where
 
         Ok(Type::None)
     }
-    fn analyze_expression(mut self, expression: Node<'a, 'b>) -> AnalysisResult {
+
+    fn analyze_expression(&mut self, expression: Node<'a, 'b>) -> AnalysisResult {
         Ok(Type::None)
     }
 

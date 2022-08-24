@@ -119,8 +119,8 @@ mod tests {
 
     #[test]
     fn any() {
-        assert_eq!(Type::Any, Type::Boolean);
-        assert_eq!(Type::Boolean, Type::Any);
+        assert_eq!(Type::Error, Type::Boolean);
+        assert_eq!(Type::Boolean, Type::Error);
     }
 
     #[test]
@@ -163,7 +163,7 @@ mod tests {
             Type::function(
                 Type::group(vec![Type::Boolean]),
                 Type::None,
-                Type::group(vec![Type::Closure(0)])
+                Type::group(vec![Type::Reference(ReferenceKind::Function, 0)])
             ),
             Type::function(
                 Type::group(vec![Type::Boolean]),
@@ -175,7 +175,10 @@ mod tests {
 
     #[test]
     fn closure() {
-        assert_eq!(Type::Closure(0), Type::Closure(1));
+        assert_eq!(
+            Type::Reference(ReferenceKind::Function, 0),
+            Type::Reference(ReferenceKind::Function, 1)
+        );
     }
 
     #[test]

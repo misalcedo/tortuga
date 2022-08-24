@@ -1,6 +1,6 @@
 use super::types::Type;
 use crate::compiler::grammar::Identifier;
-use std::borrow::{Borrow, Cow};
+use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 
@@ -65,13 +65,13 @@ impl<'a> Local<'a> {
 
 impl<'a, 'b> PartialEq<Identifier<'b>> for Local<'a> {
     fn eq(&self, other: &Identifier<'b>) -> bool {
-        self.name.borrow() == other.as_str()
+        self.name == other.as_str()
     }
 }
 
 impl<'a, 'b> PartialOrd<Identifier<'b>> for Local<'a> {
     fn partial_cmp(&self, other: &Identifier<'b>) -> Option<Ordering> {
-        self.name.borrow().partial_cmp(other.as_str())
+        (*self.name).partial_cmp(other.as_str())
     }
 }
 
