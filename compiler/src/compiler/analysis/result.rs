@@ -25,4 +25,8 @@ impl<'a> Analysis<'a> {
     pub fn is_assignment(&self, expression: &ExpressionReference) -> bool {
         self.assignments.contains(expression)
     }
+
+    pub fn kind(&self, expression: &ExpressionReference) -> &Type {
+        self.types.get(expression).unwrap_or(&Type::None)
+    }
 }

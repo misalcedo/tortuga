@@ -141,4 +141,17 @@ mod tests {
             .unwrap()
             .is_assignment(&ExpressionReference(0)));
     }
+
+    #[test]
+    fn kind() {
+        let analysis = Analysis::try_from("x = 42\nx").unwrap();
+
+        assert_eq!(
+            analysis.kind(&ExpressionReference(0)),
+            &Type::constant_number(0)
+        );
+        assert!(analysis
+            .kind(&ExpressionReference(0))
+            .converts_to(&Type::number()));
+    }
 }

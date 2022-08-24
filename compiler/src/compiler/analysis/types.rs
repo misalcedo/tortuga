@@ -38,6 +38,22 @@ impl Type {
         }
     }
 
+    pub fn number() -> Self {
+        Type::Number(None)
+    }
+
+    pub fn constant_number(index: usize) -> Self {
+        Type::Number(Some(index))
+    }
+
+    pub fn text() -> Self {
+        Type::Text(None)
+    }
+
+    pub fn constant_text(index: usize) -> Self {
+        Type::Text(Some(index))
+    }
+
     pub fn function(parameters: Type, captures: Type, results: Type) -> Self {
         Type::Function(parameters.into(), captures.into(), results.into())
     }
