@@ -1,6 +1,6 @@
+use crate::collections::IndexedSet;
 use crate::compiler::grammar::Identifier;
 use crate::compiler::translate::capture::Capture;
-use crate::compiler::translate::indices::IndexedSet;
 use crate::compiler::translate::local::Local;
 use crate::compiler::translate::value::Value;
 use crate::{Function, Operation, ToCode};

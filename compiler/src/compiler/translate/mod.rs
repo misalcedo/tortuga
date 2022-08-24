@@ -7,13 +7,13 @@ use std::str::FromStr;
 mod capture;
 mod error;
 mod function;
-mod indices;
 mod local;
 mod number;
 mod scope;
 mod uri;
 mod value;
 
+use crate::collections::IndexedSet;
 use crate::compiler::grammar;
 use crate::compiler::grammar::{
     ExpressionKind, ExpressionReference, Identifier, Node, ReferenceIterator, Uri,
@@ -23,7 +23,6 @@ use crate::compiler::translate::error::ErrorKind;
 use crate::compiler::translate::local::Local;
 pub use error::TranslationError;
 use function::TypedFunction;
-use indices::IndexedSet;
 use scope::Scope;
 use value::Value;
 
