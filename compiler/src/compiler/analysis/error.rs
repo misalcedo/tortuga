@@ -18,6 +18,7 @@ pub enum ErrorKind {
     EmptyProgram,
     UnusedExpression,
     InvalidNumber(ParseNumberError),
+    UninitializedLocal(usize),
     TooManyFunctions(usize),
     TooManyLocals(usize),
     TooManyCaptures(usize),

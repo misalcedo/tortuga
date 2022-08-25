@@ -31,6 +31,16 @@ impl<I> NonEmptyStack<I> {
     pub fn pop(&mut self) -> Option<I> {
         self.rest.pop()
     }
+
+    pub fn iter(&self) -> impl DoubleEndedIterator<Item = &I> {
+        Some(&self.top).into_iter().chain(self.rest.iter().rev())
+    }
+
+    pub fn iter_mut(&mut self) -> impl DoubleEndedIterator<Item = &mut I> {
+        Some(&mut self.top)
+            .into_iter()
+            .chain(self.rest.iter_mut().rev())
+    }
 }
 
 impl<I: Default> NonEmptyStack<I> {

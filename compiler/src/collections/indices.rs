@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::hash::Hash;
 
@@ -124,9 +125,22 @@ where
         self.instances.get_mut(index)
     }
 
-    pub fn lookup(&self, key: &K) -> Option<&V> {
+    pub fn lookup<Q: ?Sized>(&self, key: &Q) -> Option<&V>
+    where
+        K: Borrow<Q>,
+        Q: Hash + Eq,
+    {
         let index = self.indices.get(key)?;
         self.instances.get(*index)
+    }
+
+    pub fn lookup_mut<Q: ?Sized>(&mut self, key: &Q) -> Option<&mut V>
+    where
+        K: Borrow<Q>,
+        Q: Hash + Eq,
+    {
+        let index = self.indices.get(key)?;
+        self.instances.get_mut(*index)
     }
 }
 

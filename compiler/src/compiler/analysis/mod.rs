@@ -1,4 +1,4 @@
-use crate::{grammar, CompilationError, ErrorReporter, Number, ParseNumberError, Program, Text};
+use crate::{grammar, CompilationError, ErrorReporter, Number, Program, Text};
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 
@@ -10,9 +10,7 @@ mod result;
 mod types;
 
 use crate::collections::{IndexedSet, NonEmptyStack};
-use crate::grammar::{
-    ExpressionKind, ExpressionReference, Identifier, Node, ReferenceIterator, Uri,
-};
+use crate::grammar::{ExpressionKind, ExpressionReference, Identifier, Node, Uri};
 pub use capture::Capture;
 pub use error::AnalysisError;
 use error::ErrorKind;
@@ -125,8 +123,8 @@ where
             ExpressionKind::GreaterThan => Type::None,
             ExpressionKind::LessThanOrEqualTo => Type::None,
             ExpressionKind::GreaterThanOrEqualTo => Type::None,
-            ExpressionKind::Number(_) => Type::None,
-            ExpressionKind::Identifier(_) => Type::None,
+            ExpressionKind::Number(number) => self.analyze_number(number)?,
+            ExpressionKind::Identifier(identifier) => self.analyze_identifier(identifier)?,
             ExpressionKind::Uri(uri) => self.analyze_uri(uri)?,
         };
 
@@ -160,6 +158,80 @@ where
         }
 
         Ok(Type::constant_number(index))
+    }
+
+    fn analyze_identifier(&mut self, identifier: &Identifier<'a>) -> AnalysisResult {
+        match self.resolve_local(identifier.as_str()) {
+            Some(local) => Ok(local),
+            None => match self.resolve_capture(identifier.as_str()) {
+                Some(capture) => Ok(capture),
+                None => {
+                    let index = self
+                        .functions
+                        .top_mut()
+                        .push_local(identifier.as_str().into());
+
+                    if index >= u8::MAX as usize {
+                        self.report_error(ErrorKind::TooManyLocals(index));
+                    }
+
+                    Ok(Type::local(index))
+                }
+            },
+        }
+    }
+
+    fn resolve_capture(&mut self, name: &str) -> Option<Type> {
+        match self.functions.top().resolve_capture(name) {
+            Some(capture) => {
+                return Some(Type::capture(capture.index()));
+            }
+            None => {
+                let mut iterator = self.functions.iter_mut().rev().peekable();
+
+                while let Some(enclosing) = iterator.next() {
+                    if let Some(local) = enclosing.resolve_local_mut(name) {
+                        let index = iterator.peek_mut()?.capture_local(local);
+
+                        if index > u8::MAX as usize {
+                            self.reporter
+                                .report_analysis_error(ErrorKind::TooManyCaptures(index).into());
+                        }
+
+                        break;
+                    }
+                }
+
+                while let Some(enclosing) = iterator.next() {
+                    if let Some(function) = iterator.peek_mut() {
+                        let capture = enclosing.resolve_capture(name)?;
+                        let index = function.capture_transitive(capture);
+
+                        if index > u8::MAX as usize {
+                            self.reporter
+                                .report_analysis_error(ErrorKind::TooManyCaptures(index).into());
+                        }
+                    } else {
+                        enclosing.resolve_capture(name)?;
+                    }
+                }
+            }
+        }
+
+        let capture = self.functions.top().resolve_capture(name)?;
+
+        Some(Type::capture(capture.index()))
+    }
+
+    fn resolve_local(&mut self, name: &str) -> Option<Type> {
+        let local = self.functions.top().resolve_local(name)?;
+
+        if !local.initialized() {
+            self.reporter
+                .report_analysis_error(ErrorKind::UninitializedLocal(local.index()).into());
+        }
+
+        Some(Type::local(local.index()))
     }
 
     fn report_error<E: Into<AnalysisError>>(&mut self, error: E) {

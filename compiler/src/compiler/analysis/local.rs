@@ -14,9 +14,9 @@ pub struct Local<'a> {
 }
 
 impl<'a> Local<'a> {
-    pub fn new(name: Identifier<'a>, offset: usize) -> Self {
+    pub fn new(name: Cow<'a, str>, offset: usize) -> Self {
         Local {
-            name: name.as_str().into(),
+            name,
             offset,
             depth: None,
             kind: Type::default(),
@@ -30,11 +30,15 @@ impl<'a> Local<'a> {
         self.offset
     }
 
+    pub fn initialized(&self) -> bool {
+        self.depth.is_some()
+    }
+
     pub fn depth(&self) -> Option<usize> {
         self.depth
     }
 
-    pub fn name(&self) -> &str {
+    pub fn name(&self) -> &Cow<'a, str> {
         &self.name
     }
 

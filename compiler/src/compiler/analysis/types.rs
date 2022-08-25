@@ -54,6 +54,14 @@ impl Type {
         Type::Text(Some(index))
     }
 
+    pub fn local(index: usize) -> Self {
+        Type::Reference(ReferenceKind::Local, index)
+    }
+
+    pub fn capture(index: usize) -> Self {
+        Type::Reference(ReferenceKind::Capture, index)
+    }
+
     pub fn function(parameters: Type, captures: Type, results: Type) -> Self {
         Type::Function(parameters.into(), captures.into(), results.into())
     }
