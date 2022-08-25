@@ -1,4 +1,3 @@
-use crate::compiler::analysis::types::Type;
 use crate::{Operation, ParseNumberError};
 use std::fmt::{Display, Formatter};
 use std::ops::RangeInclusive;
@@ -19,6 +18,11 @@ pub enum ErrorKind {
     EmptyProgram,
     UnusedExpression,
     InvalidNumber(ParseNumberError),
+    TooManyFunctions(usize),
+    TooManyLocals(usize),
+    TooManyCaptures(usize),
+    TooManyNumbers(usize),
+    TooManyUris(usize),
 }
 
 impl Display for AnalysisError {

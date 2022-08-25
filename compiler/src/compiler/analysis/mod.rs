@@ -1,4 +1,5 @@
-use crate::{CompilationError, ErrorReporter, Program};
+use crate::{grammar, CompilationError, ErrorReporter, Number, ParseNumberError, Program, Text};
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 
 mod capture;
@@ -8,7 +9,7 @@ mod local;
 mod result;
 mod types;
 
-use crate::collections::NonEmptyStack;
+use crate::collections::{IndexedSet, NonEmptyStack};
 use crate::grammar::{
     ExpressionKind, ExpressionReference, Identifier, Node, ReferenceIterator, Uri,
 };
@@ -37,6 +38,8 @@ pub struct SemanticAnalyzer<'a, Reporter> {
     assignments: HashSet<ExpressionReference>,
     functions: NonEmptyStack<Function<'a>>,
     types: HashMap<ExpressionReference, Type>,
+    numbers: IndexedSet<Cow<'a, str>, Number>,
+    texts: IndexedSet<Cow<'a, str>, Text>,
 }
 
 impl<'a, 'b, R> SemanticAnalyzer<'a, R>
@@ -50,6 +53,8 @@ where
             assignments: Default::default(),
             functions: Default::default(),
             types: Default::default(),
+            numbers: Default::default(),
+            texts: Default::default(),
         }
     }
 
@@ -102,7 +107,59 @@ where
     }
 
     fn analyze_expression(&mut self, expression: Node<'a, 'b>) -> AnalysisResult {
-        Ok(Type::Number(None))
+        let reference = expression.reference();
+        let kind = match expression.kind() {
+            ExpressionKind::Block => Type::None,
+            ExpressionKind::Equality => Type::None,
+            ExpressionKind::Modulo => Type::None,
+            ExpressionKind::Subtract => Type::None,
+            ExpressionKind::Add => Type::None,
+            ExpressionKind::Divide => Type::None,
+            ExpressionKind::Multiply => Type::None,
+            ExpressionKind::Power => Type::None,
+            ExpressionKind::Call => Type::None,
+            ExpressionKind::Grouping => Type::None,
+            ExpressionKind::Condition => Type::None,
+            ExpressionKind::Inequality => Type::None,
+            ExpressionKind::LessThan => Type::None,
+            ExpressionKind::GreaterThan => Type::None,
+            ExpressionKind::LessThanOrEqualTo => Type::None,
+            ExpressionKind::GreaterThanOrEqualTo => Type::None,
+            ExpressionKind::Number(_) => Type::None,
+            ExpressionKind::Identifier(_) => Type::None,
+            ExpressionKind::Uri(uri) => self.analyze_uri(uri)?,
+        };
+
+        self.types.insert(reference, kind.clone());
+
+        Ok(kind)
+    }
+
+    fn analyze_number(&mut self, number: &grammar::Number<'a>) -> AnalysisResult {
+        let value = match Number::try_from(*number) {
+            Ok(v) => v,
+            Err(e) => {
+                self.report_error(ErrorKind::InvalidNumber(e));
+                Number::default()
+            }
+        };
+        let index = self.numbers.insert(number.as_str().into(), value);
+
+        if index > u8::MAX as usize {
+            self.report_error(ErrorKind::TooManyNumbers(index));
+        }
+
+        Ok(Type::constant_number(index))
+    }
+
+    fn analyze_uri(&mut self, uri: &Uri<'a>) -> AnalysisResult {
+        let index = self.texts.insert(uri.as_str().into(), Text::from(*uri));
+
+        if index > u8::MAX as usize {
+            self.report_error(ErrorKind::TooManyUris(index));
+        }
+
+        Ok(Type::constant_number(index))
     }
 
     fn report_error<E: Into<AnalysisError>>(&mut self, error: E) {
