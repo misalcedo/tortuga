@@ -107,6 +107,9 @@ where
     fn analyze_expression(&mut self, expression: Node<'a, 'b>) -> AnalysisResult {
         let reference = expression.reference();
         let kind = match expression.kind() {
+            ExpressionKind::Identifier(identifier) => self.analyze_identifier(identifier)?,
+            ExpressionKind::Number(number) => self.analyze_number(number)?,
+            ExpressionKind::Uri(uri) => self.analyze_uri(uri)?,
             ExpressionKind::Block => Type::None,
             ExpressionKind::Equality => Type::None,
             ExpressionKind::Modulo => Type::None,
@@ -123,9 +126,6 @@ where
             ExpressionKind::GreaterThan => Type::None,
             ExpressionKind::LessThanOrEqualTo => Type::None,
             ExpressionKind::GreaterThanOrEqualTo => Type::None,
-            ExpressionKind::Number(number) => self.analyze_number(number)?,
-            ExpressionKind::Identifier(identifier) => self.analyze_identifier(identifier)?,
-            ExpressionKind::Uri(uri) => self.analyze_uri(uri)?,
         };
 
         self.types.insert(reference, kind.clone());
@@ -175,16 +175,18 @@ where
                         self.report_error(ErrorKind::TooManyLocals(index));
                     }
 
-                    Ok(Type::local(index))
+                    Ok(Type::local(self.functions.top().index(), index))
                 }
             },
         }
     }
 
     fn resolve_capture(&mut self, name: &str) -> Option<Type> {
+        let function = self.functions.top().index();
+
         match self.functions.top().resolve_capture(name) {
             Some(capture) => {
-                return Some(Type::capture(capture.index()));
+                return Some(Type::capture(function, capture.index()));
             }
             None => {
                 let mut iterator = self.functions.iter_mut().rev().peekable();
@@ -220,7 +222,7 @@ where
 
         let capture = self.functions.top().resolve_capture(name)?;
 
-        Some(Type::capture(capture.index()))
+        Some(Type::capture(function, capture.index()))
     }
 
     fn resolve_local(&mut self, name: &str) -> Option<Type> {
@@ -231,7 +233,7 @@ where
                 .report_analysis_error(ErrorKind::UninitializedLocal(local.index()).into());
         }
 
-        Some(Type::local(local.index()))
+        Some(Type::local(self.functions.top().index(), local.index()))
     }
 
     fn report_error<E: Into<AnalysisError>>(&mut self, error: E) {

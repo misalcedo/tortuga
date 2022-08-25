@@ -13,6 +13,10 @@ pub struct Function<'a> {
 }
 
 impl<'a> Function<'a> {
+    pub fn index(&self) -> usize {
+        self.index
+    }
+
     pub fn push_local(&mut self, name: Cow<'a, str>) -> usize {
         self.locals
             .insert_with(name.clone(), |index| Local::new(name, index + 1))

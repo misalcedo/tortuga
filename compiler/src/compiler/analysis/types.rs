@@ -11,7 +11,7 @@ pub enum Type {
     Number(Option<usize>),
     Text(Option<usize>),
     Function(Box<Type>, Box<Type>, Box<Type>),
-    Reference(ReferenceKind, usize),
+    Reference(ReferenceKind),
 }
 
 impl PartialEq for Type {
@@ -22,9 +22,9 @@ impl PartialEq for Type {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum ReferenceKind {
-    Local,
-    Capture,
-    Function,
+    Local(usize, usize),
+    Capture(usize, usize),
+    Function(usize),
 }
 
 impl Type {
@@ -54,12 +54,12 @@ impl Type {
         Type::Text(Some(index))
     }
 
-    pub fn local(index: usize) -> Self {
-        Type::Reference(ReferenceKind::Local, index)
+    pub fn local(function: usize, index: usize) -> Self {
+        Type::Reference(ReferenceKind::Local(function, index))
     }
 
-    pub fn capture(index: usize) -> Self {
-        Type::Reference(ReferenceKind::Capture, index)
+    pub fn capture(function: usize, index: usize) -> Self {
+        Type::Reference(ReferenceKind::Capture(function, index))
     }
 
     pub fn function(parameters: Type, captures: Type, results: Type) -> Self {
@@ -199,7 +199,7 @@ mod tests {
             Type::function(
                 Type::group(vec![Type::Boolean]),
                 Type::None,
-                Type::group(vec![Type::Reference(ReferenceKind::Function, 0)])
+                Type::group(vec![Type::Reference(ReferenceKind::Function(0))])
             ),
             Type::function(
                 Type::group(vec![Type::Boolean]),
@@ -210,7 +210,7 @@ mod tests {
         assert!(!Type::function(
             Type::group(vec![Type::Boolean]),
             Type::None,
-            Type::group(vec![Type::Reference(ReferenceKind::Function, 0)])
+            Type::group(vec![Type::Reference(ReferenceKind::Function(0))])
         )
         .converts_to(&Type::function(
             Type::group(vec![Type::Boolean]),
@@ -222,8 +222,8 @@ mod tests {
     #[test]
     fn closure() {
         assert_eq!(
-            Type::Reference(ReferenceKind::Function, 0),
-            Type::Reference(ReferenceKind::Function, 1)
+            Type::Reference(ReferenceKind::Function(0)),
+            Type::Reference(ReferenceKind::Function(1))
         );
     }
 
