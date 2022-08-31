@@ -6,7 +6,7 @@ mod executable;
 mod vm;
 
 pub use compiler::{
-    grammar, CompilationError, ErrorReporter, LexicalError, Program, ValidationResult, Validator,
+    grammar, CompilationError, ErrorReporter, LexicalError, SyntaxTree, ValidationResult, Validator,
 };
 pub use executable::{
     Code, Executable, Function, Number, Operation, OperationCode, ParseNumberError, Text, ToCode,

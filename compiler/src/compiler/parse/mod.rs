@@ -6,7 +6,7 @@ mod error;
 mod precedence;
 
 use crate::compiler::grammar::{
-    Expression, ExpressionKind, ExpressionReference, Identifier, Number, Program, Uri,
+    Expression, ExpressionKind, ExpressionReference, Identifier, Number, SyntaxTree, Uri,
 };
 use crate::compiler::scan::LexicalError;
 use crate::compiler::{CompilationError, ErrorReporter};
@@ -22,7 +22,7 @@ pub struct Parser<'a, Iterator, Reporter> {
     tokens: Iterator,
     rules: HashMap<TokenKind, ParseRule<'a, Iterator, Reporter>>,
     current: Option<Token<'a>>,
-    program: Program<'a>,
+    program: SyntaxTree<'a>,
     children: Vec<ExpressionReference>,
     end_location: Location,
 }
@@ -63,14 +63,14 @@ where
             tokens: tokens.into_iter(),
             rules: Self::rules(),
             current: None,
-            program: Program::default(),
+            program: SyntaxTree::default(),
             children: Vec::default(),
             end_location: Location::default(),
         }
     }
 
     /// Generate a [`Program`] syntax tree for this [`Parser`]'s sequence of [`Token`]s.
-    pub fn parse(mut self) -> Result<Program<'a>, R> {
+    pub fn parse(mut self) -> Result<SyntaxTree<'a>, R> {
         self.advance();
 
         while self.current.is_some() {
@@ -445,7 +445,7 @@ where
     }
 }
 
-impl<'a> TryFrom<&'a str> for Program<'a> {
+impl<'a> TryFrom<&'a str> for SyntaxTree<'a> {
     type Error = Vec<CompilationError>;
 
     fn try_from(input: &'a str) -> Result<Self, Self::Error> {
@@ -464,9 +464,9 @@ mod tests {
     #[test]
     fn math() {
         let input = "-3 + 2 + 1";
-        let program = Program::try_from(input).unwrap();
+        let program = SyntaxTree::try_from(input).unwrap();
 
-        let mut expected = Program::default();
+        let mut expected = SyntaxTree::default();
 
         let left = Number::negative("3");
         let left_index = expected.insert(left);
@@ -491,9 +491,9 @@ mod tests {
     #[test]
     fn functions() {
         let input = "f(x) = x * x\nf(2)";
-        let program = Program::try_from(input).unwrap();
+        let program = SyntaxTree::try_from(input).unwrap();
 
-        let mut expected = Program::default();
+        let mut expected = SyntaxTree::default();
 
         let function = Identifier::from("f");
         let function_index = expected.insert(function);
@@ -539,9 +539,9 @@ mod tests {
     #[test]
     fn parse_number() {
         let input = "2";
-        let program = Program::try_from(input).unwrap();
+        let program = SyntaxTree::try_from(input).unwrap();
 
-        let mut expected = Program::default();
+        let mut expected = SyntaxTree::default();
 
         let number = Number::positive("2");
         let index = expected.insert(number);
@@ -553,7 +553,7 @@ mod tests {
 
     #[test]
     fn parse_with_panic() {
-        let result = Program::try_from("+x");
+        let result = SyntaxTree::try_from("+x");
 
         assert!(result.is_err());
     }
@@ -561,9 +561,9 @@ mod tests {
     #[test]
     fn parse_negative_number() {
         let input = "-3";
-        let program = Program::try_from(input).unwrap();
+        let program = SyntaxTree::try_from(input).unwrap();
 
-        let mut expected = Program::default();
+        let mut expected = SyntaxTree::default();
 
         let number = Number::negative("3");
         let index = expected.insert(number);
@@ -575,15 +575,15 @@ mod tests {
 
     #[test]
     fn parse_negative_zero() {
-        assert_eq!(Program::try_from("-0").unwrap_err().len(), 1);
+        assert_eq!(SyntaxTree::try_from("-0").unwrap_err().len(), 1);
     }
 
     #[test]
     fn parse_identifier() {
         let input = "xyz; This is a comment.";
-        let program = Program::try_from(input).unwrap();
+        let program = SyntaxTree::try_from(input).unwrap();
 
-        let mut expected = Program::default();
+        let mut expected = SyntaxTree::default();
 
         let identifier = Identifier::from("xyz");
         let index = expected.insert(identifier);
@@ -596,7 +596,7 @@ mod tests {
     #[test]
     fn parse_simple() {
         assert!(
-            !Program::try_from(include_str!("../../../../examples/simple.ta"))
+            !SyntaxTree::try_from(include_str!("../../../../examples/simple.ta"))
                 .unwrap()
                 .is_empty()
         );
@@ -605,7 +605,7 @@ mod tests {
     #[test]
     fn parse_factorial() {
         assert!(
-            !Program::try_from(include_str!("../../../../examples/factorial.ta"))
+            !SyntaxTree::try_from(include_str!("../../../../examples/factorial.ta"))
                 .unwrap()
                 .is_empty()
         );
@@ -614,7 +614,7 @@ mod tests {
     #[test]
     fn parse_bad() {
         assert!(
-            !Program::try_from(include_str!("../../../../examples/bad.ta"))
+            !SyntaxTree::try_from(include_str!("../../../../examples/bad.ta"))
                 .unwrap_err()
                 .is_empty()
         );

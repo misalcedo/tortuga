@@ -1,4 +1,4 @@
-use crate::compiler::grammar::{Expression, ExpressionReference, Program};
+use crate::compiler::grammar::{Expression, ExpressionReference, SyntaxTree};
 use crate::grammar::ExpressionKind;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -7,14 +7,14 @@ pub struct Node<'a, 'b> {
     height: usize,
     reference: usize,
     expression: &'b Expression<'a>,
-    program: &'b Program<'a>,
+    program: &'b SyntaxTree<'a>,
 }
 
 impl<'a, 'b> Node<'a, 'b>
 where
     'a: 'b,
 {
-    pub(crate) fn new(program: &'b Program<'a>, index: usize) -> Option<Self> {
+    pub(crate) fn new(program: &'b SyntaxTree<'a>, index: usize) -> Option<Self> {
         let expression = program.expressions.get(index)?;
 
         Some(Node {
@@ -58,7 +58,7 @@ where
         self.height
     }
 
-    pub fn program(&self) -> &'b Program<'a> {
+    pub fn program(&self) -> &'b SyntaxTree<'a> {
         self.program
     }
 
@@ -99,8 +99,8 @@ where
     }
 }
 
-impl<'a, 'b> From<&'b Program<'a>> for Iter<'a, 'b> {
-    fn from(program: &'b Program<'a>) -> Self {
+impl<'a, 'b> From<&'b SyntaxTree<'a>> for Iter<'a, 'b> {
+    fn from(program: &'b SyntaxTree<'a>) -> Self {
         Iter {
             stack: program
                 .roots
@@ -140,8 +140,8 @@ impl<'a, 'b> Iterator for Iter<'a, 'b> {
 #[derive(Clone, Debug, PartialEq)]
 pub struct PreOrderIterator<Iterator>(Iterator);
 
-impl<'a, 'b> From<&'b Program<'a>> for PreOrderIterator<Iter<'a, 'b>> {
-    fn from(program: &'b Program<'a>) -> Self {
+impl<'a, 'b> From<&'b SyntaxTree<'a>> for PreOrderIterator<Iter<'a, 'b>> {
+    fn from(program: &'b SyntaxTree<'a>) -> Self {
         PreOrderIterator(program.into())
     }
 }
@@ -167,8 +167,8 @@ where
 #[derive(Clone, Debug, PartialEq)]
 pub struct PostOrderIterator<Iterator>(Iterator);
 
-impl<'a, 'b> From<&'b Program<'a>> for PostOrderIterator<Iter<'a, 'b>> {
-    fn from(program: &'b Program<'a>) -> Self {
+impl<'a, 'b> From<&'b SyntaxTree<'a>> for PostOrderIterator<Iter<'a, 'b>> {
+    fn from(program: &'b SyntaxTree<'a>) -> Self {
         PostOrderIterator(program.into())
     }
 }
@@ -192,13 +192,13 @@ where
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct ReferenceIterator<'a, 'b, Iterator>(&'b Program<'a>, Iterator);
+pub struct ReferenceIterator<'a, 'b, Iterator>(&'b SyntaxTree<'a>, Iterator);
 
-impl<'a, 'b> From<&'b Program<'a>> for ReferenceIterator<'a, 'b, std::slice::Iter<'b, usize>>
+impl<'a, 'b> From<&'b SyntaxTree<'a>> for ReferenceIterator<'a, 'b, std::slice::Iter<'b, usize>>
 where
     'a: 'b,
 {
-    fn from(program: &'b Program<'a>) -> Self {
+    fn from(program: &'b SyntaxTree<'a>) -> Self {
         ReferenceIterator(program, program.roots.iter())
     }
 }

@@ -1,19 +1,19 @@
 use crate::collections::NonEmptyStack;
 use crate::compiler::analysis::{Function, SemanticAnalyzer, Type};
 use crate::grammar::ExpressionReference;
-use crate::Program;
+use crate::SyntaxTree;
 use std::collections::{HashMap, HashSet};
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Analysis<'a> {
-    input: Program<'a>,
+    input: SyntaxTree<'a>,
     assignments: HashSet<ExpressionReference>,
     functions: NonEmptyStack<Function<'a>>,
     types: HashMap<ExpressionReference, Type>,
 }
 
 impl<'a> Analysis<'a> {
-    pub fn new<R>(program: Program<'a>, analyzer: SemanticAnalyzer<'a, R>) -> Self {
+    pub fn new<R>(program: SyntaxTree<'a>, analyzer: SemanticAnalyzer<'a, R>) -> Self {
         Analysis {
             input: program,
             assignments: analyzer.assignments,

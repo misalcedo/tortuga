@@ -11,7 +11,7 @@ mod unicode;
 mod validate;
 
 pub use error::CompilationError;
-pub use grammar::Program;
+pub use grammar::SyntaxTree;
 pub use location::Location;
 pub use parse::{Parser, SyntaxError};
 pub use report::ErrorReporter;

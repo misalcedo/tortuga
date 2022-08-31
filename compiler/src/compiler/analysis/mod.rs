@@ -1,4 +1,4 @@
-use crate::{grammar, CompilationError, ErrorReporter, Number, Program, Text};
+use crate::{grammar, CompilationError, ErrorReporter, Number, SyntaxTree, Text};
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 
@@ -56,7 +56,7 @@ where
         }
     }
 
-    pub fn analyze(mut self, program: Program<'a>) -> Result<Analysis<'a>, R> {
+    pub fn analyze(mut self, program: SyntaxTree<'a>) -> Result<Analysis<'a>, R> {
         match self.analyze_program(&program) {
             Ok(kind) => {
                 if kind.converts_to(&Type::None) {
@@ -73,7 +73,7 @@ where
         }
     }
 
-    fn analyze_program(&mut self, program: &Program<'a>) -> AnalysisResult {
+    fn analyze_program(&mut self, program: &SyntaxTree<'a>) -> AnalysisResult {
         let mut iterator = program.roots().peekable();
         let mut result = Type::None;
 
@@ -245,7 +245,7 @@ impl<'a> TryFrom<&'a str> for Analysis<'a> {
     type Error = Vec<CompilationError>;
 
     fn try_from(value: &'a str) -> Result<Self, Self::Error> {
-        let program = Program::try_from(value)?;
+        let program = SyntaxTree::try_from(value)?;
         let analyzer = SemanticAnalyzer::new(vec![]);
 
         analyzer.analyze(program)

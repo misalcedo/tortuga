@@ -1,4 +1,4 @@
-use crate::{CompilationError, Program};
+use crate::{CompilationError, SyntaxTree};
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct Validator {}
@@ -12,7 +12,7 @@ pub enum ValidationResult {
 
 impl Validator {
     pub fn validate(&self, code: &str) -> ValidationResult {
-        match Program::try_from(code) {
+        match SyntaxTree::try_from(code) {
             Ok(_) => ValidationResult::Valid,
             Err(errors) => {
                 if errors.iter().any(|error| match error {

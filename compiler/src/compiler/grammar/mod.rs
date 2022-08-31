@@ -14,12 +14,12 @@ pub use terminal::{Identifier, Number, Uri};
 /// An ordered forest of [`Expression`]s.
 /// Each [`Expression`] is a tree with any number of children.
 #[derive(Clone, Debug, Default, PartialEq)]
-pub struct Program<'a> {
+pub struct SyntaxTree<'a> {
     expressions: Vec<Expression<'a>>,
     roots: Vec<usize>,
 }
 
-impl<'a> Program<'a> {
+impl<'a> SyntaxTree<'a> {
     pub fn mark_root(&mut self, index: ExpressionReference) {
         self.roots.push(index.0);
     }
@@ -49,7 +49,7 @@ impl<'a> Program<'a> {
     }
 }
 
-impl Display for Program<'_> {
+impl Display for SyntaxTree<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut iterator = self.iter().peekable();
 
@@ -103,7 +103,7 @@ mod tests {
 
     #[test]
     fn add() {
-        let mut program = Program::default();
+        let mut program = SyntaxTree::default();
 
         let left = Number::positive("3");
         let left_index = program.insert(left.clone());
@@ -130,7 +130,7 @@ mod tests {
 
     #[test]
     fn grouping() {
-        let mut program = Program::default();
+        let mut program = SyntaxTree::default();
 
         let left = Number::positive("3");
         let left_index = program.insert(left.clone());
@@ -148,7 +148,7 @@ mod tests {
 
     #[test]
     fn display() {
-        let mut program = Program::default();
+        let mut program = SyntaxTree::default();
 
         let function = Identifier::from("f");
         let function_index = program.insert(function);
@@ -185,7 +185,7 @@ mod tests {
 
     #[test]
     fn roots() {
-        let mut program = Program::default();
+        let mut program = SyntaxTree::default();
 
         let function = Identifier::from("f");
         let function_index = program.insert(function);

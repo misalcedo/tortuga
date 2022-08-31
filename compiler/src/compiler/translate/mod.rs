@@ -1,5 +1,5 @@
 use crate::compiler::{CompilationError, ErrorReporter};
-use crate::{Executable, Function, Number, Operation, Program, Text};
+use crate::{Executable, Function, Number, Operation, SyntaxTree, Text};
 use std::mem;
 use std::slice::Iter;
 use std::str::FromStr;
@@ -38,7 +38,7 @@ pub struct Translator<'a, Reporter> {
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Translation<'a> {
-    input: Program<'a>,
+    input: SyntaxTree<'a>,
     output: Executable,
 }
 
@@ -63,7 +63,7 @@ where
 
     // TODO:
     // * Prevent local variable in an assignment that is not a block.
-    pub fn translate(mut self, program: Program<'a>) -> Result<Translation<'a>, R> {
+    pub fn translate(mut self, program: SyntaxTree<'a>) -> Result<Translation<'a>, R> {
         if let Err(e) = self.simulate_program(&program) {
             self.report_error(e);
         }
@@ -92,7 +92,7 @@ where
         }
     }
 
-    fn simulate_program(&mut self, program: &Program<'a>) -> SimulationResult {
+    fn simulate_program(&mut self, program: &SyntaxTree<'a>) -> SimulationResult {
         let mut iterator = program.roots().peekable();
         let mut result = Value::None;
 
@@ -693,7 +693,7 @@ impl<'a> TryFrom<&'a str> for Translation<'a> {
     type Error = Vec<CompilationError>;
 
     fn try_from(input: &'a str) -> Result<Self, Self::Error> {
-        let program = Program::try_from(input)?;
+        let program = SyntaxTree::try_from(input)?;
         let translator = Translator::new(vec![]);
 
         translator.translate(program)
