@@ -1,5 +1,6 @@
 mod analysis;
 mod error;
+mod excerpt;
 pub mod grammar;
 mod location;
 mod parse;
@@ -11,6 +12,7 @@ mod unicode;
 mod validate;
 
 pub use error::CompilationError;
+pub use excerpt::Excerpt;
 pub use grammar::SyntaxTree;
 pub use location::Location;
 pub use parse::{Parser, SyntaxError};
