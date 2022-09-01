@@ -8,6 +8,15 @@ pub struct Excerpt {
     end: Bound<Location>,
 }
 
+impl Default for Excerpt {
+    fn default() -> Self {
+        Excerpt {
+            start: Bound::Included(Location::default()),
+            end: Bound::Excluded(Location::default()),
+        }
+    }
+}
+
 impl<R> From<R> for Excerpt
 where
     R: RangeBounds<Location>,
@@ -68,5 +77,13 @@ mod tests {
         let excerpt = Excerpt::from(..);
 
         assert_eq!(&text[&excerpt], text);
+    }
+
+    #[test]
+    fn excerpt_default() {
+        let text = "Hello, World!";
+        let excerpt = Excerpt::default();
+
+        assert_eq!(&text[&excerpt], "");
     }
 }
