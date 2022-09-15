@@ -45,6 +45,7 @@ impl<'a> TryFrom<Scanner<'a>> for Vec<Token<'a>> {
 }
 
 const INVALID_CODE_POINTS: &'static str = "Invalid code points.";
+const IDENTIFIER_STARTING_WITH_NUMBER: &'static str = "Identifiers must not start with a number.";
 const FRACTIONAL_ENDS_WITH_ZERO: &'static str = "Fractional numbers must not end with a zero.";
 const INTEGER_WITH_DOT_SUFFIX: &'static str = "Integers must not end with a dot ('.').";
 const INTEGER_WITH_LEADING_ZERO: &'static str = "Integers must not have a leading zero.";
@@ -147,7 +148,9 @@ impl<'a> Scanner<'a> {
 
         let number = &self.source[self.start.offset()..self.end.offset()];
 
-        if fractional && number.ends_with("0") {
+        if self.matches_closure(|c| c.is_xid_start()) {
+            self.new_error(IDENTIFIER_STARTING_WITH_NUMBER)
+        } else if fractional && number.ends_with("0") {
             self.new_error(FRACTIONAL_ENDS_WITH_ZERO)
         } else if fractional && number.ends_with(".") {
             self.new_error(INTEGER_WITH_DOT_SUFFIX)
@@ -245,6 +248,7 @@ impl<'a> Iterator for Scanner<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::compiler::Excerpt;
 
     fn validate(kind: TokenKind) {
         let input = kind.to_string();
@@ -513,11 +517,11 @@ mod tests {
 
         assert_eq!(
             scanner.next(),
-            Some(Ok(Token::new(Location::default(), "2", TokenKind::Number)))
-        );
-        assert_eq!(
-            scanner.next(),
-            Some(Ok(Token::new("2", "x", TokenKind::Identifier)))
+            Some(Err(LexicalError::new(
+                IDENTIFIER_STARTING_WITH_NUMBER,
+                Location::default(),
+                "2x"
+            )))
         );
         assert_eq!(scanner.next(), None);
     }
