@@ -14,10 +14,13 @@ impl<D> From<D> for Tree<D> {
 }
 
 impl<D> Tree<D> {
-    pub fn insert(&mut self, data: D) -> &mut Tree<D> {
+    pub fn insert<T>(&mut self, child: T) -> &mut Tree<D>
+    where
+        T: Into<Self>,
+    {
         let index = self.children.len();
 
-        self.children.push(Tree::from(data));
+        self.children.push(child.into());
 
         &mut self.children[index]
     }

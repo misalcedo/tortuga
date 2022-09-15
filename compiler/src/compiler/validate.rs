@@ -25,6 +25,5 @@ impl Validator {
                 }
             }
         }
-        ValidationResult::Valid
     }
 }

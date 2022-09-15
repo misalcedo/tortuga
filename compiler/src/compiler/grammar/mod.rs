@@ -23,8 +23,8 @@ impl<'a> SyntaxTree<'a> {
         }
     }
 
-    pub fn insert<E: Into<Expression<'a>>>(&mut self, expression: E) -> &mut Tree<Expression<'a>> {
-        self.forest.insert(expression.into())
+    pub fn insert(&mut self, expression: Expression<'a>) -> &mut Tree<Expression<'a>> {
+        self.forest.insert(expression)
     }
 
     pub fn iter(&self) -> Iter<'_, Expression<'a>> {

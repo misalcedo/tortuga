@@ -16,10 +16,13 @@ impl<D, TD> From<D> for Forest<D, TD> {
 }
 
 impl<D, TD> Forest<D, TD> {
-    pub fn insert(&mut self, data: TD) -> &mut Tree<TD> {
+    pub fn insert<T>(&mut self, tree: T) -> &mut Tree<TD>
+    where
+        T: Into<Tree<TD>>,
+    {
         let index = self.trees.len();
 
-        self.trees.push(Tree::from(data));
+        self.trees.push(tree.into());
 
         &mut self.trees[index]
     }
