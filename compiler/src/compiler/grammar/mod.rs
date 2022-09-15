@@ -12,20 +12,14 @@ use std::fmt::{Display, Formatter};
 #[derive(Clone, Debug, PartialEq)]
 pub struct SyntaxTree<'a> {
     source: &'a str,
-    forest: Forest<ProgramKind, Expression<'a>>,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum ProgramKind {
-    Script,
-    Module,
+    forest: Forest<(), Expression<'a>>,
 }
 
 impl<'a> SyntaxTree<'a> {
     pub fn new(source: &'a str) -> Self {
         SyntaxTree {
             source,
-            forest: Forest::from(ProgramKind::Script),
+            forest: Forest::from(()),
         }
     }
 
