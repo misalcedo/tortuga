@@ -19,6 +19,10 @@ impl<'a> Expression<'a> {
         &self.kind
     }
 
+    pub fn kind_mut(&mut self) -> &mut ExpressionKind {
+        &mut self.kind
+    }
+
     pub fn as_str(&self) -> &'a str {
         self.lexeme
     }
