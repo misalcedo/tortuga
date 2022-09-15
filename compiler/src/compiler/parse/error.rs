@@ -1,7 +1,7 @@
 //! Errors that may occur during lexical analysis.
 
-use crate::compiler::LexicalError;
 use crate::compiler::Location;
+use crate::compiler::{Excerpt, LexicalError};
 use std::fmt::{self, Display, Formatter};
 
 /// An error that occurred during parsing of the source code's syntax tree.
@@ -9,12 +9,12 @@ use std::fmt::{self, Display, Formatter};
 pub struct SyntaxError {
     message: String,
     incomplete: bool,
-    start: Location,
+    excerpt: Excerpt,
 }
 
 impl Display for SyntaxError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "Syntax error at ({}): {}", self.start, self.message)
+        write!(f, "Syntax error at ({}): {}", self.excerpt, self.message)
     }
 }
 
@@ -25,7 +25,7 @@ impl From<LexicalError> for SyntaxError {
         SyntaxError {
             message: format!("{}", &error),
             incomplete: false,
-            start: *error.start(),
+            excerpt: *error.excerpt(),
         }
     }
 }
@@ -35,11 +35,11 @@ impl SyntaxError {
         self.incomplete
     }
 
-    pub fn new(message: &str, start: Location) -> Self {
+    pub fn new(message: &str, excerpt: Excerpt) -> Self {
         SyntaxError {
             message: message.to_string(),
             incomplete: false,
-            start,
+            excerpt,
         }
     }
 
@@ -47,7 +47,7 @@ impl SyntaxError {
         SyntaxError {
             message: message.to_string(),
             incomplete: true,
-            start,
+            excerpt: Excerpt::from(start..),
         }
     }
 }

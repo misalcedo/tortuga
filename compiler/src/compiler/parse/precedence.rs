@@ -1,6 +1,6 @@
 use crate::collections::Tree;
 use crate::compiler::parse::SyntaxError;
-use crate::compiler::Parser;
+use crate::compiler::{Location, Parser};
 use crate::grammar::Expression;
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
@@ -34,20 +34,25 @@ impl Precedence {
     }
 }
 
-pub type ParseFunction<'a, I, R> =
+pub type PrefixParseFunction<'a, I, R> =
     fn(&mut Parser<'a, I, R>) -> Result<Tree<Expression<'a>>, SyntaxError>;
+pub type InfixParseFunction<'a, I, R> = fn(
+    &mut Parser<'a, I, R>,
+    Location,
+    Tree<Expression<'a>>,
+) -> Result<Tree<Expression<'a>>, SyntaxError>;
 
 #[derive(Clone, Copy)]
 pub struct ParseRule<'a, I, R> {
-    prefix: Option<ParseFunction<'a, I, R>>,
-    infix: Option<ParseFunction<'a, I, R>>,
+    prefix: Option<PrefixParseFunction<'a, I, R>>,
+    infix: Option<InfixParseFunction<'a, I, R>>,
     precedence: Precedence,
 }
 
 impl<'a, I, R> ParseRule<'a, I, R> {
     pub fn new(
-        prefix: ParseFunction<'a, I, R>,
-        infix: ParseFunction<'a, I, R>,
+        prefix: PrefixParseFunction<'a, I, R>,
+        infix: InfixParseFunction<'a, I, R>,
         precedence: Precedence,
     ) -> Self {
         ParseRule {
@@ -57,7 +62,7 @@ impl<'a, I, R> ParseRule<'a, I, R> {
         }
     }
 
-    pub fn new_prefix(prefix: ParseFunction<'a, I, R>) -> Self {
+    pub fn new_prefix(prefix: PrefixParseFunction<'a, I, R>) -> Self {
         ParseRule {
             prefix: Some(prefix),
             infix: None,
@@ -65,7 +70,7 @@ impl<'a, I, R> ParseRule<'a, I, R> {
         }
     }
 
-    pub fn new_infix(infix: ParseFunction<'a, I, R>, precedence: Precedence) -> Self {
+    pub fn new_infix(infix: InfixParseFunction<'a, I, R>, precedence: Precedence) -> Self {
         ParseRule {
             prefix: None,
             infix: Some(infix),
@@ -73,11 +78,11 @@ impl<'a, I, R> ParseRule<'a, I, R> {
         }
     }
 
-    pub fn prefix(&self) -> Option<&ParseFunction<'a, I, R>> {
+    pub fn prefix(&self) -> Option<&PrefixParseFunction<'a, I, R>> {
         self.prefix.as_ref()
     }
 
-    pub fn infix(&self) -> Option<&ParseFunction<'a, I, R>> {
+    pub fn infix(&self) -> Option<&InfixParseFunction<'a, I, R>> {
         self.infix.as_ref()
     }
 

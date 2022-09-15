@@ -23,7 +23,10 @@ impl<'a> SyntaxTree<'a> {
         }
     }
 
-    pub fn insert(&mut self, expression: Expression<'a>) -> &mut Tree<Expression<'a>> {
+    pub fn insert<T>(&mut self, expression: T) -> &mut Tree<Expression<'a>>
+    where
+        T: Into<Tree<Expression<'a>>>,
+    {
         self.forest.insert(expression)
     }
 

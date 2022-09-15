@@ -7,12 +7,12 @@ use std::fmt::{Display, Formatter, Write};
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub struct Expression<'a> {
     kind: ExpressionKind,
-    excerpt: &'a str,
+    lexeme: &'a str,
 }
 
 impl<'a> Expression<'a> {
-    pub fn new(kind: ExpressionKind, excerpt: &'a str) -> Self {
-        Expression { kind, excerpt }
+    pub fn new(kind: ExpressionKind, lexeme: &'a str) -> Self {
+        Expression { kind, lexeme }
     }
 
     pub fn kind(&self) -> &ExpressionKind {
@@ -20,7 +20,7 @@ impl<'a> Expression<'a> {
     }
 
     pub fn as_str(&self) -> &'a str {
-        self.excerpt
+        self.lexeme
     }
 }
 
@@ -43,9 +43,9 @@ impl Display for Expression<'_> {
             ExpressionKind::GreaterThan => f.write_char('>'),
             ExpressionKind::LessThanOrEqualTo => f.write_str("<="),
             ExpressionKind::GreaterThanOrEqualTo => f.write_str(">="),
-            ExpressionKind::Number => f.write_str(self.excerpt),
-            ExpressionKind::Identifier => f.write_str(self.excerpt),
-            ExpressionKind::Uri => f.write_str(self.excerpt),
+            ExpressionKind::Number => f.write_str(self.lexeme),
+            ExpressionKind::Identifier => f.write_str(self.lexeme),
+            ExpressionKind::Uri => f.write_str(self.lexeme),
         }
     }
 }

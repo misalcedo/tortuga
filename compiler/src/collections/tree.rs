@@ -14,6 +14,10 @@ impl<D> From<D> for Tree<D> {
 }
 
 impl<D> Tree<D> {
+    pub fn new(data: D, children: Vec<Self>) -> Self {
+        Tree { data, children }
+    }
+
     pub fn insert<T>(&mut self, child: T) -> &mut Tree<D>
     where
         T: Into<Self>,

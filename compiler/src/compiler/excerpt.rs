@@ -1,5 +1,6 @@
 use crate::compiler::Location;
 use std::collections::Bound;
+use std::fmt::{Display, Formatter};
 use std::ops::{Index, RangeBounds};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
@@ -72,6 +73,24 @@ impl Index<&Excerpt> for str {
             (Bound::Unbounded, Bound::Excluded(end)) => &self[..end.offset()],
             (Bound::Unbounded, Bound::Included(end)) => &self[..=end.offset()],
             (Bound::Unbounded, Bound::Unbounded) => self,
+        }
+    }
+}
+
+impl Display for Excerpt {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self.start {
+            Bound::Included(start) => write!(f, "[{}", start)?,
+            Bound::Excluded(start) => write!(f, "({}", start)?,
+            Bound::Unbounded => {}
+        };
+
+        write!(f, ", ")?;
+
+        match self.start {
+            Bound::Included(end) => write!(f, "{}]", end),
+            Bound::Excluded(end) => write!(f, "{})", end),
+            Bound::Unbounded => Ok(()),
         }
     }
 }
