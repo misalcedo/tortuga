@@ -1,8 +1,4 @@
-use crate::compiler::Excerpt;
-use std::fmt::{Display, Formatter};
-use std::rc::{Rc, Weak};
-
-#[derive(Debug)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Tree<Data> {
     data: Data,
     children: Vec<Self>,
@@ -28,6 +24,10 @@ impl<D> Tree<D> {
 
     pub fn data(&self) -> &D {
         &self.data
+    }
+
+    pub fn data_mut(&mut self) -> &mut D {
+        &mut self.data
     }
 
     pub fn height(&self) -> usize {

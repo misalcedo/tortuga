@@ -1,8 +1,8 @@
-use crate::compiler::{Location, Token};
+use crate::compiler::Location;
 use std::collections::Bound;
 use std::ops::{Index, RangeBounds};
 
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub struct Excerpt {
     start: Bound<Location>,
     end: Bound<Location>,
@@ -26,6 +26,31 @@ where
         let end = range.end_bound().cloned();
 
         Excerpt { start, end }
+    }
+}
+
+impl From<&str> for Excerpt {
+    fn from(start: &str) -> Self {
+        let start = Location::from(start);
+
+        Excerpt {
+            start: Bound::Included(start),
+            end: Bound::Unbounded,
+        }
+    }
+}
+
+impl Excerpt {
+    pub fn find(source: &str, excerpt: &str) -> Self {
+        match source.find(excerpt) {
+            None => Self::default(),
+            Some(start) => {
+                let start = Location::from(&source[..start]);
+                let end = start + excerpt;
+
+                Excerpt::from(start..end)
+            }
+        }
     }
 }
 
@@ -85,5 +110,13 @@ mod tests {
         let excerpt = Excerpt::default();
 
         assert_eq!(&text[&excerpt], "");
+    }
+
+    #[test]
+    fn excerpt_find() {
+        let text = "Hello, World!";
+        let excerpt = Excerpt::find(text, "World");
+
+        assert_eq!(&text[&excerpt], "World");
     }
 }

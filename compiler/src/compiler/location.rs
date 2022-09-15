@@ -6,7 +6,7 @@ use std::fmt;
 use std::ops::{Add, AddAssign};
 
 /// The line and column of the start of a lexeme.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Location {
     offset: usize,
     line: usize,

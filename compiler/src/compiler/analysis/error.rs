@@ -1,6 +1,5 @@
-use crate::{Operation, ParseNumberError};
+use crate::ParseNumberError;
 use std::fmt::{Display, Formatter};
-use std::ops::RangeInclusive;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct AnalysisError {
