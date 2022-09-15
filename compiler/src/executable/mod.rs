@@ -10,6 +10,7 @@ pub use error::ParseNumberError;
 pub use function::Function;
 pub use number::Number;
 pub use operation::{Code, Operation, OperationCode, ToCode};
+use std::str::FromStr;
 pub use text::Text;
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -47,5 +48,13 @@ impl Executable {
 
     pub fn functions(&self) -> usize {
         self.functions.len()
+    }
+}
+
+impl FromStr for Executable {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Executable::default())
     }
 }

@@ -5,12 +5,10 @@
 mod error;
 mod precedence;
 
-use crate::compiler::grammar::{
-    Expression, ExpressionKind, ExpressionReference, Identifier, Number, SyntaxTree, Uri,
-};
 use crate::compiler::scan::LexicalError;
 use crate::compiler::{CompilationError, ErrorReporter};
 use crate::compiler::{Location, Scanner, Token, TokenKind};
+use crate::grammar::{Expression, ExpressionKind, SyntaxTree};
 pub use error::SyntaxError;
 use precedence::{ParseFunction, ParseRule, Precedence};
 use std::collections::HashMap;
@@ -459,7 +457,6 @@ impl<'a> TryFrom<&'a str> for SyntaxTree<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::compiler::grammar::{ExpressionKind, Number};
 
     #[test]
     fn math() {

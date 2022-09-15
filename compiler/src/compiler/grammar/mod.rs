@@ -1,94 +1,118 @@
 //! The Syntax Tree for the tortuga grammar.
 
 mod expression;
-mod terminal;
-mod traversal;
 
-pub use crate::compiler::grammar::traversal::{
-    Iter, Node, NodeIterator, PostOrderIterator, PreOrderIterator, ReferenceIterator,
-};
-pub use expression::{Expression, ExpressionKind, ExpressionReference};
+use crate::collections::forest::{Iter, Node, RootsIterator};
+use crate::collections::{Forest, Tree};
+pub use expression::{Expression, ExpressionKind};
 use std::fmt::{Display, Formatter};
-pub use terminal::{Identifier, Number, Uri};
 
 /// An ordered forest of [`Expression`]s.
 /// Each [`Expression`] is a tree with any number of children.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct SyntaxTree<'a> {
-    expressions: Vec<Expression<'a>>,
-    roots: Vec<usize>,
+    source: &'a str,
+    forest: Forest<ProgramKind, Expression<'a>>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum ProgramKind {
+    Script,
+    Module,
 }
 
 impl<'a> SyntaxTree<'a> {
-    pub fn mark_root(&mut self, index: ExpressionReference) {
-        self.roots.push(index.0);
+    pub fn new(source: &'a str) -> Self {
+        SyntaxTree {
+            source,
+            forest: Forest::from(ProgramKind::Script),
+        }
     }
 
-    pub fn insert<E: Into<Expression<'a>>>(&mut self, expression: E) -> ExpressionReference {
-        let index = self.expressions.len();
-
-        self.expressions.insert(index, expression.into());
-
-        ExpressionReference(index)
+    pub fn insert<E: Into<Expression<'a>>>(&mut self, expression: E) -> &mut Tree<Expression<'a>> {
+        self.forest.insert(expression.into())
     }
 
-    pub fn iter(&self) -> Iter<'a, '_> {
-        self.into()
+    pub fn iter(&self) -> Iter<'_, Expression<'a>> {
+        self.forest.iter()
     }
 
-    pub fn roots(&self) -> ReferenceIterator<'a, '_, std::slice::Iter<'_, usize>> {
-        self.into()
+    pub fn roots(&self) -> RootsIterator<'_, Expression<'a>> {
+        self.forest.trees()
     }
 
     pub fn len(&self) -> usize {
-        self.expressions.len()
+        self.forest.len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.expressions.is_empty()
+        self.forest.is_empty()
+    }
+
+    pub fn as_str(&self) -> &'a str {
+        self.source
     }
 }
 
 impl Display for SyntaxTree<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let mut iterator = self.iter().peekable();
+        let mut iterator = self.roots().peekable();
 
         while let Some(node) = iterator.next() {
-            let is_last = iterator.peek().map(|n| n.discovered()).unwrap_or(true);
-            let expression = node.expression();
+            write!(f, "{}", node)?;
 
-            if !node.discovered() && !expression.leaf() {
-                let open = match expression.kind() {
-                    ExpressionKind::Block => '[',
-                    _ => '(',
-                };
+            if iterator.peek().is_some() {
+                write!(f, " ")?;
+            }
+        }
 
-                write!(f, "{}", open)?;
+        Ok(())
+    }
+}
 
-                let kind = expression.kind().to_string();
+impl<'a> Display for Node<'a, Expression<'a>> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self.data().kind() {
+            _ if self.leaf() => write!(f, "{}", self.data())?,
+            ExpressionKind::Block => {
+                write!(f, "[")?;
 
-                write!(f, "{}", kind)?;
+                let mut children = self.children().peekable();
 
+                while let Some(child) = children.next() {
+                    write!(f, "{}", child)?;
+
+                    if children.peek().is_some() {
+                        write!(f, "; ")?;
+                    }
+                }
+
+                write!(f, "]")?;
+            }
+            ExpressionKind::Grouping if self.children().len() == 1 => {
+                if let Some(child) = self.children().next() {
+                    write!(f, "{}", child)?;
+                }
+            }
+            _ => {
+                write!(f, "(")?;
+
+                let kind = self.data().to_string();
                 if !kind.is_empty() {
-                    write!(f, " ")?;
+                    write!(f, "{} ", kind)?;
                 }
-            } else if node.discovered() && !expression.leaf() {
-                let close = match expression.kind() {
-                    ExpressionKind::Block => ']',
-                    _ => ')',
-                };
 
-                write!(f, "{}", close)?;
+                let mut children = self.children().peekable();
 
-                if !is_last {
-                    write!(f, " ")?;
+                while let Some(child) = children.next() {
+                    write!(f, "{}", child)?;
+
+                    if children.peek().is_some() {
+                        write!(f, " ")?;
+                    }
                 }
-            } else if node.discovered() && expression.leaf() {
-                write!(f, "{}", expression)?;
 
-                if !is_last {
-                    write!(f, " ")?;
-                }
+                write!(f, ")")?;
             }
         }
 
@@ -99,140 +123,59 @@ impl Display for SyntaxTree<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::compiler::grammar::traversal::NodeIterator;
+    use crate::collections::forest::Node;
 
     #[test]
     fn add() {
-        let mut program = SyntaxTree::default();
+        let source = "3 + 2";
+        let mut program = SyntaxTree::new(source);
+        let add = program.insert(Expression::new(ExpressionKind::Add, source));
 
-        let left = Number::positive("3");
-        let left_index = program.insert(left.clone());
-
-        let right = Number::positive("2");
-        let right_index = program.insert(right.clone());
-
-        let add = Expression::new(ExpressionKind::Add, vec![left_index, right_index]);
-        let add_index = program.insert(add.clone());
-
-        program.mark_root(add_index);
-
-        let expected: Vec<Expression<'_>> = vec![left.into(), right.into(), add.into()];
-        let actual: Vec<Expression<'_>> = program
-            .iter()
-            .post_order()
-            .map(|n| n.expression())
-            .cloned()
-            .collect();
+        let left = add.insert(Expression::new(ExpressionKind::Number, "3"));
+        let right = add.insert(Expression::new(ExpressionKind::Number, "2"));
 
         assert_eq!("(+ 3 2)", program.to_string().as_str());
-        assert_eq!(expected, actual);
     }
 
     #[test]
     fn grouping() {
-        let mut program = SyntaxTree::default();
+        let source = "(3 + 2)";
+        let mut program = SyntaxTree::new(source);
 
-        let left = Number::positive("3");
-        let left_index = program.insert(left.clone());
+        let grouping = program.insert(Expression::new(ExpressionKind::Grouping, source));
 
-        let right = Number::positive("2");
-        let right_index = program.insert(right.clone());
-
-        let grouping = Expression::new(ExpressionKind::Grouping, vec![left_index, right_index]);
-        let grouping_index = program.insert(grouping.clone());
-
-        program.mark_root(grouping_index);
+        let left = grouping.insert(Expression::new(ExpressionKind::Number, "3"));
+        let right = grouping.insert(Expression::new(ExpressionKind::Number, "2"));
 
         assert_eq!("(3 2)", program.to_string().as_str());
     }
 
     #[test]
-    fn display() {
-        let mut program = SyntaxTree::default();
+    fn equality() {
+        let mut program = SyntaxTree::new("f(x) = x * x\nf(2)");
 
-        let function = Identifier::from("f");
-        let function_index = program.insert(function);
+        let assignment = program.insert(Expression::new(ExpressionKind::Equality, "f(x) = x * x"));
+        let declaration = assignment.insert(Expression::new(ExpressionKind::Call, "f(x)"));
+        let function = declaration.insert(Expression::new(ExpressionKind::Identifier, "f"));
+        let parameters = declaration.insert(Expression::new(ExpressionKind::Grouping, "(x)"));
+        let parameter = parameters.insert(Expression::new(ExpressionKind::Identifier, "x"));
 
-        let parameter = Identifier::from("x");
-        let parameter_index = program.insert(parameter);
+        let multiply = assignment.insert(Expression::new(ExpressionKind::Multiply, "x * x"));
+        let lhs = multiply.insert(Expression::new(ExpressionKind::Identifier, "x"));
+        let rhs = multiply.insert(Expression::new(ExpressionKind::Identifier, "x"));
 
-        let declaration =
-            Expression::new(ExpressionKind::Call, vec![function_index, parameter_index]);
-        let declaration_index = program.insert(declaration);
-
-        let left_index = program.insert(parameter);
-        let right_index = program.insert(parameter);
-
-        let multiply = Expression::new(ExpressionKind::Multiply, vec![left_index, right_index]);
-        let multiply_index = program.insert(multiply);
-
-        let equality = Expression::new(
-            ExpressionKind::Equality,
-            vec![declaration_index, multiply_index],
-        );
-        let equality_index = program.insert(equality);
-
-        let invocation_index = program.insert(function);
-        let argument_index = program.insert(Number::positive("2"));
-        let call = Expression::new(ExpressionKind::Call, vec![invocation_index, argument_index]);
-        let call_index = program.insert(call);
-
-        program.mark_root(equality_index);
-        program.mark_root(call_index);
+        let invocation = program.insert(Expression::new(ExpressionKind::Call, "f(2)"));
+        let callee = invocation.insert(Expression::new(ExpressionKind::Identifier, "f"));
+        let arguments = invocation.insert(Expression::new(ExpressionKind::Grouping, "(2)"));
+        let argument = arguments.insert(Expression::new(ExpressionKind::Number, "2"));
 
         assert_eq!("(= (f x) (* x x)) (f 2)", program.to_string().as_str());
-    }
-
-    #[test]
-    fn roots() {
-        let mut program = SyntaxTree::default();
-
-        let function = Identifier::from("f");
-        let function_index = program.insert(function);
-
-        let parameter = Identifier::from("x");
-        let parameter_index = program.insert(parameter);
-
-        let declaration =
-            Expression::new(ExpressionKind::Call, vec![function_index, parameter_index]);
-        let declaration_index = program.insert(declaration);
-
-        let left_index = program.insert(parameter);
-        let right_index = program.insert(parameter);
-
-        let multiply = Expression::new(ExpressionKind::Multiply, vec![left_index, right_index]);
-        let multiply_index = program.insert(multiply);
-
-        let equality = Expression::new(
-            ExpressionKind::Equality,
-            vec![declaration_index, multiply_index],
-        );
-        let equality_index = program.insert(equality);
-
-        let invocation_index = program.insert(function);
-        let argument_index = program.insert(Number::positive("2"));
-        let call = Expression::new(ExpressionKind::Call, vec![invocation_index, argument_index]);
-        let call_index = program.insert(call);
-
-        program.mark_root(equality_index);
-        program.mark_root(call_index);
-
-        let expected = vec![
-            Node::new(&program, equality_index.0).unwrap(),
-            Node::new(&program, call_index.0).unwrap(),
-        ];
-        let nodes: Vec<Node<'_, '_>> = program.roots().collect();
-
-        for n in program.iter() {
-            if n.height() == 0 {
-                println!("ALL({}): {:?}", n.height(), n.expression().kind())
-            }
-        }
-
-        for n in program.iter().filter(|n| n.root()) {
-            println!("ROOTS({}): {:?}", n.height(), n.expression().kind())
-        }
-
-        assert_eq!(expected, nodes);
+        assert_eq!(
+            program.roots().map(|n| *n.data()).collect::<Vec<_>>(),
+            vec![
+                Expression::new(ExpressionKind::Equality, "f(x) = x * x"),
+                Expression::new(ExpressionKind::Call, "f(2)"),
+            ]
+        )
     }
 }

@@ -40,8 +40,8 @@ impl<D, TD> Forest<D, TD> {
         self.trees.is_empty()
     }
 
-    pub fn trees(&self) -> &[Tree<TD>] {
-        self.trees.as_slice()
+    pub fn trees(&self) -> RootsIterator<'_, TD> {
+        self.trees.as_slice().into()
     }
 
     pub fn iter(&self) -> Iter<'_, TD> {
@@ -81,6 +81,10 @@ impl<'a, D> Node<'a, D> {
         self.height == 0
     }
 
+    pub fn leaf(&self) -> bool {
+        self.children.is_empty()
+    }
+
     pub fn height(&self) -> usize {
         self.height
     }
@@ -89,7 +93,10 @@ impl<'a, D> Node<'a, D> {
         self.data
     }
 
-    pub fn children(&self) -> impl DoubleEndedIterator<Item = Node<'a, D>> + '_ {
+    pub fn children(
+        &self,
+    ) -> impl ExactSizeIterator<Item = Node<'a, D>> + DoubleEndedIterator<Item = Node<'a, D>> + '_
+    {
         self.children.iter().map(|c| Node::new(c, self.height + 1))
     }
 }
@@ -219,6 +226,26 @@ where
         }
 
         Some(node)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct RootsIterator<'a, D>(std::slice::Iter<'a, Tree<D>>);
+
+impl<'a, D> From<&'a [Tree<D>]> for RootsIterator<'a, D> {
+    fn from(tree: &'a [Tree<D>]) -> Self {
+        RootsIterator(tree.iter())
+    }
+}
+
+impl<'a, D> Iterator for RootsIterator<'a, D>
+where
+    D: 'a,
+{
+    type Item = Node<'a, D>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        Some(Node::from(self.0.next()?))
     }
 }
 

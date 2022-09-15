@@ -1,4 +1,3 @@
-use crate::compiler::grammar::ExpressionReference;
 use crate::compiler::parse::SyntaxError;
 use crate::compiler::Parser;
 
