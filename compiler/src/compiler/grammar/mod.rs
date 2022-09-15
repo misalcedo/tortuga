@@ -117,7 +117,6 @@ impl<'a> Display for Node<'a, Expression<'a>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::collections::forest::Node;
 
     #[test]
     fn add() {
