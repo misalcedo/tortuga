@@ -6,6 +6,7 @@ mod location;
 mod parse;
 mod report;
 mod scan;
+mod scope;
 mod token;
 //mod translate;
 mod unicode;

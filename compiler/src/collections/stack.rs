@@ -29,7 +29,8 @@ impl<I> NonEmptyStack<I> {
     }
 
     pub fn pop(&mut self) -> Option<I> {
-        self.rest.pop()
+        let new_top = self.rest.pop()?;
+        Some(mem::replace(&mut self.top, new_top))
     }
 
     pub fn iter(&self) -> impl DoubleEndedIterator<Item = &I> {

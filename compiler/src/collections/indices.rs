@@ -125,6 +125,17 @@ where
         self.instances.get_mut(index)
     }
 
+    pub fn contains<Q: ?Sized>(&self, key: &Q) -> bool
+    where
+        K: Borrow<Q>,
+        Q: Hash + Eq,
+    {
+        match self.indices.get(key) {
+            None => false,
+            Some(index) => self.instances.get(*index).is_some(),
+        }
+    }
+
     pub fn lookup<Q: ?Sized>(&self, key: &Q) -> Option<&V>
     where
         K: Borrow<Q>,
