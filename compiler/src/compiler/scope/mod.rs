@@ -5,6 +5,7 @@ mod error;
 use crate::collections::{IndexedSet, NonEmptyStack};
 use crate::grammar::ExpressionKind;
 use crate::{ErrorReporter, SyntaxTree};
+pub use error::{ScopeError, ScopeErrorKind};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Function<'a> {
@@ -14,11 +15,12 @@ pub struct Function<'a> {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Local<'a> {
     name: &'a str,
+    scope: usize,
 }
 
 impl<'a> Local<'a> {
-    pub fn new(name: &'a str, _: usize) -> Self {
-        Local { name }
+    pub fn new(name: &'a str, scope: usize) -> Self {
+        Local { name, scope }
     }
 }
 

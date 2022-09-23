@@ -4,11 +4,14 @@ use crate::compiler::Excerpt;
 use std::fmt::{self, Display, Formatter};
 
 /// An error that occurred during parsing of the source code's syntax tree.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ScopeError {
-    message: String,
+    kind: ScopeErrorKind,
     excerpt: Excerpt,
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ScopeErrorKind {}
 
 impl Display for ScopeError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
