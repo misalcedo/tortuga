@@ -49,6 +49,10 @@ impl<D> Tree<D> {
     pub fn children(&self) -> &[Tree<D>] {
         self.children.as_slice()
     }
+
+    pub fn iter(&self) -> Iter<'_, D> {
+        Iter::from(self)
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
