@@ -1,14 +1,12 @@
-//use crate::compiler::analysis::AnalysisError;
 use crate::compiler::error::CompilationError;
 use crate::compiler::parse::SyntaxError;
 use crate::compiler::scan::LexicalError;
-//use crate::compiler::translate::TranslationError;
+use crate::compiler::scope::ScopeError;
 
 pub trait ErrorReporter {
     fn report_lexical_error(&mut self, error: LexicalError);
     fn report_syntax_error(&mut self, error: SyntaxError);
-    // fn report_analysis_error(&mut self, error: AnalysisError);
-    // fn report_translation_error(&mut self, error: TranslationError);
+    fn report_scope_error(&mut self, error: ScopeError);
     fn had_error(&self) -> bool;
 }
 
@@ -21,13 +19,9 @@ impl ErrorReporter for Vec<CompilationError> {
         self.push(error.into())
     }
 
-    // fn report_analysis_error(&mut self, error: AnalysisError) {
-    //     self.push(error.into())
-    // }
-    //
-    // fn report_translation_error(&mut self, error: TranslationError) {
-    //     self.push(error.into())
-    // }
+    fn report_scope_error(&mut self, error: ScopeError) {
+        self.push(error.into())
+    }
 
     fn had_error(&self) -> bool {
         !self.is_empty()

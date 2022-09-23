@@ -11,14 +11,22 @@ pub struct ScopeError {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ScopeErrorKind {}
+pub enum ScopeErrorKind {
+    ExitRootScope
+}
+
+impl Display for ScopeErrorKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        Ok(())
+    }
+}
 
 impl Display for ScopeError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "Lexical scope error at ({}): {}",
-            self.excerpt, self.message
+            self.excerpt, self.kind
         )
     }
 }
@@ -26,10 +34,7 @@ impl Display for ScopeError {
 impl std::error::Error for ScopeError {}
 
 impl ScopeError {
-    pub fn new(message: &str, excerpt: Excerpt) -> Self {
-        ScopeError {
-            message: message.to_string(),
-            excerpt,
-        }
+    pub fn new(kind: ScopeErrorKind, excerpt: Excerpt) -> Self {
+        ScopeError { kind, excerpt }
     }
 }

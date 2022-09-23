@@ -1,9 +1,8 @@
 //! Errors that may occur during lexical analysis.
 
-//use crate::compiler::analysis::AnalysisError;
 use crate::compiler::parse::SyntaxError;
 use crate::compiler::scan::LexicalError;
-//use crate::compiler::translate::TranslationError;
+use crate::compiler::scope::ScopeError;
 use std::fmt::{self, Display, Formatter};
 
 /// An error that occurred while compiling source code.
@@ -11,8 +10,7 @@ use std::fmt::{self, Display, Formatter};
 pub enum CompilationError {
     Lexical(LexicalError),
     Syntax(SyntaxError),
-    //Analysis(AnalysisError),
-    //Translation(TranslationError),
+    Scope(ScopeError),
 }
 
 impl Display for CompilationError {
@@ -20,8 +18,7 @@ impl Display for CompilationError {
         match self {
             CompilationError::Lexical(inner) => write!(f, "{}", inner),
             CompilationError::Syntax(inner) => write!(f, "{}", inner),
-            // CompilationError::Analysis(inner) => write!(f, "{}", inner),
-            // CompilationError::Translation(inner) => write!(f, "{}", inner),
+            CompilationError::Scope(inner) => write!(f, "{}", inner),
         }
     }
 }
@@ -40,14 +37,8 @@ impl From<SyntaxError> for CompilationError {
     }
 }
 
-// impl From<AnalysisError> for CompilationError {
-//     fn from(error: AnalysisError) -> Self {
-//         CompilationError::Analysis(error)
-//     }
-// }
-//
-// impl From<TranslationError> for CompilationError {
-//     fn from(error: TranslationError) -> Self {
-//         CompilationError::Translation(error)
-//     }
-// }
+impl From<ScopeError> for CompilationError {
+    fn from(error: ScopeError) -> Self {
+        CompilationError::Scope(error)
+    }
+}
