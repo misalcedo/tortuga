@@ -1,7 +1,14 @@
 [workspace]
-
 members = [
     "cli",
     "compiler",
     "playground",
 ]
+
+[workspace.package]
+description = "Compiler, virtual machine, and cluster system for the Tortuga programming language."
+version = "0.6.0"
+authors = ["Miguel D. Salcedo <miguel@salcedo.cc>"]
+edition = "2021"
+license-file = "LICENSE"
+homepage = "https://tortuga.salcedo.cc"

@@ -1,3 +1,8 @@
+//! Analyze the syntax tree to determine the offsets for all locals and captures within a scope.
+
+mod visitor;
+
+use crate::collections::tree::Node;
 use crate::collections::{Forest, IndexedSet, NonEmptyStack};
 use crate::grammar::{Expression, ExpressionKind};
 use crate::{ErrorReporter, SyntaxTree};
@@ -7,6 +12,16 @@ pub struct Local<'a> {
     name: &'a str,
     scope: usize,
     captured: bool,
+}
+
+impl<'a> Local<'a> {
+    pub fn new(name: &'a str, scope: usize) -> Self {
+        Local {
+            name,
+            scope,
+            captured: false,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -60,6 +75,7 @@ where
     }
 
     pub fn analyze(mut self) -> Result<ScopeAnalysis<'a>, R> {
+        // TODO: add scope index iterator.
         for node in self.program.iter() {
             let expression = node.data();
 
@@ -87,11 +103,66 @@ where
 
                     self.stack.push(scope);
                 }
-                ExpressionKind::Identifier => {
+                ExpressionKind::Equality if !node.discovered() => {
+                    let scope = self.stack.top_mut();
+                    let mut children = node.children();
+                    let target = match children.next() {
+                        None => todo!("Report error."),
+                        Some(t) => t,
+                    };
+                    let value = match children.next() {
+                        None => todo!("Report error."),
+                        Some(t) => t,
+                    };
+                    let condition = children.next();
+
+                    if condition.is_some() && target.data().kind() != &ExpressionKind::Call {
+                        todo!("Report error.");
+                    }
+
+                    match target.data().kind() {
+                        ExpressionKind::Call => {
+                            let child = match target.children().next() {
+                                None => todo!("Report error."),
+                                Some(t) if t.data().kind() != &ExpressionKind::Identifier => {
+                                    todo!("Report error.")
+                                }
+                                Some(t) => t,
+                            };
+
+                            let name = target.data().as_str();
+
+                            scope.locals.insert(name, Local::new(name, scope.depth));
+                        }
+                        ExpressionKind::Identifier => {
+                            let name = target.data().as_str();
+
+                            scope.locals.insert(name, Local::new(name, scope.depth));
+                        }
+                        ExpressionKind::Grouping => {
+                            let kinds: Vec<ExpressionKind> =
+                                target.children().map(|n| *n.data().kind()).collect();
+
+                            if kinds.iter().all(|c| c == &ExpressionKind::Identifier) {
+                                for child in target.children() {
+                                    let name = child.data().as_str();
+
+                                    scope.locals.insert(name, Local::new(name, scope.depth));
+                                }
+                            } else {
+                                todo!("Report error.");
+                            }
+                        }
+                        _ => todo!("Report error."),
+                    }
+                }
+                ExpressionKind::Identifier if node.discovered() => {
                     let scope = self.stack.top_mut();
                     let name = expression.as_str();
 
-                    scope.locals.contains(name);
+                    if !scope.locals.contains(name) {
+                        todo!("Report error.")
+                    }
                 }
                 _ => {}
             }

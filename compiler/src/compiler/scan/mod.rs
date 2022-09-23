@@ -248,7 +248,6 @@ impl<'a> Iterator for Scanner<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::compiler::Excerpt;
 
     fn validate(kind: TokenKind) {
         let input = kind.to_string();

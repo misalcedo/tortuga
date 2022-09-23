@@ -2,7 +2,7 @@
 pub mod forest;
 mod indices;
 mod stack;
-mod tree;
+pub mod tree;
 
 pub use forest::Forest;
 pub use indices::IndexedSet;

@@ -2,7 +2,8 @@
 
 mod expression;
 
-use crate::collections::forest::{Iter, Node, RootsIterator};
+use crate::collections::forest::RootsIterator;
+use crate::collections::tree::{Iter, Node};
 use crate::collections::{Forest, Tree};
 pub use expression::{Expression, ExpressionKind};
 use std::fmt::{Display, Formatter};

@@ -1,13 +1,12 @@
 [package]
 name = "tortuga"
-description = "Compiler, virtual machine, and cluster system for the Tortuga programming language."
-version = "0.6.0"
-authors = ["Miguel D. Salcedo <miguel@salcedo.cc>"]
-edition = "2021"
-license = "Apache-2.0"
-homepage = "https://tortuga.salcedo.cc"
-repository = "https://github.com/misalcedo/tortuga"
+description.workspace = true
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
 documentation = "https://docs.rs/tortuga"
+repository = "https://github.com/misalcedo/tortuga"
 
 [profile.release]
 lto = true
