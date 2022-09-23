@@ -8,6 +8,11 @@ use crate::compiler::Excerpt;
 use crate::grammar::{Expression, ExpressionKind};
 use crate::{ErrorReporter, SyntaxTree};
 pub use error::{ScopeError, ScopeErrorKind};
+use std::collections::HashMap;
+use std::iter::Peekable;
+
+const STATEMENT_KINDS: &[ExpressionKind] = &[ExpressionKind::Equality];
+type Scopes<'a> = HashMap<usize, Scope<'a>>;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Function<'a> {
@@ -72,14 +77,14 @@ pub struct ScopeAnalyzer<'a, Reporter> {
 }
 
 pub struct ScopeAnalysis<'a> {
-    scopes: Vec<Scope<'a>>,
+    scopes: HashMap<usize, Scope<'a>>,
     program: SyntaxTree<'a>,
 }
 
 impl<'a> ScopeAnalysis<'a> {
     pub fn new(program: SyntaxTree<'a>) -> Self {
         ScopeAnalysis {
-            scopes: vec![],
+            scopes: HashMap::new(),
             program,
         }
     }
@@ -103,16 +108,21 @@ where
     R: ErrorReporter,
 {
     pub fn analyze(mut self, mut analysis: ScopeAnalysis<'a>) -> Result<ScopeAnalysis<'a>, R> {
-        for node in analysis.program.iter() {
-            if let Err(error) = self.analyze_expression(&mut analysis.scopes, node) {
-                self.reporter.report_scope_error(error);
-            }
+        let result = self.analyze_block(&mut analysis.scopes, analysis.program.roots());
+
+        if let Err(error) = result {
+            self.reporter.report_scope_error(error);
         }
 
         match self.stack.try_pop() {
-            Err(scope) => analysis.scopes[0] = scope,
-            Ok(..) => todo!("Report error."),
-        }
+            Err(scope) => {
+                analysis.scopes.insert(0, scope);
+            }
+            Ok(..) => self.reporter.report_scope_error(ScopeError::new(
+                ScopeErrorKind::UnterminatedScope,
+                Excerpt::default(),
+            )),
+        };
 
         if self.reporter.had_error() {
             Err(self.reporter)
@@ -121,20 +131,53 @@ where
         }
     }
 
+    fn analyze_block<'b, I>(
+        &mut self,
+        scopes: &mut Scopes<'a>,
+        iterator: I,
+    ) -> Result<(), ScopeError>
+    where
+        'a: 'b,
+        I: Iterator<Item = Node<'b, Expression<'a>>>,
+    {
+        self.enter_scope();
+
+        let mut iterator = iterator.peekable();
+
+        while let Some(node) = iterator.next() {
+            if iterator.peek().is_some() {
+                self.analyze_statement(scopes, node)?
+            } else {
+                self.analyze_expression(scopes, node)?
+            }
+        }
+
+        self.exit_scope(scopes)
+    }
+
+    fn analyze_statement(
+        &mut self,
+        scopes: &mut Scopes<'a>,
+        node: Node<Expression<'a>>,
+    ) -> Result<(), ScopeError> {
+        if !STATEMENT_KINDS.contains(node.data().kind()) {
+            self.reporter.report_scope_error(ScopeError::new(
+                ScopeErrorKind::UnusedExpressionValue,
+                Excerpt::default(),
+            ));
+        }
+
+        self.analyze_expression(scopes, node)
+    }
+
     fn analyze_expression(
         &mut self,
-        scopes: &mut Vec<Scope<'a>>,
+        scopes: &mut Scopes<'a>,
         node: Node<Expression<'a>>,
     ) -> Result<(), ScopeError> {
         let expression = node.data();
 
         match expression.kind() {
-            ExpressionKind::Block if node.discovered() => {
-                self.exit_scope(scopes)?;
-            }
-            ExpressionKind::Block => {
-                self.enter_scope()?;
-            }
             ExpressionKind::Equality if !node.discovered() => {
                 let scope = self.stack.top_mut();
                 let mut children = node.children();
@@ -196,32 +239,31 @@ where
                     todo!("Report error.")
                 }
             }
-            _ => {}
+            kind => self.reporter.report_scope_error(ScopeError::new(
+                ScopeErrorKind::UnsupportedExpression(*kind),
+                Excerpt::default(),
+            )),
         }
 
         Ok(())
     }
 
-    fn exit_scope(&mut self, scopes: &mut Vec<Scope<'a>>) -> Result<usize, ScopeError> {
+    fn exit_scope(&mut self, scopes: &mut Scopes<'a>) -> Result<(), ScopeError> {
         let scope = self
             .stack
             .pop()
             .ok_or_else(|| ScopeError::new(ScopeErrorKind::ExitRootScope, Excerpt::default()))?;
-        let index = scope.index;
 
-        scopes.push(scope);
+        scopes.insert(scope.index, scope);
 
-        Ok(index)
+        Ok(())
     }
 
-    fn enter_scope(&mut self) -> Result<usize, ScopeError> {
-        let index = self.index;
-        let scope = Scope::from(index);
+    fn enter_scope(&mut self) {
+        let scope = Scope::from(self.index);
 
         self.index += 1;
         self.stack.push(scope);
-
-        Ok(index)
     }
 }
 

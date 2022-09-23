@@ -1,6 +1,7 @@
 //! Errors that may occur during lexical scope analysis.
 
 use crate::compiler::Excerpt;
+use crate::grammar::ExpressionKind;
 use std::fmt::{self, Display, Formatter};
 
 /// An error that occurred during parsing of the source code's syntax tree.
@@ -12,7 +13,10 @@ pub struct ScopeError {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ScopeErrorKind {
-    ExitRootScope
+    ExitRootScope,
+    UnusedExpressionValue,
+    UnterminatedScope,
+    UnsupportedExpression(ExpressionKind),
 }
 
 impl Display for ScopeErrorKind {
