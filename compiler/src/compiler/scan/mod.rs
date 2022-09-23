@@ -4,10 +4,9 @@ use std::str::Chars;
 
 mod error;
 
-use crate::compiler::scan::error::LexicalErrorKind;
 use crate::compiler::unicode::UnicodeProperties;
 use crate::compiler::{Location, Token, TokenKind};
-pub use error::LexicalError;
+pub use error::{LexicalError, LexicalErrorKind};
 
 type LexicalResult<'a> = Result<Token<'a>, LexicalError>;
 

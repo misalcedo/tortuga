@@ -4,7 +4,7 @@ use crate::compiler::{Excerpt, Location};
 use std::fmt::{self, Display, Formatter};
 
 /// An error that occurred during lexical analysis of a specific lexeme.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LexicalError {
     kind: LexicalErrorKind,
     excerpt: Excerpt,

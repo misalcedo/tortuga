@@ -10,7 +10,7 @@ use crate::compiler::scan::LexicalError;
 use crate::compiler::{CompilationError, ErrorReporter, Excerpt};
 use crate::compiler::{Location, Scanner, Token, TokenKind};
 use crate::grammar::{Expression, ExpressionKind, SyntaxTree};
-pub use error::SyntaxError;
+pub use error::{SyntaxError, SyntaxErrorKind};
 use precedence::{InfixParseFunction, ParseRule, Precedence, PrefixParseFunction};
 use std::collections::HashMap;
 
@@ -138,7 +138,12 @@ where
         let (kind, operator) = OPERATOR_MAPPINGS
             .iter()
             .find(|(kind, _)| self.consume_conditionally(*kind))
-            .ok_or_else(|| SyntaxError::new("Unsupported binary token.", self.current_excerpt()))?;
+            .ok_or_else(|| {
+                SyntaxError::new(
+                    SyntaxErrorKind::UnsupportedBinaryToken,
+                    self.current_excerpt(),
+                )
+            })?;
 
         let precedence = self.rule_precedence(kind).next();
         let rhs = self.parse_precedence(precedence)?;
@@ -149,12 +154,12 @@ where
     }
 
     fn parse_negation(&mut self) -> ParseResult<'a> {
-        let sign = self.consume(TokenKind::Minus, "Expected a unary '-' sign.")?;
-        let number = self.consume(TokenKind::Number, "Expected a number after the '-' sign.")?;
+        let sign = self.consume(TokenKind::Minus)?;
+        let number = self.consume(TokenKind::Number)?;
         let excerpt = Excerpt::from(*sign.start()..number.end());
 
         if number.lexeme() == "0" {
-            Err(SyntaxError::new("Cannot negate zero.", excerpt))
+            Err(SyntaxError::new(SyntaxErrorKind::CannotNegateZero, excerpt))
         } else {
             let expression = Expression::new(ExpressionKind::Number, &self.source[&excerpt]);
 
@@ -163,9 +168,7 @@ where
     }
 
     fn parse_grouping(&mut self) -> ParseResult<'a> {
-        let start = *self
-            .consume(TokenKind::LeftParenthesis, "Expected '('.")?
-            .start();
+        let start = *self.consume(TokenKind::LeftParenthesis)?.start();
         let mut children = vec![];
 
         while !self.check(TokenKind::RightParenthesis) {
@@ -178,12 +181,7 @@ where
             }
         }
 
-        let end = self
-            .consume(
-                TokenKind::RightParenthesis,
-                "Expected ')' after expression list.",
-            )?
-            .end();
+        let end = self.consume(TokenKind::RightParenthesis)?.end();
         let excerpt = &self.source[&Excerpt::from(start..end)];
         let expression = Expression::new(ExpressionKind::Grouping, excerpt);
         let mut grouping = Tree::from(expression);
@@ -218,12 +216,7 @@ where
     }
 
     fn parse_condition(&mut self) -> ParseResult<'a> {
-        let start = *self
-            .consume(
-                TokenKind::Question,
-                "Expected '?' before list of conditions",
-            )?
-            .start();
+        let start = *self.consume(TokenKind::Question)?.start();
 
         let mut condition = self.parse_grouping()?;
         let lexeme = &self.source[&Excerpt::from(start..self.end)];
@@ -235,9 +228,7 @@ where
     }
 
     fn parse_block(&mut self) -> ParseResult<'a> {
-        let start = *self
-            .consume(TokenKind::LeftBracket, "Expected '['.")?
-            .start();
+        let start = *self.consume(TokenKind::LeftBracket)?.start();
         let mut statements = vec![];
 
         while !self.check(TokenKind::RightBracket) {
@@ -246,9 +237,7 @@ where
             statements.push(statement);
         }
 
-        let end = self
-            .consume(TokenKind::RightBracket, "Expected ']' after block.")?
-            .end();
+        let end = self.consume(TokenKind::RightBracket)?.end();
         let mut block = Tree::from(Expression::new(
             ExpressionKind::Block,
             &self.source[&Excerpt::from(start..end)],
@@ -262,21 +251,21 @@ where
     }
 
     fn parse_number(&mut self) -> ParseResult<'a> {
-        let token = self.consume(TokenKind::Number, "Expected a number.")?;
+        let token = self.consume(TokenKind::Number)?;
         let expression = Expression::new(ExpressionKind::Number, token.lexeme());
 
         Ok(Tree::from(expression))
     }
 
     fn parse_identifier(&mut self) -> ParseResult<'a> {
-        let token = self.consume(TokenKind::Identifier, "Expected an identifier.")?;
+        let token = self.consume(TokenKind::Identifier)?;
         let expression = Expression::new(ExpressionKind::Identifier, token.lexeme());
 
         Ok(Tree::from(expression))
     }
 
     fn parse_uri(&mut self) -> ParseResult<'a> {
-        let token = self.consume(TokenKind::Uri, "Expected an URI.")?;
+        let token = self.consume(TokenKind::Uri)?;
         let expression = Expression::new(ExpressionKind::Uri, token.lexeme());
 
         Ok(Tree::from(expression))
@@ -301,17 +290,20 @@ where
         }
     }
 
-    fn consume(&mut self, kind: TokenKind, message: &str) -> SyntacticalResult<Token<'a>> {
+    fn consume(&mut self, kind: TokenKind) -> SyntacticalResult<Token<'a>> {
         match self.current {
             Some(token) if token.kind() == &kind => {
                 self.advance();
                 Ok(token)
             }
             Some(ref token) => Err(SyntaxError::new(
-                message,
+                SyntaxErrorKind::ExpectedKind(kind),
                 Excerpt::from(*token.start()..token.end()),
             )),
-            None => Err(SyntaxError::new(message, Excerpt::from(self.end..))),
+            None => Err(SyntaxError::new(
+                SyntaxErrorKind::ExpectedKind(kind),
+                Excerpt::from(self.end..),
+            )),
         }
     }
 
@@ -334,7 +326,10 @@ where
 
     fn current_kind(&mut self) -> SyntacticalResult<TokenKind> {
         let token = self.current.ok_or_else(|| {
-            SyntaxError::new("Expected current token.", Excerpt::from(self.end..))
+            SyntaxError::new(
+                SyntaxErrorKind::ExpectedCurrentToken,
+                Excerpt::from(self.end..),
+            )
         })?;
 
         Ok(*token.kind())
@@ -379,10 +374,10 @@ where
         let rule = self
             .rules
             .get(kind)
-            .ok_or_else(|| SyntaxError::new("No parse rule for the current token.", location))?;
+            .ok_or_else(|| SyntaxError::new(SyntaxErrorKind::NoParseRule, location))?;
         rule.prefix()
             .copied()
-            .ok_or_else(|| SyntaxError::new("Unable to parse prefix token.", location))
+            .ok_or_else(|| SyntaxError::new(SyntaxErrorKind::InvalidPrefixToken, location))
     }
 
     fn rule_infix(&mut self, kind: &TokenKind) -> SyntacticalResult<InfixParseFunction<'a, I, R>> {
@@ -390,11 +385,11 @@ where
         let rule = self
             .rules
             .get(kind)
-            .ok_or_else(|| SyntaxError::new("No parse rule for the current token.", location))?;
+            .ok_or_else(|| SyntaxError::new(SyntaxErrorKind::NoParseRule, location))?;
 
         rule.infix()
             .copied()
-            .ok_or_else(|| SyntaxError::new("Unable to parse infix token.", location))
+            .ok_or_else(|| SyntaxError::new(SyntaxErrorKind::InvalidInfixToken, location))
     }
 
     fn rules() -> HashMap<TokenKind, ParseRule<'a, I, R>> {
