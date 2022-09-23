@@ -4,6 +4,7 @@ use std::str::Chars;
 
 mod error;
 
+use crate::compiler::scan::error::LexicalErrorKind;
 use crate::compiler::unicode::UnicodeProperties;
 use crate::compiler::{Location, Token, TokenKind};
 pub use error::LexicalError;
@@ -44,13 +45,6 @@ impl<'a> TryFrom<Scanner<'a>> for Vec<Token<'a>> {
     }
 }
 
-const INVALID_CODE_POINTS: &'static str = "Invalid code points.";
-const IDENTIFIER_STARTING_WITH_NUMBER: &'static str = "Identifiers must not start with a number.";
-const FRACTIONAL_ENDS_WITH_ZERO: &'static str = "Fractional numbers must not end with a zero.";
-const INTEGER_WITH_DOT_SUFFIX: &'static str = "Integers must not end with a dot ('.').";
-const INTEGER_WITH_LEADING_ZERO: &'static str = "Integers must not have a leading zero.";
-const UNTERMINATED_STRING: &'static str = "Unterminated string.";
-
 impl<'a> Scanner<'a> {
     /// Returns `true` if the remaining source code starts with the given string, false otherwise.
     fn matches(&mut self, pattern: char) -> bool {
@@ -90,13 +84,13 @@ impl<'a> Scanner<'a> {
     }
 
     /// Creates a new [`LexicalError`] of the given [`ErrorKind`] wrapped in a [`Result`].
-    fn new_error(&mut self, message: &str) -> LexicalResult<'a> {
+    fn new_error(&mut self, kind: LexicalErrorKind) -> LexicalResult<'a> {
         let start = self.start;
         let lexeme = self.lexeme(&start);
 
         self.start = self.end;
 
-        Err(LexicalError::new(message, start, lexeme))
+        Err(LexicalError::new(kind, start, lexeme))
     }
 
     /// Skip characters until the end of the line because of a comment.
@@ -132,7 +126,7 @@ impl<'a> Scanner<'a> {
             // TODO: Validate URI here.
             self.new_token(TokenKind::Uri)
         } else {
-            self.new_error(UNTERMINATED_STRING)
+            self.new_error(LexicalErrorKind::UnterminatedString)
         }
     }
 
@@ -149,13 +143,13 @@ impl<'a> Scanner<'a> {
         let number = &self.source[self.start.offset()..self.end.offset()];
 
         if self.matches_closure(|c| c.is_xid_start()) {
-            self.new_error(IDENTIFIER_STARTING_WITH_NUMBER)
+            self.new_error(LexicalErrorKind::IdentifierStartingWithNumber)
         } else if fractional && number.ends_with("0") {
-            self.new_error(FRACTIONAL_ENDS_WITH_ZERO)
+            self.new_error(LexicalErrorKind::FractionalEndsWithZero)
         } else if fractional && number.ends_with(".") {
-            self.new_error(INTEGER_WITH_DOT_SUFFIX)
+            self.new_error(LexicalErrorKind::IntegerWithDotSuffix)
         } else if !fractional && first == '0' && number.len() != 1 {
-            self.new_error(INTEGER_WITH_LEADING_ZERO)
+            self.new_error(LexicalErrorKind::IntegerWithLeadingZero)
         } else {
             self.new_token(TokenKind::Number)
         }
@@ -174,7 +168,7 @@ impl<'a> Scanner<'a> {
                 && !c.is_pattern_white_space()
         }) {}
 
-        self.new_error(INVALID_CODE_POINTS)
+        self.new_error(LexicalErrorKind::InvalidCodePoints)
     }
 
     fn next_char(&mut self) -> Option<char> {
@@ -308,7 +302,7 @@ mod tests {
         assert_eq!(
             scanner.next(),
             Some(Err(LexicalError::new(
-                INVALID_CODE_POINTS,
+                LexicalErrorKind::InvalidCodePoints,
                 Location::default(),
                 bad
             )))
@@ -384,7 +378,7 @@ mod tests {
         assert_eq!(
             scanner.next(),
             Some(Err(LexicalError::new(
-                UNTERMINATED_STRING,
+                LexicalErrorKind::UnterminatedString,
                 Location::from("\"Hello, \\\"World!"),
                 "\""
             )))
@@ -400,7 +394,7 @@ mod tests {
         assert_eq!(
             scanner.next(),
             Some(Err(LexicalError::new(
-                UNTERMINATED_STRING,
+                LexicalErrorKind::UnterminatedString,
                 Location::default(),
                 input
             )))
@@ -435,7 +429,7 @@ mod tests {
         validate_number("7.002");
     }
 
-    fn invalidate_number(number: &str, error: &str) {
+    fn invalidate_number(number: &str, error: LexicalErrorKind) {
         let mut scanner: Scanner<'_> = number.into();
 
         assert_eq!(
@@ -447,10 +441,10 @@ mod tests {
 
     #[test]
     fn scan_invalid_number() {
-        invalidate_number("0008", INTEGER_WITH_LEADING_ZERO);
-        invalidate_number(".100", FRACTIONAL_ENDS_WITH_ZERO);
-        invalidate_number("1.0", FRACTIONAL_ENDS_WITH_ZERO);
-        invalidate_number("2.", INTEGER_WITH_DOT_SUFFIX);
+        invalidate_number("0008", LexicalErrorKind::IntegerWithLeadingZero);
+        invalidate_number(".100", LexicalErrorKind::FractionalEndsWithZero);
+        invalidate_number("1.0", LexicalErrorKind::FractionalEndsWithZero);
+        invalidate_number("2.", LexicalErrorKind::IntegerWithDotSuffix);
     }
 
     #[test]
@@ -517,7 +511,7 @@ mod tests {
         assert_eq!(
             scanner.next(),
             Some(Err(LexicalError::new(
-                IDENTIFIER_STARTING_WITH_NUMBER,
+                LexicalErrorKind::IdentifierStartingWithNumber,
                 Location::default(),
                 "2x"
             )))

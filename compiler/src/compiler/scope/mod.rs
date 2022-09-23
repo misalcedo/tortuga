@@ -1,48 +1,45 @@
 //! Analyze the syntax tree to determine the offsets for all locals and captures within a scope.
 
-mod visitor;
+mod error;
 
-use crate::collections::tree::Node;
-use crate::collections::{Forest, IndexedSet, NonEmptyStack};
-use crate::grammar::{Expression, ExpressionKind};
+use crate::collections::{IndexedSet, NonEmptyStack};
+use crate::grammar::ExpressionKind;
 use crate::{ErrorReporter, SyntaxTree};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Function<'a> {
+    name: &'a str,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Local<'a> {
     name: &'a str,
-    scope: usize,
-    captured: bool,
 }
 
 impl<'a> Local<'a> {
-    pub fn new(name: &'a str, scope: usize) -> Self {
-        Local {
-            name,
-            scope,
-            captured: false,
-        }
+    pub fn new(name: &'a str, _: usize) -> Self {
+        Local { name }
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Capture<'a> {
     name: &'a str,
-    transitive: bool,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Scope<'a> {
-    depth: usize,
     index: usize,
+    functions: IndexedSet<&'a str, Function<'a>>,
     locals: IndexedSet<&'a str, Local<'a>>,
     captures: IndexedSet<&'a str, Capture<'a>>,
 }
 
-impl<'a> Scope<'a> {
-    pub fn new(depth: usize, index: usize) -> Self {
+impl<'a> From<usize> for Scope<'a> {
+    fn from(index: usize) -> Self {
         Scope {
-            depth,
             index,
+            functions: Default::default(),
             locals: Default::default(),
             captures: Default::default(),
         }
@@ -50,33 +47,43 @@ impl<'a> Scope<'a> {
 }
 
 pub struct ScopeAnalyzer<'a, Reporter> {
-    program: SyntaxTree<'a>,
     reporter: Reporter,
     stack: NonEmptyStack<Scope<'a>>,
-    scopes: Vec<Vec<Scope<'a>>>,
 }
 
 pub struct ScopeAnalysis<'a> {
-    scopes: Vec<Vec<Scope<'a>>>,
+    scopes: Vec<Scope<'a>>,
     program: SyntaxTree<'a>,
+}
+
+impl<'a> ScopeAnalysis<'a> {
+    pub fn new(program: SyntaxTree<'a>) -> Self {
+        ScopeAnalysis {
+            scopes: vec![],
+            program,
+        }
+    }
+}
+
+impl<'a, R> From<R> for ScopeAnalyzer<'a, R>
+where
+    R: ErrorReporter,
+{
+    fn from(reporter: R) -> Self {
+        ScopeAnalyzer {
+            reporter,
+            stack: Default::default(),
+        }
+    }
 }
 
 impl<'a, R> ScopeAnalyzer<'a, R>
 where
     R: ErrorReporter,
 {
-    pub fn new(program: SyntaxTree<'a>, reporter: R) -> Self {
-        ScopeAnalyzer {
-            program,
-            reporter,
-            stack: Default::default(),
-            scopes: vec![vec![]],
-        }
-    }
-
-    pub fn analyze(mut self) -> Result<ScopeAnalysis<'a>, R> {
+    pub fn analyze(mut self, mut analysis: ScopeAnalysis<'a>) -> Result<ScopeAnalysis<'a>, R> {
         // TODO: add scope index iterator.
-        for node in self.program.iter() {
+        for node in analysis.program.iter() {
             let expression = node.data();
 
             match expression.kind() {
@@ -86,20 +93,14 @@ where
                         Some(s) => s,
                     };
                     let index = scope.index;
-                    let depth = scope.depth;
 
-                    self.scopes[depth][index] = scope;
+                    analysis.scopes[index] = scope;
                 }
                 ExpressionKind::Block => {
-                    let depth = self.stack.len();
-                    let index = self.scopes.get(depth).map(Vec::len).unwrap_or_default();
-                    let scope = Scope::new(depth, index);
+                    let index = analysis.scopes.len();
+                    let scope = Scope::from(index);
 
-                    if depth >= self.scopes.len() {
-                        self.scopes.push(vec![scope.clone()])
-                    } else {
-                        self.scopes[depth].push(scope.clone());
-                    }
+                    analysis.scopes.push(scope.clone());
 
                     self.stack.push(scope);
                 }
@@ -132,12 +133,12 @@ where
 
                             let name = target.data().as_str();
 
-                            scope.locals.insert(name, Local::new(name, scope.depth));
+                            scope.locals.insert(name, Local::new(name, scope.index));
                         }
                         ExpressionKind::Identifier => {
                             let name = target.data().as_str();
 
-                            scope.locals.insert(name, Local::new(name, scope.depth));
+                            scope.locals.insert(name, Local::new(name, scope.index));
                         }
                         ExpressionKind::Grouping => {
                             let kinds: Vec<ExpressionKind> =
@@ -147,7 +148,7 @@ where
                                 for child in target.children() {
                                     let name = child.data().as_str();
 
-                                    scope.locals.insert(name, Local::new(name, scope.depth));
+                                    scope.locals.insert(name, Local::new(name, scope.index));
                                 }
                             } else {
                                 todo!("Report error.");
@@ -169,17 +170,14 @@ where
         }
 
         match self.stack.try_pop() {
-            Err(scope) => self.scopes[0].push(scope),
+            Err(scope) => analysis.scopes[0] = scope,
             Ok(..) => todo!("Report error."),
         }
 
         if self.reporter.had_error() {
             Err(self.reporter)
         } else {
-            Ok(ScopeAnalysis {
-                scopes: self.scopes,
-                program: self.program,
-            })
+            Ok(analysis)
         }
     }
 }
@@ -192,8 +190,8 @@ mod tests {
     fn factorial() {
         let program =
             SyntaxTree::try_from(include_str!("../../../../examples/factorial.ta")).unwrap();
-        let analyzer = ScopeAnalyzer::new(program, vec![]);
-        let analysis: ScopeAnalysis<'_> = analyzer.analyze().unwrap();
+        let analyzer = ScopeAnalyzer::from(vec![]);
+        let analysis: ScopeAnalysis<'_> = analyzer.analyze(ScopeAnalysis::new(program)).unwrap();
 
         for scope in analysis.scopes {
             println!("{:?}", scope);
