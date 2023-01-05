@@ -34,6 +34,6 @@ jobs:
             git config user.name "Upload lint fixes from CI"
             git config user.email ""
             git add .
-            git commit -m "Automically fix lint failures and format code."
+            git commit -m "Automatically fix lint failures and format code."
             git push
           fi
