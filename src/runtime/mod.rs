@@ -43,12 +43,18 @@ pub enum Method {
 }
 
 #[derive(Debug, Default, Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
+#[repr(u16)]
 pub enum Status {
     #[default]
-    Ok,
-    BadRequest,
-    ServerError,
-    Custom(u16),
+    Ok = 200,
+    BadRequest = 400,
+    ServerError = 500,
+}
+
+impl From<u32> for Status {
+    fn from(_: u32) -> Self {
+        Status::Ok
+    }
 }
 
 #[derive(Debug, Default, Eq, PartialEq, Clone)]
@@ -119,13 +125,18 @@ impl Runtime {
 
         linker
             .func_wrap(
-                "host",
-                "hello",
+                "response",
+                "set_status",
                 |mut caller: Caller<'_, UnitOfWork>, x: u32| {
                     let data = caller.data_mut();
-                    data.response.status = Status::Custom((x * 2) as u16);
+                    data.response.status = Status::from(x * 2);
                 },
             )
+            .unwrap();
+        linker
+            .func_wrap("response", "status", |caller: Caller<'_, UnitOfWork>| {
+                caller.data().response.status as u32
+            })
             .unwrap();
 
         let instance = linker.instantiate(&mut store, &shell.module).unwrap();
@@ -148,18 +159,18 @@ mod tests {
     fn execute_shell() {
         let code = r#"
         (module
-            (import "host" "hello" (func $host_hello (param i32)))
+            (import "response" "set_status" (func $response_set_status (param i32)))
 
             (func (export "hello")
                 i32.const 3
-                call $host_hello)
+                call $response_set_status)
         )
     "#;
         let mut runtime = Runtime::default();
         let shell = runtime.load(code);
         let mut uow = UnitOfWork::default();
 
-        uow.response.status = Status::Custom(6);
+        uow.response.status = Status::Ok;
 
         assert_eq!(runtime.execute(&shell, UnitOfWork::default()), uow)
     }
