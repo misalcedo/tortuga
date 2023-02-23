@@ -42,18 +42,33 @@ pub enum Method {
     Custom(String),
 }
 
+/// See https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
 #[derive(Debug, Default, Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
 #[repr(u16)]
 pub enum Status {
+    Continue = 100,
     #[default]
     Ok = 200,
+    Created = 201,
+    MultipleChoices = 300,
     BadRequest = 400,
-    ServerError = 500,
+    InternalServerError = 500,
 }
 
 impl From<u32> for Status {
-    fn from(_: u32) -> Self {
-        Status::Ok
+    fn from(status: u32) -> Self {
+        match status {
+            100..=199 => Status::Continue,
+            200..=299 => match status {
+                200 => Status::Ok,
+                201 => Status::Created,
+                _ => Status::Ok,
+            },
+            300..=399 => Status::MultipleChoices,
+            400..=499 => Status::BadRequest,
+            500..=599 => Status::InternalServerError,
+            _ => Status::Ok,
+        }
     }
 }
 
@@ -127,9 +142,9 @@ impl Runtime {
             .func_wrap(
                 "response",
                 "set_status",
-                |mut caller: Caller<'_, UnitOfWork>, x: u32| {
+                |mut caller: Caller<'_, UnitOfWork>, status: u32| {
                     let data = caller.data_mut();
-                    data.response.status = Status::from(x * 2);
+                    data.response.status = Status::from(status);
                 },
             )
             .unwrap();
@@ -140,12 +155,12 @@ impl Runtime {
             .unwrap();
 
         let instance = linker.instantiate(&mut store, &shell.module).unwrap();
-        let hello = instance
-            .get_typed_func::<(), ()>(&mut store, "hello")
+        let main = instance
+            .get_typed_func::<(i32, i32), i32>(&mut store, "main")
             .unwrap();
 
         // And finally we can call the wasm!
-        hello.call(&mut store, ()).unwrap();
+        main.call(&mut store, (0, 0)).unwrap();
 
         store.into_data()
     }
@@ -157,20 +172,25 @@ mod tests {
 
     #[test]
     fn execute_shell() {
-        let code = r#"
-        (module
-            (import "response" "set_status" (func $response_set_status (param i32)))
-
-            (func (export "hello")
-                i32.const 3
-                call $response_set_status)
-        )
-    "#;
+        let code = include_str!("../../examples/status.wat");
         let mut runtime = Runtime::default();
         let shell = runtime.load(code);
         let mut uow = UnitOfWork::default();
 
         uow.response.status = Status::Ok;
+
+        assert_eq!(runtime.execute(&shell, UnitOfWork::default()), uow)
+    }
+
+    #[test]
+    fn execute_echo() {
+        let code =
+            include_bytes!("../../examples/echo/target/wasm32-unknown-unknown/debug/echo.wasm");
+        let mut runtime = Runtime::default();
+        let shell = runtime.load(code);
+        let mut uow = UnitOfWork::default();
+
+        uow.response.status = Status::Created;
 
         assert_eq!(runtime.execute(&shell, UnitOfWork::default()), uow)
     }
