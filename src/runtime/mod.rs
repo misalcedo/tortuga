@@ -192,6 +192,10 @@ mod tests {
 
         uow.response.status = Status::Created;
 
+        let import = shell.module.imports().next().unwrap();
+        assert_eq!(import.module(), "response");
+        assert_eq!(import.name(), "set_status");
+
         assert_eq!(runtime.execute(&shell, UnitOfWork::default()), uow)
     }
 }

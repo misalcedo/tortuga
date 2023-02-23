@@ -13,6 +13,8 @@ mod response {
     }
 }
 
-unsafe fn main() {
-    response::set_status(201);
+fn main() {
+    unsafe {
+        response::set_status(201);
+    }
 }
