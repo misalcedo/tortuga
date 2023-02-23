@@ -15,7 +15,7 @@ debug = true
 
 [dev-dependencies]
 criterion = "0.4"
-echo = { package = "echo", path = "examples/echo", artifact = "bin", target = "wasm32-unknown-unknown" }
+echo = { path = "examples/echo", artifact = "bin", target = "wasm32-unknown-unknown" }
 
 [target.'cfg(unix)'.dev-dependencies]
 pprof = { version = "0.11", features = ["criterion", "flamegraph", "protobuf-codec"] }
