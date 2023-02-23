@@ -1,11 +1,10 @@
 //! The embedding runtime for the Tortuga WASM modules.
 
 use std::collections::HashMap;
-use wasmtime::{Caller, Engine, Linker, Module, Store};
+use wasmtime::{Caller, Config, Engine, Linker, Module, Store};
 
-#[derive(Default)]
 pub struct Runtime {
-    engine: Engine,
+    linker: Linker<UnitOfWork>,
 }
 
 pub struct Shell {
@@ -120,24 +119,58 @@ pub struct UnitOfWork {
     response: Response,
 }
 
-impl Runtime {
-    pub fn load(&mut self, code: impl AsRef<[u8]>) -> Shell {
-        // Modules can be compiled through either the text or binary format
-        let module = Module::new(&self.engine, code).unwrap();
+impl Default for Runtime {
+    fn default() -> Self {
+        let configuration = Config::new();
+        let engine = Engine::new(&configuration).unwrap();
+        let mut linker = Linker::new(&engine);
 
-        Shell { module }
-    }
+        linker
+            .func_wrap(
+                "request",
+                "read",
+                |mut caller: Caller<'_, UnitOfWork>, pointer: u32, length: u32, start: u32| {
+                    let offset = pointer as usize;
+                    let length = length as usize;
+                    let start = start as usize;
+                    let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
+                    let body = &caller.data().request.message.body.bytes;
+                    let end = body.len().min(start + length);
+                    let buffer = body[start..end].to_vec();
 
-    pub fn execute(&mut self, shell: &Shell, data: UnitOfWork) -> UnitOfWork {
-        // All wasm objects operate within the context of a "store". Each
-        // `Store` has a type parameter to store host-specific data, which in
-        // this case we're using the unit of work for.
-        let mut store = Store::new(&self.engine, data);
+                    memory
+                        .write(&mut caller, offset, buffer.as_slice())
+                        .unwrap();
 
-        // Create a `Linker` which will be later used to instantiate this module.
-        // Host functionality is defined by name within the `Linker`.
-        let mut linker = Linker::new(&self.engine);
+                    buffer.len() as u32
+                },
+            )
+            .unwrap();
+        linker
+            .func_wrap(
+                "response",
+                "write",
+                |mut caller: Caller<'_, UnitOfWork>, pointer: u32, length: u32, end: u32| {
+                    let offset = pointer as usize;
+                    let length = length as usize;
+                    let end = length.min(end as usize);
+                    let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
+                    let mut buffer = vec![0; end];
 
+                    memory.read(&caller, offset, buffer.as_mut_slice()).unwrap();
+
+                    caller
+                        .data_mut()
+                        .response
+                        .message
+                        .body
+                        .bytes
+                        .extend_from_slice(buffer.as_slice());
+
+                    buffer.len() as u32
+                },
+            )
+            .unwrap();
         linker
             .func_wrap(
                 "response",
@@ -154,7 +187,25 @@ impl Runtime {
             })
             .unwrap();
 
-        let instance = linker.instantiate(&mut store, &shell.module).unwrap();
+        Runtime { linker }
+    }
+}
+
+impl Runtime {
+    pub fn load(&mut self, code: impl AsRef<[u8]>) -> Shell {
+        // Modules can be compiled through either the text or binary format
+        let module = Module::new(self.linker.engine(), code).unwrap();
+
+        Shell { module }
+    }
+
+    pub fn execute(&mut self, shell: &Shell, data: UnitOfWork) -> UnitOfWork {
+        // All wasm objects operate within the context of a "store". Each
+        // `Store` has a type parameter to store host-specific data, which in
+        // this case we're using the unit of work for.
+        let mut store = Store::new(self.linker.engine(), data);
+
+        let instance = self.linker.instantiate(&mut store, &shell.module).unwrap();
         let main = instance
             .get_typed_func::<(i32, i32), i32>(&mut store, "main")
             .unwrap();
@@ -174,12 +225,12 @@ mod tests {
     fn execute_shell() {
         let code = include_str!("../../examples/status.wat");
         let mut runtime = Runtime::default();
+        let mut expected = UnitOfWork::default();
         let shell = runtime.load(code);
-        let mut uow = UnitOfWork::default();
 
-        uow.response.status = Status::Ok;
+        expected.response.status = Status::Ok;
 
-        assert_eq!(runtime.execute(&shell, UnitOfWork::default()), uow)
+        assert_eq!(runtime.execute(&shell, UnitOfWork::default()), expected)
     }
 
     #[test]
@@ -187,15 +238,16 @@ mod tests {
         let code =
             include_bytes!("../../examples/echo/target/wasm32-unknown-unknown/debug/echo.wasm");
         let mut runtime = Runtime::default();
+        let mut expected = UnitOfWork::default();
+
+        expected.request.message.body.bytes = Vec::from("Hello, World!");
+
+        let actual = expected.clone();
         let shell = runtime.load(code);
-        let mut uow = UnitOfWork::default();
 
-        uow.response.status = Status::Created;
+        expected.response.message.body.bytes = expected.request.message.body.bytes.clone();
+        expected.response.status = Status::Created;
 
-        let import = shell.module.imports().next().unwrap();
-        assert_eq!(import.module(), "response");
-        assert_eq!(import.name(), "set_status");
-
-        assert_eq!(runtime.execute(&shell, UnitOfWork::default()), uow)
+        assert_eq!(runtime.execute(&shell, actual), expected)
     }
 }
