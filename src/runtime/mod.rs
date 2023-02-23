@@ -235,8 +235,7 @@ mod tests {
 
     #[test]
     fn execute_echo() {
-        let code =
-            include_bytes!("../../examples/echo/target/wasm32-unknown-unknown/debug/echo.wasm");
+        let code = include_bytes!(env!("CARGO_BIN_FILE_ECHO"));
         let mut runtime = Runtime::default();
         let mut expected = UnitOfWork::default();
 

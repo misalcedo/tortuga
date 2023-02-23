@@ -12,6 +12,15 @@ Tortuga is a functionally-oriented concurrent programming language. The runtime 
 For design goals, non-goals, grammar, and more see the [Tortuga Programming Language Book](https://tortuga.salcedo.cc).
 
 
+## Building
+Currently, requires nightly Rust until [rust-lang/cargo#9096](https://github.com/rust-lang/cargo/issues/9096) is completed.
+
+```bash
+rustup toolchain install nightly
+rustup default nightly
+cargo build -Z bindeps 
+```
+
 ## Testing
 ### Local Install
 To test the command-line interface, install the crate locally from the root of the repository with:
