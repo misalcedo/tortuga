@@ -1,26 +1,13 @@
-mod request {
-    #[link(wasm_import_module = "request")]
-    extern "C" {
-        pub fn read(buffer: *mut u8, length: u32, start: u32) -> u32;
-    }
-}
-
-mod response {
-    #[link(wasm_import_module = "response")]
-    extern "C" {
-        pub fn status() -> u32;
-        pub fn set_status(status: u32);
-        pub fn write(buffer: *const u8, length: u32, end: u32) -> u32;
-    }
-}
+use std::io::{Read, Write};
+use tortuga_guest::{Request, Response, Status};
 
 fn main() {
-    let buffer = vec![0; 4098];
+    let mut buffer = vec![0; 4098];
+    let mut request = Request::default();
+    let mut response = Response::default();
 
-    unsafe {
-        let bytes = request::read(buffer.as_ptr(), buffer.len() as u32, 0);
+    let bytes = request.read(&mut buffer).unwrap();
 
-        response::set_status(201);
-        response::write(buffer.as_ptr(), buffer.len() as u32, bytes);
-    }
+    response.set_status(Status::Created);
+    response.write(&buffer[..bytes]).unwrap();
 }

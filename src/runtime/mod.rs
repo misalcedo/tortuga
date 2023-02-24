@@ -128,7 +128,7 @@ impl Default for Runtime {
         linker
             .func_wrap(
                 "request",
-                "read",
+                "read_body",
                 |mut caller: Caller<'_, UnitOfWork>, pointer: u32, length: u32, start: u32| {
                     let offset = pointer as usize;
                     let length = length as usize;
@@ -149,13 +149,12 @@ impl Default for Runtime {
         linker
             .func_wrap(
                 "response",
-                "write",
-                |mut caller: Caller<'_, UnitOfWork>, pointer: u32, length: u32, end: u32| {
+                "write_body",
+                |mut caller: Caller<'_, UnitOfWork>, pointer: u32, length: u32| {
                     let offset = pointer as usize;
                     let length = length as usize;
-                    let end = length.min(end as usize);
                     let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
-                    let mut buffer = vec![0; end];
+                    let mut buffer = vec![0; length];
 
                     memory.read(&caller, offset, buffer.as_mut_slice()).unwrap();
 
