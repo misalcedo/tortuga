@@ -1,7 +1,7 @@
 mod request {
     #[link(wasm_import_module = "request")]
     extern "C" {
-        pub fn read(buffer: *const u8, length: u32, start: u32) -> u32;
+        pub fn read(buffer: *mut u8, length: u32, start: u32) -> u32;
     }
 }
 

@@ -5,6 +5,9 @@ on:
     types: [created, published]
   workflow_dispatch: {}
 
+permissions:
+  packages: write
+
 jobs:
   docker:
     name: Build Docker Image

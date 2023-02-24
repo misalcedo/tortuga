@@ -6,6 +6,9 @@ on:
     paths: [ "Cargo.toml" ]
   workflow_dispatch: {}
 
+permissions:
+  contents: write
+
 jobs:
   tag:
     name: Define Tags for version in Cargo.toml
