@@ -1,7 +1,8 @@
 //! The embedding runtime for the Tortuga WASM modules.
 
 use std::collections::HashMap;
-use wasmtime::{Caller, Config, Engine, Linker, Module, Store};
+use std::sync::RwLock;
+use wasmtime::{Caller, Config, Engine, ExternRef, Linker, Module, Store};
 
 pub struct Runtime {
     linker: Linker<UnitOfWork>,
@@ -185,6 +186,29 @@ impl Default for Runtime {
                 caller.data().response.status as u32
             })
             .unwrap();
+        linker
+            .func_wrap("message", "call", || {
+                let mut response = Response::default();
+                response.status = Status::MultipleChoices;
+                Some(ExternRef::new(RwLock::new(response)))
+            })
+            .unwrap();
+        linker
+            .func_wrap(
+                "message",
+                "status",
+                |message: Option<ExternRef>| match message {
+                    None => 0,
+                    Some(message) => {
+                        let response: Option<&Response> = message.data().downcast_ref();
+                        match response {
+                            None => 0,
+                            Some(response) => response.status as u32,
+                        }
+                    }
+                },
+            )
+            .unwrap();
 
         Runtime { linker }
     }
@@ -245,6 +269,20 @@ mod tests {
 
         expected.response.message.body.bytes = expected.request.message.body.bytes.clone();
         expected.response.status = Status::Created;
+
+        assert_eq!(runtime.execute(&shell, actual), expected)
+    }
+
+    #[test]
+    fn execute_unwrapped() {
+        let code = include_bytes!(env!("CARGO_BIN_FILE_UNWRAPPED"));
+        let mut runtime = Runtime::default();
+        let mut expected = UnitOfWork::default();
+
+        let actual = expected.clone();
+        let shell = runtime.load(code);
+
+        expected.response.status = Status::MultipleChoices;
 
         assert_eq!(runtime.execute(&shell, actual), expected)
     }
