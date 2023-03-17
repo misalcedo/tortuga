@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-tortuga-guest = "0.1.1"
+tortuga-guest = { version = "0.1.1", path = "../../../tortuga-guest" }

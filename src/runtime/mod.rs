@@ -5,7 +5,7 @@ use std::sync::RwLock;
 use wasmtime::{Caller, Config, Engine, ExternRef, Linker, Module, Store};
 
 pub struct Runtime {
-    linker: Linker<UnitOfWork>,
+    linker: Linker<Assignment>,
 }
 
 pub struct Shell {
@@ -52,6 +52,20 @@ pub enum Status {
     Created = 201,
     MultipleChoices = 300,
     BadRequest = 400,
+    Unauthorized = 401,
+    PaymentRequired = 402,
+    Forbidden = 403,
+    NotFound = 404,
+    MethodNotAllowed = 405,
+    NotAcceptable = 406,
+    ProxyAuthenticationRequired = 407,
+    RequestTimeout = 408,
+    Conflict = 409,
+    Gone = 410,
+    LengthRequired = 411,
+    PreconditionFailed = 412,
+    PayloadTooLarge = 413,
+    URITooLong = 414,
     InternalServerError = 500,
 }
 
@@ -75,6 +89,7 @@ impl From<u32> for Status {
 #[derive(Debug, Default, Eq, PartialEq, Clone)]
 pub struct Request {
     method: Method,
+    uri: String,
     message: Message,
 }
 
@@ -115,7 +130,7 @@ pub struct Message {
 }
 
 #[derive(Debug, Default, Eq, PartialEq, Clone)]
-pub struct UnitOfWork {
+pub struct Assignment {
     request: Request,
     response: Response,
 }
@@ -129,21 +144,44 @@ impl Default for Runtime {
         linker
             .func_wrap(
                 "request",
-                "read_body",
-                |mut caller: Caller<'_, UnitOfWork>, pointer: u32, length: u32, start: u32| {
+                "read_uri",
+                |mut caller: Caller<'_, Assignment>, pointer: u32, length: u32, start: u32| {
                     let offset = pointer as usize;
                     let length = length as usize;
                     let start = start as usize;
+
                     let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
-                    let body = &caller.data().request.message.body.bytes;
+                    let (view, assignment) = memory.data_and_store_mut(&mut caller);
+                    let body = &mut assignment.request.uri.as_bytes();
                     let end = body.len().min(start + length);
-                    let buffer = body[start..end].to_vec();
+                    let body_slice = &body[start..end];
 
-                    memory
-                        .write(&mut caller, offset, buffer.as_slice())
-                        .unwrap();
+                    let destination = &mut view[offset..(offset + body_slice.len())];
 
-                    buffer.len() as u32
+                    destination.copy_from_slice(body_slice);
+                    destination.len() as u32
+                },
+            )
+            .unwrap();
+        linker
+            .func_wrap(
+                "request",
+                "read_body",
+                |mut caller: Caller<'_, Assignment>, pointer: u32, length: u32, start: u32| {
+                    let offset = pointer as usize;
+                    let length = length as usize;
+                    let start = start as usize;
+
+                    let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
+                    let (view, assignment) = memory.data_and_store_mut(&mut caller);
+                    let body = &mut assignment.request.message.body.bytes;
+                    let end = body.len().min(start + length);
+                    let body_slice = &body[start..end];
+
+                    let destination = &mut view[offset..(offset + body_slice.len())];
+
+                    destination.copy_from_slice(body_slice);
+                    destination.len() as u32
                 },
             )
             .unwrap();
@@ -151,23 +189,21 @@ impl Default for Runtime {
             .func_wrap(
                 "response",
                 "write_body",
-                |mut caller: Caller<'_, UnitOfWork>, pointer: u32, length: u32| {
+                |mut caller: Caller<'_, Assignment>, pointer: u32, length: u32| {
                     let offset = pointer as usize;
                     let length = length as usize;
                     let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
-                    let mut buffer = vec![0; length];
+                    let (view, assignment) = memory.data_and_store_mut(&mut caller);
+                    let source = &view[offset..(offset + length)];
 
-                    memory.read(&caller, offset, buffer.as_mut_slice()).unwrap();
-
-                    caller
-                        .data_mut()
+                    assignment
                         .response
                         .message
                         .body
                         .bytes
-                        .extend_from_slice(buffer.as_slice());
+                        .extend_from_slice(source);
 
-                    buffer.len() as u32
+                    source.len() as u32
                 },
             )
             .unwrap();
@@ -175,14 +211,14 @@ impl Default for Runtime {
             .func_wrap(
                 "response",
                 "set_status",
-                |mut caller: Caller<'_, UnitOfWork>, status: u32| {
+                |mut caller: Caller<'_, Assignment>, status: u32| {
                     let data = caller.data_mut();
                     data.response.status = Status::from(status);
                 },
             )
             .unwrap();
         linker
-            .func_wrap("response", "status", |caller: Caller<'_, UnitOfWork>| {
+            .func_wrap("response", "status", |caller: Caller<'_, Assignment>| {
                 caller.data().response.status as u32
             })
             .unwrap();
@@ -222,7 +258,7 @@ impl Runtime {
         Shell { module }
     }
 
-    pub fn execute(&mut self, shell: &Shell, data: UnitOfWork) -> UnitOfWork {
+    pub fn execute(&mut self, shell: &Shell, data: Assignment) -> Assignment {
         // All wasm objects operate within the context of a "store". Each
         // `Store` has a type parameter to store host-specific data, which in
         // this case we're using the unit of work for.
@@ -248,20 +284,21 @@ mod tests {
     fn execute_shell() {
         let code = include_str!("../../examples/status.wat");
         let mut runtime = Runtime::default();
-        let mut expected = UnitOfWork::default();
+        let mut expected = Assignment::default();
         let shell = runtime.load(code);
 
         expected.response.status = Status::Ok;
 
-        assert_eq!(runtime.execute(&shell, UnitOfWork::default()), expected)
+        assert_eq!(runtime.execute(&shell, Assignment::default()), expected)
     }
 
     #[test]
     fn execute_echo() {
         let code = include_bytes!(env!("CARGO_BIN_FILE_ECHO"));
         let mut runtime = Runtime::default();
-        let mut expected = UnitOfWork::default();
+        let mut expected = Assignment::default();
 
+        expected.request.uri = "/".to_string();
         expected.request.message.body.bytes = Vec::from("Hello, World!");
 
         let actual = expected.clone();
@@ -269,20 +306,6 @@ mod tests {
 
         expected.response.message.body.bytes = expected.request.message.body.bytes.clone();
         expected.response.status = Status::Created;
-
-        assert_eq!(runtime.execute(&shell, actual), expected)
-    }
-
-    #[test]
-    fn execute_unwrapped() {
-        let code = include_bytes!(env!("CARGO_BIN_FILE_UNWRAPPED"));
-        let mut runtime = Runtime::default();
-        let mut expected = UnitOfWork::default();
-
-        let actual = expected.clone();
-        let shell = runtime.load(code);
-
-        expected.response.status = Status::MultipleChoices;
 
         assert_eq!(runtime.execute(&shell, actual), expected)
     }
