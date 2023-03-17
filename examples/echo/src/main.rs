@@ -1,7 +1,7 @@
 use tortuga_guest::{Request, Response, Status};
 
-fn run(mut request: Request, mut response: Response) {
-    std::io::copy(&mut request, &mut response).unwrap();
+fn run(request: &mut Request, response: &mut Response) {
+    std::io::copy(request, response).unwrap();
 
     response.set_status(Status::Created);
 }
