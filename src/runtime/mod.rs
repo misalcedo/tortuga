@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::sync::RwLock;
+use tortuga_guest::{Method, Status};
 use wasmtime::{Caller, Config, Engine, ExternRef, Linker, Module, Store};
 
 pub struct Runtime {
@@ -10,80 +11,6 @@ pub struct Runtime {
 
 pub struct Shell {
     module: Module,
-}
-
-/// HTTP defines a set of request methods to indicate the desired action to be performed for a given resource.
-/// Although they can also be nouns, these request methods are sometimes referred to as HTTP verbs.
-/// Each of them implements a different semantic, but some common features are shared by a group of them:
-/// e.g. a request method can be safe, idempotent, or cacheable.
-///
-/// See https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods
-#[derive(Debug, Default, Eq, PartialEq, Ord, PartialOrd, Clone)]
-pub enum Method {
-    /// The `GET` method requests a representation of the specified resource. Requests using GET should only retrieve data.
-    #[default]
-    Get,
-    /// The `HEAD` method asks for a response identical to a `GET` request, but without the response body.
-    Head,
-    /// The `POST` method submits an entity to the specified resource, often causing a change in state or side effects on the server.
-    Post,
-    /// The `PUT` method replaces all current representations of the target resource with the request payload.
-    Put,
-    /// The `DELETE` method deletes the specified resource.
-    Delete,
-    /// The `CONNECT` method establishes a tunnel to the server identified by the target resource.
-    Connect,
-    /// The `OPTIONS` method describes the communication options for the target resource.
-    Options,
-    /// The `TRACE` method performs a message loop-back test along the path to the target resource.
-    Trace,
-    /// The `PATCH` method applies partial modifications to a resource.
-    Patch,
-    Custom(String),
-}
-
-/// See https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
-#[derive(Debug, Default, Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
-#[repr(u16)]
-pub enum Status {
-    Continue = 100,
-    #[default]
-    Ok = 200,
-    Created = 201,
-    MultipleChoices = 300,
-    BadRequest = 400,
-    Unauthorized = 401,
-    PaymentRequired = 402,
-    Forbidden = 403,
-    NotFound = 404,
-    MethodNotAllowed = 405,
-    NotAcceptable = 406,
-    ProxyAuthenticationRequired = 407,
-    RequestTimeout = 408,
-    Conflict = 409,
-    Gone = 410,
-    LengthRequired = 411,
-    PreconditionFailed = 412,
-    PayloadTooLarge = 413,
-    URITooLong = 414,
-    InternalServerError = 500,
-}
-
-impl From<u32> for Status {
-    fn from(status: u32) -> Self {
-        match status {
-            100..=199 => Status::Continue,
-            200..=299 => match status {
-                200 => Status::Ok,
-                201 => Status::Created,
-                _ => Status::Ok,
-            },
-            300..=399 => Status::MultipleChoices,
-            400..=499 => Status::BadRequest,
-            500..=599 => Status::InternalServerError,
-            _ => Status::Ok,
-        }
-    }
 }
 
 #[derive(Debug, Default, Eq, PartialEq, Clone)]

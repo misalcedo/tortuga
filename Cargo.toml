@@ -22,6 +22,7 @@ pprof = { version = "0.11", features = ["criterion", "flamegraph", "protobuf-cod
 
 [dependencies]
 tokio = { version = "1.25.0", features = ["full"] }
+tortuga-guest = { version = "0.1.1", path = "../tortuga-guest" }
 wasmtime = "6.0.0"
 
 [[bench]]
