@@ -1,65 +1,48 @@
 //! The embedding runtime for the Tortuga WASM modules.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
+use std::io::Cursor;
+use std::num::NonZeroU64;
 use std::sync::RwLock;
-use tortuga_guest::{Method, Status};
+use tortuga_guest::{Method, Request, Response, Status, Type};
 use wasmtime::{Caller, Config, Engine, ExternRef, Linker, Module, Store};
 
 pub struct Runtime {
-    linker: Linker<Assignment>,
+    linker: Linker<Connection>,
 }
 
 pub struct Shell {
     module: Module,
 }
 
-#[derive(Debug, Default, Eq, PartialEq, Clone)]
-pub struct Request {
-    method: Method,
-    uri: String,
-    message: Message,
+#[derive(Default, Debug, PartialEq, Clone)]
+pub struct BidirectionalStream {
+    host_to_guest: Cursor<Vec<u8>>,
+    guest_to_host: Cursor<Vec<u8>>,
 }
 
-#[derive(Debug, Default, Eq, PartialEq, Clone)]
-pub struct Response {
-    status: Status,
-    message: Message,
+#[derive(Debug, PartialEq, Clone)]
+pub struct Connection {
+    primary: BidirectionalStream,
+    streams: HashMap<NonZeroU64, BidirectionalStream>,
 }
 
-#[derive(Debug, Hash, Eq, PartialEq, Ord, PartialOrd, Clone)]
-pub enum HeaderName {
-    Authorization,
-    Accept,
-    Link,
-    Custom(String),
-}
+impl Connection {
+    pub fn stream(&mut self, stream: u64) -> Option<&mut BidirectionalStream> {
+        match stream {
+            0 => Some(&mut self.primary),
+            _ => NonZeroU64::new(stream).map(|id| self.streams.get_mut(&id)),
+        }
+    }
 
-#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone)]
-pub enum HeaderValue {
-    Single(String),
-    Multiple(Vec<String>),
-}
+    pub fn start_stream(&mut self) -> u64 {
+        let id = 1 + self.streams.len() as u64;
 
-#[derive(Debug, Default, Eq, PartialEq, Clone)]
-pub struct Headers {
-    headers: HashMap<HeaderName, HeaderValue>,
-}
+        self.streams
+            .insert(NonZeroU64::new(stream).unwrap(), Default::default());
 
-#[derive(Debug, Default, Eq, PartialEq, Ord, PartialOrd, Clone)]
-pub struct Body {
-    bytes: Vec<u8>,
-}
-
-#[derive(Debug, Default, Eq, PartialEq, Clone)]
-pub struct Message {
-    headers: Headers,
-    body: Body,
-}
-
-#[derive(Debug, Default, Eq, PartialEq, Clone)]
-pub struct Assignment {
-    request: Request,
-    response: Response,
+        id
+    }
 }
 
 impl Default for Runtime {
@@ -70,16 +53,16 @@ impl Default for Runtime {
 
         linker
             .func_wrap(
-                "request",
-                "read_uri",
-                |mut caller: Caller<'_, Assignment>, pointer: u32, length: u32, start: u32| {
+                "stream",
+                "read",
+                |mut caller: Caller<'_, Connection>, stream: u64, pointer: u32, length: u32| {
                     let offset = pointer as usize;
                     let length = length as usize;
-                    let start = start as usize;
 
                     let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
-                    let (view, assignment) = memory.data_and_store_mut(&mut caller);
-                    let body = &mut assignment.request.uri.as_bytes();
+                    let (view, connection): (&mut [u8], &mut Connection) =
+                        memory.data_and_store_mut(&mut caller);
+                    let body = connection.stream(stream).unwrap().host_to_guest.get_mut();
                     let end = body.len().min(start + length);
                     let body_slice = &body[start..end];
 
@@ -92,42 +75,21 @@ impl Default for Runtime {
             .unwrap();
         linker
             .func_wrap(
-                "request",
-                "read_body",
-                |mut caller: Caller<'_, Assignment>, pointer: u32, length: u32, start: u32| {
-                    let offset = pointer as usize;
-                    let length = length as usize;
-                    let start = start as usize;
-
-                    let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
-                    let (view, assignment) = memory.data_and_store_mut(&mut caller);
-                    let body = &mut assignment.request.message.body.bytes;
-                    let end = body.len().min(start + length);
-                    let body_slice = &body[start..end];
-
-                    let destination = &mut view[offset..(offset + body_slice.len())];
-
-                    destination.copy_from_slice(body_slice);
-                    destination.len() as u32
-                },
-            )
-            .unwrap();
-        linker
-            .func_wrap(
-                "response",
-                "write_body",
-                |mut caller: Caller<'_, Assignment>, pointer: u32, length: u32| {
+                "stream",
+                "write",
+                |mut caller: Caller<'_, Connection>, stream: u64, pointer: u32, length: u32| {
                     let offset = pointer as usize;
                     let length = length as usize;
                     let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
-                    let (view, assignment) = memory.data_and_store_mut(&mut caller);
+                    let (view, connection): (&mut [u8], &mut Connection) =
+                        memory.data_and_store_mut(&mut caller);
                     let source = &view[offset..(offset + length)];
 
-                    assignment
-                        .response
-                        .message
-                        .body
-                        .bytes
+                    connection
+                        .stream(stream)
+                        .unwrap()
+                        .guest_to_host
+                        .get_mut()
                         .extend_from_slice(source);
 
                     source.len() as u32
@@ -135,42 +97,9 @@ impl Default for Runtime {
             )
             .unwrap();
         linker
-            .func_wrap(
-                "response",
-                "set_status",
-                |mut caller: Caller<'_, Assignment>, status: u32| {
-                    let data = caller.data_mut();
-                    data.response.status = Status::from(status);
-                },
-            )
-            .unwrap();
-        linker
-            .func_wrap("response", "status", |caller: Caller<'_, Assignment>| {
-                caller.data().response.status as u32
+            .func_wrap("stream", "start", |mut caller: Caller<'_, Connection>| {
+                caller.data_mut().start_stream()
             })
-            .unwrap();
-        linker
-            .func_wrap("message", "call", || {
-                let mut response = Response::default();
-                response.status = Status::MultipleChoices;
-                Some(ExternRef::new(RwLock::new(response)))
-            })
-            .unwrap();
-        linker
-            .func_wrap(
-                "message",
-                "status",
-                |message: Option<ExternRef>| match message {
-                    None => 0,
-                    Some(message) => {
-                        let response: Option<&Response> = message.data().downcast_ref();
-                        match response {
-                            None => 0,
-                            Some(response) => response.status as u32,
-                        }
-                    }
-                },
-            )
             .unwrap();
 
         Runtime { linker }
@@ -185,7 +114,7 @@ impl Runtime {
         Shell { module }
     }
 
-    pub fn execute(&mut self, shell: &Shell, data: Assignment) -> Assignment {
+    pub fn execute(&mut self, shell: &Shell, data: Connection) -> Connection {
         // All wasm objects operate within the context of a "store". Each
         // `Store` has a type parameter to store host-specific data, which in
         // this case we're using the unit of work for.
@@ -211,19 +140,19 @@ mod tests {
     fn execute_shell() {
         let code = include_str!("../../examples/status.wat");
         let mut runtime = Runtime::default();
-        let mut expected = Assignment::default();
+        let mut expected = Connection::default();
         let shell = runtime.load(code);
 
         expected.response.status = Status::Ok;
 
-        assert_eq!(runtime.execute(&shell, Assignment::default()), expected)
+        assert_eq!(runtime.execute(&shell, Connection::default()), expected)
     }
 
     #[test]
     fn execute_echo() {
         let code = include_bytes!(env!("CARGO_BIN_FILE_ECHO"));
         let mut runtime = Runtime::default();
-        let mut expected = Assignment::default();
+        let mut expected = Connection::default();
 
         expected.request.uri = "/".to_string();
         expected.request.message.body.bytes = Vec::from("Hello, World!");
