@@ -4,7 +4,7 @@ use std::collections::{HashMap, VecDeque};
 use std::io::Cursor;
 use std::num::NonZeroU64;
 use std::sync::RwLock;
-use tortuga_guest::{Method, Request, Response, Status, Type};
+use tortuga_guest::{FrameType, Method, Request, Response, Status};
 use wasmtime::{Caller, Config, Engine, ExternRef, Linker, Module, Store};
 
 pub struct Runtime {
