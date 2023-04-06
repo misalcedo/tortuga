@@ -20,7 +20,7 @@ impl<IO> IoLimiter<IO> {
     }
 
     pub fn resize(&mut self, length: usize) {
-        self.length = length
+        self.length = length;
     }
 
     pub fn get_mut(&mut self) -> &mut IO {

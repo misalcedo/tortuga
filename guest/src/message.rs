@@ -10,7 +10,6 @@ impl<B: Read + Seek> Body for B {}
 #[derive(Debug)]
 pub struct FrameIo<R> {
     length: usize,
-    remaining: usize,
     io: IoLimiter<R>,
 }
 
@@ -18,7 +17,6 @@ impl<IO> FrameIo<IO> {
     pub fn new(io: IO, length: usize) -> Self {
         FrameIo {
             length,
-            remaining: length,
             io: IoLimiter::new(io, 0),
         }
     }
@@ -31,6 +29,14 @@ impl<IO> FrameIo<IO> {
         self.length == 0
     }
 
+    pub fn resize(&mut self, length: usize) {
+        self.length = length;
+    }
+
+    pub fn get_mut(&mut self) -> &mut IO {
+        self.io.get_mut()
+    }
+
     pub fn finish(self) -> IO {
         self.io.finish()
     }
@@ -41,10 +47,14 @@ where
     R: Read,
 {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        if self.io.is_empty() && self.remaining > 0 {
+        if self.length == 0 {
+            return Ok(0);
+        }
+
+        if self.io.is_empty() && !self.is_empty() {
             let frame: Frame = self.io.get_mut().decode()?;
 
-            if frame.kind() != FrameType::Data || frame.len() > self.remaining {
+            if frame.kind() != FrameType::Data || frame.len() > self.length {
                 return Err(ErrorKind::InvalidData.into());
             }
 
@@ -53,7 +63,7 @@ where
 
         let bytes_read = self.io.read(buf)?;
 
-        self.remaining -= bytes_read;
+        self.length -= bytes_read;
 
         Ok(bytes_read)
     }
@@ -64,7 +74,7 @@ where
     W: Write,
 {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        if self.remaining == 0 {
+        if self.length == 0 {
             return Ok(0);
         }
 
@@ -72,12 +82,34 @@ where
 
         self.io.get_mut().encode(frame)?;
         self.io.get_mut().write_all(buf)?;
-        self.remaining -= buf.len();
+        self.length -= buf.len();
 
         Ok(buf.len())
     }
 
     fn flush(&mut self) -> io::Result<()> {
         self.io.flush()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::{Cursor, Read};
+
+    #[test]
+    fn transfer() {
+        let body = Vec::from("Hello, World!");
+        let mut stream = FrameIo::new(Cursor::new(Vec::new()), body.len());
+
+        stream.write_all(body.as_slice()).unwrap();
+        stream.get_mut().set_position(0);
+        stream.resize(body.len());
+
+        let mut actual = vec![0; body.len()];
+
+        stream.read_exact(actual.as_mut_slice()).unwrap();
+
+        assert_eq!(body.as_slice(), actual.as_slice());
     }
 }
