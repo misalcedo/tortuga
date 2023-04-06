@@ -2,4 +2,6 @@
 
 extern crate core;
 
-pub mod runtime;
+mod runtime;
+
+pub use runtime::Runtime;

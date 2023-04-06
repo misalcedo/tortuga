@@ -1,110 +1,47 @@
 //! The embedding runtime for the Tortuga WASM modules.
 
-use std::io::Read;
-
-use wasmtime::{Caller, Config, Engine, Linker, Module, Store};
+use wasmtime::{Config, Engine};
 
 use tortuga_guest::{Request, Response};
 
-use crate::runtime::connection::{Connection, ForGuest, FromGuest};
+use crate::runtime::connection::{ForGuest, FromGuest};
 
 mod connection;
+mod shell;
+
+use crate::runtime::shell::Shell;
+pub use connection::Connection;
 
 pub struct Runtime {
-    linker: Linker<Connection>,
-}
-
-pub struct Shell {
-    module: Module,
+    engine: Engine,
 }
 
 impl Default for Runtime {
     fn default() -> Self {
         let configuration = Config::new();
         let engine = Engine::new(&configuration).unwrap();
-        let mut linker = Linker::new(&engine);
 
-        linker
-            .func_wrap(
-                "stream",
-                "read",
-                |mut caller: Caller<'_, Connection>, stream: u64, pointer: u32, length: u32| {
-                    let offset = pointer as usize;
-                    let length = length as usize;
-
-                    let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
-                    let (view, connection): (&mut [u8], &mut Connection) =
-                        memory.data_and_store_mut(&mut caller);
-                    let body = &mut connection.stream(stream).unwrap().host_to_guest;
-                    let size = (body.get_ref().len() - (body.position() as usize)).min(length);
-
-                    let destination = &mut view[offset..(offset + size)];
-
-                    body.read_exact(destination).unwrap();
-                    destination.len() as u32
-                },
-            )
-            .unwrap();
-        linker
-            .func_wrap(
-                "stream",
-                "write",
-                |mut caller: Caller<'_, Connection>, stream: u64, pointer: u32, length: u32| {
-                    let offset = pointer as usize;
-                    let length = length as usize;
-                    let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
-                    let (view, connection): (&mut [u8], &mut Connection) =
-                        memory.data_and_store_mut(&mut caller);
-                    let source = &view[offset..(offset + length)];
-
-                    connection
-                        .stream(stream)
-                        .unwrap()
-                        .guest_to_host
-                        .get_mut()
-                        .extend_from_slice(source);
-
-                    source.len() as u32
-                },
-            )
-            .unwrap();
-        linker
-            .func_wrap("stream", "start", |mut caller: Caller<'_, Connection>| {
-                caller.data_mut().start_stream()
-            })
-            .unwrap();
-
-        Runtime { linker }
+        Runtime { engine }
     }
 }
 
 impl Runtime {
     pub fn load(&mut self, code: impl AsRef<[u8]>) -> Shell {
-        // Modules can be compiled through either the text or binary format
-        let module = Module::new(self.linker.engine(), code).unwrap();
-
-        Shell { module }
+        Shell::new(self, code)
     }
 
     pub fn execute(&mut self, shell: &Shell, request: Request<ForGuest>) -> Response<FromGuest> {
-        let connection = Connection::new(request);
-        let mut store = Store::new(self.linker.engine(), connection);
+        shell.execute(request)
+    }
 
-        let instance = self.linker.instantiate(&mut store, &shell.module).unwrap();
-        let main = instance
-            .get_typed_func::<(i32, i32), i32>(&mut store, "main")
-            .unwrap();
-
-        // And finally we can call the wasm!
-        main.call(&mut store, (0, 0)).unwrap();
-
-        store.into_data().response()
+    fn engine(&self) -> &Engine {
+        &self.engine
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::io::Write;
+    use std::io::{Read, Write};
 
     use tortuga_guest::Status;
 
