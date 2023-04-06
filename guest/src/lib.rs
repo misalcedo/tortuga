@@ -43,3 +43,45 @@ pub fn invoke<B: Body, E: Error>(entrypoint: fn(Request<FromHost>) -> Result<Res
         }
     };
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::{Cursor, Read};
+
+    #[test]
+    fn transfer_request() {
+        let body = Vec::from("Hello, World!");
+        let actual = Request::new(Method::Post, "/ping".to_string(), Cursor::new(body.clone()));
+        let mut stream = Cursor::new(Vec::new());
+
+        stream.write_message(actual.clone()).unwrap();
+        stream.set_position(0);
+
+        let mut expected: Request<FrameIo<Cursor<Vec<u8>>>> = stream.read_message().unwrap();
+        let mut buffer = vec![0; body.len()];
+
+        expected.body().read_exact(&mut buffer).unwrap();
+
+        assert_eq!(actual, expected);
+        assert_eq!(body.as_slice(), buffer.as_slice());
+    }
+
+    #[test]
+    fn transfer_response() {
+        let body = Vec::from("Already exists!");
+        let actual = Response::new(Status::Conflict, Cursor::new(body.clone()));
+        let mut stream = Cursor::new(Vec::new());
+
+        stream.write_message(actual.clone()).unwrap();
+        stream.set_position(0);
+
+        let mut expected: Response<FrameIo<Cursor<Vec<u8>>>> = stream.read_message().unwrap();
+        let mut buffer = vec![0; body.len()];
+
+        expected.body().read_exact(&mut buffer).unwrap();
+
+        assert_eq!(actual, expected);
+        assert_eq!(body.as_slice(), buffer.as_slice());
+    }
+}

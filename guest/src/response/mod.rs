@@ -5,7 +5,7 @@ mod status;
 use crate::Body;
 pub use status::Status;
 
-#[derive(Debug, Eq, Ord, PartialOrd, Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct Response<B> {
     status: u16,
     body: B,

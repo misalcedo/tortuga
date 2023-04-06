@@ -23,6 +23,10 @@ impl<IO> IoLimiter<IO> {
         self.length = length
     }
 
+    pub fn get_mut(&mut self) -> &mut IO {
+        &mut self.io
+    }
+
     pub fn finish(self) -> IO {
         self.io
     }

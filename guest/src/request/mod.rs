@@ -5,7 +5,7 @@ use std::io::Cursor;
 
 /// A cursor into the current request being processed.
 /// An embedded process handles a single request at a time.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Request<B> {
     method: Method,
     uri: String,
@@ -29,6 +29,12 @@ impl Request<Cursor<Vec<u8>>> {
             uri,
             body: Default::default(),
         }
+    }
+}
+
+impl<A, B> PartialEq<Request<B>> for Request<A> {
+    fn eq(&self, other: &Request<B>) -> bool {
+        self.method == other.method && self.uri.as_str() == other.uri.as_str()
     }
 }
 

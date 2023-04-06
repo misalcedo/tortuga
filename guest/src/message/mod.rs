@@ -1,7 +1,7 @@
 use crate::frame::FrameType;
-use crate::wire::Decode;
+use crate::wire::{Decode, Encode};
 use crate::{Frame, IoLimiter};
-use std::io::{ErrorKind, Read, Seek, Write};
+use std::io::{self, ErrorKind, Read, Seek, Write};
 
 pub trait Body: Read + Seek {}
 
@@ -19,7 +19,7 @@ impl<IO> FrameIo<IO> {
         FrameIo {
             length,
             remaining: length,
-            io: IoLimiter::new(io, Frame::bytes()),
+            io: IoLimiter::new(io, 0),
         }
     }
 
@@ -40,23 +40,22 @@ impl<R> Read for FrameIo<R>
 where
     R: Read,
 {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        if self.io.is_empty() && !self.is_empty() {
-            let frame: Frame = self.io.decode()?;
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        if self.io.is_empty() && self.remaining > 0 {
+            let frame: Frame = self.io.get_mut().decode()?;
 
-            if frame.kind() != FrameType::Data {
-                return Err(ErrorKind::InvalidData.into());
-            }
-
-            if frame.len() > self.remaining {
+            if frame.kind() != FrameType::Data || frame.len() > self.remaining {
                 return Err(ErrorKind::InvalidData.into());
             }
 
             self.io.resize(frame.len());
-            self.remaining -= self.io.len();
         }
 
-        self.io.read(buf)
+        let bytes_read = self.io.read(buf)?;
+
+        self.remaining -= bytes_read;
+
+        Ok(bytes_read)
     }
 }
 
@@ -64,26 +63,21 @@ impl<W> Write for FrameIo<W>
 where
     W: Write,
 {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        if self.io.is_empty() && !self.is_empty() {
-            if buf.len() > self.remaining {
-                return Err(ErrorKind::InvalidData.into());
-            }
-
-            let frame = Frame::new(FrameType::Data, buf.len());
-
-            self.io.resize(Frame::bytes());
-            self.io.write(&(frame.kind() as u8).to_le_bytes())?;
-            self.io.write(&(frame.len() as u64).to_le_bytes())?;
-            self.io.resize(frame.len());
-
-            self.remaining -= self.io.len();
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        if self.remaining == 0 {
+            return Ok(0);
         }
 
-        self.io.write(buf)
+        let frame = Frame::new(FrameType::Data, buf.len());
+
+        self.io.get_mut().encode(frame)?;
+        self.io.get_mut().write_all(buf)?;
+        self.remaining -= buf.len();
+
+        Ok(buf.len())
     }
 
-    fn flush(&mut self) -> std::io::Result<()> {
+    fn flush(&mut self) -> io::Result<()> {
         self.io.flush()
     }
 }

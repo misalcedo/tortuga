@@ -6,31 +6,43 @@ pub trait Decode<Value> {
     fn decode(&mut self) -> io::Result<Value>;
 }
 
-impl<R> Decode<u8> for R where R: Read {
+impl<R> Decode<u8> for R
+where
+    R: Read,
+{
     fn decode(&mut self) -> io::Result<u8> {
-        let mut value = [0; 1];
+        let mut value = 0u8.to_le_bytes();
         self.read_exact(&mut value)?;
         Ok(u8::from_le_bytes(value))
     }
 }
 
-impl<R> Decode<u16> for R where R: Read {
+impl<R> Decode<u16> for R
+where
+    R: Read,
+{
     fn decode(&mut self) -> io::Result<u16> {
-        let mut value = [0; 2];
+        let mut value = 0u16.to_le_bytes();
         self.read_exact(&mut value)?;
         Ok(u16::from_le_bytes(value))
     }
 }
 
-impl<R> Decode<u64> for R where R: Read {
+impl<R> Decode<u64> for R
+where
+    R: Read,
+{
     fn decode(&mut self) -> io::Result<u64> {
-        let mut value = [0; 8];
+        let mut value = 0u64.to_le_bytes();
         self.read_exact(&mut value)?;
         Ok(u64::from_le_bytes(value))
     }
 }
 
-impl<R> Decode<usize> for R where R: Read {
+impl<R> Decode<usize> for R
+where
+    R: Read,
+{
     fn decode(&mut self) -> io::Result<usize> {
         let value: u64 = self.decode()?;
 
@@ -38,7 +50,10 @@ impl<R> Decode<usize> for R where R: Read {
     }
 }
 
-impl<R> Decode<String> for R where R: Read {
+impl<R> Decode<String> for R
+where
+    R: Read,
+{
     fn decode(&mut self) -> io::Result<String> {
         let length: usize = self.decode()?;
         let mut value = vec![0; length as usize];
@@ -49,7 +64,10 @@ impl<R> Decode<String> for R where R: Read {
     }
 }
 
-impl<R> Decode<FrameType> for R where R: Read {
+impl<R> Decode<FrameType> for R
+where
+    R: Read,
+{
     fn decode(&mut self) -> io::Result<FrameType> {
         let kind: u8 = self.decode()?;
 
@@ -57,7 +75,10 @@ impl<R> Decode<FrameType> for R where R: Read {
     }
 }
 
-impl<R> Decode<Frame> for R where R: Read {
+impl<R> Decode<Frame> for R
+where
+    R: Read,
+{
     fn decode(&mut self) -> io::Result<Frame> {
         let kind = self.decode()?;
         let length = self.decode()?;
@@ -66,7 +87,10 @@ impl<R> Decode<Frame> for R where R: Read {
     }
 }
 
-impl<R> Decode<Method> for R where R: Read {
+impl<R> Decode<Method> for R
+where
+    R: Read,
+{
     fn decode(&mut self) -> io::Result<Method> {
         let method: u8 = self.decode()?;
 
@@ -74,12 +98,18 @@ impl<R> Decode<Method> for R where R: Read {
     }
 }
 
-pub trait ReadableMessage<R>: Sized where R: ?Sized {
+pub trait ReadableMessage<R>: Sized
+where
+    R: ?Sized,
+{
     fn read_from(reader: R) -> io::Result<Self>;
     fn finish(self) -> R;
 }
 
-impl<R> ReadableMessage<R> for Request<FrameIo<R>> where R: Read {
+impl<R> ReadableMessage<R> for Request<FrameIo<R>>
+where
+    R: Read,
+{
     fn read_from(mut reader: R) -> io::Result<Self> {
         let header: Frame = reader.decode()?;
 
@@ -100,7 +130,10 @@ impl<R> ReadableMessage<R> for Request<FrameIo<R>> where R: Read {
     }
 }
 
-impl<R> ReadableMessage<R> for Response<FrameIo<R>> where R: Read {
+impl<R> ReadableMessage<R> for Response<FrameIo<R>>
+where
+    R: Read,
+{
     fn read_from(mut reader: R) -> io::Result<Self> {
         let header: Frame = reader.decode()?;
 
