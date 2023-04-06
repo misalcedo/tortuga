@@ -34,6 +34,7 @@ impl Connection {
         let mut primary = BidirectionalStream::default();
 
         primary.host_to_guest.write_message(request).unwrap();
+        primary.host_to_guest.set_position(0);
 
         Connection {
             primary,
@@ -167,7 +168,12 @@ mod tests {
         response.body().write_all(&body).unwrap();
 
         let shell = runtime.load(code);
+        let mut actual = runtime.execute(&shell, request);
+        let mut buffer = vec![0; body.len()];
 
-        assert_eq!(runtime.execute(&shell, request), response)
+        actual.body().read_exact(buffer.as_mut_slice()).unwrap();
+
+        assert_eq!(actual, response);
+        assert_eq!(buffer, body);
     }
 }
