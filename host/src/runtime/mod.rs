@@ -2,15 +2,14 @@
 
 use wasmtime::{Config, Engine};
 
+pub use connection::Connection;
 use tortuga_guest::{Request, Response};
 
 use crate::runtime::connection::{ForGuest, FromGuest};
+use crate::runtime::shell::Shell;
 
 mod connection;
 mod shell;
-
-use crate::runtime::shell::Shell;
-pub use connection::Connection;
 
 pub struct Runtime {
     engine: Engine,
