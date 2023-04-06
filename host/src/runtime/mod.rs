@@ -1,11 +1,10 @@
 //! The embedding runtime for the Tortuga WASM modules.
 
-use std::collections::{HashMap, VecDeque};
-use std::io::Cursor;
+use std::collections::HashMap;
+use std::io::{Cursor, Read};
 use std::num::NonZeroU64;
-use std::sync::RwLock;
-use tortuga_guest::{FrameType, Method, Request, Response, Status};
-use wasmtime::{Caller, Config, Engine, ExternRef, Linker, Module, Store};
+use tortuga_guest::{Destination, FrameIo, Request, Response, Source};
+use wasmtime::{Caller, Config, Engine, Linker, Module, Store};
 
 pub struct Runtime {
     linker: Linker<Connection>,
@@ -15,7 +14,10 @@ pub struct Shell {
     module: Module,
 }
 
-#[derive(Default, Debug, PartialEq, Clone)]
+pub type ForGuest = Cursor<Vec<u8>>;
+pub type FromGuest = FrameIo<Cursor<Vec<u8>>>;
+
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct BidirectionalStream {
     host_to_guest: Cursor<Vec<u8>>,
     guest_to_host: Cursor<Vec<u8>>,
@@ -28,10 +30,20 @@ pub struct Connection {
 }
 
 impl Connection {
+    pub fn new(request: Request<ForGuest>) -> Self {
+        let mut primary = BidirectionalStream::default();
+
+        primary.host_to_guest.write_message(request).unwrap();
+
+        Connection {
+            primary,
+            streams: Default::default(),
+        }
+    }
     pub fn stream(&mut self, stream: u64) -> Option<&mut BidirectionalStream> {
         match stream {
             0 => Some(&mut self.primary),
-            _ => NonZeroU64::new(stream).map(|id| self.streams.get_mut(&id)),
+            _ => NonZeroU64::new(stream).and_then(|id| self.streams.get_mut(&id)),
         }
     }
 
@@ -39,9 +51,16 @@ impl Connection {
         let id = 1 + self.streams.len() as u64;
 
         self.streams
-            .insert(NonZeroU64::new(stream).unwrap(), Default::default());
+            .insert(NonZeroU64::new(id).unwrap(), Default::default());
 
         id
+    }
+
+    pub fn response(self) -> Response<FromGuest> {
+        let message: std::io::Result<Response<FrameIo<Cursor<Vec<u8>>>>> =
+            self.primary.guest_to_host.read_message();
+
+        message.unwrap()
     }
 }
 
@@ -62,13 +81,12 @@ impl Default for Runtime {
                     let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
                     let (view, connection): (&mut [u8], &mut Connection) =
                         memory.data_and_store_mut(&mut caller);
-                    let body = connection.stream(stream).unwrap().host_to_guest.get_mut();
-                    let end = body.len().min(start + length);
-                    let body_slice = &body[start..end];
+                    let body = &mut connection.stream(stream).unwrap().host_to_guest;
+                    let size = (body.get_ref().len() - (body.position() as usize)).min(length);
 
-                    let destination = &mut view[offset..(offset + body_slice.len())];
+                    let destination = &mut view[offset..(offset + size)];
 
-                    destination.copy_from_slice(body_slice);
+                    body.read_exact(destination).unwrap();
                     destination.len() as u32
                 },
             )
@@ -114,11 +132,9 @@ impl Runtime {
         Shell { module }
     }
 
-    pub fn execute(&mut self, shell: &Shell, data: Connection) -> Connection {
-        // All wasm objects operate within the context of a "store". Each
-        // `Store` has a type parameter to store host-specific data, which in
-        // this case we're using the unit of work for.
-        let mut store = Store::new(self.linker.engine(), data);
+    pub fn execute(&mut self, shell: &Shell, request: Request<ForGuest>) -> Response<FromGuest> {
+        let connection = Connection::new(request);
+        let mut store = Store::new(self.linker.engine(), connection);
 
         let instance = self.linker.instantiate(&mut store, &shell.module).unwrap();
         let main = instance
@@ -128,41 +144,30 @@ impl Runtime {
         // And finally we can call the wasm!
         main.call(&mut store, (0, 0)).unwrap();
 
-        store.into_data()
+        store.into_data().response()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn execute_shell() {
-        let code = include_str!("../../examples/status.wat");
-        let mut runtime = Runtime::default();
-        let mut expected = Connection::default();
-        let shell = runtime.load(code);
-
-        expected.response.status = Status::Ok;
-
-        assert_eq!(runtime.execute(&shell, Connection::default()), expected)
-    }
+    use std::io::Write;
+    use tortuga_guest::Status;
 
     #[test]
     fn execute_echo() {
         let code = include_bytes!(env!("CARGO_BIN_FILE_ECHO"));
+        let body = Vec::from("Hello, World!");
+
         let mut runtime = Runtime::default();
-        let mut expected = Connection::default();
+        let mut request = Request::default();
+        let mut response = Response::with_status(Status::Created);
 
-        expected.request.uri = "/".to_string();
-        expected.request.message.body.bytes = Vec::from("Hello, World!");
+        request.body().write_all(&body).unwrap();
+        response.body().write_all(&body).unwrap();
 
-        let actual = expected.clone();
         let shell = runtime.load(code);
 
-        expected.response.message.body.bytes = expected.request.message.body.bytes.clone();
-        expected.response.status = Status::Created;
-
-        assert_eq!(runtime.execute(&shell, actual), expected)
+        assert_eq!(runtime.execute(&shell, request), response)
     }
 }

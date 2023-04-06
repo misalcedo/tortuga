@@ -1,5 +1,6 @@
 use std::io::{Read, Write};
 
+#[derive(Debug)]
 pub struct IoLimiter<IO> {
     length: usize,
     io: IO,
@@ -7,10 +8,7 @@ pub struct IoLimiter<IO> {
 
 impl<IO> IoLimiter<IO> {
     pub fn new(io: IO, length: usize) -> Self {
-        IoLimiter {
-            length,
-            io
-        }
+        IoLimiter { length, io }
     }
 
     pub fn len(&self) -> usize {
@@ -45,7 +43,10 @@ impl<W: Write> Write for IoLimiter<W> {
     }
 }
 
-impl<'a, R> Read for IoLimiter<R> where R: Read {
+impl<'a, R> Read for IoLimiter<R>
+where
+    R: Read,
+{
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let bytes_to_read = self.length.min(buf.len()) as usize;
         let bytes_read = self.io.read(&mut buf[..bytes_to_read])?;

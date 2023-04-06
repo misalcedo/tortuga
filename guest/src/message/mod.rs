@@ -1,12 +1,13 @@
-use std::io::{ErrorKind, Read, Seek, Write};
-use crate::{Frame, IoLimiter};
 use crate::frame::FrameType;
 use crate::wire::Decode;
+use crate::{Frame, IoLimiter};
+use std::io::{ErrorKind, Read, Seek, Write};
 
 pub trait Body: Read + Seek {}
 
 impl<B: Read + Seek> Body for B {}
 
+#[derive(Debug)]
 pub struct FrameIo<R> {
     length: usize,
     remaining: usize,
@@ -18,7 +19,7 @@ impl<IO> FrameIo<IO> {
         FrameIo {
             length,
             remaining: length,
-            io: IoLimiter::new(io, Frame::bytes())
+            io: IoLimiter::new(io, Frame::bytes()),
         }
     }
 
@@ -35,7 +36,10 @@ impl<IO> FrameIo<IO> {
     }
 }
 
-impl<R> Read for FrameIo<R> where R: Read {
+impl<R> Read for FrameIo<R>
+where
+    R: Read,
+{
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         if self.io.is_empty() && !self.is_empty() {
             let frame: Frame = self.io.decode()?;
@@ -56,7 +60,10 @@ impl<R> Read for FrameIo<R> where R: Read {
     }
 }
 
-impl<W> Write for FrameIo<W> where W: Write {
+impl<W> Write for FrameIo<W>
+where
+    W: Write,
+{
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         if self.io.is_empty() && !self.is_empty() {
             if buf.len() > self.remaining {

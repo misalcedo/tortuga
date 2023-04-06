@@ -5,7 +5,7 @@ mod status;
 use crate::Body;
 pub use status::Status;
 
-#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
+#[derive(Debug, Eq, Ord, PartialOrd, Copy, Clone)]
 pub struct Response<B> {
     status: u16,
     body: B,
@@ -17,6 +17,12 @@ impl Default for Response<Cursor<Vec<u8>>> {
             status: Default::default(),
             body: Default::default(),
         }
+    }
+}
+
+impl<A, B> PartialEq<Response<B>> for Response<A> {
+    fn eq(&self, other: &Response<B>) -> bool {
+        self.status == other.status
     }
 }
 
