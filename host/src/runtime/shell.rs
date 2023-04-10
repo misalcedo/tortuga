@@ -1,9 +1,8 @@
 use crate::runtime::connection::{ForGuest, FromGuest};
 use crate::runtime::Connection;
-use crate::Runtime;
 use std::io::Read;
 use tortuga_guest::{Request, Response};
-use wasmtime::{Caller, Linker, Module, Store};
+use wasmtime::{Caller, Engine, Linker, Module, Store};
 
 pub struct Shell {
     module: Module,
@@ -11,8 +10,7 @@ pub struct Shell {
 }
 
 impl Shell {
-    pub fn new(runtime: &Runtime, code: impl AsRef<[u8]>) -> Self {
-        let engine = runtime.engine();
+    pub fn new(engine: &Engine, code: impl AsRef<[u8]>) -> Self {
         let module = Module::new(engine, code).unwrap();
         let mut linker = Linker::new(&engine);
 

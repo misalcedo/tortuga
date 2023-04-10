@@ -1,18 +1,30 @@
 //! The embedding runtime for the Tortuga WASM modules.
 
+use std::collections::HashMap;
 use wasmtime::{Config, Engine};
 
 pub use connection::Connection;
 use tortuga_guest::{Request, Response};
 
-use crate::runtime::connection::{ForGuest, FromGuest};
-use crate::runtime::shell::Shell;
+use connection::{ForGuest, FromGuest};
+use guest::Guest;
+pub use identifier::Identifier;
+use plugin::Plugin;
+pub use shell::Shell;
+pub use uri::Uri;
 
 mod connection;
+mod guest;
+mod identifier;
+mod plugin;
 mod shell;
+mod uri;
 
 pub struct Runtime {
     engine: Engine,
+    guests: HashMap<Identifier, Guest>,
+    plugins: HashMap<Identifier, Plugin>,
+    shells: HashMap<Identifier, Shell>,
 }
 
 impl Default for Runtime {
@@ -20,21 +32,48 @@ impl Default for Runtime {
         let configuration = Config::new();
         let engine = Engine::new(&configuration).unwrap();
 
-        Runtime { engine }
+        Runtime {
+            engine,
+            guests: Default::default(),
+            plugins: Default::default(),
+            shells: Default::default(),
+        }
     }
 }
 
 impl Runtime {
-    pub fn load(&mut self, code: impl AsRef<[u8]>) -> Shell {
-        Shell::new(self, code)
+    pub fn load_plugin(&mut self, uri: String, code: impl AsRef<[u8]>) -> Plugin {
+        let plugin = Plugin::new(uri);
+
+        self.plugins.insert(plugin.identifier(), plugin.clone());
+        self.compile(&plugin, code);
+
+        plugin
     }
 
-    pub fn execute(&mut self, shell: &Shell, request: Request<ForGuest>) -> Response<FromGuest> {
+    pub fn welcome_guest(&mut self, uri: String, code: impl AsRef<[u8]>) -> Guest {
+        let guest = Guest::new(uri);
+
+        self.guests.insert(guest.identifier(), guest.clone());
+        self.compile(&guest, code);
+
+        guest
+    }
+
+    pub fn execute(
+        &mut self,
+        identifier: impl AsRef<Identifier>,
+        request: Request<ForGuest>,
+    ) -> Response<FromGuest> {
+        let shell = self.shells.get_mut(identifier.as_ref()).unwrap();
+
         shell.execute(request)
     }
 
-    fn engine(&self) -> &Engine {
-        &self.engine
+    fn compile(&mut self, identifier: impl AsRef<Identifier>, code: impl AsRef<[u8]>) {
+        let shell = Shell::new(&self.engine, code);
+
+        self.shells.insert(identifier.as_ref().clone(), shell);
     }
 }
 
@@ -58,8 +97,8 @@ mod tests {
         request.body().write_all(&body).unwrap();
         response.body().write_all(&body).unwrap();
 
-        let shell = runtime.load(code);
-        let mut actual = runtime.execute(&shell, request);
+        let guest = runtime.welcome_guest("/".to_string(), code);
+        let mut actual = runtime.execute(&guest, request);
         let mut buffer = vec![0; body.len()];
 
         actual.body().read_exact(buffer.as_mut_slice()).unwrap();
