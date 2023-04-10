@@ -12,7 +12,7 @@ pub struct BidirectionalStream {
     pub(crate) guest_to_host: Cursor<Vec<u8>>,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct Connection {
     primary: BidirectionalStream,
     streams: HashMap<NonZeroU64, BidirectionalStream>,

@@ -1,27 +1,27 @@
-use crate::runtime::connection::{ForGuest, FromGuest};
-use crate::runtime::Connection;
 use std::io::Read;
-use tortuga_guest::{Request, Response};
+
 use wasmtime::{Caller, Engine, Linker, Module, Store};
 use wasmtime_wasi::WasiCtx;
 
+use tortuga_guest::{Request, Response};
+
+use crate::runtime::connection::{ForGuest, FromGuest};
+use crate::runtime::Connection;
+
 pub struct Shell {
     module: Module,
-    state: Option<State>,
+    ctx: Option<WasiCtx>,
     linker: Linker<State>,
 }
 
 struct State {
     connection: Connection,
-    ctx: WasiCtx,
+    ctx: Option<WasiCtx>,
 }
 
-impl From<WasiCtx> for State {
-    fn from(ctx: WasiCtx) -> Self {
-        State {
-            connection: Default::default(),
-            ctx,
-        }
+impl State {
+    fn new(connection: Connection, ctx: Option<WasiCtx>) -> Self {
+        State { connection, ctx }
     }
 }
 
@@ -34,13 +34,14 @@ impl Shell {
             .func_wrap(
                 "stream",
                 "read",
-                |mut caller: Caller<'_, Connection>, stream: u64, pointer: u32, length: u32| {
+                |mut caller: Caller<'_, State>, stream: u64, pointer: u32, length: u32| {
                     let offset = pointer as usize;
                     let length = length as usize;
 
                     let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
-                    let (view, connection): (&mut [u8], &mut Connection) =
+                    let (view, state): (&mut [u8], &mut State) =
                         memory.data_and_store_mut(&mut caller);
+                    let connection = &mut state.connection;
                     let body = &mut connection.stream(stream).unwrap().host_to_guest;
                     let size = (body.get_ref().len() - (body.position() as usize)).min(length);
 
@@ -55,12 +56,13 @@ impl Shell {
             .func_wrap(
                 "stream",
                 "write",
-                |mut caller: Caller<'_, Connection>, stream: u64, pointer: u32, length: u32| {
+                |mut caller: Caller<'_, State>, stream: u64, pointer: u32, length: u32| {
                     let offset = pointer as usize;
                     let length = length as usize;
                     let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
-                    let (view, connection): (&mut [u8], &mut Connection) =
+                    let (view, state): (&mut [u8], &mut State) =
                         memory.data_and_store_mut(&mut caller);
+                    let connection = &mut state.connection;
                     let source = &view[offset..(offset + length)];
 
                     connection
@@ -75,34 +77,47 @@ impl Shell {
             )
             .unwrap();
         linker
-            .func_wrap("stream", "start", |mut caller: Caller<'_, Connection>| {
-                caller.data_mut().start_stream()
+            .func_wrap("stream", "start", |mut caller: Caller<'_, State>| {
+                caller.data_mut().connection.start_stream()
             })
             .unwrap();
 
         Shell {
             module,
             linker,
-            state: None,
+            ctx: None,
         }
     }
 
     pub fn promote(&mut self, ctx: WasiCtx) {
-        wasmtime_wasi::add_to_linker(&mut self.linker, |s| &mut s.connection).unwrap();
-        self.state = Some(State::new(ctx));
+        wasmtime_wasi::add_to_linker(&mut self.linker, |s| s.ctx.as_mut().unwrap()).unwrap();
+        self.ctx = Some(ctx);
     }
 
-    pub fn execute(&self, request: Request<ForGuest>) -> Response<FromGuest> {
+    pub fn execute(&mut self, request: Request<ForGuest>) -> Response<FromGuest> {
         let connection = Connection::new(request);
-        let mut store = Store::new(self.linker.engine(), connection);
+        let ctx = self.ctx.take();
+        let state = State::new(connection, ctx);
+
+        let mut store = Store::new(self.linker.engine(), state);
 
         let instance = self.linker.instantiate(&mut store, &self.module).unwrap();
-        let main = instance
-            .get_typed_func::<(i32, i32), i32>(&mut store, "main")
-            .unwrap();
+        let main = instance.get_typed_func::<(i32, i32), i32>(&mut store, "main");
 
-        main.call(&mut store, (0, 0)).unwrap();
+        if main.is_ok() {
+            let result = main.unwrap().call(&mut store, (0, 0));
 
-        store.into_data().response()
+            if result.is_ok() {
+                return store.into_data().connection.response();
+            } else {
+                self.ctx = store.into_data().ctx;
+                result.unwrap();
+            }
+        } else {
+            self.ctx = store.into_data().ctx;
+            main.unwrap();
+        }
+
+        unreachable!();
     }
 }
