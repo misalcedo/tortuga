@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use wasmtime::{Config, Engine};
+use wasmtime_wasi::WasiCtxBuilder;
 
 pub use connection::Connection;
 use tortuga_guest::{Request, Response};
@@ -47,6 +48,10 @@ impl Runtime {
 
         self.plugins.insert(plugin.identifier(), plugin.clone());
         self.compile(&plugin, code);
+
+        let ctx = WasiCtxBuilder::new().build();
+
+        self.shells.get_mut(plugin.as_ref()).unwrap().promote(ctx);
 
         plugin
     }

@@ -3,10 +3,26 @@ use crate::runtime::Connection;
 use std::io::Read;
 use tortuga_guest::{Request, Response};
 use wasmtime::{Caller, Engine, Linker, Module, Store};
+use wasmtime_wasi::WasiCtx;
 
 pub struct Shell {
     module: Module,
-    linker: Linker<Connection>,
+    state: Option<State>,
+    linker: Linker<State>,
+}
+
+struct State {
+    connection: Connection,
+    ctx: WasiCtx,
+}
+
+impl From<WasiCtx> for State {
+    fn from(ctx: WasiCtx) -> Self {
+        State {
+            connection: Default::default(),
+            ctx,
+        }
+    }
 }
 
 impl Shell {
@@ -64,7 +80,16 @@ impl Shell {
             })
             .unwrap();
 
-        Shell { module, linker }
+        Shell {
+            module,
+            linker,
+            state: None,
+        }
+    }
+
+    pub fn promote(&mut self, ctx: WasiCtx) {
+        wasmtime_wasi::add_to_linker(&mut self.linker, |s| &mut s.connection).unwrap();
+        self.state = Some(State::new(ctx));
     }
 
     pub fn execute(&self, request: Request<ForGuest>) -> Response<FromGuest> {
