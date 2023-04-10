@@ -23,10 +23,10 @@ impl Default for Request<Cursor<Vec<u8>>> {
 }
 
 impl Request<Cursor<Vec<u8>>> {
-    pub fn new_buffered(method: Method, uri: String) -> Self {
+    pub fn new_buffered(method: Method, uri: impl Into<String>) -> Self {
         Request {
             method,
-            uri,
+            uri: uri.into(),
             body: Default::default(),
         }
     }

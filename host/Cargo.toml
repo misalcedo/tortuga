@@ -12,6 +12,8 @@ documentation = "https://docs.rs/tortuga"
 [dev-dependencies]
 criterion = "0.4"
 echo = { path = "examples/echo", artifact = "bin", target = "wasm32-unknown-unknown" }
+ping = { path = "examples/ping", artifact = "bin", target = "wasm32-unknown-unknown" }
+pong = { path = "examples/pong", artifact = "bin", target = "wasm32-unknown-unknown" }
 
 [target.'cfg(unix)'.dev-dependencies]
 pprof = { version = "0.11", features = ["criterion", "flamegraph", "protobuf-codec"] }

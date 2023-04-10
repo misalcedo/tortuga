@@ -43,8 +43,8 @@ impl Default for Runtime {
 }
 
 impl Runtime {
-    pub fn load_plugin(&mut self, uri: String, code: impl AsRef<[u8]>) -> Plugin {
-        let plugin = Plugin::new(uri);
+    pub fn load_plugin(&mut self, uri: impl Into<String>, code: impl AsRef<[u8]>) -> Plugin {
+        let plugin = Plugin::new(uri.into());
 
         self.plugins.insert(plugin.identifier(), plugin.clone());
         self.compile(&plugin, code);
@@ -56,8 +56,8 @@ impl Runtime {
         plugin
     }
 
-    pub fn welcome_guest(&mut self, uri: String, code: impl AsRef<[u8]>) -> Guest {
-        let guest = Guest::new(uri);
+    pub fn welcome_guest(&mut self, uri: impl Into<String>, code: impl AsRef<[u8]>) -> Guest {
+        let guest = Guest::new(uri.into());
 
         self.guests.insert(guest.identifier(), guest.clone());
         self.compile(&guest, code);
@@ -86,7 +86,7 @@ impl Runtime {
 mod tests {
     use std::io::{Read, Write};
 
-    use tortuga_guest::Status;
+    use tortuga_guest::{Method, Status};
 
     use super::*;
 
@@ -104,6 +104,31 @@ mod tests {
 
         let guest = runtime.welcome_guest("/".to_string(), code);
         let mut actual = runtime.execute(&guest, request);
+        let mut buffer = vec![0; body.len()];
+
+        actual.body().read_exact(buffer.as_mut_slice()).unwrap();
+
+        assert_eq!(actual, response);
+        assert_eq!(buffer, body);
+    }
+
+    #[test]
+    fn execute_ping_pong() {
+        let ping_code = include_bytes!(env!("CARGO_BIN_FILE_PING"));
+        let pong_code = include_bytes!(env!("CARGO_BIN_FILE_PONG"));
+        let body = b"PONG!";
+
+        let mut runtime = Runtime::default();
+        let ping = runtime.welcome_guest("/ping", ping_code);
+        runtime.welcome_guest("/pong", pong_code);
+
+        let mut request = Request::new_buffered(Method::Get, "/ping".to_string());
+        let mut response = Response::with_status(Status::Ok);
+
+        request.body().write_all(body).unwrap();
+        response.body().write_all(body).unwrap();
+
+        let mut actual = runtime.execute(&ping, request);
         let mut buffer = vec![0; body.len()];
 
         actual.body().read_exact(buffer.as_mut_slice()).unwrap();
