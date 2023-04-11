@@ -1,13 +1,26 @@
-#[derive(Debug)]
-pub struct InMemoryStream<Directionality> {
+use std::io::{Cursor, Read, Seek, SeekFrom, Write};
+use std::marker::PhantomData;
+use std::num::NonZeroU64;
+
+use crate::stream::{Readable, Writable};
+use crate::{Bidirectional, ReadOnly, WriteOnly};
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct MemoryStream<Directionality> {
     identifier: u64,
     buffer: Cursor<Vec<u8>>,
     marker: PhantomData<Directionality>,
 }
 
-impl InMemoryStream<Bidirectional> {
+impl Default for MemoryStream<Bidirectional> {
+    fn default() -> Self {
+        Self::primary()
+    }
+}
+
+impl MemoryStream<Bidirectional> {
     pub fn primary() -> Self {
-        InMemoryStream {
+        MemoryStream {
             identifier: 0,
             buffer: Default::default(),
             marker: Default::default(),
@@ -15,7 +28,7 @@ impl InMemoryStream<Bidirectional> {
     }
 
     pub fn new(identifier: NonZeroU64) -> Self {
-        InMemoryStream {
+        MemoryStream {
             identifier: identifier.get(),
             buffer: Default::default(),
             marker: Default::default(),
@@ -23,26 +36,26 @@ impl InMemoryStream<Bidirectional> {
     }
 }
 
-impl<RW> Seek for InMemoryStream<RW> {
+impl<RW> Seek for MemoryStream<RW> {
     fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
         self.buffer.seek(pos)
     }
 }
 
-impl<RW> InMemoryStream<RW>
+impl<RW> MemoryStream<RW>
 where
     RW: Readable + Writable,
 {
-    pub fn read_only(self) -> InMemoryStream<ReadOnly> {
-        InMemoryStream {
+    pub fn read_only(self) -> MemoryStream<ReadOnly> {
+        MemoryStream {
             identifier: self.identifier,
             buffer: self.buffer,
             marker: Default::default(),
         }
     }
 
-    pub fn write_only(self) -> InMemoryStream<WriteOnly> {
-        InMemoryStream {
+    pub fn write_only(self) -> MemoryStream<WriteOnly> {
+        MemoryStream {
             identifier: self.identifier,
             buffer: self.buffer,
             marker: Default::default(),
@@ -50,39 +63,51 @@ where
     }
 }
 
-impl<RW> InMemoryStream<RW> {
-    pub fn read_write(mut self) -> InMemoryStream<Bidirectional> {
-        InMemoryStream {
+impl<RW> MemoryStream<RW> {
+    pub fn read_write(self) -> MemoryStream<Bidirectional> {
+        MemoryStream {
             identifier: self.identifier,
             buffer: self.buffer,
             marker: Default::default(),
         }
     }
 
-    pub fn writable(mut self) -> InMemoryStream<WriteOnly> {
+    pub fn writable(mut self) -> MemoryStream<WriteOnly> {
         let bytes = self.buffer.get_ref().len();
 
         self.buffer.set_position(bytes as u64);
 
-        InMemoryStream {
+        MemoryStream {
             identifier: self.identifier,
             buffer: self.buffer,
             marker: Default::default(),
         }
     }
 
-    pub fn readable(mut self) -> InMemoryStream<ReadOnly> {
+    pub fn readable(mut self) -> MemoryStream<ReadOnly> {
         self.buffer.set_position(0);
 
-        InMemoryStream {
+        MemoryStream {
             identifier: self.identifier,
             buffer: self.buffer,
             marker: Default::default(),
         }
+    }
+
+    pub fn position(&self) -> usize {
+        self.buffer.position() as usize
+    }
+
+    pub fn len(&self) -> usize {
+        self.buffer.get_ref().len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.buffer.get_ref().is_empty()
     }
 }
 
-impl<R> Read for InMemoryStream<R>
+impl<R> Read for MemoryStream<R>
 where
     R: Readable,
 {
@@ -91,7 +116,7 @@ where
     }
 }
 
-impl<W> Write for InMemoryStream<W>
+impl<W> Write for MemoryStream<W>
 where
     W: Writable,
 {
@@ -107,11 +132,12 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::num::NonZeroU64;
 
     #[test]
     fn in_memory() {
         let bytes = b"Hello, World!";
-        let mut stream = InMemoryStream::primary().write_only();
+        let mut stream = MemoryStream::primary().write_only();
 
         stream.write_all(bytes).unwrap();
 
@@ -141,7 +167,7 @@ mod tests {
     #[test]
     fn in_memory_read_write() {
         let bytes = b"Hello, World!";
-        let mut stream = InMemoryStream::primary();
+        let mut stream = MemoryStream::new(NonZeroU64::new(1).unwrap());
 
         stream.write_all(bytes).unwrap();
         stream.seek(SeekFrom::Start(0)).unwrap();

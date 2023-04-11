@@ -1,6 +1,5 @@
-use std::io::{Cursor, Read, Seek, SeekFrom, Write};
+use std::io::{Read, Write};
 use std::marker::PhantomData;
-use std::num::NonZeroU64;
 
 #[link(wasm_import_module = "stream")]
 extern "C" {
@@ -9,10 +8,13 @@ extern "C" {
     pub fn write(stream: u64, buffer: *const u8, length: u32) -> u32;
 }
 
+#[derive(Debug, PartialEq, Clone)]
 pub enum Bidirectional {}
 
+#[derive(Debug, PartialEq, Clone)]
 pub enum ReadOnly {}
 
+#[derive(Debug, PartialEq, Clone)]
 pub enum WriteOnly {}
 
 pub trait Readable: private::Sealed {}

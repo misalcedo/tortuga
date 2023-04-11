@@ -104,7 +104,7 @@ impl Runtime {
 mod tests {
     use std::io::{Read, Write};
 
-    use tortuga_guest::{Method, Status};
+    use tortuga_guest::{MemoryStream, Method, Status};
 
     use super::*;
 
@@ -140,7 +140,7 @@ mod tests {
         let ping = runtime.welcome_guest("/ping", ping_code);
         runtime.welcome_guest("/pong", pong_code);
 
-        let mut request = Request::new_buffered(Method::Get, "/ping".to_string());
+        let mut request = Request::new(Method::Get, "/ping".to_string(), MemoryStream::default());
         let mut response = Response::with_status(Status::Ok);
 
         request.body().write_all(body).unwrap();
@@ -153,14 +153,5 @@ mod tests {
 
         assert_eq!(actual, response);
         assert_eq!(buffer, body);
-    }
-
-    #[test]
-    async fn looping() {
-        let mut runtime = Runtime::default();
-        let pong_code = include_bytes!(env!("CARGO_BIN_FILE_PONG"));
-        let pong = runtime.welcome_guest("/pong", ping_code);
-
-        runtime.queue(pong, request).await;
     }
 }

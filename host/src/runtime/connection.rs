@@ -1,55 +1,47 @@
-use std::collections::HashMap;
-use std::io::Cursor;
-use std::num::NonZeroU64;
-use tortuga_guest::{Destination, FrameIo, Request, Response, Source};
+use std::io::{Seek, SeekFrom};
+use std::num::NonZeroUsize;
 
-pub type ForGuest = Cursor<Vec<u8>>;
-pub type FromGuest = FrameIo<Cursor<Vec<u8>>>;
+use tortuga_guest::{
+    Bidirectional, Destination, FrameIo, MemoryStream, ReadOnly, Request, Response, Source,
+};
 
-#[derive(Debug, Default, PartialEq, Clone)]
-pub struct BidirectionalStream {
-    pub(crate) host_to_guest: Cursor<Vec<u8>>,
-    pub(crate) guest_to_host: Cursor<Vec<u8>>,
-}
+pub type ForGuest = MemoryStream<Bidirectional>;
+pub type FromGuest = FrameIo<MemoryStream<ReadOnly>>;
 
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct Connection {
-    primary: BidirectionalStream,
-    streams: HashMap<NonZeroU64, BidirectionalStream>,
+    primary: MemoryStream<Bidirectional>,
+    streams: Vec<MemoryStream<Bidirectional>>,
 }
 
 impl Connection {
     pub fn new(request: Request<ForGuest>) -> Self {
-        let mut primary = BidirectionalStream::default();
+        let mut primary = MemoryStream::default();
 
-        primary.host_to_guest.write_message(request).unwrap();
-        primary.host_to_guest.set_position(0);
+        primary.write_message(request).unwrap();
+        primary.seek(SeekFrom::Start(0)).unwrap();
 
         Connection {
             primary,
             streams: Default::default(),
         }
     }
-    pub fn stream(&mut self, stream: u64) -> Option<&mut BidirectionalStream> {
+
+    pub fn stream(&mut self, stream: u64) -> Option<&mut MemoryStream<Bidirectional>> {
         match stream {
             0 => Some(&mut self.primary),
-            _ => NonZeroU64::new(stream).and_then(|id| self.streams.get_mut(&id)),
+            _ => {
+                NonZeroUsize::new(stream as usize).and_then(|id| self.streams.get_mut(id.get() - 1))
+            }
         }
     }
 
     pub fn start_stream(&mut self) -> u64 {
-        let id = 1 + self.streams.len() as u64;
-
-        self.streams
-            .insert(NonZeroU64::new(id).unwrap(), Default::default());
-
-        id
+        self.streams.push(Default::default());
+        self.streams.len() as u64
     }
 
     pub fn response(self) -> Response<FromGuest> {
-        let message: std::io::Result<Response<FrameIo<Cursor<Vec<u8>>>>> =
-            self.primary.guest_to_host.read_message();
-
-        message.unwrap()
+        self.primary.readable().read_message().unwrap()
     }
 }

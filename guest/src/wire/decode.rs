@@ -118,7 +118,7 @@ where
         }
 
         let method = reader.decode()?;
-        let uri = reader.decode()?;
+        let uri: String = reader.decode()?;
         let length = reader.decode()?;
         let body = FrameIo::new(reader, length);
 

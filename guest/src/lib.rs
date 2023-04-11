@@ -5,20 +5,20 @@ use std::error::Error;
 pub use frame::{Frame, FrameType};
 pub use limiter::IoLimiter;
 
-#[cfg(feature = "webp")]
-pub use memory::InMemoryStream;
+#[cfg(feature = "memory")]
+pub use memory::MemoryStream;
 
 pub use message::{Body, FrameIo};
 pub use request::{Method, Request};
 pub use response::{Response, Status};
-pub use stream::{ReadOnly, Stream};
+pub use stream::{Bidirectional, ReadOnly, Stream, WriteOnly};
 
 pub use crate::wire::{Destination, Source};
 
 mod frame;
 mod limiter;
 
-#[cfg(feature = "webp")]
+#[cfg(feature = "memory")]
 mod memory;
 
 mod message;

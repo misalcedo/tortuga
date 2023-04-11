@@ -1,4 +1,4 @@
-use std::io::Read;
+use std::io::{Read, Write};
 
 use wasmtime::{Caller, Engine, Linker, Module, Store};
 use wasmtime_wasi::WasiCtx;
@@ -42,8 +42,8 @@ impl Shell {
                     let (view, state): (&mut [u8], &mut State) =
                         memory.data_and_store_mut(&mut caller);
                     let connection = &mut state.connection;
-                    let body = &mut connection.stream(stream).unwrap().host_to_guest;
-                    let size = (body.get_ref().len() - (body.position() as usize)).min(length);
+                    let body = connection.stream(stream).unwrap();
+                    let size = (body.len() - (body.position() as usize)).min(length);
 
                     let destination = &mut view[offset..(offset + size)];
 
@@ -68,9 +68,8 @@ impl Shell {
                     connection
                         .stream(stream)
                         .unwrap()
-                        .guest_to_host
-                        .get_mut()
-                        .extend_from_slice(source);
+                        .write_all(source)
+                        .unwrap();
 
                     source.len() as u32
                 },

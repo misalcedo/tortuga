@@ -1,7 +1,6 @@
 mod method;
 
 pub use method::Method;
-use std::io::Cursor;
 
 /// A cursor into the current request being processed.
 /// An embedded process handles a single request at a time.
@@ -12,21 +11,12 @@ pub struct Request<B> {
     body: B,
 }
 
-impl Default for Request<Cursor<Vec<u8>>> {
+#[cfg(feature = "memory")]
+impl Default for Request<crate::MemoryStream<crate::Bidirectional>> {
     fn default() -> Self {
         Request {
             method: Default::default(),
             uri: "/".to_string(),
-            body: Default::default(),
-        }
-    }
-}
-
-impl Request<Cursor<Vec<u8>>> {
-    pub fn new_buffered(method: Method, uri: impl Into<String>) -> Self {
-        Request {
-            method,
-            uri: uri.into(),
             body: Default::default(),
         }
     }
@@ -39,8 +29,12 @@ impl<A, B> PartialEq<Request<B>> for Request<A> {
 }
 
 impl<B> Request<B> {
-    pub fn new(method: Method, uri: String, body: B) -> Self {
-        Request { method, uri, body }
+    pub fn new(method: Method, uri: impl Into<String>, body: B) -> Self {
+        Request {
+            method,
+            uri: uri.into(),
+            body,
+        }
     }
 
     pub fn uri(&self) -> &str {
