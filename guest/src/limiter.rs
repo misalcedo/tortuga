@@ -1,6 +1,6 @@
 use std::io::{Read, Write};
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct IoLimiter<IO> {
     length: usize,
     io: IO,

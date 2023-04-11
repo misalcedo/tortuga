@@ -4,22 +4,11 @@ pub use method::Method;
 
 /// A cursor into the current request being processed.
 /// An embedded process handles a single request at a time.
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct Request<B> {
     method: Method,
     uri: String,
     body: B,
-}
-
-#[cfg(feature = "memory")]
-impl Default for Request<crate::MemoryStream<crate::Bidirectional>> {
-    fn default() -> Self {
-        Request {
-            method: Default::default(),
-            uri: "/".to_string(),
-            body: Default::default(),
-        }
-    }
 }
 
 impl<A, B> PartialEq<Request<B>> for Request<A> {

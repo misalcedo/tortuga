@@ -2,26 +2,27 @@
 
 use std::collections::{HashMap, VecDeque};
 use std::future::Future;
-use std::sync::RwLock;
 use wasmtime::{Config, Engine};
 use wasmtime_wasi::WasiCtxBuilder;
 
 pub use connection::Connection;
-use tortuga_guest::{Request, Response};
+use tortuga_guest::{Destination, MemoryStream, Request, Response};
 
 use connection::{ForGuest, FromGuest};
 use guest::Guest;
 pub use identifier::Identifier;
+use message::Message;
 use plugin::Plugin;
-use response::ResponseFuture;
+use promise::Promise;
 pub use shell::Shell;
 pub use uri::Uri;
 
 mod connection;
 mod guest;
 mod identifier;
+mod message;
 mod plugin;
-mod response;
+mod promise;
 mod shell;
 mod uri;
 
@@ -30,7 +31,7 @@ pub struct Runtime {
     guests: HashMap<Identifier, Guest>,
     plugins: HashMap<Identifier, Plugin>,
     shells: HashMap<Identifier, Shell>,
-    lock: RwLock<VecDeque<Request<ForGuest>>>,
+    queue: VecDeque<Message>,
 }
 
 impl Default for Runtime {
@@ -43,7 +44,7 @@ impl Default for Runtime {
             guests: Default::default(),
             plugins: Default::default(),
             shells: Default::default(),
-            lock: Default::default(),
+            queue: Default::default(),
         }
     }
 }
@@ -77,8 +78,12 @@ impl Runtime {
         request: Request<ForGuest>,
     ) -> Response<FromGuest> {
         let shell = self.shells.get_mut(identifier.as_ref()).unwrap();
+        let mut primary = MemoryStream::default();
 
-        shell.execute(request)
+        primary.write_message(request).unwrap();
+        primary.swap();
+
+        shell.execute(primary)
     }
 
     pub fn queue(
@@ -86,11 +91,21 @@ impl Runtime {
         identifier: impl AsRef<Identifier>,
         request: Request<ForGuest>,
     ) -> impl Future<Output = Response<FromGuest>> {
-        let mut guard = self.lock.write().unwrap();
+        let future = Promise::default();
+        let message = Message::new(identifier, request, future.clone());
 
-        guard.push_back(request);
+        self.queue.push_back(message);
 
-        ResponseFuture
+        future
+    }
+
+    pub fn start(mut self) {
+        for mut message in self.queue.drain(..) {
+            let shell = self.shells.get_mut(message.to()).unwrap();
+            let response = shell.execute(message.body());
+
+            message.promise().complete(response);
+        }
     }
 
     fn compile(&mut self, identifier: impl AsRef<Identifier>, code: impl AsRef<[u8]>) {
@@ -102,7 +117,9 @@ impl Runtime {
 
 #[cfg(test)]
 mod tests {
-    use std::io::{Cursor, Read, Write};
+    use std::io::Cursor;
+    use std::pin::Pin;
+    use std::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
 
     use tortuga_guest::{MemoryStream, Method, Status};
 
@@ -114,8 +131,8 @@ mod tests {
         let body = Vec::from("Hello, World!");
 
         let mut runtime = Runtime::default();
-        let mut request = Request::new(Method::Get, "/", MemoryStream::with_reader(&body));
-        let mut response = Response::new(Status::Created, MemoryStream::with_reader(&body));
+        let request = Request::new(Method::Get, "/", MemoryStream::with_reader(&body));
+        let response = Response::new(Status::Created, MemoryStream::with_reader(&body));
 
         let guest = runtime.welcome_guest("/".to_string(), code);
         let mut actual = runtime.execute(&guest, request);
@@ -137,18 +154,49 @@ mod tests {
         let ping = runtime.welcome_guest("/ping", ping_code);
         runtime.welcome_guest("/pong", pong_code);
 
-        let mut request = Request::new(Method::Get, "/ping".to_string(), MemoryStream::default());
-        let mut response = Response::from(Status::Ok);
+        let request = Request::new(
+            Method::Get,
+            "/ping".to_string(),
+            MemoryStream::with_reader(&body),
+        );
+        let response = Response::new(Status::Ok, MemoryStream::with_reader(&body));
 
-        request.body().write_all(body).unwrap();
-        response.body().write_all(body).unwrap();
+        let waker = noop_waker();
+        let mut binding = runtime.queue(&ping, request);
+        let mut context = Context::from_waker(&waker);
+        let mut actual = Pin::new(&mut binding);
 
-        let mut actual = runtime.execute(&ping, request);
-        let mut buffer = vec![0; body.len()];
+        assert_eq!(actual.poll(&mut context), Poll::Pending);
 
-        actual.body().read_exact(buffer.as_mut_slice()).unwrap();
+        runtime.start();
 
-        assert_eq!(actual, response);
-        assert_eq!(buffer, body);
+        actual = Pin::new(&mut binding);
+
+        let mut buffer = Cursor::new(Vec::new());
+        let result = actual.poll(&mut context);
+
+        if let Poll::Ready(mut result) = result {
+            assert_eq!(result, response);
+
+            std::io::copy(result.body(), &mut buffer).unwrap();
+        }
+
+        assert_eq!(buffer.get_ref().as_slice(), body);
+    }
+
+    unsafe fn noop(_p: *const ()) {}
+
+    unsafe fn noop_clone(_p: *const ()) -> RawWaker {
+        noop_raw_waker()
+    }
+
+    fn noop_raw_waker() -> RawWaker {
+        const RAW_WAKER_VTABLE: RawWakerVTable = RawWakerVTable::new(noop_clone, noop, noop, noop);
+
+        RawWaker::new(std::ptr::null(), &RAW_WAKER_VTABLE)
+    }
+
+    fn noop_waker() -> Waker {
+        unsafe { Waker::from_raw(noop_raw_waker()) }
     }
 }

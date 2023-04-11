@@ -7,7 +7,7 @@ pub trait Body: Read + Seek {}
 
 impl<B: Read + Seek> Body for B {}
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct FrameIo<R> {
     length: usize,
     io: IoLimiter<R>,

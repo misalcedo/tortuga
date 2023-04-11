@@ -3,9 +3,9 @@ use std::io::{Read, Write};
 use wasmtime::{Caller, Engine, Linker, Module, Store};
 use wasmtime_wasi::WasiCtx;
 
-use tortuga_guest::{Request, Response};
+use tortuga_guest::{Bidirectional, MemoryStream, Response};
 
-use crate::runtime::connection::{ForGuest, FromGuest};
+use crate::runtime::connection::FromGuest;
 use crate::runtime::Connection;
 
 pub struct Shell {
@@ -94,8 +94,8 @@ impl Shell {
         self.ctx = Some(ctx);
     }
 
-    pub fn execute(&mut self, request: Request<ForGuest>) -> Response<FromGuest> {
-        let connection = Connection::new(request);
+    pub fn execute(&mut self, stream: MemoryStream<Bidirectional>) -> Response<FromGuest> {
+        let connection = Connection::new(stream);
         let ctx = self.ctx.take();
         let state = State::new(connection, ctx);
 

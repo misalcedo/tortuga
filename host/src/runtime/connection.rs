@@ -1,6 +1,6 @@
 use std::num::NonZeroUsize;
 
-use tortuga_guest::{Bidirectional, Destination, FrameIo, MemoryStream, Request, Response, Source};
+use tortuga_guest::{Bidirectional, FrameIo, MemoryStream, Response, Source};
 
 pub type ForGuest = MemoryStream<Bidirectional>;
 pub type FromGuest = FrameIo<MemoryStream<Bidirectional>>;
@@ -12,12 +12,7 @@ pub struct Connection {
 }
 
 impl Connection {
-    pub fn new(request: Request<ForGuest>) -> Self {
-        let mut primary = MemoryStream::default();
-
-        primary.write_message(request).unwrap();
-        primary.swap();
-
+    pub fn new(primary: MemoryStream<Bidirectional>) -> Self {
         Connection {
             primary,
             streams: Default::default(),

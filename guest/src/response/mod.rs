@@ -3,20 +3,10 @@ mod status;
 use crate::Body;
 pub use status::Status;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct Response<B> {
     status: u16,
     body: B,
-}
-
-#[cfg(feature = "memory")]
-impl Default for Response<crate::MemoryStream<crate::Bidirectional>> {
-    fn default() -> Self {
-        Response {
-            status: Default::default(),
-            body: Default::default(),
-        }
-    }
 }
 
 #[cfg(feature = "memory")]
