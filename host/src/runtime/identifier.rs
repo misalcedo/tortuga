@@ -26,3 +26,20 @@ where
         ))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn uri() {
+        let value = "/ping!";
+        assert_eq!(Identifier::from(value), Identifier::from(value));
+    }
+
+    #[test]
+    fn text() {
+        let value = "Hello, world!";
+        assert_eq!(Identifier::from(value), Identifier::from(value));
+    }
+}
