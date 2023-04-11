@@ -1,3 +1,5 @@
+extern crate core;
+
 use std::error::Error;
 
 pub use frame::{Frame, FrameType};

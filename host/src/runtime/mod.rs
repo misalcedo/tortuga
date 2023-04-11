@@ -1,6 +1,8 @@
 //! The embedding runtime for the Tortuga WASM modules.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
+use std::future::Future;
+use std::sync::RwLock;
 use wasmtime::{Config, Engine};
 use wasmtime_wasi::WasiCtxBuilder;
 
@@ -11,6 +13,7 @@ use connection::{ForGuest, FromGuest};
 use guest::Guest;
 pub use identifier::Identifier;
 use plugin::Plugin;
+use response::ResponseFuture;
 pub use shell::Shell;
 pub use uri::Uri;
 
@@ -18,6 +21,7 @@ mod connection;
 mod guest;
 mod identifier;
 mod plugin;
+mod response;
 mod shell;
 mod uri;
 
@@ -26,6 +30,7 @@ pub struct Runtime {
     guests: HashMap<Identifier, Guest>,
     plugins: HashMap<Identifier, Plugin>,
     shells: HashMap<Identifier, Shell>,
+    lock: RwLock<VecDeque<Request<ForGuest>>>,
 }
 
 impl Default for Runtime {
@@ -38,6 +43,7 @@ impl Default for Runtime {
             guests: Default::default(),
             plugins: Default::default(),
             shells: Default::default(),
+            lock: Default::default(),
         }
     }
 }
@@ -73,6 +79,18 @@ impl Runtime {
         let shell = self.shells.get_mut(identifier.as_ref()).unwrap();
 
         shell.execute(request)
+    }
+
+    pub fn queue(
+        &mut self,
+        identifier: impl AsRef<Identifier>,
+        request: Request<ForGuest>,
+    ) -> impl Future<Output = Response<FromGuest>> {
+        let mut guard = self.lock.write().unwrap();
+
+        guard.push_back(request);
+
+        ResponseFuture
     }
 
     fn compile(&mut self, identifier: impl AsRef<Identifier>, code: impl AsRef<[u8]>) {
@@ -135,5 +153,14 @@ mod tests {
 
         assert_eq!(actual, response);
         assert_eq!(buffer, body);
+    }
+
+    #[test]
+    async fn looping() {
+        let mut runtime = Runtime::default();
+        let pong_code = include_bytes!(env!("CARGO_BIN_FILE_PONG"));
+        let pong = runtime.welcome_guest("/pong", ping_code);
+
+        runtime.queue(pong, request).await;
     }
 }
