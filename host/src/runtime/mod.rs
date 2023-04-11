@@ -102,7 +102,7 @@ impl Runtime {
 
 #[cfg(test)]
 mod tests {
-    use std::io::{Read, Write};
+    use std::io::{Read, Seek, SeekFrom, Write};
 
     use tortuga_guest::{MemoryStream, Method, Status};
 
@@ -115,9 +115,11 @@ mod tests {
 
         let mut runtime = Runtime::default();
         let mut request = Request::default();
-        let mut response = Response::with_status(Status::Created);
+        let mut response = Response::from(Status::Created);
 
         request.body().write_all(&body).unwrap();
+        request.body().seek(SeekFrom::Start(0)).unwrap();
+
         response.body().write_all(&body).unwrap();
 
         let guest = runtime.welcome_guest("/".to_string(), code);
@@ -141,7 +143,7 @@ mod tests {
         runtime.welcome_guest("/pong", pong_code);
 
         let mut request = Request::new(Method::Get, "/ping".to_string(), MemoryStream::default());
-        let mut response = Response::with_status(Status::Ok);
+        let mut response = Response::from(Status::Ok);
 
         request.body().write_all(body).unwrap();
         response.body().write_all(body).unwrap();

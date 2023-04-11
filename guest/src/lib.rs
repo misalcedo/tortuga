@@ -42,7 +42,7 @@ pub fn invoke<B: Body, E: Error>(entrypoint: fn(Request<FromHost>) -> Result<Res
                 .expect("Unable to send response to host.");
         }
         Err(error) => {
-            let mut response = Response::with_status(Status::InternalServerError);
+            let mut response = Response::from(Status::InternalServerError);
 
             std::io::copy(&mut error.to_string().as_bytes(), response.body())
                 .expect("Unable to write error message to response body.");
@@ -86,7 +86,7 @@ mod tests {
         stream.write_message(actual.clone()).unwrap();
         stream.set_position(0);
 
-        let mut expected: Response<FrameIo<Cursor<Vec<u8>>>> = stream.read_message().unwrap();
+        let mut expected: Response<_> = stream.read_message().unwrap();
         let mut buffer = vec![0; body.len()];
 
         expected.body().read_exact(&mut buffer).unwrap();

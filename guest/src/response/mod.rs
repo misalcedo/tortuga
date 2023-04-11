@@ -1,5 +1,3 @@
-use std::io::Cursor;
-
 mod status;
 
 use crate::Body;
@@ -11,10 +9,21 @@ pub struct Response<B> {
     body: B,
 }
 
-impl Default for Response<Cursor<Vec<u8>>> {
+#[cfg(feature = "memory")]
+impl Default for Response<crate::MemoryStream<crate::Bidirectional>> {
     fn default() -> Self {
         Response {
             status: Default::default(),
+            body: Default::default(),
+        }
+    }
+}
+
+#[cfg(feature = "memory")]
+impl From<Status> for Response<crate::MemoryStream<crate::Bidirectional>> {
+    fn from(value: Status) -> Self {
+        Response {
+            status: value.into(),
             body: Default::default(),
         }
     }
@@ -31,15 +40,6 @@ impl<B: Body> From<B> for Response<B> {
         Response {
             status: Default::default(),
             body,
-        }
-    }
-}
-
-impl Response<Cursor<Vec<u8>>> {
-    pub fn with_status(status: impl Into<u16>) -> Self {
-        Response {
-            status: status.into(),
-            body: Default::default(),
         }
     }
 }

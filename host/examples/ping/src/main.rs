@@ -12,7 +12,7 @@ fn run(_: Request<FromHost>) -> Result<Response<impl Body>, io::Error> {
     stream.write_message(request)?;
 
     let mut pong: Response<_> = stream.read_message()?;
-    let mut response = Response::with_status(Status::Ok);
+    let mut response = Response::from(Status::Ok);
 
     io::copy(pong.body(), response.body())?;
 

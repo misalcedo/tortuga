@@ -8,7 +8,8 @@ use crate::{Bidirectional, ReadOnly, WriteOnly};
 #[derive(Debug, PartialEq, Clone)]
 pub struct MemoryStream<Directionality> {
     identifier: u64,
-    buffer: Cursor<Vec<u8>>,
+    reader: Cursor<Vec<u8>>,
+    writer: Cursor<Vec<u8>>,
     marker: PhantomData<Directionality>,
 }
 
@@ -18,27 +19,44 @@ impl Default for MemoryStream<Bidirectional> {
     }
 }
 
-impl MemoryStream<Bidirectional> {
-    pub fn primary() -> Self {
+impl From<u64> for MemoryStream<Bidirectional> {
+    fn from(identifier: u64) -> Self {
         MemoryStream {
-            identifier: 0,
-            buffer: Default::default(),
-            marker: Default::default(),
-        }
-    }
-
-    pub fn new(identifier: NonZeroU64) -> Self {
-        MemoryStream {
-            identifier: identifier.get(),
-            buffer: Default::default(),
+            identifier,
+            reader: Default::default(),
+            writer: Default::default(),
             marker: Default::default(),
         }
     }
 }
 
-impl<RW> Seek for MemoryStream<RW> {
+impl From<Option<NonZeroU64>> for MemoryStream<Bidirectional> {
+    fn from(identifier: Option<NonZeroU64>) -> Self {
+        MemoryStream {
+            identifier: identifier.map(NonZeroU64::get).unwrap_or_default(),
+            reader: Default::default(),
+            writer: Default::default(),
+            marker: Default::default(),
+        }
+    }
+}
+
+impl MemoryStream<Bidirectional> {
+    pub fn primary() -> Self {
+        Self::from(0u64)
+    }
+
+    pub fn new(identifier: NonZeroU64) -> Self {
+        Self::from(identifier.get())
+    }
+}
+
+impl<R> Seek for MemoryStream<R>
+where
+    R: Readable,
+{
     fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
-        self.buffer.seek(pos)
+        self.reader.seek(pos)
     }
 }
 
@@ -46,64 +64,69 @@ impl<RW> MemoryStream<RW>
 where
     RW: Readable + Writable,
 {
-    pub fn read_only(self) -> MemoryStream<ReadOnly> {
+    pub fn split(self) -> (MemoryStream<ReadOnly>, MemoryStream<WriteOnly>) {
+        let read = MemoryStream {
+            identifier: self.identifier,
+            reader: self.reader,
+            writer: Default::default(),
+            marker: Default::default(),
+        };
+        let write = MemoryStream {
+            identifier: self.identifier,
+            reader: Default::default(),
+            writer: self.writer,
+            marker: Default::default(),
+        };
+
+        (read, write)
+    }
+}
+
+impl<R> MemoryStream<R>
+where
+    R: Readable,
+{
+    pub fn writable(mut self) -> MemoryStream<WriteOnly> {
+        let length = self.reader.get_ref().len();
+
+        self.reader.set_position(length as u64);
+
         MemoryStream {
             identifier: self.identifier,
-            buffer: self.buffer,
+            reader: self.writer,
+            writer: self.reader,
             marker: Default::default(),
         }
     }
+}
 
-    pub fn write_only(self) -> MemoryStream<WriteOnly> {
+impl<W> MemoryStream<W>
+where
+    W: Writable,
+{
+    pub fn readable(mut self) -> MemoryStream<ReadOnly> {
+        self.writer.set_position(0);
+
         MemoryStream {
             identifier: self.identifier,
-            buffer: self.buffer,
+            reader: self.writer,
+            writer: self.reader,
             marker: Default::default(),
         }
     }
 }
 
 impl<RW> MemoryStream<RW> {
-    pub fn read_write(self) -> MemoryStream<Bidirectional> {
-        MemoryStream {
-            identifier: self.identifier,
-            buffer: self.buffer,
-            marker: Default::default(),
-        }
-    }
-
-    pub fn writable(mut self) -> MemoryStream<WriteOnly> {
-        let bytes = self.buffer.get_ref().len();
-
-        self.buffer.set_position(bytes as u64);
-
-        MemoryStream {
-            identifier: self.identifier,
-            buffer: self.buffer,
-            marker: Default::default(),
-        }
-    }
-
-    pub fn readable(mut self) -> MemoryStream<ReadOnly> {
-        self.buffer.set_position(0);
-
-        MemoryStream {
-            identifier: self.identifier,
-            buffer: self.buffer,
-            marker: Default::default(),
-        }
-    }
-
     pub fn position(&self) -> usize {
-        self.buffer.position() as usize
+        self.reader.position() as usize
     }
 
     pub fn len(&self) -> usize {
-        self.buffer.get_ref().len()
+        self.reader.get_ref().len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.buffer.get_ref().is_empty()
+        self.reader.get_ref().is_empty()
     }
 }
 
@@ -112,7 +135,7 @@ where
     R: Readable,
 {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        self.buffer.read(buf)
+        self.reader.read(buf)
     }
 }
 
@@ -121,11 +144,11 @@ where
     W: Writable,
 {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.buffer.write(buf)
+        self.writer.write(buf)
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
-        self.buffer.flush()
+        self.writer.flush()
     }
 }
 
@@ -137,7 +160,7 @@ mod tests {
     #[test]
     fn in_memory() {
         let bytes = b"Hello, World!";
-        let mut stream = MemoryStream::primary().write_only();
+        let mut stream = MemoryStream::primary();
 
         stream.write_all(bytes).unwrap();
 
@@ -167,14 +190,13 @@ mod tests {
     #[test]
     fn in_memory_read_write() {
         let bytes = b"Hello, World!";
-        let mut stream = MemoryStream::new(NonZeroU64::new(1).unwrap());
+        let mut stream = MemoryStream::from(NonZeroU64::new(1));
 
         stream.write_all(bytes).unwrap();
-        stream.seek(SeekFrom::Start(0)).unwrap();
 
         let mut buffer = Cursor::new(Vec::new());
 
-        std::io::copy(&mut stream, &mut buffer).unwrap();
+        std::io::copy(&mut stream.readable(), &mut buffer).unwrap();
 
         assert_eq!(buffer.get_ref().as_slice(), bytes);
     }
