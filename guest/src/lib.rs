@@ -4,6 +4,10 @@ use std::error::Error;
 
 pub use frame::{Frame, FrameType};
 pub use limiter::IoLimiter;
+
+#[cfg(feature = "webp")]
+pub use memory::InMemoryStream;
+
 pub use message::{Body, FrameIo};
 pub use request::{Method, Request};
 pub use response::{Response, Status};
@@ -13,6 +17,10 @@ pub use crate::wire::{Destination, Source};
 
 mod frame;
 mod limiter;
+
+#[cfg(feature = "webp")]
+mod memory;
+
 mod message;
 mod request;
 mod response;

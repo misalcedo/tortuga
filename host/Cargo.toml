@@ -20,7 +20,7 @@ pprof = { version = "0.11", features = ["criterion", "flamegraph", "protobuf-cod
 
 [dependencies]
 tokio = { version = "1.25.0", features = ["full"] }
-tortuga-guest = { version = "0.1.1", path = "../guest" }
+tortuga-guest = { version = "0.1.1", features = ["memory"], path = "../guest" }
 uuid = { version = "1.3.0", features = ["v4", "v5"] }
 wasmtime = "7.0.0"
 wasmtime-wasi = "7.0.0"
