@@ -1,14 +1,12 @@
 use std::io;
-use std::io::Write;
 use tortuga_guest::{
     Body, Destination, FromHost, MemoryStream, Method, Request, Response, Source, Status, Stream,
 };
 
 fn run(_: Request<FromHost>) -> Result<Response<impl Body>, io::Error> {
     let mut stream = Stream::new();
-    let mut request = Request::new(Method::Get, "/pong", MemoryStream::default());
+    let request = Request::new(Method::Get, "/pong", MemoryStream::with_reader(b"PING!"));
 
-    request.body().write_all(b"PING!")?;
     stream.write_message(request)?;
 
     let mut pong: Response<_> = stream.read_message()?;

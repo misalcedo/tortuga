@@ -140,7 +140,7 @@ where
         bytes += writer.encode(header)?;
         bytes += io::copy(&mut buffer, writer)? as usize;
 
-        self.body().seek(SeekFrom::Start(0))?;
+        self.body().rewind()?;
 
         let mut body = FrameIo::new(writer, length);
 
@@ -173,7 +173,7 @@ where
         bytes += writer.encode(header)?;
         bytes += io::copy(&mut buffer, writer)? as usize;
 
-        self.body().seek(SeekFrom::Start(0))?;
+        self.body().rewind()?;
 
         let mut body = FrameIo::new(writer, length);
 

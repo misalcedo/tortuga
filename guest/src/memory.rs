@@ -49,12 +49,39 @@ impl MemoryStream<Bidirectional> {
     pub fn new(identifier: NonZeroU64) -> Self {
         Self::from(identifier.get())
     }
+
+    pub fn with_reader(reader: impl AsRef<[u8]>) -> Self {
+        MemoryStream {
+            identifier: 0,
+            reader: Cursor::new(Vec::from(reader.as_ref())),
+            writer: Default::default(),
+            marker: Default::default(),
+        }
+    }
+
+    pub fn swap(&mut self) {
+        std::mem::swap(&mut self.reader, &mut self.writer);
+
+        let length = self.writer.get_ref().len() as u64;
+
+        self.reader.set_position(0);
+        self.writer.set_position(length);
+    }
 }
 
-impl<R> Seek for MemoryStream<R>
-where
-    R: Readable,
-{
+impl Seek for MemoryStream<Bidirectional> {
+    fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
+        // Auto-swap when the stream is done being written to.
+        // This avoids the common case of having to swap after writing to the in-memory buffer.
+        if self.reader.get_ref().is_empty() && !self.writer.get_ref().is_empty() {
+            self.swap();
+        }
+
+        self.reader.seek(pos)
+    }
+}
+
+impl Seek for MemoryStream<ReadOnly> {
     fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
         self.reader.seek(pos)
     }
@@ -87,9 +114,9 @@ where
     R: Readable,
 {
     pub fn writable(mut self) -> MemoryStream<WriteOnly> {
-        let length = self.reader.get_ref().len();
+        let length = self.reader.get_ref().len() as u64;
 
-        self.reader.set_position(length as u64);
+        self.reader.set_position(length);
 
         MemoryStream {
             identifier: self.identifier,
@@ -119,6 +146,15 @@ where
 impl<RW> MemoryStream<RW> {
     pub fn position(&self) -> usize {
         self.reader.position() as usize
+    }
+}
+
+impl<R> MemoryStream<R>
+where
+    R: Readable,
+{
+    pub fn remaining(&self) -> usize {
+        self.reader.get_ref().len() - self.reader.position() as usize
     }
 
     pub fn len(&self) -> usize {
@@ -154,8 +190,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::num::NonZeroU64;
+
+    use super::*;
 
     #[test]
     fn in_memory() {
@@ -197,6 +234,36 @@ mod tests {
         let mut buffer = Cursor::new(Vec::new());
 
         std::io::copy(&mut stream.readable(), &mut buffer).unwrap();
+
+        assert_eq!(buffer.get_ref().as_slice(), bytes);
+    }
+
+    #[test]
+    fn swap() {
+        let bytes = b"Hello, World!";
+        let mut stream = MemoryStream::from(NonZeroU64::new(1));
+
+        stream.write_all(bytes).unwrap();
+        stream.swap();
+
+        let mut buffer = Cursor::new(Vec::new());
+
+        std::io::copy(&mut stream, &mut buffer).unwrap();
+
+        assert_eq!(buffer.get_ref().as_slice(), bytes);
+    }
+
+    #[test]
+    fn auto_swap() {
+        let bytes = b"Hello, World!";
+        let mut stream = MemoryStream::from(NonZeroU64::new(1));
+
+        stream.write_all(bytes).unwrap();
+        stream.rewind().unwrap();
+
+        let mut buffer = Cursor::new(Vec::new());
+
+        std::io::copy(&mut stream, &mut buffer).unwrap();
 
         assert_eq!(buffer.get_ref().as_slice(), bytes);
     }

@@ -1,12 +1,9 @@
-use std::io::{Seek, SeekFrom};
 use std::num::NonZeroUsize;
 
-use tortuga_guest::{
-    Bidirectional, Destination, FrameIo, MemoryStream, ReadOnly, Request, Response, Source,
-};
+use tortuga_guest::{Bidirectional, Destination, FrameIo, MemoryStream, Request, Response, Source};
 
 pub type ForGuest = MemoryStream<Bidirectional>;
-pub type FromGuest = FrameIo<MemoryStream<ReadOnly>>;
+pub type FromGuest = FrameIo<MemoryStream<Bidirectional>>;
 
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct Connection {
@@ -19,7 +16,7 @@ impl Connection {
         let mut primary = MemoryStream::default();
 
         primary.write_message(request).unwrap();
-        primary.seek(SeekFrom::Start(0)).unwrap();
+        primary.swap();
 
         Connection {
             primary,
@@ -41,7 +38,8 @@ impl Connection {
         self.streams.len() as u64
     }
 
-    pub fn response(self) -> Response<FromGuest> {
-        self.primary.readable().read_message().unwrap()
+    pub fn response(mut self) -> Response<FromGuest> {
+        self.primary.swap();
+        self.primary.read_message().unwrap()
     }
 }

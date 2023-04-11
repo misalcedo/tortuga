@@ -43,7 +43,7 @@ impl Shell {
                         memory.data_and_store_mut(&mut caller);
                     let connection = &mut state.connection;
                     let body = connection.stream(stream).unwrap();
-                    let size = (body.len() - (body.position() as usize)).min(length);
+                    let size = body.remaining().min(length);
 
                     let destination = &mut view[offset..(offset + size)];
 
@@ -59,6 +59,7 @@ impl Shell {
                 |mut caller: Caller<'_, State>, stream: u64, pointer: u32, length: u32| {
                     let offset = pointer as usize;
                     let length = length as usize;
+
                     let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
                     let (view, state): (&mut [u8], &mut State) =
                         memory.data_and_store_mut(&mut caller);

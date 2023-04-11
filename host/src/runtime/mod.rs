@@ -102,7 +102,7 @@ impl Runtime {
 
 #[cfg(test)]
 mod tests {
-    use std::io::{Read, Seek, SeekFrom, Write};
+    use std::io::{Cursor, Read, Write};
 
     use tortuga_guest::{MemoryStream, Method, Status};
 
@@ -114,22 +114,17 @@ mod tests {
         let body = Vec::from("Hello, World!");
 
         let mut runtime = Runtime::default();
-        let mut request = Request::default();
-        let mut response = Response::from(Status::Created);
-
-        request.body().write_all(&body).unwrap();
-        request.body().seek(SeekFrom::Start(0)).unwrap();
-
-        response.body().write_all(&body).unwrap();
+        let mut request = Request::new(Method::Get, "/", MemoryStream::with_reader(&body));
+        let mut response = Response::new(Status::Created, MemoryStream::with_reader(&body));
 
         let guest = runtime.welcome_guest("/".to_string(), code);
         let mut actual = runtime.execute(&guest, request);
-        let mut buffer = vec![0; body.len()];
+        let mut buffer = Cursor::new(Vec::new());
 
-        actual.body().read_exact(buffer.as_mut_slice()).unwrap();
+        std::io::copy(actual.body(), &mut buffer).unwrap();
 
         assert_eq!(actual, response);
-        assert_eq!(buffer, body);
+        assert_eq!(buffer.get_ref().as_slice(), body);
     }
 
     #[test]
