@@ -112,8 +112,9 @@ impl Runtime {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Cursor;
+    use std::io::{Cursor, Read, Write};
     use tortuga_guest::{MemoryStream, Method, Status};
+    use wasmtime::{Caller, Linker, Module, Store};
 
     use super::*;
 
@@ -163,6 +164,98 @@ mod tests {
         std::io::copy(actual.body(), &mut buffer).unwrap();
 
         assert_eq!(actual, response);
+        assert_eq!(buffer.get_ref().as_slice(), body);
+    }
+
+    #[tokio::test]
+    async fn runtime() {
+        let code = include_bytes!(env!("CARGO_BIN_FILE_PONG"));
+        let mut configuration = Config::new();
+
+        configuration.async_support(true);
+        configuration.consume_fuel(true);
+
+        let engine = Engine::new(&configuration).unwrap();
+
+        let module = Module::new(&engine, code).unwrap();
+        let mut linker = Linker::new(&engine);
+
+        linker
+            .func_wrap3_async(
+                "stream",
+                "read",
+                |mut caller: Caller<'_, Connection>, stream: u64, pointer: u32, length: u32| {
+                    Box::new(async move {
+                        let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
+                        let (view, connection): (&mut [u8], &mut Connection) =
+                            memory.data_and_store_mut(&mut caller);
+                        let destination =
+                            &mut view[..(pointer as usize + length as usize)][pointer as usize..];
+
+                        connection
+                            .stream(stream)
+                            .unwrap()
+                            .read(destination)
+                            .unwrap() as u32
+                    })
+                },
+            )
+            .unwrap();
+        linker
+            .func_wrap3_async(
+                "stream",
+                "write",
+                |mut caller: Caller<'_, Connection>, stream: u64, pointer: u32, length: u32| {
+                    Box::new(async move {
+                        let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
+                        let (view, connection): (&mut [u8], &mut Connection) =
+                            memory.data_and_store_mut(&mut caller);
+                        let source =
+                            &view[..(pointer as usize + length as usize)][pointer as usize..];
+
+                        connection.stream(stream).unwrap().write(source).unwrap() as u32
+                    })
+                },
+            )
+            .unwrap();
+        linker
+            .func_wrap0_async("stream", "start", |mut caller: Caller<'_, Connection>| {
+                Box::new(async move { caller.data_mut().start_stream() })
+            })
+            .unwrap();
+
+        let body = b"PONG!";
+        let request = Request::new(
+            Method::Get,
+            "/pong".to_string(),
+            MemoryStream::with_reader(b"PING!"),
+        );
+        let mut primary = MemoryStream::default();
+
+        primary.write_message(request).unwrap();
+        primary.swap();
+
+        let mut store = Store::new(&engine, Connection::new(primary));
+
+        store.add_fuel(1000).unwrap();
+        store.out_of_fuel_async_yield(1000, 1000);
+
+        let instance_pre = linker.instantiate_pre(&module).unwrap();
+        let instance = instance_pre.instantiate_async(&mut store).await.unwrap();
+
+        instance
+            .get_typed_func::<(i32, i32), i32>(&mut store, "main")
+            .unwrap()
+            .call_async(&mut store, (0, 0))
+            .await
+            .unwrap();
+
+        let mut response = store.into_data().response();
+        let mut buffer = Cursor::new(Vec::new());
+
+        std::io::copy(response.body(), &mut buffer).unwrap();
+
+        assert_eq!(response.status(), Status::Ok.into());
         assert_eq!(buffer.get_ref().as_slice(), body);
     }
 }

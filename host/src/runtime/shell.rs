@@ -56,6 +56,7 @@ impl Shell {
             )
             .unwrap();
         // TODO: Need to figure out a way to queue this request in the runtime.
+        // May have to add blocking wait to promise until I can figure out how to support async in wasmtime.
         linker
             .func_wrap(
                 "stream",
