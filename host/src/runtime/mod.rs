@@ -118,9 +118,6 @@ impl Runtime {
 #[cfg(test)]
 mod tests {
     use std::io::Cursor;
-    use std::pin::Pin;
-    use std::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
-
     use tortuga_guest::{MemoryStream, Method, Status};
 
     use super::*;
@@ -144,8 +141,8 @@ mod tests {
         assert_eq!(buffer.get_ref().as_slice(), body);
     }
 
-    #[test]
-    fn execute_ping_pong() {
+    #[tokio::test]
+    async fn execute_ping_pong() {
         let ping_code = include_bytes!(env!("CARGO_BIN_FILE_PING"));
         let pong_code = include_bytes!(env!("CARGO_BIN_FILE_PONG"));
         let body = b"PONG!";
@@ -160,43 +157,16 @@ mod tests {
             MemoryStream::with_reader(&body),
         );
         let response = Response::new(Status::Ok, MemoryStream::with_reader(&body));
-
-        let waker = noop_waker();
-        let mut binding = runtime.queue(&ping, request);
-        let mut context = Context::from_waker(&waker);
-        let mut actual = Pin::new(&mut binding);
-
-        assert_eq!(actual.poll(&mut context), Poll::Pending);
+        let actual = runtime.queue(&ping, request);
 
         runtime.start();
 
-        actual = Pin::new(&mut binding);
-
+        let mut actual = actual.await;
         let mut buffer = Cursor::new(Vec::new());
-        let result = actual.poll(&mut context);
 
-        if let Poll::Ready(mut result) = result {
-            assert_eq!(result, response);
+        std::io::copy(actual.body(), &mut buffer).unwrap();
 
-            std::io::copy(result.body(), &mut buffer).unwrap();
-        }
-
+        assert_eq!(actual, response);
         assert_eq!(buffer.get_ref().as_slice(), body);
-    }
-
-    unsafe fn noop(_p: *const ()) {}
-
-    unsafe fn noop_clone(_p: *const ()) -> RawWaker {
-        noop_raw_waker()
-    }
-
-    fn noop_raw_waker() -> RawWaker {
-        const RAW_WAKER_VTABLE: RawWakerVTable = RawWakerVTable::new(noop_clone, noop, noop, noop);
-
-        RawWaker::new(std::ptr::null(), &RAW_WAKER_VTABLE)
-    }
-
-    fn noop_waker() -> Waker {
-        unsafe { Waker::from_raw(noop_raw_waker()) }
     }
 }
