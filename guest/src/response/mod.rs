@@ -2,6 +2,7 @@ mod status;
 
 use crate::Body;
 pub use status::Status;
+use std::io::Cursor;
 
 #[derive(Debug, Default, Copy, Clone)]
 pub struct Response<B> {
@@ -9,8 +10,7 @@ pub struct Response<B> {
     body: B,
 }
 
-#[cfg(feature = "memory")]
-impl From<Status> for Response<crate::MemoryStream<crate::Bidirectional>> {
+impl From<Status> for Response<Cursor<Vec<u8>>> {
     fn from(value: Status) -> Self {
         Response {
             status: value.into(),

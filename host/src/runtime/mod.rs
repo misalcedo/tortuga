@@ -220,6 +220,7 @@ mod tests {
             .unwrap();
         linker
             .func_wrap0_async("stream", "start", |mut caller: Caller<'_, Connection>| {
+                // TODO: Needs to create an async mechanism in data that allows the runtime handle requests and return responses. A channel stream would probably suffice.
                 Box::new(async move { caller.data_mut().start_stream() })
             })
             .unwrap();

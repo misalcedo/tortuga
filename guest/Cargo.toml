@@ -10,5 +10,4 @@ repository = "https://github.com/misalcedo/tortuga-guest"
 documentation = "https://docs.rs/tortuga-guest"
 
 [features]
-default = ["memory"]
 memory = []
