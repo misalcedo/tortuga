@@ -1,5 +1,5 @@
 use crate::{Body, Frame, FrameIo, FrameType, Method, Request, Response};
-use std::io::{self, Cursor, SeekFrom, Write};
+use std::io::{self, Cursor, Write};
 
 pub trait Encode<Value> {
     fn encode(&mut self, value: Value) -> io::Result<usize>;
@@ -124,9 +124,7 @@ where
     where
         W: Write,
     {
-        self.body().seek(SeekFrom::End(0))?;
-
-        let length = self.body().stream_position()? as usize;
+        let length = self.body().len().unwrap_or_default();
         let mut buffer = Cursor::new(Vec::new());
 
         buffer.encode(self.method() as u8)?;
@@ -139,8 +137,6 @@ where
 
         bytes += writer.encode(header)?;
         bytes += io::copy(&mut buffer, writer)? as usize;
-
-        self.body().rewind()?;
 
         let mut body = FrameIo::new(writer, length);
 
@@ -158,9 +154,7 @@ where
     where
         W: Write,
     {
-        self.body().seek(SeekFrom::End(0))?;
-
-        let length = self.body().stream_position()? as usize;
+        let length = self.body().len().unwrap_or_default();
         let mut buffer = Cursor::new(Vec::new());
 
         buffer.encode(self.status())?;
@@ -172,8 +166,6 @@ where
 
         bytes += writer.encode(header)?;
         bytes += io::copy(&mut buffer, writer)? as usize;
-
-        self.body().rewind()?;
 
         let mut body = FrameIo::new(writer, length);
 

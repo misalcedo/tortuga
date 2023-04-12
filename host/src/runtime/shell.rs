@@ -4,7 +4,8 @@ use std::sync::mpsc::Sender;
 use wasmtime::{Caller, Engine, Linker, Module, Store};
 use wasmtime_wasi::WasiCtx;
 
-use tortuga_guest::{Bidirectional, MemoryStream, Response};
+use crate::runtime::channel::ChannelStream;
+use tortuga_guest::Response;
 
 use crate::runtime::connection::FromGuest;
 use crate::runtime::message::Message;
@@ -38,20 +39,18 @@ impl Shell {
                 "stream",
                 "read",
                 |mut caller: Caller<'_, State>, stream: u64, pointer: u32, length: u32| {
-                    let offset = pointer as usize;
-                    let length = length as usize;
-
                     let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
                     let (view, state): (&mut [u8], &mut State) =
                         memory.data_and_store_mut(&mut caller);
-                    let connection = &mut state.connection;
-                    let body = connection.stream(stream).unwrap();
-                    let size = body.remaining().min(length);
+                    let destination =
+                        &mut view[..(pointer as usize + length as usize)][pointer as usize..];
 
-                    let destination = &mut view[offset..(offset + size)];
-
-                    body.read_exact(destination).unwrap();
-                    destination.len() as i64
+                    state
+                        .connection
+                        .stream(stream)
+                        .unwrap()
+                        .read(destination)
+                        .unwrap() as i64
                 },
             )
             .unwrap();
@@ -62,22 +61,17 @@ impl Shell {
                 "stream",
                 "write",
                 |mut caller: Caller<'_, State>, stream: u64, pointer: u32, length: u32| {
-                    let offset = pointer as usize;
-                    let length = length as usize;
-
                     let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
                     let (view, state): (&mut [u8], &mut State) =
                         memory.data_and_store_mut(&mut caller);
-                    let connection = &mut state.connection;
-                    let source = &view[offset..(offset + length)];
+                    let source = &view[..(pointer as usize + length as usize)][pointer as usize..];
 
-                    connection
+                    state
+                        .connection
                         .stream(stream)
                         .unwrap()
-                        .write_all(source)
-                        .unwrap();
-
-                    source.len() as i64
+                        .write(source)
+                        .unwrap() as i64
                 },
             )
             .unwrap();
@@ -100,7 +94,7 @@ impl Shell {
         self.ctx = Some(ctx);
     }
 
-    pub fn execute(&mut self, stream: MemoryStream<Bidirectional>) -> Response<FromGuest> {
+    pub fn execute(&mut self, stream: ChannelStream) -> Response<FromGuest> {
         let connection = Connection::new(stream);
         let ctx = self.ctx.take();
         let state = State::new(connection, ctx);

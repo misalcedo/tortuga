@@ -1,24 +1,24 @@
-use crate::runtime::connection::{ForGuest, FromGuest};
+use crate::runtime::channel::ChannelStream;
+use crate::runtime::connection::FromGuest;
 use crate::runtime::promise::Promise;
 use crate::runtime::Identifier;
-use tortuga_guest::{Bidirectional, Destination, MemoryStream, Request, Response};
+use tortuga_guest::{Body, Destination, Request, Response};
 
 pub struct Message {
     to: Identifier,
-    body: Option<MemoryStream<Bidirectional>>,
+    body: Option<ChannelStream>,
     promise: Promise<Response<FromGuest>>,
 }
 
 impl Message {
     pub fn new(
         identifier: impl AsRef<Identifier>,
-        request: Request<ForGuest>,
+        request: Request<impl Body>,
         promise: Promise<Response<FromGuest>>,
     ) -> Self {
-        let mut body = MemoryStream::default();
+        let mut body = ChannelStream::default();
 
         body.write_message(request).unwrap();
-        body.swap();
 
         Message {
             to: identifier.as_ref().clone(),
@@ -31,7 +31,7 @@ impl Message {
         &self.to
     }
 
-    pub fn body(&mut self) -> MemoryStream<Bidirectional> {
+    pub fn body(&mut self) -> ChannelStream {
         self.body.take().unwrap()
     }
 

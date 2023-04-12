@@ -1,11 +1,25 @@
 use crate::frame::FrameType;
 use crate::wire::{Decode, Encode};
 use crate::{Frame, IoLimiter};
-use std::io::{self, ErrorKind, Read, Seek, Write};
+use std::io::{self, ErrorKind, Read, Seek, SeekFrom, Write};
 
-pub trait Body: Read + Seek {}
+pub trait Body: Read {
+    fn len(&mut self) -> Option<usize>;
+}
 
-impl<B: Read + Seek> Body for B {}
+impl<B: Read + Seek> Body for B {
+    fn len(&mut self) -> Option<usize> {
+        let position = self.stream_position().ok()?;
+
+        self.seek(SeekFrom::End(0)).ok()?;
+
+        let length = self.stream_position().ok()?;
+
+        self.seek(SeekFrom::Start(position)).ok()?;
+
+        Some(length as usize)
+    }
+}
 
 #[derive(Clone, Debug, Default)]
 pub struct FrameIo<R> {

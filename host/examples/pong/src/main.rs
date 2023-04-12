@@ -1,13 +1,9 @@
 use std::io;
-use std::io::Write;
-use tortuga_guest::{Body, FromHost, Request, Response, Status};
+use std::io::{Cursor, Read};
+use tortuga_guest::{Body, Request, Response, Status};
 
-fn run(_: Request<FromHost>) -> Result<Response<impl Body>, io::Error> {
-    let mut response = Response::from(Status::Ok);
-
-    response.body().write_all(b"PONG!")?;
-
-    Ok(response)
+fn run(_: Request<impl Read>) -> Result<Response<impl Body>, io::Error> {
+    Ok(Response::new(Status::Ok, Cursor::new(b"PONG!".to_vec())))
 }
 
 fn main() {

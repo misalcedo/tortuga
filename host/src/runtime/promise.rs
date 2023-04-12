@@ -9,8 +9,14 @@ pub struct State<T> {
     waker: Option<Waker>,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Debug, Default)]
 pub struct Promise<T>(Arc<RwLock<State<T>>>);
+
+impl<T> Clone for Promise<T> {
+    fn clone(&self) -> Self {
+        Promise(Arc::clone(&self.0))
+    }
+}
 
 impl<T> Promise<T> {
     pub fn complete(&mut self, value: T) {

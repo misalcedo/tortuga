@@ -1,9 +1,9 @@
 use std::future::Future;
 use std::sync::mpsc::Sender;
 
-use tortuga_guest::{Request, Response};
+use tortuga_guest::{Body, Request, Response};
 
-use crate::runtime::connection::{ForGuest, FromGuest};
+use crate::runtime::connection::FromGuest;
 use crate::runtime::message::Message;
 use crate::runtime::promise::Promise;
 use crate::runtime::Identifier;
@@ -31,7 +31,10 @@ impl Guest {
         }
     }
 
-    pub fn execute(&self, request: Request<ForGuest>) -> impl Future<Output = Response<FromGuest>> {
+    pub fn execute(
+        &self,
+        request: Request<impl Body>,
+    ) -> impl Future<Output = Response<FromGuest>> {
         let future = Promise::default();
         let message = Message::new(self, request, future.clone());
 

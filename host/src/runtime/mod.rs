@@ -6,9 +6,10 @@ use wasmtime::{Config, Engine};
 use wasmtime_wasi::WasiCtxBuilder;
 
 pub use connection::Connection;
-use tortuga_guest::{Destination, MemoryStream, Request, Response};
+use tortuga_guest::{Body, Destination, Request, Response};
 
-use connection::{ForGuest, FromGuest};
+use crate::runtime::channel::ChannelStream;
+use connection::FromGuest;
 use guest::Guest;
 pub use identifier::Identifier;
 use message::Message;
@@ -75,14 +76,12 @@ impl Runtime {
     pub fn execute(
         &mut self,
         identifier: impl AsRef<Identifier>,
-        request: Request<ForGuest>,
+        request: Request<impl Body>,
     ) -> Response<FromGuest> {
         let shell = self.shells.get_mut(identifier.as_ref()).unwrap();
-        let mut primary = MemoryStream::default();
+        let mut primary = ChannelStream::default();
 
         primary.write_message(request).unwrap();
-        primary.swap();
-
         shell.execute(primary)
     }
 
@@ -114,7 +113,7 @@ impl Runtime {
 #[cfg(test)]
 mod tests {
     use std::io::{Cursor, Read, Write};
-    use tortuga_guest::{MemoryStream, Method, Status};
+    use tortuga_guest::{Method, Status};
     use wasmtime::{Caller, Linker, Module, Store};
 
     use super::*;
@@ -125,8 +124,8 @@ mod tests {
         let body = Vec::from("Hello, World!");
 
         let mut runtime = Runtime::default();
-        let request = Request::new(Method::Get, "/", MemoryStream::with_reader(&body));
-        let response = Response::new(Status::Created, MemoryStream::with_reader(&body));
+        let request = Request::new(Method::Get, "/", Cursor::new(body.to_vec()));
+        let response = Response::new(Status::Created, Cursor::new(body.to_vec()));
 
         let guest = runtime.welcome_guest("/".to_string(), code);
         let mut actual = runtime.execute(&guest, request);
@@ -149,12 +148,8 @@ mod tests {
 
         runtime.welcome_guest("/pong", pong_code);
 
-        let request = Request::new(
-            Method::Get,
-            "/ping".to_string(),
-            MemoryStream::with_reader(&body),
-        );
-        let response = Response::new(Status::Ok, MemoryStream::with_reader(&body));
+        let request = Request::new(Method::Get, "/ping".to_string(), Cursor::new(body.to_vec()));
+        let response = Response::new(Status::Ok, Cursor::new(body.to_vec()));
         let actual = ping.execute(request);
 
         runtime.run();
@@ -230,12 +225,11 @@ mod tests {
         let request = Request::new(
             Method::Get,
             "/pong".to_string(),
-            MemoryStream::with_reader(b"PING!"),
+            Cursor::new(b"PING!".to_vec()),
         );
-        let mut primary = MemoryStream::default();
+        let mut primary = ChannelStream::default();
 
         primary.write_message(request).unwrap();
-        primary.swap();
 
         let mut store = Store::new(&engine, Connection::new(primary));
 

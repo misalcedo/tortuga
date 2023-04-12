@@ -1,25 +1,26 @@
 use std::num::NonZeroUsize;
 
-use tortuga_guest::{Bidirectional, FrameIo, MemoryStream, Response, Source};
+use crate::runtime::channel::ChannelStream;
+use tortuga_guest::{FrameIo, Response, Source};
 
-pub type ForGuest = MemoryStream<Bidirectional>;
-pub type FromGuest = FrameIo<MemoryStream<Bidirectional>>;
+pub type ForGuest = ChannelStream;
+pub type FromGuest = FrameIo<ChannelStream>;
 
-#[derive(Debug, Default, PartialEq, Clone)]
+#[derive(Debug, Default)]
 pub struct Connection {
-    primary: MemoryStream<Bidirectional>,
-    streams: Vec<MemoryStream<Bidirectional>>,
+    primary: ChannelStream,
+    streams: Vec<ChannelStream>,
 }
 
 impl Connection {
-    pub fn new(primary: MemoryStream<Bidirectional>) -> Self {
+    pub fn new(primary: ChannelStream) -> Self {
         Connection {
             primary,
             streams: Default::default(),
         }
     }
 
-    pub fn stream(&mut self, stream: u64) -> Option<&mut MemoryStream<Bidirectional>> {
+    pub fn stream(&mut self, stream: u64) -> Option<&mut ChannelStream> {
         match stream {
             0 => Some(&mut self.primary),
             _ => {
@@ -33,8 +34,7 @@ impl Connection {
         self.streams.len() as u64
     }
 
-    pub fn response(mut self) -> Response<FromGuest> {
-        self.primary.swap();
+    pub fn response(self) -> Response<FromGuest> {
         self.primary.read_message().unwrap()
     }
 }
