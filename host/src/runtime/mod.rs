@@ -16,6 +16,7 @@ use plugin::Plugin;
 pub use shell::Shell;
 pub use uri::Uri;
 
+mod channel;
 mod connection;
 mod guest;
 mod identifier;
