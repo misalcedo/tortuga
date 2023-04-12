@@ -51,7 +51,7 @@ impl Shell {
                     let destination = &mut view[offset..(offset + size)];
 
                     body.read_exact(destination).unwrap();
-                    destination.len() as u32
+                    destination.len() as i64
                 },
             )
             .unwrap();
@@ -77,7 +77,7 @@ impl Shell {
                         .write_all(source)
                         .unwrap();
 
-                    source.len() as u32
+                    source.len() as i64
                 },
             )
             .unwrap();

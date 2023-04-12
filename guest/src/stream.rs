@@ -1,11 +1,11 @@
-use std::io::{Read, Write};
+use std::io::{ErrorKind, Read, Write};
 use std::marker::PhantomData;
 
 #[link(wasm_import_module = "stream")]
 extern "C" {
     pub fn start() -> u64;
-    pub fn read(stream: u64, buffer: *mut u8, length: u32) -> u32;
-    pub fn write(stream: u64, buffer: *const u8, length: u32) -> u32;
+    pub fn read(stream: u64, buffer: *mut u8, length: u32) -> i64;
+    pub fn write(stream: u64, buffer: *const u8, length: u32) -> i64;
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -87,7 +87,12 @@ where
 {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let bytes = unsafe { read(self.identifier, buf.as_mut_ptr(), buf.len() as u32) };
-        Ok(bytes as usize)
+
+        if bytes < 0 {
+            Err(ErrorKind::UnexpectedEof.into())
+        } else {
+            Ok(bytes as usize)
+        }
     }
 }
 
@@ -97,7 +102,12 @@ where
 {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         let bytes = unsafe { write(self.identifier, buf.as_ptr(), buf.len() as u32) };
-        Ok(bytes as usize)
+
+        if bytes < 0 {
+            Err(ErrorKind::UnexpectedEof.into())
+        } else {
+            Ok(bytes as usize)
+        }
     }
 
     fn flush(&mut self) -> std::io::Result<()> {

@@ -196,7 +196,7 @@ mod tests {
                             .stream(stream)
                             .unwrap()
                             .read(destination)
-                            .unwrap() as u32
+                            .unwrap() as i64
                     })
                 },
             )
@@ -213,7 +213,7 @@ mod tests {
                         let source =
                             &view[..(pointer as usize + length as usize)][pointer as usize..];
 
-                        connection.stream(stream).unwrap().write(source).unwrap() as u32
+                        connection.stream(stream).unwrap().write(source).unwrap() as i64
                     })
                 },
             )
