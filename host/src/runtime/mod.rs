@@ -1,7 +1,7 @@
 //! The embedding runtime for the Tortuga WASM modules.
 
-use std::collections::{HashMap, VecDeque};
-use std::future::Future;
+use std::collections::HashMap;
+use std::sync::mpsc::{channel, Receiver, Sender};
 use wasmtime::{Config, Engine};
 use wasmtime_wasi::WasiCtxBuilder;
 
@@ -13,7 +13,6 @@ use guest::Guest;
 pub use identifier::Identifier;
 use message::Message;
 use plugin::Plugin;
-use promise::Promise;
 pub use shell::Shell;
 pub use uri::Uri;
 
@@ -31,7 +30,7 @@ pub struct Runtime {
     guests: HashMap<Identifier, Guest>,
     plugins: HashMap<Identifier, Plugin>,
     shells: HashMap<Identifier, Shell>,
-    queue: VecDeque<Message>,
+    channel: (Sender<Message>, Receiver<Message>),
 }
 
 impl Default for Runtime {
@@ -44,16 +43,16 @@ impl Default for Runtime {
             guests: Default::default(),
             plugins: Default::default(),
             shells: Default::default(),
-            queue: Default::default(),
+            channel: channel(),
         }
     }
 }
 
 impl Runtime {
     pub fn load_plugin(&mut self, uri: impl Into<String>, code: impl AsRef<[u8]>) -> Plugin {
-        let plugin = Plugin::new(uri.into());
+        let plugin = Plugin::new(uri.into(), self.channel.0.clone());
 
-        self.plugins.insert(plugin.identifier(), plugin.clone());
+        self.plugins.insert(plugin.as_ref().clone(), plugin.clone());
         self.compile(&plugin, code);
 
         let ctx = WasiCtxBuilder::new().build();
@@ -64,9 +63,9 @@ impl Runtime {
     }
 
     pub fn welcome_guest(&mut self, uri: impl Into<String>, code: impl AsRef<[u8]>) -> Guest {
-        let guest = Guest::new(uri.into());
+        let guest = Guest::new(uri.into(), self.channel.0.clone());
 
-        self.guests.insert(guest.identifier(), guest.clone());
+        self.guests.insert(guest.as_ref().clone(), guest.clone());
         self.compile(&guest, code);
 
         guest
@@ -86,21 +85,17 @@ impl Runtime {
         shell.execute(primary)
     }
 
-    pub fn queue(
-        &mut self,
-        identifier: impl AsRef<Identifier>,
-        request: Request<ForGuest>,
-    ) -> impl Future<Output = Response<FromGuest>> {
-        let future = Promise::default();
-        let message = Message::new(identifier, request, future.clone());
+    pub fn run(&mut self) {
+        while let Ok(mut message) = self.channel.1.try_recv() {
+            let shell = self.shells.get_mut(message.to()).unwrap();
+            let response = shell.execute(message.body());
 
-        self.queue.push_back(message);
-
-        future
+            message.promise().complete(response);
+        }
     }
 
     pub fn start(mut self) {
-        for mut message in self.queue.drain(..) {
+        for mut message in self.channel.1 {
             let shell = self.shells.get_mut(message.to()).unwrap();
             let response = shell.execute(message.body());
 
@@ -149,6 +144,7 @@ mod tests {
 
         let mut runtime = Runtime::default();
         let ping = runtime.welcome_guest("/ping", ping_code);
+
         runtime.welcome_guest("/pong", pong_code);
 
         let request = Request::new(
@@ -157,9 +153,9 @@ mod tests {
             MemoryStream::with_reader(&body),
         );
         let response = Response::new(Status::Ok, MemoryStream::with_reader(&body));
-        let actual = runtime.queue(&ping, request);
+        let actual = ping.execute(request);
 
-        runtime.start();
+        runtime.run();
 
         let mut actual = actual.await;
         let mut buffer = Cursor::new(Vec::new());
