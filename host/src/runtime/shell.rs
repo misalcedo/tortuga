@@ -1,4 +1,5 @@
 use std::io::{Read, Write};
+use std::sync::mpsc::Sender;
 
 use wasmtime::{Caller, Engine, Linker, Module, Store};
 use wasmtime_wasi::WasiCtx;
@@ -6,12 +7,14 @@ use wasmtime_wasi::WasiCtx;
 use tortuga_guest::{Bidirectional, MemoryStream, Response};
 
 use crate::runtime::connection::FromGuest;
+use crate::runtime::message::Message;
 use crate::runtime::Connection;
 
 pub struct Shell {
     module: Module,
     ctx: Option<WasiCtx>,
     linker: Linker<State>,
+    sender: Sender<Message>,
 }
 
 struct State {
@@ -26,7 +29,7 @@ impl State {
 }
 
 impl Shell {
-    pub fn new(engine: &Engine, code: impl AsRef<[u8]>) -> Self {
+    pub fn new(engine: &Engine, code: impl AsRef<[u8]>, sender: Sender<Message>) -> Self {
         let module = Module::new(engine, code).unwrap();
         let mut linker = Linker::new(&engine);
 
@@ -52,6 +55,7 @@ impl Shell {
                 },
             )
             .unwrap();
+        // TODO: Need to figure out a way to queue this request in the runtime.
         linker
             .func_wrap(
                 "stream",
@@ -85,6 +89,7 @@ impl Shell {
         Shell {
             module,
             linker,
+            sender,
             ctx: None,
         }
     }

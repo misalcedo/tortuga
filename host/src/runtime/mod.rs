@@ -104,7 +104,7 @@ impl Runtime {
     }
 
     fn compile(&mut self, identifier: impl AsRef<Identifier>, code: impl AsRef<[u8]>) {
-        let shell = Shell::new(&self.engine, code);
+        let shell = Shell::new(&self.engine, code, self.channel.0.clone());
 
         self.shells.insert(identifier.as_ref().clone(), shell);
     }
