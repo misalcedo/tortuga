@@ -6,6 +6,7 @@ use crate::Runtime;
 use crate::runtime::message::Message;
 use crate::runtime::Connection;
 
+#[derive(Clone)]
 pub struct Shell {
     factory: InstancePre<State>,
 }
@@ -96,7 +97,7 @@ impl Shell {
         Shell { factory }
     }
 
-    pub async fn execute(&mut self, stream: ChannelStream) {
+    pub async fn execute(&self, stream: ChannelStream) {
         let state = State::new(Connection::new(stream));
         let mut store = Store::new(self.factory.module().engine(), state);
 

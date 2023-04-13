@@ -1,6 +1,7 @@
 //! The embedding runtime for the Tortuga WASM modules.
 
 use std::collections::HashMap;
+use tokio::task::JoinHandle;
 use wasmtime::{Config, Engine};
 
 pub use connection::Connection;
@@ -70,20 +71,52 @@ impl Runtime {
     }
 
     pub async fn run(&mut self) {
-        if let Ok(mut message) = self.channel.1.try_recv() {
-            let shell = self.shells.get_mut(&message.to().unwrap()).unwrap();
+        if let Some(mut message) = self.channel.1.recv().await {
+            let shell = self.shells.get(&message.to().unwrap()).cloned().unwrap();
+            let stream = message.take_body();
+            let root_handle = tokio::spawn(async move {
+                shell.execute(stream).await;
+                message.complete();
+            });
+            let mut child_handles = Vec::new();
 
-            shell.execute(message.take_body()).await;
-            message.complete();
+            while !root_handle.is_finished()
+                || child_handles
+                    .iter()
+                    .any(|handle: &JoinHandle<()>| !handle.is_finished())
+            {
+                if let Ok(mut child_message) = self.channel.1.try_recv() {
+                    let child_shell = self
+                        .shells
+                        .get(&child_message.to().unwrap())
+                        .cloned()
+                        .unwrap();
+                    let child_stream = child_message.take_body();
+
+                    child_handles.push(tokio::spawn(async move {
+                        child_shell.execute(child_stream).await;
+                        child_message.complete();
+                    }));
+                }
+
+                tokio::task::yield_now().await;
+            }
         }
     }
 
     pub async fn start(mut self) {
         while let Some(mut message) = self.channel.1.recv().await {
-            let shell = self.shells.get_mut(&message.to().unwrap()).unwrap();
+            let shell = self
+                .shells
+                .get_mut(&message.to().unwrap())
+                .cloned()
+                .unwrap();
 
-            shell.execute(message.take_body()).await;
-            message.complete();
+            tokio::spawn(async move {
+                shell.execute(message.take_body()).await;
+                message.complete();
+            });
+            tokio::task::yield_now().await;
         }
     }
 
