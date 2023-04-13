@@ -1,10 +1,10 @@
 use std::io::{Read, Write};
-use std::sync::mpsc::Sender;
 
-use wasmtime::{Caller, Engine, Linker, Module, Store};
-use wasmtime_wasi::WasiCtx;
+use wasmtime::{Caller, InstancePre, Linker, Module, Store};
+use wasmtime_wasi::{WasiCtx, WasiCtxBuilder};
 
 use crate::runtime::channel::ChannelStream;
+use crate::Runtime;
 use tortuga_guest::Response;
 
 use crate::runtime::connection::FromGuest;
@@ -12,10 +12,8 @@ use crate::runtime::message::Message;
 use crate::runtime::Connection;
 
 pub struct Shell {
-    module: Module,
     ctx: Option<WasiCtx>,
-    linker: Linker<State>,
-    sender: Sender<Message>,
+    factory: InstancePre<State>,
 }
 
 struct State {
@@ -30,94 +28,102 @@ impl State {
 }
 
 impl Shell {
-    pub fn new(engine: &Engine, code: impl AsRef<[u8]>, sender: Sender<Message>) -> Self {
-        let module = Module::new(engine, code).unwrap();
-        let mut linker = Linker::new(&engine);
+    pub fn new(runtime: &Runtime, code: impl AsRef<[u8]>, plugin: bool) -> Self {
+        let mut ctx = None;
+        let mut linker = Linker::new(&runtime.engine);
+        let module = Module::new(&runtime.engine, code).unwrap();
+        let sender = runtime.channel.0.clone();
+
+        if plugin {
+            wasmtime_wasi::add_to_linker(&mut linker, |s: &mut State| s.ctx.as_mut().unwrap())
+                .unwrap();
+            ctx = Some(WasiCtxBuilder::new().build());
+        }
 
         linker
-            .func_wrap(
+            .func_wrap3_async(
                 "stream",
                 "read",
                 |mut caller: Caller<'_, State>, stream: u64, pointer: u32, length: u32| {
-                    let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
-                    let (view, state): (&mut [u8], &mut State) =
-                        memory.data_and_store_mut(&mut caller);
-                    let destination =
-                        &mut view[..(pointer as usize + length as usize)][pointer as usize..];
+                    Box::new(async move {
+                        let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
+                        let (view, state): (&mut [u8], &mut State) =
+                            memory.data_and_store_mut(&mut caller);
+                        let destination =
+                            &mut view[..(pointer as usize + length as usize)][pointer as usize..];
 
-                    state
-                        .connection
-                        .stream(stream)
-                        .unwrap()
-                        .read(destination)
-                        .unwrap() as i64
+                        state
+                            .connection
+                            .stream(stream)
+                            .unwrap()
+                            .read(destination)
+                            .unwrap() as i64
+                    })
                 },
             )
             .unwrap();
-        // TODO: Need to figure out a way to queue this request in the runtime.
-        // May have to add blocking wait to promise until I can figure out how to support async in wasmtime.
         linker
-            .func_wrap(
+            .func_wrap3_async(
                 "stream",
                 "write",
                 |mut caller: Caller<'_, State>, stream: u64, pointer: u32, length: u32| {
-                    let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
-                    let (view, state): (&mut [u8], &mut State) =
-                        memory.data_and_store_mut(&mut caller);
-                    let source = &view[..(pointer as usize + length as usize)][pointer as usize..];
+                    Box::new(async move {
+                        let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
+                        let (view, state): (&mut [u8], &mut State) =
+                            memory.data_and_store_mut(&mut caller);
+                        let source =
+                            &view[..(pointer as usize + length as usize)][pointer as usize..];
 
-                    state
-                        .connection
-                        .stream(stream)
-                        .unwrap()
-                        .write(source)
-                        .unwrap() as i64
+                        state
+                            .connection
+                            .stream(stream)
+                            .unwrap()
+                            .write(source)
+                            .unwrap() as i64
+                    })
                 },
             )
             .unwrap();
         linker
-            .func_wrap("stream", "start", |mut caller: Caller<'_, State>| {
-                caller.data_mut().connection.start_stream()
+            .func_wrap0_async("stream", "start", move |mut caller: Caller<'_, State>| {
+                let sender = sender.clone();
+
+                Box::new(async move {
+                    let (guest, host) = ChannelStream::new();
+
+                    caller.data_mut().connection.add_stream(guest);
+                    sender.send(Message::from(host)).await;
+                })
             })
             .unwrap();
 
-        Shell {
-            module,
-            linker,
-            sender,
-            ctx: None,
-        }
+        let factory = linker.instantiate_pre(&module).unwrap();
+
+        Shell { factory, ctx }
     }
 
-    pub fn promote(&mut self, ctx: WasiCtx) {
-        wasmtime_wasi::add_to_linker(&mut self.linker, |s| s.ctx.as_mut().unwrap()).unwrap();
-        self.ctx = Some(ctx);
-    }
-
-    pub fn execute(&mut self, stream: ChannelStream) -> Response<FromGuest> {
+    pub async fn execute(&mut self, stream: ChannelStream) -> Response<FromGuest> {
         let connection = Connection::new(stream);
         let ctx = self.ctx.take();
-        let state = State::new(connection, ctx);
 
-        let mut store = Store::new(self.linker.engine(), state);
+        let mut state = State::new(connection, ctx);
+        let mut store = Store::new(self.factory.module().engine(), state);
 
-        let instance = self.linker.instantiate(&mut store, &self.module).unwrap();
-        let main = instance.get_typed_func::<(i32, i32), i32>(&mut store, "main");
+        store.add_fuel(1000).unwrap();
+        store.out_of_fuel_async_yield(1000, 1000);
 
-        if main.is_ok() {
-            let result = main.unwrap().call(&mut store, (0, 0));
+        let instance = self.factory.instantiate_async(&mut store).await.unwrap();
 
-            if result.is_ok() {
-                return store.into_data().connection.response();
-            } else {
-                self.ctx = store.into_data().ctx;
-                result.unwrap();
-            }
-        } else {
-            self.ctx = store.into_data().ctx;
-            main.unwrap();
-        }
+        instance
+            .get_typed_func::<(i32, i32), i32>(&mut store, "main")
+            .unwrap()
+            .call(&mut store, (0, 0))
+            .unwrap();
 
-        unreachable!();
+        state = store.into_data();
+
+        self.ctx = state.ctx;
+
+        state.connection.response()
     }
 }

@@ -1,11 +1,10 @@
-use std::future::Future;
-use std::sync::mpsc::Sender;
+use tokio::sync::oneshot;
 
-use tortuga_guest::{Body, Request, Response};
+use crate::runtime::channel::{ChannelStream, Sender};
+use tortuga_guest::{Body, Destination, Request, Response, Source};
 
 use crate::runtime::connection::FromGuest;
 use crate::runtime::message::Message;
-use crate::runtime::promise::Promise;
 use crate::runtime::Identifier;
 use crate::runtime::Uri;
 
@@ -31,15 +30,18 @@ impl Guest {
         }
     }
 
-    pub fn execute(
-        &self,
-        request: Request<impl Body>,
-    ) -> impl Future<Output = Response<FromGuest>> {
-        let future = Promise::default();
-        let message = Message::new(self, request, future.clone());
+    pub async fn execute(&self, request: Request<impl Body>) -> Response<FromGuest> {
+        let (sender, receiver) = oneshot::channel();
+        let (mut guest, host) = ChannelStream::new();
 
-        self.sender.send(message).unwrap();
+        guest.write_message(request).unwrap();
 
-        future
+        let message = Message::new(self, guest, sender);
+
+        self.sender.send(message).await;
+
+        receiver.await.unwrap();
+
+        host.read_message().unwrap()
     }
 }

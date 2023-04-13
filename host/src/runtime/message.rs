@@ -1,41 +1,48 @@
 use crate::runtime::channel::ChannelStream;
-use crate::runtime::connection::FromGuest;
-use crate::runtime::promise::Promise;
 use crate::runtime::Identifier;
-use tortuga_guest::{Body, Destination, Request, Response};
+use tokio::sync::oneshot;
 
+#[derive(Debug)]
 pub struct Message {
-    to: Identifier,
+    to: Option<Identifier>,
     body: Option<ChannelStream>,
-    promise: Promise<Response<FromGuest>>,
+    promise: Option<oneshot::Sender<()>>,
+}
+
+impl From<ChannelStream> for Message {
+    fn from(body: ChannelStream) -> Self {
+        Message {
+            to: None,
+            body: Some(body),
+            promise: None,
+        }
+    }
 }
 
 impl Message {
     pub fn new(
         identifier: impl AsRef<Identifier>,
-        request: Request<impl Body>,
-        promise: Promise<Response<FromGuest>>,
+        body: ChannelStream,
+        sender: oneshot::Sender<()>,
     ) -> Self {
-        let mut body = ChannelStream::default();
-
-        body.write_message(request).unwrap();
-
         Message {
-            to: identifier.as_ref().clone(),
+            to: Some(identifier.as_ref().clone()),
             body: Some(body),
-            promise,
+            promise: Some(sender),
         }
     }
 
-    pub fn to(&self) -> &Identifier {
-        &self.to
+    pub fn to(&self) -> Option<Identifier> {
+        self.to
     }
 
-    pub fn body(&mut self) -> ChannelStream {
+    pub fn complete(&mut self) {
+        if let Some(promise) = self.promise.take() {
+            promise.send(()).unwrap();
+        }
+    }
+
+    pub fn take_body(&mut self) -> ChannelStream {
         self.body.take().unwrap()
-    }
-
-    pub fn promise(&mut self) -> &mut Promise<Response<FromGuest>> {
-        &mut self.promise
     }
 }

@@ -3,7 +3,6 @@ use std::num::NonZeroUsize;
 use crate::runtime::channel::ChannelStream;
 use tortuga_guest::{FrameIo, Response, Source};
 
-pub type ForGuest = ChannelStream;
 pub type FromGuest = FrameIo<ChannelStream>;
 
 #[derive(Debug, Default)]
@@ -29,9 +28,8 @@ impl Connection {
         }
     }
 
-    pub fn start_stream(&mut self) -> u64 {
-        self.streams.push(Default::default());
-        self.streams.len() as u64
+    pub fn add_stream(&mut self, stream: ChannelStream) {
+        self.streams.push(stream);
     }
 
     pub fn response(self) -> Response<FromGuest> {

@@ -6,6 +6,12 @@ use tortuga_guest::Body;
 #[derive(Debug)]
 pub struct Sender<T>(UnboundedSender<T>);
 
+impl<T> Clone for Sender<T> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
 impl<T> Sender<T> {
     pub fn try_send(&self, item: T) -> Option<T> {
         let error = self.0.send(item).err()?;
@@ -40,7 +46,7 @@ impl<T> Receiver<T> {
     }
 }
 
-pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
+pub fn new_channel<T>() -> (Sender<T>, Receiver<T>) {
     let (sender, receiver) = unbounded_channel();
 
     (Sender(sender), Receiver(receiver))
@@ -55,7 +61,7 @@ pub struct ChannelStream {
 
 impl Default for ChannelStream {
     fn default() -> Self {
-        let (sender, receiver) = channel();
+        let (sender, receiver) = new_channel();
 
         ChannelStream {
             sender,
