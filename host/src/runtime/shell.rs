@@ -1,13 +1,9 @@
-use std::io::{Read, Write};
-
 use wasmtime::{Caller, InstancePre, Linker, Module, Store};
 use wasmtime_wasi::{WasiCtx, WasiCtxBuilder};
 
 use crate::runtime::channel::ChannelStream;
 use crate::Runtime;
-use tortuga_guest::Response;
 
-use crate::runtime::connection::FromGuest;
 use crate::runtime::message::Message;
 use crate::runtime::Connection;
 
@@ -47,17 +43,21 @@ impl Shell {
                 |mut caller: Caller<'_, State>, stream: u64, pointer: u32, length: u32| {
                     Box::new(async move {
                         let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
-                        let (view, state): (&mut [u8], &mut State) =
+                        let (data, state): (&mut [u8], &mut State) =
                             memory.data_and_store_mut(&mut caller);
-                        let destination =
-                            &mut view[..(pointer as usize + length as usize)][pointer as usize..];
+                        let buffer =
+                            &mut data[..(pointer as usize + length as usize)][pointer as usize..];
 
-                        state
+                        match state
                             .connection
                             .stream(stream)
                             .unwrap()
-                            .read(destination)
-                            .unwrap() as i64
+                            .read_async(buffer)
+                            .await
+                        {
+                            Ok(bytes) => bytes as i64,
+                            Err(_) => -1,
+                        }
                     })
                 },
             )
@@ -69,17 +69,21 @@ impl Shell {
                 |mut caller: Caller<'_, State>, stream: u64, pointer: u32, length: u32| {
                     Box::new(async move {
                         let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
-                        let (view, state): (&mut [u8], &mut State) =
+                        let (data, state): (&mut [u8], &mut State) =
                             memory.data_and_store_mut(&mut caller);
-                        let source =
-                            &view[..(pointer as usize + length as usize)][pointer as usize..];
+                        let buffer =
+                            &data[..(pointer as usize + length as usize)][pointer as usize..];
 
-                        state
+                        match state
                             .connection
                             .stream(stream)
                             .unwrap()
-                            .write(source)
-                            .unwrap() as i64
+                            .write_async(buffer)
+                            .await
+                        {
+                            Ok(bytes) => bytes as i64,
+                            Err(_) => -1,
+                        }
                     })
                 },
             )
@@ -102,7 +106,7 @@ impl Shell {
         Shell { factory, ctx }
     }
 
-    pub async fn execute(&mut self, stream: ChannelStream) -> Response<FromGuest> {
+    pub async fn execute(&mut self, stream: ChannelStream) {
         let connection = Connection::new(stream);
         let ctx = self.ctx.take();
 
@@ -124,7 +128,5 @@ impl Shell {
         state = store.into_data();
 
         self.ctx = state.ctx;
-
-        state.connection.response()
     }
 }

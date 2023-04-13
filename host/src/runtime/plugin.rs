@@ -30,9 +30,9 @@ impl Plugin {
 
     pub fn queue(&self, request: Request<impl Body>) -> impl Future<Output = Response<FromGuest>> {
         let (sender, receiver) = oneshot::channel();
-        let (mut guest, host) = ChannelStream::new();
+        let (guest, mut host) = ChannelStream::new();
 
-        guest.write_message(request).unwrap();
+        host.write_message(request).unwrap();
 
         let message = Message::new(self, guest, sender);
 

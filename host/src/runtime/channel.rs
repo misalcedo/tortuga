@@ -86,6 +86,23 @@ impl ChannelStream {
 
         (client, server)
     }
+
+    pub async fn read_async(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        if self.reader.position() == self.reader.get_ref().len() as u64 {
+            if let Some(bytes) = self.receiver.recv().await {
+                self.reader = Cursor::new(bytes);
+            };
+        }
+
+        self.reader.read(buf)
+    }
+
+    pub async fn write_async(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        match self.sender.send(Vec::from(buf)).await {
+            None => Ok(buf.len()),
+            Some(_) => Ok(0),
+        }
+    }
 }
 
 impl Read for ChannelStream {
@@ -146,5 +163,17 @@ mod tests {
         std::io::copy(&mut client, &mut buffer).unwrap();
 
         assert_eq!(buffer.get_ref().as_slice(), content);
+    }
+
+    #[tokio::test]
+    async fn crossed_async() {
+        let content = b"Hello, World!";
+        let (mut client, mut server) = ChannelStream::new();
+        let mut buffer = vec![0; content.len()];
+
+        client.write_all(content).unwrap();
+        server.read_async(&mut buffer).await.unwrap();
+
+        assert_eq!(buffer.as_slice(), content);
     }
 }
