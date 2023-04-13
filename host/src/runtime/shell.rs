@@ -1,5 +1,4 @@
 use wasmtime::{Caller, InstancePre, Linker, Module, Store};
-use wasmtime_wasi::{WasiCtx, WasiCtxBuilder};
 
 use crate::runtime::channel::ChannelStream;
 use crate::Runtime;
@@ -8,33 +7,24 @@ use crate::runtime::message::Message;
 use crate::runtime::Connection;
 
 pub struct Shell {
-    ctx: Option<WasiCtx>,
     factory: InstancePre<State>,
 }
 
-struct State {
+pub struct State {
     connection: Connection,
-    ctx: Option<WasiCtx>,
 }
 
 impl State {
-    fn new(connection: Connection, ctx: Option<WasiCtx>) -> Self {
-        State { connection, ctx }
+    fn new(connection: Connection) -> Self {
+        State { connection }
     }
 }
 
 impl Shell {
-    pub fn new(runtime: &Runtime, code: impl AsRef<[u8]>, plugin: bool) -> Self {
-        let mut ctx = None;
+    pub fn new(runtime: &Runtime, code: impl AsRef<[u8]>) -> Self {
         let mut linker = Linker::new(&runtime.engine);
         let module = Module::new(&runtime.engine, code).unwrap();
         let sender = runtime.channel.0.clone();
-
-        if plugin {
-            wasmtime_wasi::add_to_linker(&mut linker, |s: &mut State| s.ctx.as_mut().unwrap())
-                .unwrap();
-            ctx = Some(WasiCtxBuilder::new().build());
-        }
 
         linker
             .func_wrap3_async(
@@ -103,14 +93,11 @@ impl Shell {
 
         let factory = linker.instantiate_pre(&module).unwrap();
 
-        Shell { factory, ctx }
+        Shell { factory }
     }
 
     pub async fn execute(&mut self, stream: ChannelStream) {
-        let connection = Connection::new(stream);
-        let ctx = self.ctx.take();
-
-        let mut state = State::new(connection, ctx);
+        let state = State::new(Connection::new(stream));
         let mut store = Store::new(self.factory.module().engine(), state);
 
         store.add_fuel(1000).unwrap();
@@ -124,9 +111,5 @@ impl Shell {
             .call_async(&mut store, (0, 0))
             .await
             .unwrap();
-
-        state = store.into_data();
-
-        self.ctx = state.ctx;
     }
 }

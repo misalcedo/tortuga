@@ -54,7 +54,7 @@ impl Runtime {
         let plugin = Plugin::new(self.channel.0.clone());
 
         self.plugins.insert(plugin.as_ref().clone(), plugin.clone());
-        self.compile(&plugin, code, true);
+        self.compile(&plugin, code);
         self.shells.get_mut(plugin.as_ref()).unwrap();
 
         plugin
@@ -64,13 +64,13 @@ impl Runtime {
         let guest = Guest::new(self.channel.0.clone());
 
         self.guests.insert(guest.as_ref().clone(), guest.clone());
-        self.compile(&guest, code, false);
+        self.compile(&guest, code);
 
         guest
     }
 
     pub async fn run(&mut self) {
-        while let Ok(mut message) = self.channel.1.try_recv() {
+        if let Ok(mut message) = self.channel.1.try_recv() {
             let shell = self.shells.get_mut(&message.to().unwrap()).unwrap();
 
             shell.execute(message.take_body()).await;
@@ -87,13 +87,8 @@ impl Runtime {
         }
     }
 
-    fn compile(
-        &mut self,
-        identifier: impl AsRef<Identifier>,
-        code: impl AsRef<[u8]>,
-        plugin: bool,
-    ) {
-        let shell = Shell::new(&self, code, plugin);
+    fn compile(&mut self, identifier: impl AsRef<Identifier>, code: impl AsRef<[u8]>) {
+        let shell = Shell::new(&self, code);
 
         self.shells.insert(identifier.as_ref().clone(), shell);
     }
