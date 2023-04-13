@@ -91,8 +91,8 @@ impl Shell {
                 Box::new(async move {
                     let (guest, host) = ChannelStream::new();
 
-                    caller.data_mut().connection.add_stream(guest);
-                    sender.send(Message::from(host)).await;
+                    sender.send(Message::from(guest)).await;
+                    caller.data_mut().connection.add_stream(host)
                 })
             })
             .unwrap();
@@ -110,14 +110,15 @@ impl Shell {
         let mut store = Store::new(self.factory.module().engine(), state);
 
         store.add_fuel(1000).unwrap();
-        store.out_of_fuel_async_yield(1000, 1000);
+        store.out_of_fuel_async_yield(10000, 1000);
 
         let instance = self.factory.instantiate_async(&mut store).await.unwrap();
 
         instance
             .get_typed_func::<(i32, i32), i32>(&mut store, "main")
             .unwrap()
-            .call(&mut store, (0, 0))
+            .call_async(&mut store, (0, 0))
+            .await
             .unwrap();
 
         state = store.into_data();

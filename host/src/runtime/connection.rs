@@ -28,8 +28,9 @@ impl Connection {
         }
     }
 
-    pub fn add_stream(&mut self, stream: ChannelStream) {
+    pub fn add_stream(&mut self, stream: ChannelStream) -> u64 {
         self.streams.push(stream);
+        self.streams.len() as u64
     }
 
     pub fn response(self) -> Response<FromGuest> {

@@ -1,6 +1,8 @@
 use crate::runtime::channel::ChannelStream;
+use crate::runtime::connection::FromGuest;
 use crate::runtime::Identifier;
 use tokio::sync::oneshot;
+use tortuga_guest::{Response, Source};
 
 #[derive(Debug)]
 pub struct Message {
@@ -44,5 +46,14 @@ impl Message {
 
     pub fn take_body(&mut self) -> ChannelStream {
         self.body.take().unwrap()
+    }
+
+    pub async fn await_response(
+        receiver: oneshot::Receiver<()>,
+        host: ChannelStream,
+    ) -> Response<FromGuest> {
+        receiver.await.unwrap();
+
+        host.read_message().unwrap()
     }
 }

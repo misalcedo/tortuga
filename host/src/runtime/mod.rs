@@ -50,8 +50,8 @@ impl Default for Runtime {
 }
 
 impl Runtime {
-    pub fn load_plugin(&mut self, uri: impl Into<String>, code: impl AsRef<[u8]>) -> Plugin {
-        let plugin = Plugin::new(uri.into(), self.channel.0.clone());
+    pub fn load_plugin(&mut self, code: impl AsRef<[u8]>) -> Plugin {
+        let plugin = Plugin::new(self.channel.0.clone());
 
         self.plugins.insert(plugin.as_ref().clone(), plugin.clone());
         self.compile(&plugin, code, true);
@@ -60,8 +60,8 @@ impl Runtime {
         plugin
     }
 
-    pub fn welcome_guest(&mut self, uri: impl Into<String>, code: impl AsRef<[u8]>) -> Guest {
-        let guest = Guest::new(uri.into(), self.channel.0.clone());
+    pub fn welcome_guest(&mut self, code: impl AsRef<[u8]>) -> Guest {
+        let guest = Guest::new(self.channel.0.clone());
 
         self.guests.insert(guest.as_ref().clone(), guest.clone());
         self.compile(&guest, code, false);
@@ -115,8 +115,12 @@ mod tests {
         let request = Request::new(Method::Get, "/", Cursor::new(body.to_vec()));
         let response = Response::new(Status::Created, Cursor::new(body.to_vec()));
 
-        let guest = runtime.welcome_guest("/".to_string(), code);
-        let mut actual = guest.execute(request).await;
+        let guest = runtime.welcome_guest(code);
+        let actual = guest.queue(request);
+
+        runtime.run().await;
+
+        let mut actual = actual.await;
         let mut buffer = Cursor::new(Vec::new());
 
         std::io::copy(actual.body(), &mut buffer).unwrap();
@@ -132,13 +136,13 @@ mod tests {
         let body = b"PONG!";
 
         let mut runtime = Runtime::default();
-        let ping = runtime.welcome_guest("/ping", ping_code);
+        let ping = runtime.welcome_guest(ping_code);
 
-        runtime.welcome_guest("/pong", pong_code);
+        runtime.welcome_guest(pong_code);
 
         let request = Request::new(Method::Get, "/ping".to_string(), Cursor::new(body.to_vec()));
         let response = Response::new(Status::Ok, Cursor::new(body.to_vec()));
-        let actual = ping.execute(request);
+        let actual = ping.queue(request);
 
         runtime.run().await;
 

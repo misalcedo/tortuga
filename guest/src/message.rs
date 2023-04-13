@@ -9,13 +9,11 @@ pub trait Body: Read {
 
 impl<B: Read + Seek> Body for B {
     fn len(&mut self) -> Option<usize> {
-        let position = self.stream_position().ok()?;
-
         self.seek(SeekFrom::End(0)).ok()?;
 
         let length = self.stream_position().ok()?;
 
-        self.seek(SeekFrom::Start(position)).ok()?;
+        self.seek(SeekFrom::Start(0)).ok()?;
 
         Some(length as usize)
     }
