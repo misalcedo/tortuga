@@ -77,6 +77,8 @@ impl Body for ChannelStream {
     }
 }
 
+pub struct PeekingReader<'a>(&'a mut ChannelStream);
+
 impl ChannelStream {
     pub fn new() -> (Self, Self) {
         let mut client = Self::default();
@@ -102,6 +104,22 @@ impl ChannelStream {
             None => Ok(buf.len()),
             Some(_) => Ok(0),
         }
+    }
+
+    pub fn peek(&mut self) -> PeekingReader {
+        PeekingReader(self)
+    }
+}
+
+impl<'a> Read for PeekingReader<'a> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        if self.0.reader.position() == self.0.reader.get_ref().len() as u64 {
+            if let Ok(bytes) = self.0.receiver.try_recv() {
+                self.0.reader.get_mut().extend_from_slice(bytes.as_slice());
+            };
+        }
+
+        self.0.reader.read(buf)
     }
 }
 

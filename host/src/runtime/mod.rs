@@ -7,11 +7,12 @@ use wasmtime::{Config, Engine};
 pub use connection::Connection;
 
 use channel::{new_channel, Receiver, Sender};
-use guest::Guest;
+pub use guest::Guest;
 pub use identifier::Identifier;
 use message::Message;
-use plugin::Plugin;
+pub use router::Router;
 pub use shell::Shell;
+use tortuga_guest::{Request, Source};
 pub use uri::Uri;
 
 mod channel;
@@ -19,21 +20,25 @@ mod connection;
 mod guest;
 mod identifier;
 mod message;
-mod plugin;
 mod router;
 mod shell;
 mod uri;
 
 pub struct Runtime {
     engine: Engine,
-    guests: HashMap<Identifier, Guest>,
-    plugins: HashMap<Identifier, Plugin>,
+    router: Router,
     shells: HashMap<Identifier, Shell>,
     channel: (Sender<Message>, Receiver<Message>),
 }
 
 impl Default for Runtime {
     fn default() -> Self {
+        Runtime::from(Router::default())
+    }
+}
+
+impl From<Router> for Runtime {
+    fn from(router: Router) -> Self {
         let mut configuration = Config::new();
 
         configuration.async_support(true);
@@ -43,8 +48,7 @@ impl Default for Runtime {
 
         Runtime {
             engine,
-            guests: Default::default(),
-            plugins: Default::default(),
+            router,
             shells: Default::default(),
             channel: new_channel(),
         }
@@ -52,29 +56,36 @@ impl Default for Runtime {
 }
 
 impl Runtime {
-    pub fn load_plugin(&mut self, code: impl AsRef<[u8]>) -> Plugin {
-        let plugin = Plugin::new(self.channel.0.clone());
-
-        self.plugins.insert(plugin.as_ref().clone(), plugin.clone());
-        self.compile(&plugin, code);
-        self.shells.get_mut(plugin.as_ref()).unwrap();
-
-        plugin
+    pub fn router(&self) -> Router {
+        self.router.clone()
     }
 
     pub fn welcome_guest(&mut self, code: impl AsRef<[u8]>) -> Guest {
         let guest = Guest::new(self.channel.0.clone());
+        let shell = Shell::new(&self, code);
 
-        self.guests.insert(guest.as_ref().clone(), guest.clone());
-        self.compile(&guest, code);
+        self.shells.insert(guest.identifier(), shell);
 
         guest
     }
 
     pub async fn run(&mut self) {
         if let Some(mut message) = self.channel.1.recv().await {
-            let shell = self.shells.get(&message.to().unwrap()).cloned().unwrap();
-            let stream = message.take_body();
+            let mut stream = message.take_body();
+            let identifier = match message.to() {
+                Some(identifier) => identifier,
+                None => {
+                    let reader = stream.peek();
+                    let response: Request<_> = reader.read_message().unwrap();
+
+                    self.router
+                        .route(response.method(), response.uri())
+                        .unwrap()
+                        .identifier()
+                }
+            };
+
+            let shell = self.shells.get(&identifier).unwrap().clone();
             let root_handle = tokio::spawn(async move {
                 shell.execute(stream).await;
                 message.complete();
@@ -120,12 +131,6 @@ impl Runtime {
             });
             tokio::task::yield_now().await;
         }
-    }
-
-    fn compile(&mut self, identifier: impl AsRef<Identifier>, code: impl AsRef<[u8]>) {
-        let shell = Shell::new(&self, code);
-
-        self.shells.insert(identifier.as_ref().clone(), shell);
     }
 }
 

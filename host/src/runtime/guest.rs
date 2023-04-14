@@ -28,6 +28,10 @@ impl Guest {
         }
     }
 
+    pub fn identifier(&self) -> Identifier {
+        self.identifier
+    }
+
     pub fn queue(&self, request: Request<impl Body>) -> impl Future<Output = Response<FromGuest>> {
         let (sender, receiver) = oneshot::channel();
         let (guest, mut host) = ChannelStream::new();

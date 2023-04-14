@@ -1,10 +1,11 @@
-use crate::runtime::{Identifier, Uri};
+use crate::runtime::Guest;
+use crate::runtime::Uri;
 use std::collections::HashMap;
-use std::sync::{Arc, LockResult, RwLock};
+use std::sync::{Arc, RwLock};
 use tortuga_guest::Method;
 
-#[derive(Clone, Debug, Hash)]
-pub struct Route {
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+struct Route {
     method: Method,
     uri: Uri,
 }
@@ -20,7 +21,7 @@ impl Route {
 
 #[derive(Clone, Debug, Default)]
 pub struct Router {
-    routes: Arc<RwLock<HashMap<Route, Identifier>>>,
+    routes: Arc<RwLock<HashMap<Route, Guest>>>,
 }
 
 impl Router {
@@ -28,8 +29,8 @@ impl Router {
         &mut self,
         method: impl Into<Method>,
         uri: impl Into<Uri>,
-        identifier: impl Into<Identifier>,
-    ) -> Option<Identifier> {
+        guest: Guest,
+    ) -> Option<Guest> {
         let mut routes = match self.routes.write() {
             Ok(routes) => routes,
             Err(mut e) => {
@@ -39,10 +40,10 @@ impl Router {
         };
         let route = Route::new(method, uri);
 
-        routes.insert(route, identifier.into())
+        routes.insert(route, guest)
     }
 
-    pub fn route(&self, method: impl Into<Method>, uri: impl Into<Uri>) -> Option<Identifier> {
+    pub fn route(&self, method: impl Into<Method>, uri: impl Into<Uri>) -> Option<Guest> {
         let routes = self.routes.read().ok()?;
         let route = Route::new(method, uri);
 
