@@ -1,5 +1,5 @@
 /// See https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
-#[derive(Debug, Default, Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
+#[derive(Debug, Default, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]
 #[repr(u16)]
 pub enum Status {
     NoResponse = 0,

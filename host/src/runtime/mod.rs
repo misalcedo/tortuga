@@ -20,6 +20,7 @@ mod guest;
 mod identifier;
 mod message;
 mod plugin;
+mod router;
 mod shell;
 mod uri;
 
@@ -86,6 +87,7 @@ impl Runtime {
                     .any(|handle: &JoinHandle<()>| !handle.is_finished())
             {
                 if let Ok(mut child_message) = self.channel.1.try_recv() {
+                    // TODO: map URI to identifier.
                     let child_shell = self
                         .shells
                         .get(&child_message.to().unwrap())

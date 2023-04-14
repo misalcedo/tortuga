@@ -4,7 +4,7 @@
 /// e.g. a request method can be safe, idempotent, or cacheable.
 ///
 /// See https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods
-#[derive(Debug, Default, Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
+#[derive(Debug, Default, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]
 #[repr(u8)]
 pub enum Method {
     /// The `GET` method requests a representation of the specified resource. Requests using GET should only retrieve data.
@@ -25,7 +25,7 @@ pub enum Method {
     /// The `TRACE` method performs a message loop-back test along the path to the target resource.
     Trace = 7,
     /// The `PATCH` method applies partial modifications to a resource.
-    Patch = 8
+    Patch = 8,
 }
 
 impl From<Method> for u8 {
@@ -48,7 +48,7 @@ impl TryFrom<u8> for Method {
             6 => Ok(Method::Options),
             7 => Ok(Method::Trace),
             8 => Ok(Method::Patch),
-            _ => Err(method)
+            _ => Err(method),
         }
     }
 }
