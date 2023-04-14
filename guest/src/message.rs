@@ -7,6 +7,12 @@ pub trait Body: Read {
     fn len(&mut self) -> Option<usize>;
 }
 
+impl<R: Read> Body for FrameIo<R> {
+    fn len(&mut self) -> Option<usize> {
+        Some(self.length)
+    }
+}
+
 impl<B: Read + Seek> Body for B {
     fn len(&mut self) -> Option<usize> {
         self.seek(SeekFrom::End(0)).ok()?;
