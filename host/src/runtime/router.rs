@@ -29,7 +29,7 @@ impl Router {
         &mut self,
         method: impl Into<Method>,
         uri: impl Into<Uri>,
-        guest: Guest,
+        guest: &Guest,
     ) -> Option<Guest> {
         let mut routes = match self.routes.write() {
             Ok(routes) => routes,
@@ -40,7 +40,7 @@ impl Router {
         };
         let route = Route::new(method, uri);
 
-        routes.insert(route, guest)
+        routes.insert(route, guest.clone())
     }
 
     pub fn route(&self, method: impl Into<Method>, uri: impl Into<Uri>) -> Option<Guest> {

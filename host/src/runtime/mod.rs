@@ -33,12 +33,6 @@ pub struct Runtime {
 
 impl Default for Runtime {
     fn default() -> Self {
-        Runtime::from(Router::default())
-    }
-}
-
-impl From<Router> for Runtime {
-    fn from(router: Router) -> Self {
         let mut configuration = Config::new();
 
         configuration.async_support(true);
@@ -48,7 +42,7 @@ impl From<Router> for Runtime {
 
         Runtime {
             engine,
-            router,
+            router: Default::default(),
             shells: Default::default(),
             channel: new_channel(),
         }
@@ -71,23 +65,9 @@ impl Runtime {
 
     pub async fn run(&mut self) {
         if let Some(mut message) = self.channel.1.recv().await {
-            let mut stream = message.take_body();
-            let identifier = match message.to() {
-                Some(identifier) => identifier,
-                None => {
-                    let reader = stream.peek();
-                    let response: Request<_> = reader.read_message().unwrap();
-
-                    self.router
-                        .route(response.method(), response.uri())
-                        .unwrap()
-                        .identifier()
-                }
-            };
-
-            let shell = self.shells.get(&identifier).unwrap().clone();
+            let shell = self.route(&mut message);
             let root_handle = tokio::spawn(async move {
-                shell.execute(stream).await;
+                shell.execute(message.take_body()).await;
                 message.complete();
             });
             let mut child_handles = Vec::new();
@@ -98,16 +78,10 @@ impl Runtime {
                     .any(|handle: &JoinHandle<()>| !handle.is_finished())
             {
                 if let Ok(mut child_message) = self.channel.1.try_recv() {
-                    // TODO: map URI to identifier.
-                    let child_shell = self
-                        .shells
-                        .get(&child_message.to().unwrap())
-                        .cloned()
-                        .unwrap();
-                    let child_stream = child_message.take_body();
+                    let child_shell = self.route(&mut child_message);
 
                     child_handles.push(tokio::spawn(async move {
-                        child_shell.execute(child_stream).await;
+                        child_shell.execute(child_message.take_body()).await;
                         child_message.complete();
                     }));
                 }
@@ -117,20 +91,21 @@ impl Runtime {
         }
     }
 
-    pub async fn start(mut self) {
-        while let Some(mut message) = self.channel.1.recv().await {
-            let shell = self
-                .shells
-                .get_mut(&message.to().unwrap())
-                .cloned()
-                .unwrap();
+    fn route(&mut self, message: &mut Message) -> Shell {
+        let identifier = match message.to() {
+            Some(identifier) => identifier,
+            None => {
+                let reader = message.body().peek();
+                let response: Request<_> = reader.read_message().unwrap();
 
-            tokio::spawn(async move {
-                shell.execute(message.take_body()).await;
-                message.complete();
-            });
-            tokio::task::yield_now().await;
-        }
+                self.router
+                    .route(response.method(), response.uri())
+                    .unwrap()
+                    .identifier()
+            }
+        };
+
+        self.shells.get(&identifier).cloned().unwrap()
     }
 }
 
@@ -171,9 +146,12 @@ mod tests {
         let body = b"PONG!";
 
         let mut runtime = Runtime::default();
+        let mut router = runtime.router();
         let ping = runtime.welcome_guest(ping_code);
+        let pong = runtime.welcome_guest(pong_code);
 
-        runtime.welcome_guest(pong_code);
+        router.define(Method::Get, "/ping", &ping);
+        router.define(Method::Get, "/pong", &pong);
 
         let request = Request::new(Method::Get, "/ping".to_string(), Cursor::new(body.to_vec()));
         let response = Response::new(Status::Ok, Cursor::new(body.to_vec()));

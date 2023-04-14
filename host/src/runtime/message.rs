@@ -44,6 +44,10 @@ impl Message {
         }
     }
 
+    pub fn body(&mut self) -> &mut ChannelStream {
+        self.body.as_mut().unwrap()
+    }
+
     pub fn take_body(&mut self) -> ChannelStream {
         self.body.take().unwrap()
     }
