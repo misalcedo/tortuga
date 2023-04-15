@@ -4,7 +4,7 @@ use crate::runtime::channel::ChannelStream;
 use crate::Runtime;
 
 use crate::runtime::message::Message;
-use crate::runtime::Connection;
+use crate::runtime::{Connection, Identifier};
 
 #[derive(Clone)]
 pub struct Shell {
@@ -22,7 +22,7 @@ impl State {
 }
 
 impl Shell {
-    pub fn new(runtime: &Runtime, code: impl AsRef<[u8]>) -> Self {
+    pub fn new(runtime: &Runtime, code: impl AsRef<[u8]>, identifier: Identifier) -> Self {
         let mut linker = Linker::new(&runtime.engine);
         let module = Module::new(&runtime.engine, code).unwrap();
         let sender = runtime.channel.0.clone();
@@ -31,7 +31,7 @@ impl Shell {
             .func_wrap3_async(
                 "stream",
                 "read",
-                |mut caller: Caller<'_, State>, stream: u64, pointer: u32, length: u32| {
+                move |mut caller: Caller<'_, State>, stream: u64, pointer: u32, length: u32| {
                     Box::new(async move {
                         let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
                         let (data, state): (&mut [u8], &mut State) =
@@ -46,7 +46,15 @@ impl Shell {
                             .read_async(buffer)
                             .await
                         {
-                            Ok(bytes) => bytes as i64,
+                            Ok(bytes) => {
+                                println!(
+                                    "Reading bytes from stream {} of {:?}: {:?}",
+                                    stream,
+                                    identifier,
+                                    String::from_utf8_lossy(buffer)
+                                );
+                                bytes as i64
+                            }
                             Err(_) => -1,
                         }
                     })
@@ -57,7 +65,7 @@ impl Shell {
             .func_wrap3_async(
                 "stream",
                 "write",
-                |mut caller: Caller<'_, State>, stream: u64, pointer: u32, length: u32| {
+                move |mut caller: Caller<'_, State>, stream: u64, pointer: u32, length: u32| {
                     Box::new(async move {
                         let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
                         let (data, state): (&mut [u8], &mut State) =
@@ -65,6 +73,12 @@ impl Shell {
                         let buffer =
                             &data[..(pointer as usize + length as usize)][pointer as usize..];
 
+                        println!(
+                            "Writing bytes to stream {} of {:?}: {:?}",
+                            stream,
+                            identifier,
+                            String::from_utf8_lossy(buffer)
+                        );
                         match state
                             .connection
                             .stream(stream)
@@ -84,10 +98,10 @@ impl Shell {
                 let sender = sender.clone();
 
                 Box::new(async move {
-                    let (guest, host) = ChannelStream::new();
+                    let (client, server) = ChannelStream::new();
 
-                    sender.send(Message::from(guest)).await;
-                    caller.data_mut().connection.add_stream(host)
+                    sender.send(Message::from(server)).await;
+                    caller.data_mut().connection.add_stream(client)
                 })
             })
             .unwrap();
@@ -102,7 +116,7 @@ impl Shell {
         let mut store = Store::new(self.factory.module().engine(), state);
 
         store.add_fuel(1000).unwrap();
-        store.out_of_fuel_async_yield(10000, 1000);
+        store.out_of_fuel_async_yield(100000000, 1000);
 
         let instance = self.factory.instantiate_async(&mut store).await.unwrap();
 

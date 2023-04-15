@@ -77,8 +77,6 @@ impl Body for ChannelStream {
     }
 }
 
-pub struct PeekingReader<'a>(&'a mut ChannelStream);
-
 impl ChannelStream {
     pub fn new() -> (Self, Self) {
         let mut client = Self::default();
@@ -107,7 +105,16 @@ impl ChannelStream {
     }
 
     pub fn peek(&mut self) -> PeekingReader {
-        PeekingReader(self)
+        PeekingReader(self, self.reader.position())
+    }
+}
+
+#[derive(Debug)]
+pub struct PeekingReader<'a>(&'a mut ChannelStream, u64);
+
+impl<'a> Drop for PeekingReader<'a> {
+    fn drop(&mut self) {
+        self.0.reader.set_position(self.1);
     }
 }
 
@@ -161,6 +168,49 @@ mod tests {
         stream.write_all(content).unwrap();
         std::io::copy(&mut stream, &mut buffer).unwrap();
 
+        assert_eq!(buffer.get_ref().as_slice(), content);
+    }
+
+    #[test]
+    fn peek_partial() {
+        let content = b"Hello, World!";
+        let mut stream = ChannelStream::default();
+        let mut buffer = [0u8; 7];
+
+        stream.write_all(content).unwrap();
+
+        let bytes = stream.read(&mut buffer).unwrap();
+        let partial = &content[bytes..];
+
+        assert_eq!(&buffer[..bytes], &content[..bytes]);
+
+        let mut buffer = Cursor::new(Vec::new());
+
+        std::io::copy(&mut stream.peek(), &mut buffer).unwrap();
+
+        assert_eq!(buffer.get_ref().as_slice(), partial);
+
+        let mut buffer = Cursor::new(Vec::new());
+
+        std::io::copy(&mut stream, &mut buffer).unwrap();
+
+        assert_eq!(buffer.get_ref().as_slice(), partial);
+    }
+
+    #[test]
+    fn write_peek_read() {
+        let content = b"Hello, World!";
+        let mut stream = ChannelStream::default();
+        let mut buffer = Cursor::new(Vec::new());
+
+        stream.write_all(content).unwrap();
+        std::io::copy(&mut stream.peek(), &mut buffer).unwrap();
+
+        assert_eq!(buffer.get_ref().as_slice(), content);
+
+        let mut buffer = Cursor::new(Vec::new());
+
+        std::io::copy(&mut stream, &mut buffer).unwrap();
         assert_eq!(buffer.get_ref().as_slice(), content);
     }
 

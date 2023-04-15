@@ -34,14 +34,14 @@ impl Guest {
 
     pub fn queue(&self, request: Request<impl Body>) -> impl Future<Output = Response<FromGuest>> {
         let (sender, receiver) = oneshot::channel();
-        let (guest, mut host) = ChannelStream::new();
+        let (mut client, server) = ChannelStream::new();
 
-        host.write_message(request).unwrap();
+        client.write_message(request).unwrap();
 
-        let message = Message::new(self, guest, sender);
+        let message = Message::new(self, server, sender);
 
         self.sender.try_send(message).ok_or(()).err().unwrap();
 
-        Message::await_response(receiver, host)
+        Message::await_response(receiver, client)
     }
 }

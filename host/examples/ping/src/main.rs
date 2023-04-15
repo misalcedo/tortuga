@@ -1,8 +1,8 @@
 use std::io;
-use std::io::Cursor;
-use tortuga_guest::{Body, Destination, FromHost, Method, Request, Response, Source, Stream};
+use std::io::{Cursor, Read};
+use tortuga_guest::{Body, Destination, Method, Request, Response, Source, Stream};
 
-fn run(_: Request<FromHost>) -> Result<Response<impl Body>, io::Error> {
+fn run(_: Request<impl Read>) -> Result<Response<impl Body>, io::Error> {
     let mut stream = Stream::new();
     let request = Request::new(Method::Get, "/pong", Cursor::new(b"PING!".to_vec()));
 
