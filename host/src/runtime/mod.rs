@@ -56,7 +56,7 @@ impl Runtime {
 
     pub fn welcome_guest(&mut self, code: impl AsRef<[u8]>) -> Guest {
         let guest = Guest::new(self.channel.0.clone());
-        let shell = Shell::new(&self, code, guest.identifier());
+        let shell = Shell::new(&self, code);
 
         self.shells.insert(guest.identifier(), shell);
 
@@ -105,8 +105,6 @@ impl Runtime {
             }
         };
 
-        println!("Routing request to {:?}", identifier);
-
         self.shells.get(&identifier).cloned().unwrap()
     }
 }
@@ -152,8 +150,6 @@ mod tests {
         let ping = runtime.welcome_guest(ping_code);
         let pong = runtime.welcome_guest(pong_code);
 
-        println!("PONG ID: {:?}", pong.identifier());
-
         router.define(Method::Get, "/ping", &ping);
         router.define(Method::Get, "/pong", &pong);
 
@@ -168,10 +164,6 @@ mod tests {
 
         std::io::copy(actual.body(), &mut buffer).unwrap();
 
-        println!(
-            "Buffer: {:?}",
-            String::from_utf8_lossy(buffer.get_ref().as_slice())
-        );
         assert_eq!(actual, response);
         assert_eq!(buffer.get_ref().as_slice(), body);
     }

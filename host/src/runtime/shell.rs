@@ -4,7 +4,7 @@ use crate::runtime::channel::ChannelStream;
 use crate::Runtime;
 
 use crate::runtime::message::Message;
-use crate::runtime::{Connection, Identifier};
+use crate::runtime::Connection;
 
 #[derive(Clone)]
 pub struct Shell {
@@ -22,7 +22,7 @@ impl State {
 }
 
 impl Shell {
-    pub fn new(runtime: &Runtime, code: impl AsRef<[u8]>, identifier: Identifier) -> Self {
+    pub fn new(runtime: &Runtime, code: impl AsRef<[u8]>) -> Self {
         let mut linker = Linker::new(&runtime.engine);
         let module = Module::new(&runtime.engine, code).unwrap();
         let sender = runtime.channel.0.clone();
@@ -46,15 +46,7 @@ impl Shell {
                             .read_async(buffer)
                             .await
                         {
-                            Ok(bytes) => {
-                                println!(
-                                    "Reading bytes from stream {} of {:?}: {:?}",
-                                    stream,
-                                    identifier,
-                                    String::from_utf8_lossy(buffer)
-                                );
-                                bytes as i64
-                            }
+                            Ok(bytes) => bytes as i64,
                             Err(_) => -1,
                         }
                     })
@@ -73,12 +65,6 @@ impl Shell {
                         let buffer =
                             &data[..(pointer as usize + length as usize)][pointer as usize..];
 
-                        println!(
-                            "Writing bytes to stream {} of {:?}: {:?}",
-                            stream,
-                            identifier,
-                            String::from_utf8_lossy(buffer)
-                        );
                         match state
                             .connection
                             .stream(stream)
