@@ -1,0 +1,13 @@
+[package]
+name = "tortuga"
+description = "Compiler and runtime for the Tortuga programming language."
+version = "0.6.0"
+authors = ["Miguel D. Salcedo <miguel@salcedo.cc>"]
+edition = "2021"
+license = "Apache-2.0"
+homepage = "https://tortuga.salcedo.cc"
+repository = "https://github.com/misalcedo/tortuga"
+documentation = "https://docs.rs/tortuga"
+
+[dependencies]
+tortuga-host = { version = "0.1.1", path = "../host" }

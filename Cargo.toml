@@ -3,6 +3,7 @@
 members = [
     "guest",
     "host",
+    "cli"
 ]
 
 [profile.release]
