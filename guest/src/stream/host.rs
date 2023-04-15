@@ -1,45 +1,15 @@
 use std::io::{ErrorKind, Read, Write};
 use std::marker::PhantomData;
 
+use crate::stream::{Readable, Writable};
+use crate::{Bidirectional, ReadOnly, WriteOnly};
+
 #[link(wasm_import_module = "stream")]
 extern "C" {
     pub fn start() -> u64;
     pub fn read(stream: u64, buffer: *mut u8, length: u32) -> i64;
     pub fn write(stream: u64, buffer: *const u8, length: u32) -> i64;
 }
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum Bidirectional {}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum ReadOnly {}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum WriteOnly {}
-
-pub trait Readable: private::Sealed {}
-
-pub trait Writable: private::Sealed {}
-
-mod private {
-    use super::{Bidirectional, ReadOnly, WriteOnly};
-
-    pub trait Sealed {}
-
-    impl Sealed for Bidirectional {}
-
-    impl Sealed for ReadOnly {}
-
-    impl Sealed for WriteOnly {}
-}
-
-impl Readable for Bidirectional {}
-
-impl Readable for ReadOnly {}
-
-impl Writable for Bidirectional {}
-
-impl Writable for WriteOnly {}
 
 #[derive(Debug)]
 pub struct Stream<Directionality> {
