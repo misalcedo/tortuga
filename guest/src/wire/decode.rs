@@ -126,7 +126,7 @@ where
     }
 
     fn finish(self) -> R {
-        self.consume_body().finish()
+        self.into_body().finish()
     }
 }
 

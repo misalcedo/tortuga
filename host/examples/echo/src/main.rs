@@ -1,15 +1,34 @@
 use std::io;
-use std::io::Read;
 use tortuga_guest::{Body, Request, Response, Status};
 
-fn run(mut request: Request<impl Read>) -> Result<Response<impl Body>, io::Error> {
-    let mut response = Response::from(Status::Created);
-
-    io::copy(request.body(), response.body())?;
-
-    Ok(response)
+fn run(request: Request<impl Body>) -> Result<Response<impl Body>, io::Error> {
+    Ok(Response::new(Status::Created, request.into_body()))
 }
 
 fn main() {
     tortuga_guest::invoke(run)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Cursor;
+    use tortuga_guest::Method;
+
+    #[test]
+    fn in_memory() {
+        let body = b"Hellow, World!";
+        let request = Request::new(Method::Post, "/echo", Cursor::new(Vec::from(&body[..])));
+        let expected = Response::new(Status::Created, Cursor::new(Vec::from(&body[..])));
+
+        let mut response = run(request).unwrap();
+
+        assert_eq!(response, expected);
+
+        let mut buffer = Cursor::new(Vec::new());
+
+        std::io::copy(response.body(), &mut buffer).unwrap();
+
+        assert_eq!(buffer.get_ref().as_slice(), body);
+    }
 }

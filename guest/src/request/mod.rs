@@ -38,7 +38,7 @@ impl<B> Request<B> {
         &mut self.body
     }
 
-    pub fn consume_body(self) -> B {
+    pub fn into_body(self) -> B {
         self.body
     }
 }

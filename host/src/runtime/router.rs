@@ -6,14 +6,23 @@ use tortuga_guest::Method;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 struct Route {
-    method: Method,
+    method: Option<Method>,
     uri: Uri,
+}
+
+impl<U: Into<Uri>> From<U> for Route {
+    fn from(value: U) -> Self {
+        Route {
+            method: None,
+            uri: value.into(),
+        }
+    }
 }
 
 impl Route {
     pub fn new(method: impl Into<Method>, uri: impl Into<Uri>) -> Self {
         Route {
-            method: method.into(),
+            method: Some(method.into()),
             uri: uri.into(),
         }
     }
@@ -24,6 +33,8 @@ pub struct Router {
     routes: Arc<RwLock<HashMap<Route, Guest>>>,
 }
 
+// TODO: Add support for any method.
+// TODO: Add support for prefix match.
 impl Router {
     pub fn define(
         &mut self,

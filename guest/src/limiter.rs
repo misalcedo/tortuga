@@ -7,6 +7,7 @@ pub struct IoLimiter<IO> {
 }
 
 impl<IO> IoLimiter<IO> {
+    // TODO: Limit new instances to just those that are read or write.
     pub fn new(io: IO, length: usize) -> Self {
         IoLimiter { length, io }
     }

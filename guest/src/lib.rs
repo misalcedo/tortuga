@@ -20,9 +20,13 @@ mod response;
 mod stream;
 pub(crate) mod wire;
 
-pub type FromHost = FrameIo<Stream<ReadOnly>>;
+type FromHost = FrameIo<Stream<ReadOnly>>;
 
-pub fn invoke<B: Body, E: Error>(entrypoint: fn(Request<FromHost>) -> Result<Response<B>, E>) {
+pub fn invoke<B, E>(entrypoint: fn(Request<FromHost>) -> Result<Response<B>, E>)
+where
+    B: Body,
+    E: Error,
+{
     let (reader, mut writer) = Stream::primary().split();
     let request: Request<FromHost> = reader
         .read_message()

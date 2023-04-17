@@ -1,27 +1,35 @@
+use std::fmt::Debug;
+use std::fs::File;
+use std::io::{self, Cursor, ErrorKind, Read, Write};
+
 use crate::frame::FrameType;
 use crate::wire::{Decode, Encode};
 use crate::{Frame, IoLimiter};
-use std::io::{self, ErrorKind, Read, Seek, SeekFrom, Write};
 
 pub trait Body: Read {
-    fn len(&mut self) -> Option<usize>;
+    fn len(&mut self) -> Option<usize> {
+        None
+    }
 }
 
-impl<R: Read> Body for FrameIo<R> {
+impl<R> Body for FrameIo<R>
+where
+    R: Read,
+{
     fn len(&mut self) -> Option<usize> {
         Some(self.length)
     }
 }
 
-impl<B: Read + Seek> Body for B {
+impl Body for Cursor<Vec<u8>> {
     fn len(&mut self) -> Option<usize> {
-        self.seek(SeekFrom::End(0)).ok()?;
+        Some(self.get_ref().len())
+    }
+}
 
-        let length = self.stream_position().ok()?;
-
-        self.seek(SeekFrom::Start(0)).ok()?;
-
-        Some(length as usize)
+impl Body for File {
+    fn len(&mut self) -> Option<usize> {
+        Some(self.metadata().ok()?.len() as usize)
     }
 }
 
@@ -32,6 +40,7 @@ pub struct FrameIo<R> {
 }
 
 impl<IO> FrameIo<IO> {
+    // TODO: Limit new instances to just those that are read or write.
     pub fn new(io: IO, length: usize) -> Self {
         FrameIo {
             length,

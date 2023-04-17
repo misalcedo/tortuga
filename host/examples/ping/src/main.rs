@@ -13,3 +13,13 @@ fn run(_: Request<impl Read>) -> Result<Response<impl Body>, io::Error> {
 fn main() {
     tortuga_guest::invoke(run)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn in_memory() {
+        todo!("Need to define the testing story.")
+    }
+}

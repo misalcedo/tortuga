@@ -2,12 +2,21 @@ mod status;
 
 use crate::Body;
 pub use status::Status;
+use std::fmt::{Debug, Formatter};
 use std::io::Cursor;
 
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Default, Copy, Clone)]
 pub struct Response<B> {
     status: u16,
     body: B,
+}
+
+impl<B> Debug for Response<B> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Response")
+            .field("status", &self.status)
+            .finish()
+    }
 }
 
 impl From<Status> for Response<Cursor<Vec<u8>>> {
@@ -35,6 +44,7 @@ impl<B: Body> From<B> for Response<B> {
 }
 
 impl<B> Response<B> {
+    // TODO: Limit new instances to just those that are read or write.
     pub fn new(status: impl Into<u16>, body: B) -> Self {
         Response {
             status: status.into(),
