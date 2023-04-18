@@ -28,6 +28,7 @@ impl Route {
     }
 }
 
+// TODO: Routing is done in the following order: Scheme -> Authority -> Path -> Method
 #[derive(Clone, Debug, Default)]
 pub struct Router {
     routes: Arc<RwLock<HashMap<Route, Guest>>>,

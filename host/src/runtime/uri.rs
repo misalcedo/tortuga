@@ -2,7 +2,7 @@ use std::convert::Infallible;
 use std::str::FromStr;
 
 const SCHEME_SUFFIX: char = ':';
-const AUTHORITY_PREFIX: &'static str = "://";
+const AUTHORITY_PREFIX: &'static str = "//";
 const USER_INFO_SUFFIX: char = '@';
 const PORT_PREFIX: char = ':';
 const PATH_PREFIX: char = '/';
@@ -44,52 +44,85 @@ impl AsRef<str> for Uri {
     }
 }
 
+fn optional<'a, 'b>((head, _): (&'a str, &'b str)) -> Option<&'a str> {
+    if head.is_empty() {
+        None
+    } else {
+        Some(head)
+    }
+}
+
 impl Uri {
     pub fn scheme(&self) -> Option<&str> {
-        let index = self.scheme_location()?;
-
-        Some(self.0.split_at(index).0)
+        optional(self.scheme_split())
     }
 
     pub fn authority(&self) -> Option<Authority> {
-        let start_index = self.authority_location()? + AUTHORITY_PREFIX.len();
-        let rest = &self.0[start_index..];
-
-        match rest.find(&[PATH_PREFIX, QUERY_PREFIX, FRAGMENT_PREFIX]) {
-            None => Some(Authority(rest)),
-            Some(end_index) => Some(Authority(&rest[..end_index])),
-        }
+        Some(Authority(optional(self.authority_split())?))
     }
 
     pub fn path(&self) -> Option<&str> {
-        let rest_start_index = self.authority_location()? + AUTHORITY_PREFIX.len();
-        let rest = &self.0[rest_start_index..];
-
-        let start_index = rest.find(PATH_PREFIX)?;
-
-        match rest.find(&[QUERY_PREFIX, FRAGMENT_PREFIX]) {
-            None => Some(&rest[start_index..]),
-            Some(end_index) => Some(&rest[start_index..end_index]),
-        }
+        optional(self.path_split())
     }
 
     pub fn query(&self) -> Option<&str> {
-        let start_index = self.query_location()? + QUERY_PREFIX.len_utf8();
-
-        match self.fragment_location() {
-            None => Some(&self.0[start_index..]),
-            Some(end_index) => Some(&self.0[start_index..end_index]),
-        }
+        optional(self.query_split())
     }
 
     pub fn fragment(&self) -> Option<&str> {
-        let index = self.fragment_location()? + FRAGMENT_PREFIX.len_utf8();
-
-        Some(self.0.split_at(index).1)
+        self.query_split().1.strip_prefix(FRAGMENT_PREFIX)
     }
 
-    fn scheme_location(&self) -> Option<usize> {
-        self.0.find(SCHEME_SUFFIX)
+    fn scheme_split(&self) -> (&str, &str) {
+        match self.0.find(SCHEME_SUFFIX) {
+            None => (self.empty(), &self.0),
+            Some(index) => {
+                let (scheme, rest) = self.0.split_at(index);
+
+                (scheme, &rest[SCHEME_SUFFIX.len_utf8()..])
+            }
+        }
+    }
+
+    fn authority_split(&self) -> (&str, &str) {
+        let scheme_rest = self.scheme_split().1;
+
+        match scheme_rest.strip_prefix(AUTHORITY_PREFIX) {
+            None => (self.empty(), scheme_rest),
+            Some(rest) => match rest.find(&[PATH_PREFIX, QUERY_PREFIX, FRAGMENT_PREFIX]) {
+                None => (rest, self.empty()),
+                Some(index) => (&rest[..index], &rest[index..]),
+            },
+        }
+    }
+
+    fn path_split(&self) -> (&str, &str) {
+        let rest = self.authority_split().1;
+
+        if rest.starts_with(PATH_PREFIX) {
+            match rest.find(&[QUERY_PREFIX, FRAGMENT_PREFIX]) {
+                None => (rest, self.empty()),
+                Some(index) => (&rest[..index], &rest[index..]),
+            }
+        } else {
+            (self.empty(), rest)
+        }
+    }
+
+    fn query_split(&self) -> (&str, &str) {
+        let scheme_rest = self.path_split().1;
+
+        match scheme_rest.strip_prefix(QUERY_PREFIX) {
+            None => (self.empty(), scheme_rest),
+            Some(rest) => match rest.find(&[FRAGMENT_PREFIX]) {
+                None => (rest, self.empty()),
+                Some(index) => (&rest[..index], &rest[index..]),
+            },
+        }
+    }
+
+    fn empty(&self) -> &str {
+        &self.0[0..0]
     }
 
     fn authority_location(&self) -> Option<usize> {
@@ -107,35 +140,39 @@ impl Uri {
 
 impl<'a> Authority<'a> {
     pub fn user_info(&self) -> Option<UserInfo> {
-        let index = self.user_info_location()?;
-
-        Some(UserInfo(self.0.split_at(index).0))
+        Some(UserInfo(optional(self.user_info_split())?))
     }
 
     pub fn host(&self) -> Option<&str> {
-        let start_index = match self.user_info_location() {
-            None => 0,
-            Some(index) => index + USER_INFO_SUFFIX.len_utf8(),
-        };
-
-        match self.port_location() {
-            None => Some(&self.0[start_index..]),
-            Some(end_index) => Some(&self.0[start_index..end_index]),
-        }
+        optional(self.host_split())
     }
 
     pub fn port(&self) -> Option<&str> {
-        let index = self.port_location()? + PORT_PREFIX.len_utf8();
-
-        Some(self.0.split_at(index).1)
+        self.host_split().1.strip_prefix(PORT_PREFIX)
     }
 
-    fn user_info_location(&self) -> Option<usize> {
-        self.0.find(USER_INFO_SUFFIX)
+    fn user_info_split(&self) -> (&str, &str) {
+        match self.0.find(USER_INFO_SUFFIX) {
+            None => (self.empty(), &self.0),
+            Some(index) => {
+                let (user_info, rest) = self.0.split_at(index);
+
+                (user_info, &rest[SCHEME_SUFFIX.len_utf8()..])
+            }
+        }
     }
 
-    fn port_location(&self) -> Option<usize> {
-        self.0.rfind(PORT_PREFIX)
+    fn host_split(&self) -> (&str, &str) {
+        let rest = self.user_info_split().1;
+
+        match rest.find(PORT_PREFIX) {
+            None => (rest, self.empty()),
+            Some(index) => (&rest[..index], &rest[index..]),
+        }
+    }
+
+    fn empty(&self) -> &str {
+        &self.0[0..0]
     }
 }
 
