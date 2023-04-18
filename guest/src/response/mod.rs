@@ -44,7 +44,6 @@ impl<B: Body> From<B> for Response<B> {
 }
 
 impl<B> Response<B> {
-    // TODO: Limit new instances to just those that are read or write.
     pub fn new(status: impl Into<u16>, body: B) -> Self {
         Response {
             status: status.into(),

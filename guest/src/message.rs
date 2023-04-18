@@ -40,7 +40,6 @@ pub struct FrameIo<R> {
 }
 
 impl<IO> FrameIo<IO> {
-    // TODO: Limit new instances to just those that are read or write.
     pub fn new(io: IO, length: usize) -> Self {
         FrameIo {
             length,
