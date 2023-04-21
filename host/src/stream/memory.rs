@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::io::{self, Cursor, Read, Write};
 use std::sync::{Arc, Mutex};
 
@@ -77,7 +78,7 @@ impl wasm::Stream for Stream {
 
 #[derive(Clone, Debug, Default)]
 pub struct Factory {
-    streams: Arc<Mutex<Vec<Stream>>>,
+    streams: Arc<Mutex<VecDeque<Stream>>>,
 }
 
 impl Factory {
@@ -116,8 +117,28 @@ impl Factory {
     }
 }
 
-impl wasm::Factory<Stream> for Factory {
-    fn create(&mut self) -> Stream {
+#[async_trait]
+impl wasm::Acceptor for Factory {
+    type Stream = Stream;
+
+    fn try_accept(&mut self) -> Option<Self::Stream> {
+        let mut guard = match self.streams.lock() {
+            Ok(streams) => streams,
+            Err(e) => e.into_inner(),
+        };
+
+        guard.pop_front()
+    }
+
+    async fn accept(&mut self) -> Self::Stream {
+        todo!()
+    }
+}
+
+impl wasm::Factory for Factory {
+    type Stream = Stream;
+
+    fn create(&mut self) -> Self::Stream {
         let (a, b) = Stream::new();
 
         let mut guard = match self.streams.lock() {
@@ -125,7 +146,7 @@ impl wasm::Factory<Stream> for Factory {
             Err(e) => e.into_inner(),
         };
 
-        guard.push(b);
+        guard.push_back(b);
 
         a
     }

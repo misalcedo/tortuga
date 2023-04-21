@@ -10,7 +10,7 @@ pub struct Connection<Factory, Stream> {
 
 impl<Factory, Stream> Connection<Factory, Stream>
 where
-    Factory: wasm::Factory<Stream>,
+    Factory: wasm::Factory<Stream = Stream>,
     Stream: wasm::Stream,
 {
     pub fn new(primary: Stream, factory: Factory) -> Self {
@@ -41,7 +41,7 @@ impl<Factory, Stream> Connection<Factory, Stream> {
 
 impl<Factory, Stream> Connection<Factory, Stream>
 where
-    Factory: wasm::Factory<Stream>,
+    Factory: wasm::Factory<Stream = Stream>,
     Stream: wasm::Stream,
 {
     pub fn start_stream(&mut self) -> u64 {

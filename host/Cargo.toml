@@ -24,5 +24,6 @@ wasmtime = "8.0.0"
 wasmtime-wasi = "8.0.0"
 
 [features]
-default = ["memory"]
+default = ["channel", "memory"]
+channel = []
 memory = []

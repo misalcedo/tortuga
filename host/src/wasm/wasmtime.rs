@@ -49,9 +49,9 @@ impl AdditionalState {
     }
 }
 
-impl<Factory, Stream> wasm::Host<Stream> for Host<Factory>
+impl<Factory, Stream> wasm::Host for Host<Factory>
 where
-    Factory: wasm::Factory<Stream>,
+    Factory: wasm::Factory<Stream = Stream>,
     Stream: wasm::Stream,
 {
     type Guest = Guest<Factory, Stream>;
@@ -129,12 +129,13 @@ pub struct Guest<Factory, Stream> {
 }
 
 #[async_trait]
-impl<Factory, Stream> wasm::Guest<Stream> for Guest<Factory, Stream>
+impl<Factory, Stream> wasm::Guest for Guest<Factory, Stream>
 where
-    Factory: wasm::Factory<Stream>,
+    Factory: wasm::Factory<Stream = Stream>,
     Stream: wasm::Stream,
 {
     type Error = wasmtime::Error;
+    type Stream = Stream;
 
     async fn invoke(&self, stream: Stream) -> Result<i32, Self::Error> {
         let connection = Connection::new(stream, self.stream.clone());

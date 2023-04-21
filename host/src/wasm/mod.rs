@@ -1,5 +1,3 @@
-
-
 use async_trait::async_trait;
 pub use connection::Connection;
 pub use data::Data;
@@ -9,12 +7,23 @@ mod connection;
 mod data;
 pub mod wasmtime;
 
-pub trait Factory<Stream>: Clone + Send + Sync {
-    fn create(&mut self) -> Stream;
+#[async_trait]
+pub trait Acceptor: Send {
+    type Stream: Stream;
+
+    fn try_accept(&mut self) -> Option<Self::Stream>;
+
+    async fn accept(&mut self) -> Self::Stream;
 }
 
-pub trait Host<Stream>: Send {
-    type Guest: Guest<Stream>;
+pub trait Factory: Clone + Send + Sync {
+    type Stream: Stream;
+
+    fn create(&mut self) -> Self::Stream;
+}
+
+pub trait Host: Send {
+    type Guest: Guest;
     type Error;
 
     fn welcome<Code>(&mut self, code: Code) -> Result<Self::Guest, Self::Error>
@@ -23,10 +32,11 @@ pub trait Host<Stream>: Send {
 }
 
 #[async_trait]
-pub trait Guest<Stream>: Send {
+pub trait Guest: Send {
     type Error;
+    type Stream: Stream;
 
-    async fn invoke(&self, stream: Stream) -> Result<i32, Self::Error>;
+    async fn invoke(&self, stream: Self::Stream) -> Result<i32, Self::Error>;
 }
 
 #[async_trait]
