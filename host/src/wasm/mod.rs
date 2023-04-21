@@ -10,7 +10,6 @@ mod data;
 pub mod wasmtime;
 
 pub trait Factory<Stream>: Clone + Send + Sync {
-    fn create_primary(&mut self) -> Stream;
     fn create(&mut self) -> Stream;
 }
 
@@ -34,6 +33,6 @@ pub trait Guest<Stream>: Send {
 pub trait Stream: Source + Destination + Send {
     type Error;
 
-    async fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize>;
-    async fn write(&mut self, buffer: &mut [u8]) -> io::Result<usize>;
+    async fn read(&mut self, buffer: &mut [u8]) -> Result<usize, Self::Error>;
+    async fn write(&mut self, buffer: &mut [u8]) -> Result<usize, Self::Error>;
 }

@@ -65,7 +65,7 @@ impl Write for Stream {
 
 #[async_trait]
 impl wasm::Stream for Stream {
-    type Error = Infallible;
+    type Error = io::Error;
 
     async fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
         Read::read(self, buffer)
@@ -87,8 +87,8 @@ impl Factory {
         Message: ReadableMessage<Stream>,
     {
         let mut guard = match self.streams.lock() {
-            Ok(mut streams) => streams,
-            Err(mut e) => e.into_inner(),
+            Ok(streams) => streams,
+            Err(e) => e.into_inner(),
         };
 
         let mut stream = guard
@@ -118,10 +118,6 @@ impl Factory {
 }
 
 impl wasm::Factory<Stream> for Factory {
-    fn create_primary(&mut self) -> Stream {
-        Stream::default()
-    }
-
     fn create(&mut self) -> Stream {
         let (a, b) = Stream::new();
 
