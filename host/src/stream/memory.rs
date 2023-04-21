@@ -1,4 +1,4 @@
-use std::convert::Infallible;
+
 use std::io::{self, Cursor, Read, Write};
 use std::sync::{Arc, Mutex};
 
@@ -91,7 +91,7 @@ impl Factory {
             Err(e) => e.into_inner(),
         };
 
-        let mut stream = guard
+        let stream = guard
             .get_mut(index)
             .ok_or_else(|| io::Error::from(io::ErrorKind::ConnectionReset))?;
 
@@ -105,11 +105,11 @@ impl Factory {
         Message: WritableMessage,
     {
         let mut guard = match self.streams.lock() {
-            Ok(mut streams) => streams,
-            Err(mut e) => e.into_inner(),
+            Ok(streams) => streams,
+            Err(e) => e.into_inner(),
         };
 
-        let mut stream = guard
+        let stream = guard
             .get_mut(index)
             .ok_or_else(|| io::Error::from(io::ErrorKind::ConnectionReset))?;
 
@@ -122,8 +122,8 @@ impl wasm::Factory<Stream> for Factory {
         let (a, b) = Stream::new();
 
         let mut guard = match self.streams.lock() {
-            Ok(mut streams) => streams,
-            Err(mut e) => e.into_inner(),
+            Ok(streams) => streams,
+            Err(e) => e.into_inner(),
         };
 
         guard.push(b);

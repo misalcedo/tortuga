@@ -16,7 +16,7 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    
 
     #[test]
     fn in_memory() {

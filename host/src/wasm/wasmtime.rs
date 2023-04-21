@@ -1,10 +1,10 @@
 use async_trait::async_trait;
-use std::marker::PhantomData;
+
 use wasmtime::{Caller, Config, Engine, InstancePre, Linker, Module, Store};
 
-use tortuga_guest::wire::{Destination, ReadableMessage, Source, WritableMessage};
 
-use crate::wasm::{self, Connection, Data, Factory};
+
+use crate::wasm::{self, Connection, Data};
 
 const EPOCH_YIELD_TICKS: u64 = 1;
 const EPOCH_DEADLINE_TICKS: u64 = 500;
@@ -174,7 +174,7 @@ fn data_and_stream_mut<'a, Factory, Stream>(
 #[cfg(all(test, feature = "memory"))]
 mod tests {
     use crate::stream::memory;
-    use crate::wasm::{wasmtime, Factory, Guest, Host, Stream};
+    use crate::wasm::{wasmtime, Factory, Guest, Host};
     use std::io::Cursor;
     use tortuga_guest::{Method, Request, Response, Status};
 
