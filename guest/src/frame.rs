@@ -14,7 +14,7 @@ impl TryFrom<u8> for FrameType {
         match kind {
             0x00 => Ok(FrameType::Data),
             0x01 => Ok(FrameType::Header),
-            _ => Err(kind)
+            _ => Err(kind),
         }
     }
 }
@@ -27,10 +27,7 @@ pub struct Frame {
 
 impl Frame {
     pub fn new(kind: FrameType, length: usize) -> Self {
-        Frame {
-            kind,
-            length
-        }
+        Frame { kind, length }
     }
 
     pub fn bytes() -> usize {
@@ -43,5 +40,9 @@ impl Frame {
 
     pub fn len(&self) -> usize {
         self.length
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.length == 0
     }
 }

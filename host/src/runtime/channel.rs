@@ -72,7 +72,7 @@ impl Default for ChannelStream {
 }
 
 impl Body for ChannelStream {
-    fn len(&mut self) -> Option<usize> {
+    fn length(&mut self) -> Option<usize> {
         None
     }
 }

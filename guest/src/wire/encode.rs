@@ -124,7 +124,7 @@ where
     where
         W: Write,
     {
-        let length = self.body().len().unwrap_or_default();
+        let length = self.body().length().unwrap_or_default();
         let mut buffer = Cursor::new(Vec::new());
 
         buffer.encode(self.method() as u8)?;
@@ -154,7 +154,7 @@ where
     where
         W: Write,
     {
-        let length = self.body().len().unwrap_or_default();
+        let length = self.body().length().unwrap_or_default();
         let mut buffer = Cursor::new(Vec::new());
 
         buffer.encode(self.status())?;

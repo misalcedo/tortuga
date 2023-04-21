@@ -7,7 +7,7 @@ use crate::wire::{Decode, Encode};
 use crate::{Frame, IoLimiter};
 
 pub trait Body: Read {
-    fn len(&mut self) -> Option<usize> {
+    fn length(&mut self) -> Option<usize> {
         None
     }
 }
@@ -16,19 +16,19 @@ impl<R> Body for FrameIo<R>
 where
     R: Read,
 {
-    fn len(&mut self) -> Option<usize> {
+    fn length(&mut self) -> Option<usize> {
         Some(self.length)
     }
 }
 
 impl Body for Cursor<Vec<u8>> {
-    fn len(&mut self) -> Option<usize> {
+    fn length(&mut self) -> Option<usize> {
         Some(self.get_ref().len())
     }
 }
 
 impl Body for File {
-    fn len(&mut self) -> Option<usize> {
+    fn length(&mut self) -> Option<usize> {
         Some(self.metadata().ok()?.len() as usize)
     }
 }

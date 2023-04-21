@@ -47,7 +47,7 @@ impl<W: Write> Write for IoLimiter<W> {
     }
 }
 
-impl<'a, R> Read for IoLimiter<R>
+impl<R> Read for IoLimiter<R>
 where
     R: Read,
 {
