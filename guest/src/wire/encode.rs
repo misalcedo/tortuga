@@ -110,7 +110,7 @@ where
     }
 }
 
-pub trait WritableMessage {
+pub trait WritableMessage: Sized {
     fn write_to<W>(self, writer: &mut W) -> io::Result<usize>
     where
         W: Write;

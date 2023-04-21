@@ -14,16 +14,22 @@ criterion = "0.4"
 echo = { path = "examples/echo", artifact = "bin", target = "wasm32-unknown-unknown" }
 ping = { path = "examples/ping", artifact = "bin", target = "wasm32-unknown-unknown" }
 pong = { path = "examples/pong", artifact = "bin", target = "wasm32-unknown-unknown" }
+static = { path = "examples/static", artifact = "bin", target = "wasm32-unknown-unknown" }
 
 [target.'cfg(unix)'.dev-dependencies]
 pprof = { version = "0.11", features = ["criterion", "flamegraph", "protobuf-codec"] }
 
 [dependencies]
+async-trait = "0.1.64"
 tokio = { version = "1.25.0", features = ["full"] }
 tortuga-guest = { version = "0.1.1", path = "../guest" }
 uuid = { version = "1.3.0", features = ["v4", "v5"] }
 wasmtime = "7.0.0"
 wasmtime-wasi = "7.0.0"
+
+[features]
+default = ["memory"]
+memory = []
 
 [[bench]]
 name = "fibonacci"

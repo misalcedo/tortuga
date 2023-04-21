@@ -18,7 +18,7 @@ mod message;
 mod request;
 mod response;
 mod stream;
-pub(crate) mod wire;
+pub mod wire;
 
 type FromHost = FrameIo<Stream<ReadOnly>>;
 
