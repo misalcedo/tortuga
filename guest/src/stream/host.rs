@@ -17,17 +17,19 @@ pub struct Stream<Directionality> {
     marker: PhantomData<Directionality>,
 }
 
+impl Default for Stream<Bidirectional> {
+    fn default() -> Self {
+        Stream {
+            identifier: unsafe { start() },
+            marker: Default::default(),
+        }
+    }
+}
+
 impl Stream<Bidirectional> {
     pub fn primary() -> Self {
         Stream {
             identifier: 0,
-            marker: Default::default(),
-        }
-    }
-
-    pub fn new() -> Self {
-        Stream {
-            identifier: unsafe { start() },
             marker: Default::default(),
         }
     }
