@@ -138,15 +138,9 @@ where
 {
     type Error = wasmtime::Error;
 
-    async fn invoke<Request, Response>(&self, request: Request) -> Result<Response, Self::Error>
-    where
-        Request: WritableMessage + Send,
-        Response: ReadableMessage<Stream> + Send,
-    {
-        let connection = Connection::from(self.stream.clone());
-        let mut data = Data::new(connection, AdditionalState::default());
-
-        data.connection_mut().primary_mut().write_message(request)?;
+    async fn invoke(&self, stream: Stream) -> Result<i32, Self::Error> {
+        let connection = Connection::new(stream, self.stream.clone());
+        let data = Data::new(connection, AdditionalState::default());
 
         let mut store = Store::new(self.instance.module().engine(), data);
 
@@ -159,11 +153,7 @@ where
             .get_typed_func::<(i32, i32), i32>(&mut store, "main")
             .unwrap()
             .call_async(&mut store, (0, 0))
-            .await?;
-
-        let primary = store.into_data().into_connection().into_primary();
-
-        Ok(primary.read_message()?)
+            .await
     }
 }
 
@@ -183,8 +173,8 @@ fn data_and_stream_mut<'a, Factory, Stream>(
 
 #[cfg(all(test, feature = "memory"))]
 mod tests {
-    use crate::stream::memory::{Factory, Stream};
-    use crate::wasm::{wasmtime, Guest, Host};
+    use crate::stream::memory;
+    use crate::wasm::{wasmtime, Factory, Guest, Host, Stream};
     use std::io::Cursor;
     use tortuga_guest::{Method, Request, Response, Status};
 
@@ -194,13 +184,19 @@ mod tests {
         let body = Vec::from("Hello, World!");
 
         let mut buffer = Cursor::new(Vec::new());
-        let mut host = wasmtime::Host::from(Factory::default());
+        let mut factory = memory::Factory::default();
+        let mut host = wasmtime::Host::from(factory.clone());
 
         let request = Request::new(Method::Get, "/", Cursor::new(body.to_vec()));
         let response = Response::new(Status::Ok, Cursor::new(body.to_vec()));
 
         let guest = host.welcome(code).unwrap();
-        let mut actual: Response<_> = guest.invoke(request).await.unwrap();
+        let stream = factory.create();
+
+        factory.write_message(0, request).unwrap();
+        guest.invoke(stream).await.unwrap();
+
+        let mut actual: Response<_> = factory.read_message(0).unwrap();
 
         std::io::copy(actual.body(), &mut buffer).unwrap();
 

@@ -8,14 +8,12 @@ pub struct Connection<Factory, Stream> {
     rest: Vec<Stream>,
 }
 
-impl<Factory, Stream> From<Factory> for Connection<Factory, Stream>
+impl<Factory, Stream> Connection<Factory, Stream>
 where
     Factory: wasm::Factory<Stream>,
     Stream: wasm::Stream,
 {
-    fn from(mut factory: Factory) -> Self {
-        let primary = factory.create();
-
+    pub fn new(primary: Stream, factory: Factory) -> Self {
         Connection {
             factory,
             primary,
