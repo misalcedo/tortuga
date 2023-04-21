@@ -28,7 +28,7 @@ impl Message {
         sender: oneshot::Sender<()>,
     ) -> Self {
         Message {
-            to: Some(identifier.as_ref().clone()),
+            to: Some(*identifier.as_ref()),
             body: Some(body),
             promise: Some(sender),
         }

@@ -34,7 +34,7 @@ impl<IO> IoLimiter<IO> {
 
 impl<W: Write> Write for IoLimiter<W> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        let bytes_to_write = self.length.min(buf.len()) as usize;
+        let bytes_to_write = self.length.min(buf.len());
         let bytes_written = self.io.write(&buf[..bytes_to_write])?;
 
         self.length -= bytes_written;
@@ -52,7 +52,7 @@ where
     R: Read,
 {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        let bytes_to_read = self.length.min(buf.len()) as usize;
+        let bytes_to_read = self.length.min(buf.len());
         let bytes_read = self.io.read(&mut buf[..bytes_to_read])?;
 
         self.length -= bytes_read;

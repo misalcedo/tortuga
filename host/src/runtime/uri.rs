@@ -2,7 +2,7 @@ use std::convert::Infallible;
 use std::str::FromStr;
 
 const SCHEME_SUFFIX: char = ':';
-const AUTHORITY_PREFIX: &'static str = "//";
+const AUTHORITY_PREFIX: &str = "//";
 const USER_INFO_SUFFIX: char = '@';
 const PORT_PREFIX: char = ':';
 const PATH_PREFIX: char = '/';
@@ -44,7 +44,7 @@ impl AsRef<str> for Uri {
     }
 }
 
-fn optional<'a, 'b>((head, _): (&'a str, &'b str)) -> Option<&'a str> {
+fn optional<'a>((head, _): (&'a str, &str)) -> Option<&'a str> {
     if head.is_empty() {
         None
     } else {
@@ -89,7 +89,7 @@ impl Uri {
 
         match scheme_rest.strip_prefix(AUTHORITY_PREFIX) {
             None => (self.empty(), scheme_rest),
-            Some(rest) => match rest.find(&[PATH_PREFIX, QUERY_PREFIX, FRAGMENT_PREFIX]) {
+            Some(rest) => match rest.find([PATH_PREFIX, QUERY_PREFIX, FRAGMENT_PREFIX]) {
                 None => (rest, self.empty()),
                 Some(index) => (&rest[..index], &rest[index..]),
             },
@@ -100,7 +100,7 @@ impl Uri {
         let rest = self.authority_split().1;
 
         if rest.starts_with(PATH_PREFIX) {
-            match rest.find(&[QUERY_PREFIX, FRAGMENT_PREFIX]) {
+            match rest.find([QUERY_PREFIX, FRAGMENT_PREFIX]) {
                 None => (rest, self.empty()),
                 Some(index) => (&rest[..index], &rest[index..]),
             }
@@ -114,7 +114,7 @@ impl Uri {
 
         match scheme_rest.strip_prefix(QUERY_PREFIX) {
             None => (self.empty(), scheme_rest),
-            Some(rest) => match rest.find(&[FRAGMENT_PREFIX]) {
+            Some(rest) => match rest.find([FRAGMENT_PREFIX]) {
                 None => (rest, self.empty()),
                 Some(index) => (&rest[..index], &rest[index..]),
             },
@@ -141,7 +141,7 @@ impl<'a> Authority<'a> {
 
     fn user_info_split(&self) -> (&str, &str) {
         match self.0.find(USER_INFO_SUFFIX) {
-            None => (self.empty(), &self.0),
+            None => (self.empty(), (self.0)),
             Some(index) => {
                 let (user_info, rest) = self.0.split_at(index);
 

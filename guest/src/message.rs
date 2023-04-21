@@ -48,7 +48,7 @@ impl<IO> FrameIo<IO> {
     }
 
     pub fn len(&self) -> usize {
-        self.length as usize
+        self.length
     }
 
     pub fn is_empty(&self) -> bool {

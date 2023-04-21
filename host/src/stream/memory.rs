@@ -1,4 +1,3 @@
-
 use std::io::{self, Cursor, Read, Write};
 use std::sync::{Arc, Mutex};
 
@@ -95,7 +94,7 @@ impl Factory {
             .get_mut(index)
             .ok_or_else(|| io::Error::from(io::ErrorKind::ConnectionReset))?;
 
-        let source = std::mem::replace(stream, Stream::default());
+        let source = std::mem::take(stream);
 
         source.read_message()
     }
@@ -144,7 +143,8 @@ mod tests {
         let mut buffer = Cursor::new(Vec::new());
         let body = b"Hello, World!";
 
-        client.write(body).unwrap();
+        assert_eq!(body.len(), client.write(body).unwrap());
+
         std::io::copy(&mut server, &mut buffer).unwrap();
 
         assert_eq!(buffer.get_ref().as_slice(), body);

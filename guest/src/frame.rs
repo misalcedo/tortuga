@@ -42,6 +42,6 @@ impl Frame {
     }
 
     pub fn len(&self) -> usize {
-        self.length as usize
+        self.length
     }
 }

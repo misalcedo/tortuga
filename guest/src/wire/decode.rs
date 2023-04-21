@@ -56,7 +56,7 @@ where
 {
     fn decode(&mut self) -> io::Result<String> {
         let length: usize = self.decode()?;
-        let mut value = vec![0; length as usize];
+        let mut value = vec![0; length];
 
         self.read_exact(&mut value)?;
 

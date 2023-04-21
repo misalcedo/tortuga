@@ -56,7 +56,7 @@ impl Runtime {
 
     pub fn welcome_guest(&mut self, code: impl AsRef<[u8]>) -> Guest {
         let guest = Guest::new(self.channel.0.clone());
-        let shell = Shell::new(&self, code);
+        let shell = Shell::new(self, code);
 
         self.shells.insert(guest.identifier(), shell);
 
