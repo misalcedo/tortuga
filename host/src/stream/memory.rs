@@ -1,5 +1,5 @@
 use std::convert::Infallible;
-use std::io::{self, Cursor, Read, Seek, SeekFrom, Write};
+use std::io::{self, Cursor, Read, Write};
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
@@ -11,66 +11,54 @@ use crate::wasm;
 
 #[derive(Clone, Debug, Default)]
 pub struct Stream {
-    reader: Arc<Mutex<Cursor<Vec<u8>>>>,
-    writer: Arc<Mutex<Cursor<Vec<u8>>>>,
+    reader: Arc<Mutex<Vec<u8>>>,
+    writer: Arc<Mutex<Vec<u8>>>,
+    cursor: u64,
 }
 
 impl Stream {
     fn new() -> (Self, Self) {
         let reader = Self::default();
-        let writer = reader.swapped();
+        let mut writer = reader.clone();
+
+        std::mem::swap(&mut writer.reader, &mut writer.writer);
 
         (reader, writer)
     }
-
-    fn reset(&mut self) {
-        match self.reader.lock() {
-            Ok(mut reader) => reader.set_position(0),
-            Err(mut e) => e.get_mut().set_position(0),
-        }
-
-        match self.writer.lock() {
-            Ok(mut writer) => writer.set_position(0),
-            Err(mut e) => e.get_mut().set_position(0),
-        }
-    }
-
-    fn swapped(&self) -> Self {
-        let mut clone = self.clone();
-        std::mem::swap(&mut clone.reader, &mut clone.writer);
-        clone
-    }
 }
 
-impl Seek for Stream {
-    fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
+impl Read for Stream {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let mut guard = match self.reader.lock() {
             Ok(reader) => reader,
             Err(e) => e.into_inner(),
         };
 
-        guard.seek(pos)
-    }
-}
+        let mut cursor = Cursor::new(guard.as_mut_slice());
 
-impl Read for Stream {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        match self.reader.lock() {
-            Ok(mut reader) => reader.read(buf),
-            Err(mut e) => e.get_mut().read(buf),
-        }
+        cursor.set_position(self.cursor);
+
+        let result = cursor.read(buf);
+
+        self.cursor = cursor.position();
+
+        result
     }
 }
 
 impl Write for Stream {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        match self.writer.lock() {
-            Ok(mut writer) => writer.write(buf),
-            Err(mut e) => e.get_mut().write(buf),
-        }
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        let mut guard = match self.writer.lock() {
+            Ok(writer) => writer,
+            Err(e) => e.into_inner(),
+        };
+
+        guard.extend_from_slice(buf);
+
+        Ok(buf.len())
     }
 
-    fn flush(&mut self) -> std::io::Result<()> {
+    fn flush(&mut self) -> io::Result<()> {
         Ok(())
     }
 }
@@ -79,11 +67,11 @@ impl Write for Stream {
 impl wasm::Stream for Stream {
     type Error = Infallible;
 
-    async fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+    async fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
         Read::read(self, buffer)
     }
 
-    async fn write(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+    async fn write(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
         Write::write(self, buffer)
     }
 }
@@ -145,5 +133,42 @@ impl wasm::Factory<Stream> for Factory {
         guard.push(b);
 
         a
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::wasm::Factory;
+    use tortuga_guest::{Method, Request};
+
+    #[test]
+    fn client_server() {
+        let (mut client, mut server) = Stream::new();
+        let mut buffer = Cursor::new(Vec::new());
+        let body = b"Hello, World!";
+
+        client.write(body).unwrap();
+        std::io::copy(&mut server, &mut buffer).unwrap();
+
+        assert_eq!(buffer.get_ref().as_slice(), body);
+    }
+
+    #[test]
+    fn factory() {
+        let mut factory = super::Factory::default();
+        let mut client = factory.create();
+        let mut buffer = Cursor::new(Vec::new());
+
+        let body = b"Hello, World!";
+        let request = Request::new(Method::Get, "/", Cursor::new(body.to_vec()));
+
+        client.write_message(request).unwrap();
+
+        let mut actual: Request<_> = factory.read_message(0).unwrap();
+
+        std::io::copy(actual.body(), &mut buffer).unwrap();
+
+        assert_eq!(buffer.get_ref().as_slice(), body);
     }
 }
