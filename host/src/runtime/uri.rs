@@ -124,18 +124,6 @@ impl Uri {
     fn empty(&self) -> &str {
         &self.0[0..0]
     }
-
-    fn authority_location(&self) -> Option<usize> {
-        self.0.find(AUTHORITY_PREFIX)
-    }
-
-    fn query_location(&self) -> Option<usize> {
-        self.0.find(QUERY_PREFIX)
-    }
-
-    fn fragment_location(&self) -> Option<usize> {
-        self.0.find(FRAGMENT_PREFIX)
-    }
 }
 
 impl<'a> Authority<'a> {

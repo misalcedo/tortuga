@@ -2,8 +2,6 @@ use async_trait::async_trait;
 
 use wasmtime::{Caller, Config, Engine, InstancePre, Linker, Module, Store};
 
-
-
 use crate::wasm::{self, Connection, Data};
 
 const EPOCH_YIELD_TICKS: u64 = 1;
@@ -145,7 +143,7 @@ where
         let mut store = Store::new(self.instance.module().engine(), data);
 
         store.set_epoch_deadline(EPOCH_YIELD_TICKS);
-        store.epoch_deadline_callback(|data| data.additional_mut().tick());
+        store.epoch_deadline_callback(|mut ctx| ctx.data_mut().additional_mut().tick());
 
         let instance = self.instance.instantiate_async(&mut store).await?;
 
