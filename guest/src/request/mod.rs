@@ -1,5 +1,6 @@
 mod method;
 
+use crate::Uri;
 pub use method::Method;
 
 /// A cursor into the current request being processed.
@@ -7,31 +8,48 @@ pub use method::Method;
 #[derive(Debug, Default, Clone)]
 pub struct Request<B> {
     method: Method,
-    uri: String,
+    uri: Uri,
+    content_length: usize,
     body: B,
 }
 
 impl<A, B> PartialEq<Request<B>> for Request<A> {
     fn eq(&self, other: &Request<B>) -> bool {
-        self.method == other.method && self.uri.as_str() == other.uri.as_str()
+        self.method == other.method && self.uri == other.uri
+    }
+}
+
+impl Request<()> {
+    pub fn empty(method: Method, uri: Uri, content_length: usize) -> Self {
+        Request {
+            method,
+            uri,
+            content_length,
+            body: (),
+        }
     }
 }
 
 impl<B> Request<B> {
-    pub fn new(method: Method, uri: impl Into<String>, body: B) -> Self {
+    pub fn new(method: Method, uri: Uri, content_length: usize, body: B) -> Self {
         Request {
             method,
-            uri: uri.into(),
+            uri,
+            content_length,
             body,
         }
     }
 
-    pub fn uri(&self) -> &str {
-        self.uri.as_str()
+    pub fn uri(&self) -> &Uri {
+        &self.uri
     }
 
     pub fn method(&self) -> Method {
         self.method
+    }
+
+    pub fn content_length(&self) -> usize {
+        self.content_length
     }
 
     pub fn body(&mut self) -> &mut B {

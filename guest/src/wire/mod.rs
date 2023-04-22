@@ -13,16 +13,16 @@ mod writable;
 pub trait Source {
     fn read_message<M>(self) -> io::Result<M>
     where
-        M: ReadableMessage<Self>;
+        M: ReadableMessage;
 }
 
 impl<R> Source for R
 where
     R: Read,
 {
-    fn read_message<M>(self) -> io::Result<M>
+    fn read_message<M>(mut self) -> io::Result<M>
     where
-        M: ReadableMessage<Self>,
+        M: ReadableMessage<Body = R>,
     {
         M::read_from(self)
     }

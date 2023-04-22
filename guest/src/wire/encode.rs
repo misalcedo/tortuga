@@ -1,5 +1,5 @@
-use crate::{Body, Frame, FrameIo, FrameType, Method, Request, Response};
-use std::io::{self, Cursor, Write};
+use crate::{Frame, FrameType, Method, Uri};
+use std::io::{self, Write};
 
 pub trait Encode<Value> {
     fn encode(&mut self, value: Value) -> io::Result<usize>;
@@ -75,6 +75,24 @@ where
         bytes += buffer.len();
 
         Ok(bytes)
+    }
+}
+
+impl<W> Encode<Uri> for W
+where
+    W: Write,
+{
+    fn encode(&mut self, value: Uri) -> io::Result<usize> {
+        self.encode(value.as_ref())
+    }
+}
+
+impl<W> Encode<&Uri> for W
+where
+    W: Write,
+{
+    fn encode(&mut self, value: &Uri) -> io::Result<usize> {
+        self.encode(value.as_ref())
     }
 }
 

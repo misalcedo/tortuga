@@ -1,6 +1,6 @@
 use std::io::{self, ErrorKind, Read};
 
-use crate::{Frame, FrameIo, FrameType, Method, Request, Response};
+use crate::{Frame, FrameType, Method, Uri};
 
 pub trait Decode<Value> {
     fn decode(&mut self) -> io::Result<Value>;
@@ -61,6 +61,17 @@ where
         self.read_exact(&mut value)?;
 
         String::from_utf8(value).map_err(|_| ErrorKind::InvalidData.into())
+    }
+}
+
+impl<R> Decode<Uri> for R
+where
+    R: Read,
+{
+    fn decode(&mut self) -> io::Result<Uri> {
+        let value: String = self.decode()?;
+
+        Ok(Uri::from(value))
     }
 }
 

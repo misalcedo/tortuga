@@ -1,13 +1,12 @@
 mod status;
 
-use crate::Body;
 pub use status::Status;
 use std::fmt::{Debug, Formatter};
-use std::io::Cursor;
 
 #[derive(Default, Copy, Clone)]
 pub struct Response<B> {
     status: u16,
+    content_length: usize,
     body: B,
 }
 
@@ -19,40 +18,37 @@ impl<B> Debug for Response<B> {
     }
 }
 
-impl From<Status> for Response<Cursor<Vec<u8>>> {
-    fn from(value: Status) -> Self {
-        Response {
-            status: value.into(),
-            body: Default::default(),
-        }
-    }
-}
-
 impl<A, B> PartialEq<Response<B>> for Response<A> {
     fn eq(&self, other: &Response<B>) -> bool {
         self.status == other.status
     }
 }
 
-impl<B: Body> From<B> for Response<B> {
-    fn from(body: B) -> Self {
+impl Response<()> {
+    pub fn empty(status: impl Into<u16>, content_length: usize) -> Self {
         Response {
-            status: Default::default(),
-            body,
+            status: status.into(),
+            content_length,
+            body: (),
         }
     }
 }
 
 impl<B> Response<B> {
-    pub fn new(status: impl Into<u16>, body: B) -> Self {
+    pub fn new(status: impl Into<u16>, content_length: usize, body: B) -> Self {
         Response {
             status: status.into(),
+            content_length,
             body,
         }
     }
 
     pub fn status(&self) -> u16 {
         self.status
+    }
+
+    pub fn content_length(&self) -> usize {
+        self.content_length
     }
 
     pub fn body(&mut self) -> &mut B {

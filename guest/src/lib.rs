@@ -5,12 +5,12 @@ use std::error::Error;
 pub use frame::{Frame, FrameType};
 pub use limiter::IoLimiter;
 
+pub use crate::wire::{Destination, Source};
 pub use message::{Body, FrameIo};
 pub use request::{Method, Request};
 pub use response::{Response, Status};
 pub use stream::{Bidirectional, ReadOnly, Stream, WriteOnly};
-
-pub use crate::wire::{Destination, Source};
+pub use uri::Uri;
 
 mod frame;
 mod limiter;
@@ -18,6 +18,7 @@ mod message;
 mod request;
 mod response;
 mod stream;
+mod uri;
 pub mod wire;
 
 type FromHost = FrameIo<Stream<ReadOnly>>;
