@@ -23,7 +23,6 @@ mod message;
 mod router;
 mod shell;
 mod uri;
-mod vnext;
 
 pub struct Runtime {
     engine: Engine,

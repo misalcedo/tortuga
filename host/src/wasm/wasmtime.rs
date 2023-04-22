@@ -49,12 +49,11 @@ impl AdditionalState {
     }
 }
 
-impl<Factory, Stream> wasm::Host for Host<Factory>
+impl<Factory> wasm::Host for Host<Factory>
 where
-    Factory: wasm::Factory<Stream = Stream>,
-    Stream: wasm::Stream,
+    Factory: wasm::Factory,
 {
-    type Guest = Guest<Factory, Stream>;
+    type Guest = Guest<Factory>;
     type Error = wasmtime::Error;
 
     fn welcome<Code>(&mut self, code: Code) -> Result<Self::Guest, Self::Error>
@@ -67,7 +66,7 @@ where
         linker.func_wrap3_async(
             "stream",
             "read",
-            move |mut caller: Caller<'_, Data<AdditionalState, Connection<Factory, Stream>>>,
+            move |mut caller: Caller<'_, Data<AdditionalState, Connection<Factory>>>,
                   stream: u64,
                   pointer: u32,
                   length: u32| {
@@ -77,7 +76,7 @@ where
 
                     match optional_stream {
                         None => -1,
-                        Some(stream) => match Stream::read(stream, buffer).await {
+                        Some(stream) => match wasm::Stream::read(stream, buffer).await {
                             Ok(bytes) => bytes as i64,
                             Err(_) => -1,
                         },
@@ -88,7 +87,7 @@ where
         linker.func_wrap3_async(
             "stream",
             "write",
-            move |mut caller: Caller<'_, Data<AdditionalState, Connection<Factory, Stream>>>,
+            move |mut caller: Caller<'_, Data<AdditionalState, Connection<Factory>>>,
                   stream: u64,
                   pointer: u32,
                   length: u32| {
@@ -98,7 +97,7 @@ where
 
                     match optional_stream {
                         None => -1,
-                        Some(stream) => match Stream::write(stream, buffer).await {
+                        Some(stream) => match wasm::Stream::write(stream, buffer).await {
                             Ok(bytes) => bytes as i64,
                             Err(_) => -1,
                         },
@@ -109,7 +108,7 @@ where
         linker.func_wrap0_async(
             "stream",
             "start",
-            move |mut caller: Caller<'_, Data<AdditionalState, Connection<Factory, Stream>>>| {
+            move |mut caller: Caller<'_, Data<AdditionalState, Connection<Factory>>>| {
                 Box::new(async move { caller.data_mut().connection_mut().start_stream() })
             },
         )?;
@@ -123,21 +122,23 @@ where
     }
 }
 
-pub struct Guest<Factory, Stream> {
-    instance: InstancePre<Data<AdditionalState, Connection<Factory, Stream>>>,
+pub struct Guest<Factory>
+where
+    Factory: wasm::Factory,
+{
+    instance: InstancePre<Data<AdditionalState, Connection<Factory>>>,
     stream: Factory,
 }
 
 #[async_trait]
-impl<Factory, Stream> wasm::Guest for Guest<Factory, Stream>
+impl<Factory> wasm::Guest for Guest<Factory>
 where
-    Factory: wasm::Factory<Stream = Stream>,
-    Stream: wasm::Stream,
+    Factory: wasm::Factory,
 {
     type Error = wasmtime::Error;
-    type Stream = Stream;
+    type Stream = Factory::Stream;
 
-    async fn invoke(&self, stream: Stream) -> Result<i32, Self::Error> {
+    async fn invoke(&self, stream: Factory::Stream) -> Result<i32, Self::Error> {
         let connection = Connection::new(stream, self.stream.clone());
         let data = Data::new(connection, AdditionalState::default());
 
@@ -156,12 +157,15 @@ where
     }
 }
 
-fn data_and_stream_mut<'a, Factory, Stream>(
-    caller: &'a mut Caller<'_, Data<AdditionalState, Connection<Factory, Stream>>>,
+fn data_and_stream_mut<'a, Factory>(
+    caller: &'a mut Caller<'_, Data<AdditionalState, Connection<Factory>>>,
     stream: u64,
     pointer: u32,
     length: u32,
-) -> (&'a mut [u8], Option<&'a mut Stream>) {
+) -> (&'a mut [u8], Option<&'a mut Factory::Stream>)
+where
+    Factory: wasm::Factory,
+{
     let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
     let (data, state) = memory.data_and_store_mut(caller);
     let view = &mut data[..(pointer as usize + length as usize)][pointer as usize..];
@@ -183,19 +187,19 @@ mod tests {
         let body = Vec::from("Hello, World!");
 
         let mut buffer = Cursor::new(Vec::new());
-        let mut factory = memory::Factory::default();
-        let mut host = wasmtime::Host::from(factory.clone());
+        let mut bridge = memory::Bridge::default();
+        let mut host = wasmtime::Host::from(bridge.clone());
 
         let request = Request::new(Method::Get, "/", Cursor::new(body.to_vec()));
         let response = Response::new(Status::Ok, Cursor::new(body.to_vec()));
 
         let guest = host.welcome(code).unwrap();
-        let stream = factory.create();
+        let stream = bridge.create();
 
-        factory.write_message(0, request).unwrap();
+        bridge.write_message(0, request).unwrap();
         guest.invoke(stream).await.unwrap();
 
-        let mut actual: Response<_> = factory.read_message(0).unwrap();
+        let mut actual: Response<_> = bridge.read_message(0).unwrap();
 
         std::io::copy(actual.body(), &mut buffer).unwrap();
 

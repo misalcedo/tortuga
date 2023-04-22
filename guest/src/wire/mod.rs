@@ -1,10 +1,14 @@
 use std::io::{self, Read, Write};
 
-pub use decode::{Decode, ReadableMessage};
-pub use encode::{Encode, WritableMessage};
+pub use decode::Decode;
+pub use encode::Encode;
+pub use readable::ReadableMessage;
+pub use writable::WritableMessage;
 
 mod decode;
 mod encode;
+mod readable;
+mod writable;
 
 pub trait Source {
     fn read_message<M>(self) -> io::Result<M>

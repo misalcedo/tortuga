@@ -7,15 +7,6 @@ mod connection;
 mod data;
 pub mod wasmtime;
 
-#[async_trait]
-pub trait Acceptor: Send {
-    type Stream: Stream;
-
-    fn try_accept(&mut self) -> Option<Self::Stream>;
-
-    async fn accept(&mut self) -> Self::Stream;
-}
-
 pub trait Factory: Clone + Send + Sync {
     type Stream: Stream;
 

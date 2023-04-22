@@ -1,13 +1,17 @@
 use std::collections::VecDeque;
+use std::future::Future;
 use std::io::{self, Cursor, Read, Write};
+use std::ops::DerefMut;
+use std::pin::Pin;
 use std::sync::{Arc, Mutex};
+use std::task::{Context, Poll, Waker};
 
 use async_trait::async_trait;
 use tortuga_guest::{Destination, Source};
 
 use tortuga_guest::wire::{ReadableMessage, WritableMessage};
 
-use crate::wasm;
+use crate::{executor, wasm};
 
 #[derive(Clone, Debug, Default)]
 pub struct Stream {
@@ -77,11 +81,12 @@ impl wasm::Stream for Stream {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct Factory {
+pub struct Bridge {
     streams: Arc<Mutex<VecDeque<Stream>>>,
+    waker: Option<Waker>,
 }
 
-impl Factory {
+impl Bridge {
     pub fn read_message<Message>(&mut self, index: usize) -> io::Result<Message>
     where
         Message: ReadableMessage<Stream>,
@@ -115,13 +120,8 @@ impl Factory {
 
         stream.write_message(message)
     }
-}
 
-#[async_trait]
-impl wasm::Acceptor for Factory {
-    type Stream = Stream;
-
-    fn try_accept(&mut self) -> Option<Self::Stream> {
+    fn pop(&mut self) -> Option<Stream> {
         let mut guard = match self.streams.lock() {
             Ok(streams) => streams,
             Err(e) => e.into_inner(),
@@ -129,13 +129,9 @@ impl wasm::Acceptor for Factory {
 
         guard.pop_front()
     }
-
-    async fn accept(&mut self) -> Self::Stream {
-        todo!()
-    }
 }
 
-impl wasm::Factory for Factory {
+impl wasm::Factory for Bridge {
     type Stream = Stream;
 
     fn create(&mut self) -> Self::Stream {
@@ -148,7 +144,42 @@ impl wasm::Factory for Factory {
 
         guard.push_back(b);
 
+        if let Some(waker) = self.waker.take() {
+            waker.wake();
+        }
+
         a
+    }
+}
+
+impl<'a> Future for Bridge {
+    type Output = Stream;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        match self.deref_mut().pop() {
+            None => {
+                self.waker = Some(cx.waker().clone());
+                Poll::Pending
+            }
+            Some(stream) => Poll::Ready(stream),
+        }
+    }
+}
+
+#[async_trait]
+impl executor::Provider for Bridge {
+    type Stream = Stream;
+
+    fn try_next(&mut self) -> Option<Self::Stream> {
+        self.pop()
+    }
+
+    async fn next(&mut self) -> Self::Stream {
+        loop {
+            if let Some(stream) = self.pop() {
+                return stream;
+            }
+        }
     }
 }
 
@@ -173,7 +204,7 @@ mod tests {
 
     #[test]
     fn factory() {
-        let mut factory = super::Factory::default();
+        let mut factory = Bridge::default();
         let mut client = factory.create();
         let mut buffer = Cursor::new(Vec::new());
 
