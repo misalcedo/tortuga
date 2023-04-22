@@ -1,3 +1,7 @@
+use crate::wire::Encode;
+use crate::{Body, Frame, FrameIo, FrameType, Request, Response};
+use std::io::{self, Cursor, Write};
+
 pub trait WritableMessage: Sized {
     fn write_to<W>(mut self, writer: &mut W) -> io::Result<usize>
     where

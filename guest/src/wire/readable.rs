@@ -1,3 +1,7 @@
+use crate::wire::Decode;
+use crate::{Frame, FrameIo, FrameType, Request, Response};
+use std::io::{self, ErrorKind, Read};
+
 pub trait ReadableMessage<R>: Sized
 where
     R: ?Sized,
