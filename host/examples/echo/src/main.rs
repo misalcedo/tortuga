@@ -2,7 +2,11 @@ use std::io;
 use tortuga_guest::{Body, Request, Response, Status};
 
 fn run(request: Request<impl Body>) -> Result<Response<impl Body>, io::Error> {
-    Ok(Response::new(Status::Created, request.into_body()))
+    Ok(Response::new(
+        Status::Created,
+        request.content_length(),
+        request.into_body(),
+    ))
 }
 
 fn main() {
@@ -18,8 +22,17 @@ mod tests {
     #[test]
     fn in_memory() {
         let body = b"Hellow, World!";
-        let request = Request::new(Method::Post, "/echo", Cursor::new(Vec::from(&body[..])));
-        let expected = Response::new(Status::Created, Cursor::new(Vec::from(&body[..])));
+        let request = Request::new(
+            Method::Post,
+            "/echo".into(),
+            body.len(),
+            Cursor::new(Vec::from(&body[..])),
+        );
+        let expected = Response::new(
+            Status::Created,
+            body.len(),
+            Cursor::new(Vec::from(&body[..])),
+        );
 
         let mut response = run(request).unwrap();
 

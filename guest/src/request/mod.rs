@@ -19,17 +19,6 @@ impl<A, B> PartialEq<Request<B>> for Request<A> {
     }
 }
 
-impl Request<()> {
-    pub fn empty(method: Method, uri: Uri, content_length: usize) -> Self {
-        Request {
-            method,
-            uri,
-            content_length,
-            body: (),
-        }
-    }
-}
-
 impl<B> Request<B> {
     pub fn new(method: Method, uri: Uri, content_length: usize, body: B) -> Self {
         Request {
@@ -54,6 +43,15 @@ impl<B> Request<B> {
 
     pub fn body(&mut self) -> &mut B {
         &mut self.body
+    }
+
+    pub fn with_body<Body>(self, body: Body) -> Request<Body> {
+        Request {
+            method: self.method,
+            uri: self.uri,
+            content_length: self.content_length,
+            body,
+        }
     }
 
     pub fn into_body(self) -> B {

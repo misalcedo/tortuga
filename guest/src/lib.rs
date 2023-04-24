@@ -1,6 +1,7 @@
 extern crate core;
 
 use std::error::Error;
+use std::io::Cursor;
 
 pub use frame::{Frame, FrameType};
 pub use limiter::IoLimiter;
@@ -40,10 +41,11 @@ where
                 .expect("Unable to send response to host.");
         }
         Err(error) => {
-            let mut response = Response::from(Status::InternalServerError);
-
-            std::io::copy(&mut error.to_string().as_bytes(), response.body())
-                .expect("Unable to write error message to response body.");
+            let response = Response::new(
+                Status::InternalServerError,
+                0,
+                Cursor::new(error.to_string().as_bytes().to_vec()),
+            );
 
             writer
                 .write_message(response)
@@ -60,7 +62,12 @@ mod tests {
     #[test]
     fn transfer_request() {
         let body = Vec::from("Hello, World!");
-        let actual = Request::new(Method::Post, "/ping".to_string(), Cursor::new(body.clone()));
+        let actual = Request::new(
+            Method::Post,
+            "/ping".into(),
+            body.len(),
+            Cursor::new(body.clone()),
+        );
         let mut stream = Cursor::new(Vec::new());
 
         stream.write_message(actual.clone()).unwrap();
@@ -78,13 +85,13 @@ mod tests {
     #[test]
     fn transfer_response() {
         let body = Vec::from("Already exists!");
-        let actual = Response::new(Status::Conflict, Cursor::new(body.clone()));
+        let actual = Response::new(Status::Conflict, body.len(), Cursor::new(body.clone()));
         let mut stream = Cursor::new(Vec::new());
 
         stream.write_message(actual.clone()).unwrap();
         stream.set_position(0);
 
-        let mut expected: Response<_> = stream.read_message().unwrap();
+        let mut expected: Response<FrameIo<Cursor<Vec<u8>>>> = stream.read_message().unwrap();
         let mut buffer = vec![0; body.len()];
 
         expected.body().read_exact(&mut buffer).unwrap();

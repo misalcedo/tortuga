@@ -2,10 +2,8 @@ use std::io::{self, Cursor};
 use tortuga_guest::{Body, Request, Response, Status};
 
 fn run(_: Request<impl Body>) -> io::Result<Response<impl Body>> {
-    Ok(Response::new(
-        Status::Ok,
-        Cursor::new(Vec::from("Hello, World!")),
-    ))
+    let body = Cursor::new(Vec::from("Hello, World!"));
+    Ok(Response::new(Status::Ok, body.get_ref().len(), body))
 }
 
 fn main() {
@@ -21,8 +19,8 @@ mod tests {
     #[test]
     fn in_memory() {
         let body = b"Hello, World!";
-        let request = Request::new(Method::Post, "/static", Cursor::new(Vec::new()));
-        let expected = Response::new(Status::Ok, Cursor::new(Vec::from(&body[..])));
+        let request = Request::new(Method::Post, "/static".into(), 0, Cursor::new(Vec::new()));
+        let expected = Response::new(Status::Ok, body.len(), Cursor::new(Vec::from(&body[..])));
 
         let mut response = run(request).unwrap();
 

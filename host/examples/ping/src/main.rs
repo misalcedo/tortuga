@@ -2,9 +2,16 @@ use std::io;
 use std::io::{Cursor, Read};
 use tortuga_guest::{Body, Destination, Method, Request, Response, Source, Stream};
 
+const MESSAGE: &'static [u8; 5] = b"PING!";
+
 fn run(_: Request<impl Read>) -> Result<Response<impl Body>, io::Error> {
     let mut stream = Stream::default();
-    let request = Request::new(Method::Get, "/pong", Cursor::new(b"PING!".to_vec()));
+    let request = Request::new(
+        Method::Get,
+        "/pong".into(),
+        MESSAGE.len(),
+        Cursor::new(MESSAGE.to_vec()),
+    );
 
     stream.write_message(request)?;
     stream.read_message()

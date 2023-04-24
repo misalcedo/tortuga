@@ -24,16 +24,6 @@ impl<A, B> PartialEq<Response<B>> for Response<A> {
     }
 }
 
-impl Response<()> {
-    pub fn empty(status: impl Into<u16>, content_length: usize) -> Self {
-        Response {
-            status: status.into(),
-            content_length,
-            body: (),
-        }
-    }
-}
-
 impl<B> Response<B> {
     pub fn new(status: impl Into<u16>, content_length: usize, body: B) -> Self {
         Response {
@@ -53,6 +43,14 @@ impl<B> Response<B> {
 
     pub fn body(&mut self) -> &mut B {
         &mut self.body
+    }
+
+    pub fn with_body<Body>(self, body: Body) -> Response<Body> {
+        Response {
+            status: self.status,
+            content_length: self.content_length,
+            body,
+        }
     }
 
     pub fn consume_body(self) -> B {
