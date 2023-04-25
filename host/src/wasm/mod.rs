@@ -5,6 +5,7 @@ use tortuga_guest::wire::{Destination, Source};
 
 mod connection;
 mod data;
+mod header;
 pub mod wasmtime;
 
 pub trait Factory: Clone + Send + Sync {

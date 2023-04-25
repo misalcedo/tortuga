@@ -38,7 +38,7 @@ where
         let method = header.decode()?;
         let uri = header.decode()?;
         let length = header.decode()?;
-        let body = FrameIo::new(header.finish(), length);
+        let body = FrameIo::new(header.finish().1, length);
 
         Ok(Request::new(method, uri, length, body))
     }
@@ -55,7 +55,7 @@ where
 
         let status: u16 = header.decode()?;
         let length = header.decode()?;
-        let body = FrameIo::new(header.finish(), length);
+        let body = FrameIo::new(header.finish().1, length);
 
         Ok(Response::new(status, length, body))
     }

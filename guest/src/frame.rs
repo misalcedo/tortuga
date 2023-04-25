@@ -65,16 +65,19 @@ where
             stream: IoLimiter::new(stream, length),
         }
     }
-
-    pub fn read(mut self) -> impl Read {
-        self.buffer.set_position(0);
-        self.buffer.chain(self.stream)
-    }
 }
 
 impl<Stream> Header<Stream> {
-    pub fn finish(self) -> Stream {
-        self.stream.finish()
+    pub fn buffer(&mut self) -> &mut Cursor<Vec<u8>> {
+        &mut self.buffer
+    }
+
+    pub fn inner(&mut self) -> &mut Stream {
+        self.stream.get_mut()
+    }
+
+    pub fn finish(self) -> (Cursor<Vec<u8>>, Stream) {
+        (self.buffer, self.stream.finish())
     }
 }
 
@@ -88,5 +91,18 @@ where
         self.buffer.write(&buf[..bytes])?;
 
         Ok(bytes)
+    }
+}
+
+impl<Stream> Write for Header<Stream>
+where
+    Stream: Write,
+{
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.stream.write(buf)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.stream.flush()
     }
 }

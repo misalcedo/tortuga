@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
-pub use uri::Uri;
-
-mod uri;
+use tortuga_guest::Uri;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 struct Route {
