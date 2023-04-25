@@ -3,7 +3,7 @@ extern crate core;
 use std::error::Error;
 use std::io::Cursor;
 
-pub use frame::{Frame, FrameType};
+pub use frame::{Frame, FrameType, Header};
 pub use limiter::IoLimiter;
 
 pub use crate::wire::{Destination, Source};
@@ -22,7 +22,7 @@ mod stream;
 mod uri;
 pub mod wire;
 
-type FromHost = FrameIo<Stream<ReadOnly>>;
+type FromHost = FrameIo<Header<Stream<ReadOnly>>>;
 
 pub fn invoke<B, E>(entrypoint: fn(Request<FromHost>) -> Result<Response<B>, E>)
 where
@@ -73,7 +73,7 @@ mod tests {
         stream.write_message(actual.clone()).unwrap();
         stream.set_position(0);
 
-        let mut expected: Request<FrameIo<Cursor<Vec<u8>>>> = stream.read_message().unwrap();
+        let mut expected: Request<_> = stream.read_message().unwrap();
         let mut buffer = vec![0; body.len()];
 
         expected.body().read_exact(&mut buffer).unwrap();
@@ -91,7 +91,7 @@ mod tests {
         stream.write_message(actual.clone()).unwrap();
         stream.set_position(0);
 
-        let mut expected: Response<FrameIo<Cursor<Vec<u8>>>> = stream.read_message().unwrap();
+        let mut expected: Response<_> = stream.read_message().unwrap();
         let mut buffer = vec![0; body.len()];
 
         expected.body().read_exact(&mut buffer).unwrap();

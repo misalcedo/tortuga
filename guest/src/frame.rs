@@ -1,3 +1,4 @@
+use std::io::{Cursor, Read, Write};
 use std::mem::size_of;
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
@@ -44,5 +45,47 @@ impl Frame {
 
     pub fn is_empty(&self) -> bool {
         self.length == 0
+    }
+}
+
+#[derive(Debug)]
+pub struct Header<Stream> {
+    buffer: Cursor<Vec<u8>>,
+    stream: Stream,
+}
+
+impl<Stream> Header<Stream>
+where
+    Stream: Read,
+{
+    pub fn new(stream: Stream) -> Self {
+        Header {
+            buffer: Default::default(),
+            stream,
+        }
+    }
+
+    pub fn read(mut self) -> impl Read {
+        self.buffer.set_position(0);
+        self.buffer.chain(self.stream)
+    }
+}
+
+impl<Stream> Header<Stream> {
+    pub fn into_inner(self) -> Stream {
+        self.stream
+    }
+}
+
+impl<Stream> Read for Header<Stream>
+where
+    Stream: Read,
+{
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let bytes = self.stream.read(buf)?;
+
+        self.buffer.write(&buf[..bytes])?;
+
+        Ok(bytes)
     }
 }

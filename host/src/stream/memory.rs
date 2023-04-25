@@ -89,7 +89,7 @@ pub struct Bridge {
 impl Bridge {
     pub fn read_message<Message>(&mut self, index: usize) -> io::Result<Message>
     where
-        Message: ReadableMessage<Stream>,
+        Message: ReadableMessage<Body = Stream>,
     {
         let mut guard = match self.streams.lock() {
             Ok(streams) => streams,
@@ -209,7 +209,12 @@ mod tests {
         let mut buffer = Cursor::new(Vec::new());
 
         let body = b"Hello, World!";
-        let request = Request::new(Method::Get, "/", Cursor::new(body.to_vec()));
+        let request = Request::new(
+            Method::Get,
+            "/".into(),
+            body.len(),
+            Cursor::new(body.to_vec()),
+        );
 
         client.write_message(request).unwrap();
 

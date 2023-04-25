@@ -45,15 +45,6 @@ impl<B> Request<B> {
         &mut self.body
     }
 
-    pub fn with_body<Body>(self, body: Body) -> Request<Body> {
-        Request {
-            method: self.method,
-            uri: self.uri,
-            content_length: self.content_length,
-            body,
-        }
-    }
-
     pub fn into_body(self) -> B {
         self.body
     }

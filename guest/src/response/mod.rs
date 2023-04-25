@@ -45,14 +45,6 @@ impl<B> Response<B> {
         &mut self.body
     }
 
-    pub fn with_body<Body>(self, body: Body) -> Response<Body> {
-        Response {
-            status: self.status,
-            content_length: self.content_length,
-            body,
-        }
-    }
-
     pub fn consume_body(self) -> B {
         self.body
     }

@@ -190,8 +190,13 @@ mod tests {
         let mut bridge = memory::Bridge::default();
         let mut host = wasmtime::Host::from(bridge.clone());
 
-        let request = Request::new(Method::Get, "/", Cursor::new(body.to_vec()));
-        let response = Response::new(Status::Ok, Cursor::new(body.to_vec()));
+        let request = Request::new(
+            Method::Get,
+            "/".into(),
+            body.len(),
+            Cursor::new(body.to_vec()),
+        );
+        let response = Response::new(Status::Ok, body.len(), Cursor::new(body.to_vec()));
 
         let guest = host.welcome(code).unwrap();
         let stream = bridge.create();
