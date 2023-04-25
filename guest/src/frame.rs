@@ -1,3 +1,4 @@
+use crate::IoLimiter;
 use std::io::{Cursor, Read, Write};
 use std::mem::size_of;
 
@@ -51,17 +52,17 @@ impl Frame {
 #[derive(Debug)]
 pub struct Header<Stream> {
     buffer: Cursor<Vec<u8>>,
-    stream: Stream,
+    stream: IoLimiter<Stream>,
 }
 
 impl<Stream> Header<Stream>
 where
     Stream: Read,
 {
-    pub fn new(stream: Stream) -> Self {
+    pub fn new(stream: Stream, length: usize) -> Self {
         Header {
             buffer: Default::default(),
-            stream,
+            stream: IoLimiter::new(stream, length),
         }
     }
 
@@ -72,8 +73,8 @@ where
 }
 
 impl<Stream> Header<Stream> {
-    pub fn into_inner(self) -> Stream {
-        self.stream
+    pub fn finish(self) -> Stream {
+        self.stream.finish()
     }
 }
 

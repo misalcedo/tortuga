@@ -22,7 +22,7 @@ mod stream;
 mod uri;
 pub mod wire;
 
-type FromHost = FrameIo<Header<Stream<ReadOnly>>>;
+type FromHost = FrameIo<Stream<ReadOnly>>;
 
 pub fn invoke<B, E>(entrypoint: fn(Request<FromHost>) -> Result<Response<B>, E>)
 where

@@ -22,40 +22,40 @@ where
             return Err(io::ErrorKind::InvalidData.into());
         }
 
-        Ok(Header::new(reader))
+        Ok(Header::new(reader, header.len()))
     }
 }
 
-impl<Body> ReadableMessage for Request<FrameIo<Header<Body>>>
+impl<Body> ReadableMessage for Request<FrameIo<Body>>
 where
     Body: Read,
 {
     type Body = Body;
 
     fn read_from(reader: Self::Body) -> io::Result<Self> {
-        let mut header: Header<Self::Body> = reader.read_message()?;
+        let mut header: Header<_> = reader.read_message()?;
 
         let method = header.decode()?;
         let uri = header.decode()?;
         let length = header.decode()?;
-        let body = FrameIo::new(header, length);
+        let body = FrameIo::new(header.finish(), length);
 
         Ok(Request::new(method, uri, length, body))
     }
 }
 
-impl<Body> ReadableMessage for Response<FrameIo<Header<Body>>>
+impl<Body> ReadableMessage for Response<FrameIo<Body>>
 where
     Body: Read,
 {
     type Body = Body;
 
     fn read_from(reader: Self::Body) -> io::Result<Self> {
-        let mut header: Header<Self::Body> = reader.read_message()?;
+        let mut header: Header<_> = reader.read_message()?;
 
         let status: u16 = header.decode()?;
         let length = header.decode()?;
-        let body = FrameIo::new(header, length);
+        let body = FrameIo::new(header.finish(), length);
 
         Ok(Response::new(status, length, body))
     }
