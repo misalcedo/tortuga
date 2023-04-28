@@ -11,16 +11,14 @@ where
     type Error = std::io::Error;
 
     async fn read(&mut self, buffer: &mut [u8]) -> Result<usize, Self::Error> {
-        let header = self.buffer();
-
-        if header.position() == header.get_ref().len() as u64 {
-            wasm::Stream::read(self.inner(), buffer).await
+        if self.is_empty() {
+            Read::read(self, buffer)
         } else {
-            Read::read(header, buffer)
+            wasm::Stream::read(self.stream_mut(), buffer).await
         }
     }
 
     async fn write(&mut self, buffer: &mut [u8]) -> Result<usize, Self::Error> {
-        wasm::Stream::write(self.inner(), buffer).await
+        wasm::Stream::write(self.stream_mut(), buffer).await
     }
 }

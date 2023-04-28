@@ -1,4 +1,3 @@
-use crate::IoLimiter;
 use std::io::{Cursor, Read, Write};
 use std::mem::size_of;
 
@@ -52,32 +51,36 @@ impl Frame {
 #[derive(Debug)]
 pub struct Header<Stream> {
     buffer: Cursor<Vec<u8>>,
-    stream: IoLimiter<Stream>,
+    stream: Stream,
+}
+
+impl<Stream> Header<Stream> {
+    pub fn is_empty(&self) -> bool {
+        self.buffer.position() >= self.buffer.get_ref().len() as u64
+    }
+
+    pub fn stream_mut(&mut self) -> &mut Stream {
+        &mut self.stream
+    }
+
+    pub fn reset(&mut self) {
+        self.buffer.set_position(0);
+    }
+
+    pub fn finish(self) -> Stream {
+        self.stream
+    }
 }
 
 impl<Stream> Header<Stream>
 where
     Stream: Read,
 {
-    pub fn new(stream: Stream, length: usize) -> Self {
+    pub fn new(head: Vec<u8>, stream: Stream) -> Self {
         Header {
-            buffer: Default::default(),
-            stream: IoLimiter::new(stream, length),
+            buffer: Cursor::new(head),
+            stream,
         }
-    }
-}
-
-impl<Stream> Header<Stream> {
-    pub fn buffer(&mut self) -> &mut Cursor<Vec<u8>> {
-        &mut self.buffer
-    }
-
-    pub fn inner(&mut self) -> &mut Stream {
-        self.stream.get_mut()
-    }
-
-    pub fn finish(self) -> (Cursor<Vec<u8>>, Stream) {
-        (self.buffer, self.stream.finish())
     }
 }
 
@@ -86,11 +89,11 @@ where
     Stream: Read,
 {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        let bytes = self.stream.read(buf)?;
-
-        self.buffer.write(&buf[..bytes])?;
-
-        Ok(bytes)
+        if self.buffer.position() < self.buffer.get_ref().len() as u64 {
+            self.buffer.read(buf)
+        } else {
+            self.stream.read(buf)
+        }
     }
 }
 
@@ -104,5 +107,36 @@ where
 
     fn flush(&mut self) -> std::io::Result<()> {
         self.stream.flush()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Destination, Method, Request, Source};
+
+    #[test]
+    fn read_message() {
+        let mut stream = Cursor::new(Vec::new());
+        let mut buffer = Cursor::new(Vec::new());
+
+        let body = b"Hello, World!";
+        let request = Request::new(
+            Method::Get,
+            "/".into(),
+            body.len(),
+            Cursor::new(body.to_vec()),
+        );
+
+        stream.write_message(request.clone()).unwrap();
+        stream.set_position(0);
+
+        let header: Header<_> = stream.read_message().unwrap();
+        let mut actual: Request<_> = header.read_message().unwrap();
+
+        std::io::copy(actual.body(), &mut buffer).unwrap();
+
+        assert_eq!(request, actual);
+        assert_eq!(buffer.get_ref().as_slice(), body);
     }
 }

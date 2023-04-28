@@ -3,7 +3,7 @@ mod status;
 pub use status::Status;
 use std::fmt::{Debug, Formatter};
 
-#[derive(Default, Copy, Clone)]
+#[derive(Default, Clone)]
 pub struct Response<B> {
     status: u16,
     content_length: usize,

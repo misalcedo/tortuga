@@ -1,12 +1,25 @@
 use crate::frame::Header;
-use crate::wire::Decode;
-use crate::{Frame, FrameIo, FrameType, Request, Response, Source};
+use crate::wire::{Decode, Encode};
+use crate::{Frame, FrameIo, FrameType, Request, Response};
 use std::io::{self, Read};
 
 pub trait ReadableMessage: Sized {
     type Body: Read;
 
     fn read_from(reader: Self::Body) -> io::Result<Self>;
+}
+
+fn read_header_frame<Body>(reader: &mut Body) -> io::Result<Frame>
+where
+    Body: Read,
+{
+    let frame: Frame = reader.decode()?;
+
+    if frame.kind() != FrameType::Header {
+        return Err(io::ErrorKind::InvalidData.into());
+    }
+
+    Ok(frame)
 }
 
 impl<Body> ReadableMessage for Header<Body>
@@ -16,13 +29,14 @@ where
     type Body = Body;
 
     fn read_from(mut reader: Self::Body) -> io::Result<Self> {
-        let header: Frame = reader.decode()?;
+        let frame = read_header_frame(&mut reader)?;
 
-        if header.kind() != FrameType::Header {
-            return Err(io::ErrorKind::InvalidData.into());
-        }
+        let mut header = vec![0; Frame::bytes() + frame.len()];
 
-        Ok(Header::new(reader, header.len()))
+        header.as_mut_slice().as_mut().encode(frame)?;
+        reader.read_exact(&mut header[Frame::bytes()..])?;
+
+        Ok(Header::new(header, reader))
     }
 }
 
@@ -32,13 +46,13 @@ where
 {
     type Body = Body;
 
-    fn read_from(reader: Self::Body) -> io::Result<Self> {
-        let mut header: Header<_> = reader.read_message()?;
+    fn read_from(mut reader: Self::Body) -> io::Result<Self> {
+        read_header_frame(&mut reader)?;
 
-        let method = header.decode()?;
-        let uri = header.decode()?;
-        let length = header.decode()?;
-        let body = FrameIo::new(header.finish().1, length);
+        let method = reader.decode()?;
+        let uri = reader.decode()?;
+        let length = reader.decode()?;
+        let body = FrameIo::new(reader, length);
 
         Ok(Request::new(method, uri, length, body))
     }
@@ -50,12 +64,12 @@ where
 {
     type Body = Body;
 
-    fn read_from(reader: Self::Body) -> io::Result<Self> {
-        let mut header: Header<_> = reader.read_message()?;
+    fn read_from(mut reader: Self::Body) -> io::Result<Self> {
+        read_header_frame(&mut reader)?;
 
-        let status: u16 = header.decode()?;
-        let length = header.decode()?;
-        let body = FrameIo::new(header.finish().1, length);
+        let status: u16 = reader.decode()?;
+        let length = reader.decode()?;
+        let body = FrameIo::new(reader, length);
 
         Ok(Response::new(status, length, body))
     }

@@ -2,15 +2,26 @@ mod method;
 
 use crate::Uri;
 pub use method::Method;
+use std::fmt::{Debug, Formatter};
 
 /// A cursor into the current request being processed.
 /// An embedded process handles a single request at a time.
-#[derive(Debug, Default, Clone)]
+#[derive(Default, Clone)]
 pub struct Request<B> {
     method: Method,
     uri: Uri,
     content_length: usize,
     body: B,
+}
+
+impl<B> Debug for Request<B> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Request")
+            .field("method", &self.method)
+            .field("uri", &self.uri)
+            .field("content_length", &self.content_length)
+            .finish()
+    }
 }
 
 impl<A, B> PartialEq<Request<B>> for Request<A> {
