@@ -29,7 +29,7 @@ pub trait Host: Send {
 }
 
 #[async_trait]
-pub trait Guest: Send {
+pub trait Guest: Send + Sync {
     type Stream: Stream;
     type Error: Debug + Display;
 
@@ -38,7 +38,7 @@ pub trait Guest: Send {
 
 #[async_trait]
 pub trait Stream: Source + Destination + Send {
-    type Error: Debug + Display;
+    type Error: Debug + Display + Send;
 
     async fn read(&mut self, buffer: &mut [u8]) -> Result<usize, Self::Error>;
     async fn write(&mut self, buffer: &mut [u8]) -> Result<usize, Self::Error>;

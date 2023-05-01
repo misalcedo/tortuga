@@ -12,9 +12,9 @@ where
 
     async fn read(&mut self, buffer: &mut [u8]) -> Result<usize, Self::Error> {
         if self.is_empty() {
-            Read::read(self, buffer)
-        } else {
             wasm::Stream::read(self.stream_mut(), buffer).await
+        } else {
+            Read::read(self, buffer)
         }
     }
 

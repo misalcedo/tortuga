@@ -1,7 +1,7 @@
 use crate::executor::{self, acceptor::RoutingAcceptor, Identifier, Router};
 use crate::stream::memory;
 use crate::wasm;
-use tokio::task::yield_now;
+use tokio::task::{yield_now, JoinSet};
 use tortuga_guest::Header;
 
 pub struct Executor<Acceptor, Host>
@@ -31,9 +31,9 @@ impl Default
 impl<Acceptor, Guest, Host, Stream> Executor<Acceptor, Host>
 where
     Acceptor: executor::Acceptor<Stream = Stream>,
-    Guest: wasm::Guest<Stream = Stream>,
+    Guest: wasm::Guest<Stream = Stream> + 'static,
     Host: wasm::Host<Guest = Guest>,
-    Stream: wasm::Stream,
+    Stream: wasm::Stream + 'static,
 {
     pub fn new(acceptor: Acceptor, host: Host) -> Self {
         Executor { acceptor, host }
@@ -42,15 +42,18 @@ where
     pub async fn run(&mut self) {}
 
     pub async fn step(&mut self) {
+        let mut invocations = JoinSet::default();
+
         while let Some(message) = self.acceptor.try_accept() {
-            match self.host.guest(&message.to()) {
-                None => {}
-                Some(guest) => {
-                    guest.invoke(message.into_inner()).await.unwrap();
-                }
-            }
+            let guest = self.host.guest(&message.to()).unwrap();
+
+            invocations.spawn(async move { guest.invoke(message.into_inner()).await.unwrap() });
 
             yield_now().await;
+        }
+
+        while let Some(result) = invocations.join_next().await {
+            result.unwrap();
         }
     }
 }

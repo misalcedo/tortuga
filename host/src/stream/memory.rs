@@ -17,17 +17,23 @@ use crate::{executor, wasm};
 pub struct Stream {
     reader: Arc<Mutex<Vec<u8>>>,
     writer: Arc<Mutex<Vec<u8>>>,
+    read_waker: Arc<Mutex<Option<Waker>>>,
+    write_waker: Arc<Mutex<Option<Waker>>>,
     cursor: u64,
 }
 
 impl Stream {
     fn new() -> (Self, Self) {
-        let reader = Self::default();
-        let mut writer = reader.clone();
+        let left = Self::default();
+        let right = Stream {
+            reader: left.writer.clone(),
+            writer: left.reader.clone(),
+            read_waker: left.write_waker.clone(),
+            write_waker: left.read_waker.clone(),
+            cursor: 0,
+        };
 
-        std::mem::swap(&mut writer.reader, &mut writer.writer);
-
-        (reader, writer)
+        (left, right)
     }
 }
 
@@ -59,6 +65,15 @@ impl Write for Stream {
 
         guard.extend_from_slice(buf);
 
+        let mut waker_guard = match self.write_waker.lock() {
+            Ok(waker) => waker,
+            Err(e) => e.into_inner(),
+        };
+
+        if let Some(waker) = waker_guard.take() {
+            waker.wake()
+        }
+
         Ok(buf.len())
     }
 
@@ -67,12 +82,43 @@ impl Write for Stream {
     }
 }
 
+impl Future for Stream {
+    type Output = ();
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let read_guard = match self.reader.lock() {
+            Ok(reader) => reader,
+            Err(e) => e.into_inner(),
+        };
+
+        if self.cursor >= read_guard.len() as u64 {
+            let mut waker_guard = match self.read_waker.lock() {
+                Ok(waker) => waker,
+                Err(e) => e.into_inner(),
+            };
+
+            *waker_guard = Some(cx.waker().clone());
+
+            Poll::Pending
+        } else {
+            Poll::Ready(())
+        }
+    }
+}
+
 #[async_trait]
 impl wasm::Stream for Stream {
     type Error = io::Error;
 
     async fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
-        Read::read(self, buffer)
+        let mut bytes = Read::read(self, buffer)?;
+
+        if bytes == 0 {
+            self.clone().await;
+            bytes += Read::read(self, buffer)?;
+        }
+
+        Ok(bytes)
     }
 
     async fn write(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
