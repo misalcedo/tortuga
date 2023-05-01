@@ -1,6 +1,7 @@
 use crate::executor::{self, acceptor::RoutingAcceptor, Identifier, Router};
 use crate::stream::memory;
 use crate::wasm;
+use std::time::Duration;
 use tokio::task::{yield_now, JoinSet};
 use tortuga_guest::Header;
 
@@ -23,6 +24,17 @@ impl Default
         let host = wasm::wasmtime::Host::from(bridge.clone());
         let router = Router::default();
         let acceptor = RoutingAcceptor::new(bridge, router.clone());
+
+        let mut epoch = host.clone();
+
+        tokio::task::spawn(async move {
+            let mut interval = tokio::time::interval(Duration::from_millis(10));
+
+            loop {
+                interval.tick().await;
+                epoch.tick();
+            }
+        });
 
         Executor::new(acceptor, host)
     }

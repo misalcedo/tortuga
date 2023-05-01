@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::num::NonZeroU64;
+use std::sync::{Arc, RwLock};
 
 use wasmtime::{Caller, Config, Engine, InstancePre, Linker, Module, Store};
 
@@ -9,11 +10,23 @@ use crate::wasm::{self, Connection, Data, Identifier};
 const EPOCH_YIELD_TICKS: u64 = 1;
 const EPOCH_DEADLINE_TICKS: u64 = 500;
 
-#[derive(Clone)]
 pub struct Host<Primary, Factory, Rest> {
     engine: Engine,
     factory: Factory,
-    guests: HashMap<Identifier, Guest<Primary, Factory, Rest>>,
+    guests: Arc<RwLock<HashMap<Identifier, Guest<Primary, Factory, Rest>>>>,
+}
+
+impl<Primary, Factory, Rest> Clone for Host<Primary, Factory, Rest>
+where
+    Factory: Clone,
+{
+    fn clone(&self) -> Self {
+        Host {
+            engine: self.engine.clone(),
+            factory: self.factory.clone(),
+            guests: self.guests.clone(),
+        }
+    }
 }
 
 impl<Primary, Factory, Rest> Host<Primary, Factory, Rest> {
@@ -39,7 +52,7 @@ where
         Host {
             engine,
             factory,
-            guests: HashMap::new(),
+            guests: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 }
@@ -127,13 +140,23 @@ where
             factory: self.factory.clone(),
         };
 
-        self.guests.insert(identifier, guest);
+        let mut guests = match self.guests.write() {
+            Ok(guests) => guests,
+            Err(e) => e.into_inner(),
+        };
+
+        guests.insert(identifier, guest);
 
         Ok(identifier)
     }
 
     fn guest(&self, identifier: &Identifier) -> Option<Self::Guest> {
-        self.guests.get(identifier).cloned()
+        let guests = match self.guests.read() {
+            Ok(guests) => guests,
+            Err(e) => e.into_inner(),
+        };
+
+        guests.get(identifier).cloned()
     }
 }
 
