@@ -1,10 +1,9 @@
 use crate::wasm;
 use async_trait::async_trait;
-pub use identifier::Identifier;
 pub use router::Router;
+pub use wasm::Identifier;
 
 pub mod acceptor;
-mod identifier;
 mod router;
 mod tokio;
 

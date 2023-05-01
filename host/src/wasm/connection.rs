@@ -1,21 +1,34 @@
 use crate::wasm;
-use std::num::NonZeroUsize;
+use std::num::NonZeroU64;
 
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct Connection<Factory>
-where
-    Factory: wasm::Factory,
-{
+#[derive(Clone)]
+pub struct Connection<Primary, Factory, Rest> {
+    primary: Primary,
     factory: Factory,
-    primary: Factory::Stream,
-    rest: Vec<Factory::Stream>,
+    rest: Vec<Rest>,
 }
 
-impl<Factory> Connection<Factory>
+impl<Primary, Factory, Rest> Connection<Primary, Factory, Rest> {
+    pub fn primary_mut(&mut self) -> &mut Primary {
+        &mut self.primary
+    }
+
+    pub fn into_primary(self) -> Primary {
+        self.primary
+    }
+
+    pub fn get_mut(&mut self, stream: NonZeroU64) -> Option<&mut Rest> {
+        self.rest.get_mut(stream.get() as usize - 1)
+    }
+}
+
+impl<Primary, Factory, Rest> Connection<Primary, Factory, Rest>
 where
-    Factory: wasm::Factory,
+    Primary: wasm::Stream,
+    Factory: wasm::Factory<Stream = Rest>,
+    Rest: wasm::Stream,
 {
-    pub fn new(primary: Factory::Stream, factory: Factory) -> Self {
+    pub fn new(primary: Primary, factory: Factory) -> Self {
         Connection {
             factory,
             primary,
@@ -23,23 +36,8 @@ where
         }
     }
 
-    pub fn primary_mut(&mut self) -> &mut Factory::Stream {
-        &mut self.primary
-    }
-
-    pub fn into_primary(self) -> Factory::Stream {
-        self.primary
-    }
-
     pub fn start_stream(&mut self) -> u64 {
         self.rest.push(self.factory.create());
         self.rest.len() as u64
-    }
-
-    pub fn get_mut(&mut self, stream: u64) -> Option<&mut Factory::Stream> {
-        match NonZeroUsize::new(stream as usize) {
-            None => Some(&mut self.primary),
-            Some(position) => self.rest.get_mut(position.get() - 1),
-        }
     }
 }

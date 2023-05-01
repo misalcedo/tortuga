@@ -1,4 +1,4 @@
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone)]
 pub struct Data<Additional, Connection> {
     connection: Connection,
     additional: Additional,

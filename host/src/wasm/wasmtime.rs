@@ -1,25 +1,33 @@
 use async_trait::async_trait;
+use std::collections::HashMap;
+use std::num::NonZeroU64;
 
 use wasmtime::{Caller, Config, Engine, InstancePre, Linker, Module, Store};
 
-use crate::wasm::{self, Connection, Data};
+use crate::wasm::{self, Connection, Data, Identifier};
 
 const EPOCH_YIELD_TICKS: u64 = 1;
 const EPOCH_DEADLINE_TICKS: u64 = 500;
 
 #[derive(Clone)]
-pub struct Host<Factory> {
+pub struct Host<Primary, Factory, Rest> {
     engine: Engine,
     factory: Factory,
+    guests: HashMap<Identifier, Guest<Primary, Factory, Rest>>,
 }
 
-impl<Factory> Host<Factory> {
+impl<Primary, Factory, Rest> Host<Primary, Factory, Rest> {
     pub fn tick(&mut self) {
         self.engine.increment_epoch()
     }
 }
 
-impl<Factory> From<Factory> for Host<Factory> {
+impl<Primary, Factory, Rest> From<Factory> for Host<Primary, Factory, Rest>
+where
+    Primary: wasm::Stream,
+    Factory: wasm::Factory<Stream = Rest>,
+    Rest: wasm::Stream,
+{
     fn from(factory: Factory) -> Self {
         let mut configuration = Config::new();
 
@@ -28,7 +36,11 @@ impl<Factory> From<Factory> for Host<Factory> {
 
         let engine = Engine::new(&configuration).unwrap();
 
-        Host { engine, factory }
+        Host {
+            engine,
+            factory,
+            guests: HashMap::new(),
+        }
     }
 }
 
@@ -49,14 +61,16 @@ impl AdditionalState {
     }
 }
 
-impl<Factory> wasm::Host for Host<Factory>
+impl<Primary, Factory, Rest> wasm::Host for Host<Primary, Factory, Rest>
 where
-    Factory: wasm::Factory,
+    Primary: wasm::Stream,
+    Factory: wasm::Factory<Stream = Rest>,
+    Rest: wasm::Stream,
 {
-    type Guest = Guest<Factory>;
+    type Guest = Guest<Primary, Factory, Rest>;
     type Error = wasmtime::Error;
 
-    fn welcome<Code>(&mut self, code: Code) -> Result<Self::Guest, Self::Error>
+    fn welcome<Code>(&mut self, code: Code) -> Result<Identifier, Self::Error>
     where
         Code: AsRef<[u8]>,
     {
@@ -66,80 +80,92 @@ where
         linker.func_wrap3_async(
             "stream",
             "read",
-            move |mut caller: Caller<'_, Data<AdditionalState, Connection<Factory>>>,
+            move |caller: Caller<'_, Data<AdditionalState, Connection<Primary, Factory, Rest>>>,
                   stream: u64,
                   pointer: u32,
                   length: u32| {
-                Box::new(async move {
-                    let (buffer, optional_stream) =
-                        data_and_stream_mut(&mut caller, stream, pointer, length);
-
-                    match optional_stream {
-                        None => -1,
-                        Some(stream) => match wasm::Stream::read(stream, buffer).await {
-                            Ok(bytes) => bytes as i64,
-                            Err(_) => -1,
-                        },
-                    }
-                })
+                Box::new(stream_read_write(
+                    caller,
+                    stream,
+                    pointer,
+                    length,
+                    Action::Read,
+                ))
             },
         )?;
         linker.func_wrap3_async(
             "stream",
             "write",
-            move |mut caller: Caller<'_, Data<AdditionalState, Connection<Factory>>>,
+            move |caller: Caller<'_, Data<AdditionalState, Connection<Primary, Factory, Rest>>>,
                   stream: u64,
                   pointer: u32,
                   length: u32| {
-                Box::new(async move {
-                    let (buffer, optional_stream) =
-                        data_and_stream_mut(&mut caller, stream, pointer, length);
-
-                    match optional_stream {
-                        None => -1,
-                        Some(stream) => match wasm::Stream::write(stream, buffer).await {
-                            Ok(bytes) => bytes as i64,
-                            Err(_) => -1,
-                        },
-                    }
-                })
+                Box::new(stream_read_write(
+                    caller,
+                    stream,
+                    pointer,
+                    length,
+                    Action::Write,
+                ))
             },
         )?;
         linker.func_wrap0_async(
             "stream",
             "start",
-            move |mut caller: Caller<'_, Data<AdditionalState, Connection<Factory>>>| {
+            move |mut caller: Caller<
+                '_,
+                Data<AdditionalState, Connection<Primary, Factory, Rest>>,
+            >| {
                 Box::new(async move { caller.data_mut().connection_mut().start_stream() })
             },
         )?;
 
         let instance = linker.instantiate_pre(&module)?;
-
-        Ok(Guest {
+        let identifier = Identifier::default();
+        let guest = Guest {
             instance,
-            stream: self.factory.clone(),
-        })
+            factory: self.factory.clone(),
+        };
+
+        self.guests.insert(identifier, guest);
+
+        Ok(identifier)
+    }
+
+    fn guest(&self, identifier: &Identifier) -> Option<Self::Guest> {
+        self.guests.get(identifier).cloned()
     }
 }
 
-pub struct Guest<Factory>
+pub struct Guest<Primary, Factory, Rest> {
+    instance: InstancePre<Data<AdditionalState, Connection<Primary, Factory, Rest>>>,
+    factory: Factory,
+}
+
+impl<Primary, Factory, Rest> Clone for Guest<Primary, Factory, Rest>
 where
-    Factory: wasm::Factory,
+    Factory: Clone,
 {
-    instance: InstancePre<Data<AdditionalState, Connection<Factory>>>,
-    stream: Factory,
+    fn clone(&self) -> Self {
+        Guest {
+            instance: self.instance.clone(),
+            factory: self.factory.clone(),
+        }
+    }
 }
 
 #[async_trait]
-impl<Factory> wasm::Guest for Guest<Factory>
+impl<Primary, Factory, Rest> wasm::Guest for Guest<Primary, Factory, Rest>
 where
-    Factory: wasm::Factory,
+    Primary: wasm::Stream,
+    Factory: wasm::Factory<Stream = Rest>,
+    Rest: wasm::Stream,
 {
+    type Stream = Primary;
     type Error = wasmtime::Error;
-    type Stream = Factory::Stream;
 
-    async fn invoke(&self, stream: Factory::Stream) -> Result<i32, Self::Error> {
-        let connection = Connection::new(stream, self.stream.clone());
+    async fn invoke(&self, stream: Self::Stream) -> Result<i32, Self::Error> {
+        let connection = Connection::new(stream, self.factory.clone());
         let data = Data::new(connection, AdditionalState::default());
 
         let mut store = Store::new(self.instance.module().engine(), data);
@@ -157,21 +183,56 @@ where
     }
 }
 
-fn data_and_stream_mut<'a, Factory>(
-    caller: &'a mut Caller<'_, Data<AdditionalState, Connection<Factory>>>,
+enum Action {
+    Read,
+    Write,
+}
+
+impl Action {
+    async fn perform<Stream>(&self, stream: &mut Stream, buffer: &mut [u8]) -> i64
+    where
+        Stream: wasm::Stream,
+    {
+        match self {
+            Action::Read => match Stream::read(stream, buffer).await {
+                Ok(bytes) => bytes as i64,
+                Err(_) => -1,
+            },
+            Action::Write => match Stream::write(stream, buffer).await {
+                Ok(bytes) => bytes as i64,
+                Err(_) => -1,
+            },
+        }
+    }
+}
+
+async fn stream_read_write<Primary, Factory, Rest>(
+    mut caller: Caller<'_, Data<AdditionalState, Connection<Primary, Factory, Rest>>>,
     stream: u64,
     pointer: u32,
     length: u32,
-) -> (&'a mut [u8], Option<&'a mut Factory::Stream>)
+    action: Action,
+) -> i64
 where
-    Factory: wasm::Factory,
+    Primary: wasm::Stream,
+    Factory: wasm::Factory<Stream = Rest>,
+    Rest: wasm::Stream,
 {
     let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
-    let (data, state) = memory.data_and_store_mut(caller);
+    let (data, state) = memory.data_and_store_mut(&mut caller);
     let view = &mut data[..(pointer as usize + length as usize)][pointer as usize..];
-    let stream = state.connection_mut().get_mut(stream);
 
-    (view, stream)
+    match NonZeroU64::new(stream) {
+        None => {
+            let stream = state.connection_mut().primary_mut();
+
+            action.perform(stream, view).await
+        }
+        Some(stream) => match state.connection_mut().get_mut(stream) {
+            None => -1,
+            Some(stream) => action.perform(stream, view).await,
+        },
+    }
 }
 
 #[cfg(all(test, feature = "memory"))]
@@ -198,7 +259,8 @@ mod tests {
         );
         let response = Response::new(Status::Ok, body.len(), Cursor::new(body.to_vec()));
 
-        let guest = host.welcome(code).unwrap();
+        let identifier = host.welcome(code).unwrap();
+        let guest = host.guest(&identifier).unwrap();
         let stream = bridge.create();
 
         bridge.write_message(0, request).unwrap();
