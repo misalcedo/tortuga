@@ -2,15 +2,13 @@ use crate::executor::{self, acceptor::RoutingAcceptor, Identifier, Router};
 use crate::stream::memory;
 use crate::wasm;
 use std::time::Duration;
-use tokio::task::{yield_now, JoinSet};
+use tokio::task::{yield_now, JoinHandle, JoinSet};
 use tortuga_guest::Header;
 
-pub struct Executor<Acceptor, Host>
-where
-    Host: wasm::Host,
-{
+pub struct Executor<Acceptor, Host> {
     acceptor: Acceptor,
     host: Host,
+    ticker: JoinHandle<()>,
 }
 
 impl Default
@@ -27,7 +25,7 @@ impl Default
 
         let mut epoch = host.clone();
 
-        tokio::task::spawn(async move {
+        let ticker = tokio::task::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_millis(10));
 
             loop {
@@ -36,7 +34,27 @@ impl Default
             }
         });
 
-        Executor::new(acceptor, host)
+        Executor {
+            acceptor,
+            host,
+            ticker,
+        }
+    }
+}
+
+impl<Acceptor, Host> Drop for Executor<Acceptor, Host> {
+    fn drop(&mut self) {
+        self.ticker.abort_handle().abort()
+    }
+}
+
+impl<Acceptor, Host> Executor<Acceptor, Host> {
+    pub fn acceptor_mut(&mut self) -> &mut Acceptor {
+        &mut self.acceptor
+    }
+
+    pub fn host_mut(&mut self) -> &mut Host {
+        &mut self.host
     }
 }
 
@@ -47,10 +65,6 @@ where
     Host: wasm::Host<Guest = Guest>,
     Stream: wasm::Stream + 'static,
 {
-    pub fn new(acceptor: Acceptor, host: Host) -> Self {
-        Executor { acceptor, host }
-    }
-
     pub async fn run(&mut self) {}
 
     pub async fn step(&mut self) {
@@ -79,10 +93,10 @@ mod tests {
 
     #[tokio::test]
     async fn sample() {
-        let mut bridge = memory::Bridge::default();
-        let mut router = Router::default();
-        let mut host = wasm::wasmtime::Host::from(bridge.clone());
-        let acceptor = RoutingAcceptor::new(bridge.clone(), router.clone());
+        let mut executor = Executor::default();
+        let mut bridge = executor.acceptor_mut().provider_mut().clone();
+        let mut router = executor.acceptor_mut().router_mut().clone();
+        let mut host = executor.host_mut().clone();
 
         let ping_code = include_bytes!(env!("CARGO_BIN_FILE_PING"));
         let ping = host.welcome(ping_code).unwrap();
@@ -92,7 +106,6 @@ mod tests {
         let pong = host.welcome(pong_code).unwrap();
         router.define("/pong".into(), pong);
 
-        let mut executor = Executor::new(acceptor, host);
         let mut client = bridge.create();
         let request = Request::new(Method::Get, "/ping".into(), 0, Cursor::new(Vec::new()));
 

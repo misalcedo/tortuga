@@ -4,9 +4,20 @@ use async_trait::async_trait;
 use std::io::{Read, Write};
 use tortuga_guest::{Header, Request, Source};
 
+#[derive(Clone)]
 pub struct RoutingAcceptor<Provider, Target> {
     provider: Provider,
     router: Router<Target>,
+}
+
+impl<Provider> RoutingAcceptor<Provider, Identifier> {
+    pub fn provider_mut(&mut self) -> &mut Provider {
+        &mut self.provider
+    }
+
+    pub fn router_mut(&mut self) -> &mut Router<Identifier> {
+        &mut self.router
+    }
 }
 
 impl<Provider> RoutingAcceptor<Provider, Identifier>
