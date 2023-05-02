@@ -62,13 +62,12 @@ impl Write for Stream {
             Ok(writer) => writer,
             Err(e) => e.into_inner(),
         };
-
-        guard.extend_from_slice(buf);
-
         let mut waker_guard = match self.write_waker.lock() {
             Ok(waker) => waker,
             Err(e) => e.into_inner(),
         };
+
+        guard.extend_from_slice(buf);
 
         if let Some(waker) = waker_guard.take() {
             waker.wake()
@@ -90,13 +89,12 @@ impl Future for Stream {
             Ok(reader) => reader,
             Err(e) => e.into_inner(),
         };
+        let mut waker_guard = match self.read_waker.lock() {
+            Ok(waker) => waker,
+            Err(e) => e.into_inner(),
+        };
 
         if self.cursor >= read_guard.len() as u64 {
-            let mut waker_guard = match self.read_waker.lock() {
-                Ok(waker) => waker,
-                Err(e) => e.into_inner(),
-            };
-
             *waker_guard = Some(cx.waker().clone());
 
             Poll::Pending
