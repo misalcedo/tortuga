@@ -23,22 +23,7 @@ impl Default
         let router = Router::default();
         let acceptor = RoutingAcceptor::new(bridge, router.clone());
 
-        let mut epoch = host.clone();
-
-        let ticker = tokio::task::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_millis(10));
-
-            loop {
-                interval.tick().await;
-                epoch.tick();
-            }
-        });
-
-        Executor {
-            acceptor,
-            host,
-            ticker,
-        }
+        Executor::new(acceptor, host)
     }
 }
 
@@ -58,13 +43,32 @@ impl<Acceptor, Host> Executor<Acceptor, Host> {
     }
 }
 
-impl<Acceptor, Guest, Host, Stream> Executor<Acceptor, Host>
+impl<Acceptor, Guest, Host, Stream, Ticker> Executor<Acceptor, Host>
 where
     Acceptor: executor::Acceptor<Stream = Stream>,
     Guest: wasm::Guest<Stream = Stream> + 'static,
-    Host: wasm::Host<Guest = Guest>,
+    Host: wasm::Host<Guest = Guest, Ticker = Ticker>,
     Stream: wasm::Stream + 'static,
+    Ticker: wasm::Ticker + 'static,
 {
+    pub fn new(acceptor: Acceptor, host: Host) -> Self {
+        let mut epoch = host.ticker();
+        let ticker = tokio::task::spawn(async move {
+            let mut interval = tokio::time::interval(Duration::from_millis(1));
+
+            loop {
+                interval.tick().await;
+                epoch.tick();
+            }
+        });
+
+        Executor {
+            acceptor,
+            host,
+            ticker,
+        }
+    }
+
     pub async fn run(&mut self) {}
 
     pub async fn step(&mut self) {
@@ -122,5 +126,25 @@ mod tests {
 
         assert_eq!(response, actual);
         assert_eq!(buffer.get_ref().as_slice(), body);
+    }
+
+    #[tokio::test]
+    async fn sample_timeout() {
+        let mut bridge = memory::Bridge::default();
+        let mut router = Router::default();
+        let mut host = wasm::wasmtime::Host::new(bridge.clone(), 3);
+        let acceptor = RoutingAcceptor::new(bridge.clone(), router.clone());
+
+        let infinite_code = include_bytes!(env!("CARGO_BIN_FILE_INFINITE"));
+        let infinite = host.welcome(infinite_code).unwrap();
+        router.define("/infinite".into(), infinite);
+
+        let mut executor = Executor::new(acceptor, host);
+        let mut client = bridge.create();
+        let request = Request::new(Method::Get, "/infinite".into(), 0, Cursor::new(Vec::new()));
+
+        client.write_message(request).unwrap();
+
+        executor.step().await;
     }
 }

@@ -17,15 +17,22 @@ pub trait Factory: Clone + Send + Sync {
     fn create(&mut self) -> Self::Stream;
 }
 
+pub trait Ticker: Send + Sync {
+    fn tick(&mut self);
+}
+
 pub trait Host: Send {
     type Guest: Guest;
     type Error: Debug + Display;
+    type Ticker: Ticker;
 
     fn welcome<Code>(&mut self, code: Code) -> Result<Identifier, Self::Error>
     where
         Code: AsRef<[u8]>;
 
     fn guest(&self, identifier: &Identifier) -> Option<Self::Guest>;
+
+    fn ticker(&self) -> Self::Ticker;
 }
 
 #[async_trait]

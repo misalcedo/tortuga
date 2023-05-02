@@ -14,6 +14,7 @@ pub struct Host<Primary, Factory, Rest> {
     engine: Engine,
     factory: Factory,
     guests: Arc<RwLock<HashMap<Identifier, Guest<Primary, Factory, Rest>>>>,
+    epoch_deadline: u64,
 }
 
 impl<Primary, Factory, Rest> Clone for Host<Primary, Factory, Rest>
@@ -25,13 +26,31 @@ where
             engine: self.engine.clone(),
             factory: self.factory.clone(),
             guests: self.guests.clone(),
+            epoch_deadline: self.epoch_deadline,
         }
     }
 }
 
-impl<Primary, Factory, Rest> Host<Primary, Factory, Rest> {
-    pub fn tick(&mut self) {
-        self.engine.increment_epoch()
+impl<Primary, Factory, Rest> Host<Primary, Factory, Rest>
+where
+    Primary: wasm::Stream,
+    Factory: wasm::Factory<Stream = Rest>,
+    Rest: wasm::Stream,
+{
+    pub fn new(factory: Factory, epoch_deadline: u64) -> Self {
+        let mut configuration = Config::new();
+
+        configuration.async_support(true);
+        configuration.epoch_interruption(true);
+
+        let engine = Engine::new(&configuration).unwrap();
+
+        Host {
+            engine,
+            factory,
+            guests: Arc::new(RwLock::new(HashMap::new())),
+            epoch_deadline,
+        }
     }
 }
 
@@ -53,6 +72,7 @@ where
             engine,
             factory,
             guests: Arc::new(RwLock::new(HashMap::new())),
+            epoch_deadline: EPOCH_DEADLINE_TICKS,
         }
     }
 }
@@ -60,17 +80,33 @@ where
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct AdditionalState {
     ticks: u64,
+    deadline: u64,
 }
 
 impl AdditionalState {
+    fn new(deadline: u64) -> Self {
+        AdditionalState { ticks: 0, deadline }
+    }
+
     fn tick(&mut self) -> Result<u64, wasmtime::Error> {
         self.ticks += 1;
 
-        if self.ticks <= EPOCH_DEADLINE_TICKS {
+        if self.ticks <= self.deadline {
             Ok(1)
         } else {
             Err(wasmtime::Error::msg("exceeded allotted execution time"))
         }
+    }
+}
+
+impl<Primary, Factory, Rest> wasm::Ticker for Host<Primary, Factory, Rest>
+where
+    Primary: wasm::Stream,
+    Factory: wasm::Factory<Stream = Rest>,
+    Rest: wasm::Stream,
+{
+    fn tick(&mut self) {
+        self.engine.increment_epoch()
     }
 }
 
@@ -82,6 +118,7 @@ where
 {
     type Guest = Guest<Primary, Factory, Rest>;
     type Error = wasmtime::Error;
+    type Ticker = Self;
 
     fn welcome<Code>(&mut self, code: Code) -> Result<Identifier, Self::Error>
     where
@@ -138,6 +175,7 @@ where
         let guest = Guest {
             instance,
             factory: self.factory.clone(),
+            epoch_deadline: self.epoch_deadline,
         };
 
         let mut guests = match self.guests.write() {
@@ -158,11 +196,16 @@ where
 
         guests.get(identifier).cloned()
     }
+
+    fn ticker(&self) -> Self::Ticker {
+        self.clone()
+    }
 }
 
 pub struct Guest<Primary, Factory, Rest> {
     instance: InstancePre<Data<AdditionalState, Connection<Primary, Factory, Rest>>>,
     factory: Factory,
+    epoch_deadline: u64,
 }
 
 impl<Primary, Factory, Rest> Clone for Guest<Primary, Factory, Rest>
@@ -173,6 +216,7 @@ where
         Guest {
             instance: self.instance.clone(),
             factory: self.factory.clone(),
+            epoch_deadline: self.epoch_deadline,
         }
     }
 }
@@ -189,7 +233,7 @@ where
 
     async fn invoke(&self, stream: Self::Stream) -> Result<i32, Self::Error> {
         let connection = Connection::new(stream, self.factory.clone());
-        let data = Data::new(connection, AdditionalState::default());
+        let data = Data::new(connection, AdditionalState::new(self.epoch_deadline));
 
         let mut store = Store::new(self.instance.module().engine(), data);
 
