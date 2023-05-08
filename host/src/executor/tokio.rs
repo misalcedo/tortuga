@@ -43,6 +43,8 @@ impl<Acceptor, Host> Executor<Acceptor, Host> {
     }
 }
 
+/// Schedules ticking of the epoch.
+/// Must be scheduled in a separate Runtime from the one running the guest code to prevent starvation of this task.
 pub fn schedule_tick<Host, Ticker>(host: &Host) -> JoinHandle<()>
 where
     Host: wasm::Host<Ticker = Ticker>,
@@ -137,7 +139,7 @@ mod tests {
         assert_eq!(buffer.get_ref().as_slice(), body);
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn sample_timeout() {
         let mut bridge = memory::Bridge::default();
         let mut router = Router::default();

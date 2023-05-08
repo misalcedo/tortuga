@@ -342,7 +342,7 @@ mod tests {
         assert_eq!(buffer.get_ref().as_slice(), body);
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn sample_timeout() {
         let mut bridge = memory::Bridge::default();
         let mut host = wasmtime::Host::new(bridge.clone(), 3);
@@ -357,7 +357,8 @@ mod tests {
         let request = Request::new(Method::Get, "/infinite".into(), 0, Cursor::new(Vec::new()));
 
         bridge.write_message(0, request).unwrap();
-        guest.invoke(stream).await.unwrap();
+
+        assert!(guest.invoke(stream).await.is_err());
 
         ticker.abort();
     }
