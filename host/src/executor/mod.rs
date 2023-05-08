@@ -5,7 +5,7 @@ pub use wasm::Identifier;
 
 pub mod acceptor;
 mod router;
-mod tokio;
+pub mod tokio;
 
 #[async_trait]
 pub trait Provider: Send {

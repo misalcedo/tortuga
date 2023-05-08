@@ -43,6 +43,23 @@ impl<Acceptor, Host> Executor<Acceptor, Host> {
     }
 }
 
+pub fn schedule_tick<Host, Ticker>(host: &Host) -> JoinHandle<()>
+where
+    Host: wasm::Host<Ticker = Ticker>,
+    Ticker: wasm::Ticker + 'static,
+{
+    let mut epoch = host.ticker();
+
+    tokio::task::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_millis(1));
+
+        loop {
+            interval.tick().await;
+            epoch.tick();
+        }
+    })
+}
+
 impl<Acceptor, Guest, Host, Stream, Ticker> Executor<Acceptor, Host>
 where
     Acceptor: executor::Acceptor<Stream = Stream>,
@@ -52,15 +69,7 @@ where
     Ticker: wasm::Ticker + 'static,
 {
     pub fn new(acceptor: Acceptor, host: Host) -> Self {
-        let mut epoch = host.ticker();
-        let ticker = tokio::task::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_millis(1));
-
-            loop {
-                interval.tick().await;
-                epoch.tick();
-            }
-        });
+        let ticker = schedule_tick(&host);
 
         Executor {
             acceptor,

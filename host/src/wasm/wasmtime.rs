@@ -304,6 +304,7 @@ where
 
 #[cfg(all(test, feature = "memory"))]
 mod tests {
+    use crate::executor;
     use crate::stream::memory;
     use crate::wasm::{wasmtime, Factory, Guest, Host};
     use std::io::Cursor;
@@ -339,5 +340,25 @@ mod tests {
 
         assert_eq!(actual, response);
         assert_eq!(buffer.get_ref().as_slice(), body);
+    }
+
+    #[tokio::test]
+    async fn sample_timeout() {
+        let mut bridge = memory::Bridge::default();
+        let mut host = wasmtime::Host::new(bridge.clone(), 3);
+
+        let infinite_code = include_bytes!(env!("CARGO_BIN_FILE_INFINITE"));
+        let infinite = host.welcome(infinite_code).unwrap();
+        let guest = host.guest(&infinite).unwrap();
+
+        let ticker = executor::tokio::schedule_tick(&host);
+
+        let stream = bridge.create();
+        let request = Request::new(Method::Get, "/infinite".into(), 0, Cursor::new(Vec::new()));
+
+        bridge.write_message(0, request).unwrap();
+        guest.invoke(stream).await.unwrap();
+
+        ticker.abort();
     }
 }
