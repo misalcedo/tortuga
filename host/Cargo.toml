@@ -18,9 +18,10 @@ static = { path = "examples/static", artifact = "bin", target = "wasm32-unknown-
 
 [dependencies]
 async-trait = "0.1.64"
+bytes = "1.4.0"
 tokio = { version = "1.28.0", features = ["full"] }
 tortuga-guest = { version = "0.1.1", path = "../guest" }
-uuid = { version = "1.3.2", features = ["v4", "v5"] }
+uuid = { version = "1.3.1", features = ["v4", "v5"] }
 wasmtime = "8.0.1"
 wasmtime-wasi = "8.0.1"
 
