@@ -1,7 +1,4 @@
-mod method;
-
-use crate::Uri;
-pub use method::Method;
+use crate::{Method, Uri};
 use std::fmt::{Debug, Formatter};
 
 /// A cursor into the current request being processed.

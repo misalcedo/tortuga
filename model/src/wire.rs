@@ -1,14 +1,9 @@
-use crate::Encoding;
+use async_trait::async_trait;
+use std::io;
 
 #[async_trait]
-pub trait Wire<Encoding: Encoding> {
-    type Error;
+pub trait Wire: io::Write + io::Read {
+    async fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize>;
 
-    fn blocking_read(&mut self, buffer: &mut [u8]) -> Result<usize, Self::Error>;
-
-    async fn read(&mut self, buffer: &mut [u8]) -> Result<usize, Self::Error>;
-
-    fn blocking_write(&mut self, buffer: &[u8]) -> Result<usize, Self::Error>;
-
-    async fn write(&mut self, buffer: &[u8]) -> Result<usize, Self::Error>;
+    async fn write(&mut self, buffer: &[u8]) -> io::Result<usize>;
 }

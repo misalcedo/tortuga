@@ -1,6 +1,3 @@
-use std::io::{Cursor, Read, Write};
-use std::mem::size_of;
-
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 #[repr(u8)]
 pub enum Kind {
@@ -17,6 +14,12 @@ impl TryFrom<u8> for Kind {
             0x01 => Ok(Kind::Header),
             _ => Err(kind),
         }
+    }
+}
+
+impl From<Kind> for u8 {
+    fn from(value: Kind) -> Self {
+        value as u8
     }
 }
 

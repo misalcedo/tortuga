@@ -1,6 +1,3 @@
-mod status;
-
-pub use status::Status;
 use std::fmt::{Debug, Formatter};
 
 #[derive(Default, Clone)]

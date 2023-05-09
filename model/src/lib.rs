@@ -1,4 +1,8 @@
 pub use encoding::Encoding;
+pub use method::Method;
+pub use status::Status;
+pub use uri::Uri;
+pub use wire::Wire;
 
 mod encoding;
 mod frame;
@@ -7,6 +11,7 @@ mod method;
 mod request;
 mod response;
 mod status;
+mod uri;
 mod wire;
 
 pub fn add(left: usize, right: usize) -> usize {
