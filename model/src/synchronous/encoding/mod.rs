@@ -1,14 +1,13 @@
 use async_trait::async_trait;
 
+pub use crate::asynchronous::content::ContentLength;
 pub use basic::Basic;
-pub use content::ContentLength;
 pub use error::EncodingResult;
 
 use crate::request::Request;
 use crate::{Message, Response, Wire};
 
 mod basic;
-mod content;
 mod error;
 
 #[async_trait]

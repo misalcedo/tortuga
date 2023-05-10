@@ -1,5 +1,6 @@
-use crate::encoding::{ContentLength, Deserialize, EncodingResult, Serialize};
-use crate::{Encoding, Message, Request, Response, Wire};
+use crate::asynchronous::encoding::{Deserialize, EncodingResult, Serialize};
+use crate::asynchronous::{ContentLength, Encoding, Wire};
+use crate::{Message, Request, Response};
 use async_trait::async_trait;
 
 pub enum Error {}

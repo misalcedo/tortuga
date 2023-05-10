@@ -1,21 +1,20 @@
-pub use encoding::Encoding;
+pub use frame::Frame;
 pub use message::Message;
 pub use method::Method;
 pub use request::Request;
 pub use response::Response;
 pub use status::Status;
 pub use uri::Uri;
-pub use wire::Wire;
 
-mod encoding;
-mod frame;
+pub mod asynchronous;
+pub mod frame;
 mod message;
 mod method;
 mod request;
 mod response;
 mod status;
+pub mod synchronous;
 mod uri;
-mod wire;
 
 pub fn add(left: usize, right: usize) -> usize {
     left + right

@@ -1,4 +1,4 @@
-use crate::encoding::ContentLength;
+use crate::asynchronous::encoding::ContentLength;
 use crate::{Request, Response};
 
 pub struct Message<Head, Body> {
