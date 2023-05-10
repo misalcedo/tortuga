@@ -1,36 +1,44 @@
 use std::fs::File;
 use std::io::Cursor;
 
-pub trait ContentLength {
-    fn length(&mut self) -> Option<usize>;
+use async_trait::async_trait;
+
+#[async_trait]
+pub trait ContentLength: Send + Sync {
+    async fn length(&mut self) -> Option<usize>;
 }
 
+#[async_trait]
 impl ContentLength for str {
-    fn length(&mut self) -> Option<usize> {
+    async fn length(&mut self) -> Option<usize> {
         Some(self.len())
     }
 }
 
+#[async_trait]
 impl ContentLength for String {
-    fn length(&mut self) -> Option<usize> {
+    async fn length(&mut self) -> Option<usize> {
         Some(self.len())
     }
 }
 
+#[async_trait]
 impl ContentLength for Vec<u8> {
-    fn length(&mut self) -> Option<usize> {
+    async fn length(&mut self) -> Option<usize> {
         Some(self.len())
     }
 }
 
+#[async_trait]
 impl ContentLength for File {
-    fn length(&mut self) -> Option<usize> {
+    async fn length(&mut self) -> Option<usize> {
         Some(self.metadata().ok()?.len() as usize)
     }
 }
 
+#[async_trait]
 impl ContentLength for Cursor<Vec<u8>> {
-    fn length(&mut self) -> Option<usize> {
+    async fn length(&mut self) -> Option<usize> {
         Some(self.get_ref().len() - self.position() as usize)
     }
 }

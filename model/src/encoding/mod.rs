@@ -1,16 +1,19 @@
-use crate::request::Request;
+use async_trait::async_trait;
 
-use crate::{Message, Response, Wire};
 pub use basic::Basic;
 pub use content::ContentLength;
 pub use error::EncodingResult;
+
+use crate::request::Request;
+use crate::{Message, Response, Wire};
 
 mod basic;
 mod content;
 mod error;
 
+#[async_trait]
 pub trait Encoding<Error> {
-    fn encode<Body, Destination>(
+    async fn encode<Body, Destination>(
         &mut self,
         message: Message<Request, Body>,
         destination: Destination,
@@ -20,7 +23,7 @@ pub trait Encoding<Error> {
         Body: ContentLength,
         Destination: Wire;
 
-    fn decode<Body, Source>(&mut self, source: Source) -> Message<Response, Body>
+    async fn decode<Body, Source>(&mut self, source: Source) -> Message<Response, Body>
     where
         Self: Deserialize<Body, Error>,
         Body: ContentLength,
