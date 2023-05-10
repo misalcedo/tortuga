@@ -1,9 +1,7 @@
-use std::io;
 use crate::Encoding;
+use std::io;
 
 pub struct Basic {}
-
-impl Encoding<>
 
 // impl<W> Encode<io::Error, bool> for W
 // where

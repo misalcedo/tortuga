@@ -1,5 +1,4 @@
 use crate::{Method, Uri};
-use std::fmt::{Debug, Formatter};
 
 /// A cursor into the current request being processed.
 /// An embedded process handles a single request at a time.

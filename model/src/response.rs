@@ -1,5 +1,3 @@
-use std::fmt::{Debug, Formatter};
-
 #[derive(Default, Clone, PartialEq)]
 pub struct Response {
     status: u16,

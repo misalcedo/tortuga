@@ -11,7 +11,7 @@ impl<Head, Body> Message<Head, Body> {
         &self.head
     }
 
-    pub fn body(&mut self) -> &mut B {
+    pub fn body(&mut self) -> &mut Body {
         &mut self.body
     }
 

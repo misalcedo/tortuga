@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{Cursor, Seek, SeekFrom};
+use std::io::Cursor;
 
 pub trait ContentLength {
     fn length(&mut self) -> Option<usize>;

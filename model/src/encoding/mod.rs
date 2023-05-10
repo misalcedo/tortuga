@@ -3,16 +3,19 @@ use crate::request::Request;
 use crate::{Message, Response, Wire};
 pub use basic::Basic;
 pub use content::ContentLength;
+pub use error::EncodingResult;
 
 mod basic;
 mod content;
+mod error;
 
 pub trait Encoding<Error> {
     fn encode<Body, Destination>(
         &mut self,
         message: Message<Request, Body>,
         destination: Destination,
-    ) where
+    ) -> EncodingResult<usize, Error>
+    where
         Self: Serialize<Body, Error>,
         Body: ContentLength,
         Destination: Wire;
