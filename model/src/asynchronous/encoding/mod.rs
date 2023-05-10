@@ -5,29 +5,32 @@ pub use basic::Basic;
 pub use error::EncodingResult;
 
 use crate::asynchronous::Wire;
-use crate::request::Request;
-use crate::{Message, Response};
+use crate::Message;
 
 mod basic;
 mod error;
 
 #[async_trait]
 pub trait Encoding<Error> {
-    async fn encode<Body, Destination>(
+    async fn encode<Body, Head, Destination>(
         &mut self,
-        message: Message<Request, Body>,
+        message: Message<Head, Body>,
         destination: Destination,
     ) -> EncodingResult<usize, Error>
     where
         Self: Serialize<Body, Error>,
+        Self: Serialize<Head, Error>,
         Body: ContentLength,
-        Destination: Wire;
+        Destination: Wire,
+        Head: Send + Sync;
 
-    async fn decode<Body, Source>(&mut self, source: Source) -> Message<Response, Body>
+    async fn decode<Body, Head, Source>(&mut self, source: Source) -> Message<Head, Body>
     where
         Self: Deserialize<Body, Error>,
+        Self: Deserialize<Head, Error>,
         Body: ContentLength,
-        Source: Wire;
+        Source: Wire,
+        Head: Send + Sync;
 }
 
 pub trait Serializable<Error, In, Out = In>:
@@ -37,11 +40,12 @@ where
 {
 }
 
+#[async_trait]
 pub trait Serialize<In, Error>
 where
     In: ?Sized,
 {
-    fn serialize<Destination>(
+    async fn serialize<Destination>(
         &mut self,
         input: &In,
         destination: Destination,
@@ -50,8 +54,9 @@ where
         Destination: Wire;
 }
 
+#[async_trait]
 pub trait Deserialize<Out, Error> {
-    fn deserialize<Source>(&mut self, source: Source) -> Result<Out, Error>
+    async fn deserialize<Source>(&mut self, source: Source) -> Result<Out, Error>
     where
         Source: Wire;
 }
