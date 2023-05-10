@@ -1,5 +1,8 @@
 pub use encoding::Encoding;
+pub use message::Message;
 pub use method::Method;
+pub use request::Request;
+pub use response::Response;
 pub use status::Status;
 pub use uri::Uri;
 pub use wire::Wire;
