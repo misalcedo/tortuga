@@ -3,5 +3,8 @@ name = "tortuga-model"
 version = "0.1.0"
 edition = "2021"
 
+[dev-dependencies]
+tokio = { version = "1.28.0", features = ["rt"] }
+
 [dependencies]
 async-trait = "0.1.64"

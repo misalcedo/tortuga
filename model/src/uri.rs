@@ -59,6 +59,10 @@ fn optional<'a>((head, _): (&'a str, &str)) -> Option<&'a str> {
 }
 
 impl Uri {
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+
     pub fn scheme(&self) -> Option<&str> {
         optional(self.scheme_split())
     }

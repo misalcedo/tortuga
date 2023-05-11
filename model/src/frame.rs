@@ -33,7 +33,7 @@ pub trait Frame {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Header(usize);
 
 impl From<usize> for Header {
@@ -52,7 +52,7 @@ impl Frame for Header {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Data(usize);
 
 impl From<usize> for Data {

@@ -15,7 +15,7 @@ pub trait Encoding<Error> {
     async fn encode<Body, Head, Destination>(
         &mut self,
         message: Message<Head, Body>,
-        destination: Destination,
+        destination: &mut Destination,
     ) -> EncodingResult<usize, Error>
     where
         Self: Serialize<Body, Error>,
@@ -24,7 +24,7 @@ pub trait Encoding<Error> {
         Destination: Wire,
         Head: Send + Sync;
 
-    async fn decode<Body, Head, Source>(&mut self, source: Source) -> Message<Head, Body>
+    async fn decode<Body, Head, Source>(&mut self, source: &mut Source) -> Message<Head, Body>
     where
         Self: Deserialize<Body, Error>,
         Self: Deserialize<Head, Error>,
@@ -33,11 +33,12 @@ pub trait Encoding<Error> {
         Head: Send + Sync;
 }
 
-pub trait Serializable<Error, In, Out = In>:
-    Serialize<In, Error> + Deserialize<Out, Error>
+pub trait Serializable<In, Out = In>:
+    Serialize<In, Self::Error> + Deserialize<Out, Self::Error>
 where
     In: ?Sized,
 {
+    type Error;
 }
 
 #[async_trait]
@@ -48,15 +49,15 @@ where
     async fn serialize<Destination>(
         &mut self,
         input: &In,
-        destination: Destination,
-    ) -> Result<usize, Error>
+        destination: &mut Destination,
+    ) -> EncodingResult<usize, Error>
     where
         Destination: Wire;
 }
 
 #[async_trait]
 pub trait Deserialize<Out, Error> {
-    async fn deserialize<Source>(&mut self, source: Source) -> Result<Out, Error>
+    async fn deserialize<Source>(&mut self, source: &mut Source) -> EncodingResult<Out, Error>
     where
         Source: Wire;
 }
