@@ -1,4 +1,4 @@
-use crate::asynchronous::encoding::ContentLength;
+use crate::asynchronous;
 use crate::{Request, Response};
 
 pub struct Message<Head, Body> {
@@ -22,7 +22,7 @@ impl<Head, Body> Message<Head, Body> {
 
 impl<Body> Message<Request, Body>
 where
-    Body: ContentLength,
+    Body: asynchronous::Body,
 {
     pub fn new(request: Request, body: Body) -> Self {
         Message {
@@ -34,7 +34,7 @@ where
 
 impl<Body> Message<Response, Body>
 where
-    Body: ContentLength,
+    Body: asynchronous::Body,
 {
     pub fn new(response: Response, body: Body) -> Self {
         Message {

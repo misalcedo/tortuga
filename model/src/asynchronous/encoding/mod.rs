@@ -1,15 +1,15 @@
 use async_trait::async_trait;
 
-pub use crate::asynchronous::content::ContentLength;
 pub use basic::Basic;
 pub use error::EncodingResult;
 
-use crate::asynchronous::Wire;
+use crate::asynchronous::{self, Wire};
 use crate::Message;
 
 mod basic;
 mod error;
 
+// TODO: Figure out how I want to ensure that the body supports streaming and can be multiple values.
 #[async_trait]
 pub trait Encoding<Error> {
     async fn encode<Body, Head, Destination>(
@@ -18,46 +18,51 @@ pub trait Encoding<Error> {
         destination: &mut Destination,
     ) -> EncodingResult<usize, Error>
     where
-        Self: Serialize<Body, Error>,
-        Self: Serialize<Head, Error>,
-        Body: ContentLength,
+        Body: asynchronous::Body,
         Destination: Wire,
-        Head: Send + Sync;
+        Head: Serializable<Self, Error> + Send + Sync;
 
-    async fn decode<Body, Head, Source>(&mut self, source: &mut Source) -> Message<Head, Body>
+    async fn decode<Body, Head, Source>(
+        &mut self,
+        source: &mut Source,
+    ) -> EncodingResult<Message<Head, Body>, Error>
     where
-        Self: Deserialize<Body, Error>,
-        Self: Deserialize<Head, Error>,
-        Body: ContentLength,
+        Body: asynchronous::Body,
         Source: Wire,
-        Head: Send + Sync;
+        Head: Serializable<Self, Error> + Send + Sync;
 }
 
-pub trait Serializable<In, Out = In>:
-    Serialize<In, Self::Error> + Deserialize<Out, Self::Error>
+pub trait Serializable<Encoding, Out = Self>
 where
-    In: ?Sized,
+    Encoding: Serialize<Self, Error = Self::Error> + Deserialize<Out, Error = Self::Error> + ?Sized,
 {
     type Error;
 }
 
 #[async_trait]
-pub trait Serialize<In, Error>
+pub trait Serialize<In>
 where
     In: ?Sized,
 {
+    type Error;
+
     async fn serialize<Destination>(
         &mut self,
         input: &In,
         destination: &mut Destination,
-    ) -> EncodingResult<usize, Error>
+    ) -> EncodingResult<usize, Self::Error>
     where
         Destination: Wire;
 }
 
 #[async_trait]
-pub trait Deserialize<Out, Error> {
-    async fn deserialize<Source>(&mut self, source: &mut Source) -> EncodingResult<Out, Error>
+pub trait Deserialize<Out> {
+    type Error;
+
+    async fn deserialize<Source>(
+        &mut self,
+        source: &mut Source,
+    ) -> EncodingResult<Out, Self::Error>
     where
         Source: Wire;
 }

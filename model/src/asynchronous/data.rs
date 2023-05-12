@@ -1,8 +1,20 @@
-use crate::asynchronous::encoding::Serializable;
+use crate::asynchronous::encoding::{Deserialize, Serialize};
+use crate::asynchronous::Encoding;
 use crate::frame;
 use crate::{asynchronous, Frame};
 use async_trait::async_trait;
 use std::io;
+
+pub trait FrameEncoding:
+    Serialize<frame::Data, Error = Self::Error>
+    + Deserialize<frame::Data, Error = Self::Error>
+    + Serialize<[u8], Error = Self::Error>
+    + Deserialize<Vec<u8>, Error = Self::Error>
+    + Send
+    + Sync
+{
+    type Error;
+}
 
 pub struct FrameWire<Encoding, Wire> {
     encoding: Encoding,
@@ -18,10 +30,8 @@ impl<Encoding, Wire> FrameWire<Encoding, Wire> {
 
 impl<Encoding, Error, Wire> FrameWire<Encoding, Wire>
 where
-    Encoding: Serializable<frame::Data, Error = Error>
-        + Serializable<[u8], Vec<u8>, Error = Error>
-        + Send
-        + Sync,
+    Encoding: FrameEncoding,
+    Error: Encoding::Error,
     Wire: asynchronous::Wire,
 {
     fn new(encoding: Encoding, wire: Wire) -> Self {
@@ -36,10 +46,8 @@ where
 #[async_trait]
 impl<Encoding, Error, Wire> asynchronous::Wire for FrameWire<Encoding, Wire>
 where
-    Encoding: Serializable<frame::Data, Error = Error>
-        + Serializable<[u8], Vec<u8>, Error = Error>
-        + Send
-        + Sync,
+    Encoding: FrameEncoding,
+    Error: Encoding::Error,
     Wire: asynchronous::Wire,
 {
     async fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {

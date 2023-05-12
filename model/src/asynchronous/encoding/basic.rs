@@ -1,6 +1,7 @@
-use crate::asynchronous::encoding::error::EncodingError;
-use crate::asynchronous::encoding::{Deserialize, EncodingResult, Serializable, Serialize};
-use crate::asynchronous::{wire, ContentLength, Encoding, Wire};
+use crate::asynchronous::encoding::{
+    error::EncodingError, Deserialize, EncodingResult, Serializable, Serialize,
+};
+use crate::asynchronous::{self, wire, Encoding, Wire};
 use crate::{frame, Frame, Message, Method, Request, Response, Status, Uri};
 use async_trait::async_trait;
 use std::string::FromUtf8Error;
@@ -32,16 +33,14 @@ impl Encoding<Error> for Basic {
         destination: &mut Destination,
     ) -> EncodingResult<usize, Error>
     where
-        Self: Serialize<Body, Error>,
-        Self: Serialize<Head, Error>,
-        Body: ContentLength,
+        Body: asynchronous::Body,
         Destination: Wire,
-        Head: Send + Sync,
+        Head: Serializable<Self, Error> + Send + Sync,
     {
         let content_length = message.body().length().await;
         let mut counter = wire::Counter::default();
 
-        self.serialize(message.head(), &mut counter).await?;
+        message.head().serialize(self, &mut counter).await?;
         self.serialize(&content_length, &mut counter).await?;
 
         let header = frame::Header::from(counter.bytes_read());
@@ -51,25 +50,33 @@ impl Encoding<Error> for Basic {
         bytes += self.serialize(message.head(), destination).await?;
         bytes += self.serialize(&content_length, destination).await?;
 
-        todo!();
+        todo!("Serialize the body");
 
         Ok(bytes)
     }
 
-    async fn decode<Body, Head, Source>(&mut self, source: &mut Source) -> Message<Head, Body>
+    async fn decode<Body, Head, Source>(
+        &mut self,
+        source: &mut Source,
+    ) -> EncodingResult<Message<Head, Body>, Error>
     where
-        Self: Deserialize<Body, Error>,
-        Self: Deserialize<Head, Error>,
-        Body: ContentLength,
+        Body: asynchronous::Body,
         Source: Wire,
-        Head: Send + Sync,
+        Head: Serializable<Self, Error> + Send + Sync,
     {
+        let header: frame::Header = self.deserialize(source).await?;
+        let head: Head = self.deserialize(source).await?;
+        let length: usize = self.deserialize(source).await?;
+        let body: Body = self.deserialize(source).await?;
+
         todo!()
     }
 }
 
 #[async_trait]
-impl Serialize<bool, Error> for Basic {
+impl Serialize<bool> for Basic {
+    type Error = Error;
+
     async fn serialize<Destination>(
         &mut self,
         input: &bool,
@@ -85,7 +92,9 @@ impl Serialize<bool, Error> for Basic {
 }
 
 #[async_trait]
-impl Deserialize<bool, Error> for Basic {
+impl Deserialize<bool> for Basic {
+    type Error = Error;
+
     async fn deserialize<Source>(&mut self, source: &mut Source) -> EncodingResult<bool, Error>
     where
         Source: Wire,
@@ -101,7 +110,9 @@ impl Serializable<bool> for Basic {
 }
 
 #[async_trait]
-impl Serialize<u8, Error> for Basic {
+impl Serialize<u8> for Basic {
+    type Error = Error;
+
     async fn serialize<Destination>(
         &mut self,
         input: &u8,
@@ -119,7 +130,9 @@ impl Serialize<u8, Error> for Basic {
 }
 
 #[async_trait]
-impl Deserialize<u8, Error> for Basic {
+impl Deserialize<u8> for Basic {
+    type Error = Error;
+
     async fn deserialize<Source>(&mut self, source: &mut Source) -> EncodingResult<u8, Error>
     where
         Source: Wire,
@@ -137,7 +150,9 @@ impl Serializable<u8> for Basic {
 }
 
 #[async_trait]
-impl Serialize<u16, Error> for Basic {
+impl Serialize<u16> for Basic {
+    type Error = Error;
+
     async fn serialize<Destination>(
         &mut self,
         input: &u16,
@@ -155,7 +170,9 @@ impl Serialize<u16, Error> for Basic {
 }
 
 #[async_trait]
-impl Deserialize<u16, Error> for Basic {
+impl Deserialize<u16> for Basic {
+    type Error = Error;
+
     async fn deserialize<Source>(&mut self, source: &mut Source) -> EncodingResult<u16, Error>
     where
         Source: Wire,
@@ -173,7 +190,9 @@ impl Serializable<u16> for Basic {
 }
 
 #[async_trait]
-impl Serialize<u64, Error> for Basic {
+impl Serialize<u64> for Basic {
+    type Error = Error;
+
     async fn serialize<Destination>(
         &mut self,
         input: &u64,
@@ -191,7 +210,9 @@ impl Serialize<u64, Error> for Basic {
 }
 
 #[async_trait]
-impl Deserialize<u64, Error> for Basic {
+impl Deserialize<u64> for Basic {
+    type Error = Error;
+
     async fn deserialize<Source>(&mut self, source: &mut Source) -> EncodingResult<u64, Error>
     where
         Source: Wire,
@@ -209,7 +230,9 @@ impl Serializable<u64> for Basic {
 }
 
 #[async_trait]
-impl Serialize<usize, Error> for Basic {
+impl Serialize<usize> for Basic {
+    type Error = Error;
+
     async fn serialize<Destination>(
         &mut self,
         input: &usize,
@@ -223,7 +246,9 @@ impl Serialize<usize, Error> for Basic {
 }
 
 #[async_trait]
-impl Deserialize<usize, Error> for Basic {
+impl Deserialize<usize> for Basic {
+    type Error = Error;
+
     async fn deserialize<Source>(&mut self, source: &mut Source) -> EncodingResult<usize, Error>
     where
         Source: Wire,
@@ -239,7 +264,9 @@ impl Serializable<usize> for Basic {
 }
 
 #[async_trait]
-impl Serialize<Option<usize>, Error> for Basic {
+impl Serialize<Option<usize>> for Basic {
+    type Error = Error;
+
     async fn serialize<Destination>(
         &mut self,
         input: &Option<usize>,
@@ -259,7 +286,9 @@ impl Serialize<Option<usize>, Error> for Basic {
 }
 
 #[async_trait]
-impl Deserialize<Option<usize>, Error> for Basic {
+impl Deserialize<Option<usize>> for Basic {
+    type Error = Error;
+
     async fn deserialize<Source>(
         &mut self,
         source: &mut Source,
@@ -283,7 +312,9 @@ impl Serializable<Option<usize>> for Basic {
 }
 
 #[async_trait]
-impl Serialize<[u8], Error> for Basic {
+impl Serialize<[u8]> for Basic {
+    type Error = Error;
+
     async fn serialize<Destination>(
         &mut self,
         input: &[u8],
@@ -301,7 +332,9 @@ impl Serialize<[u8], Error> for Basic {
 }
 
 #[async_trait]
-impl Deserialize<Vec<u8>, Error> for Basic {
+impl Deserialize<Vec<u8>> for Basic {
+    type Error = Error;
+
     async fn deserialize<Source>(&mut self, source: &mut Source) -> EncodingResult<Vec<u8>, Error>
     where
         Source: Wire,
@@ -320,7 +353,9 @@ impl Serializable<[u8], Vec<u8>> for Basic {
 }
 
 #[async_trait]
-impl Serialize<str, Error> for Basic {
+impl Serialize<str> for Basic {
+    type Error = Error;
+
     async fn serialize<Destination>(
         &mut self,
         input: &str,
@@ -334,7 +369,9 @@ impl Serialize<str, Error> for Basic {
 }
 
 #[async_trait]
-impl Deserialize<String, Error> for Basic {
+impl Deserialize<String> for Basic {
+    type Error = Error;
+
     async fn deserialize<Source>(&mut self, source: &mut Source) -> EncodingResult<String, Error>
     where
         Source: Wire,
@@ -352,7 +389,9 @@ impl Serializable<str, String> for Basic {
 }
 
 #[async_trait]
-impl Serialize<Uri, Error> for Basic {
+impl Serialize<Uri> for Basic {
+    type Error = Error;
+
     async fn serialize<Destination>(
         &mut self,
         input: &Uri,
@@ -366,7 +405,9 @@ impl Serialize<Uri, Error> for Basic {
 }
 
 #[async_trait]
-impl Deserialize<Uri, Error> for Basic {
+impl Deserialize<Uri> for Basic {
+    type Error = Error;
+
     async fn deserialize<Source>(&mut self, source: &mut Source) -> EncodingResult<Uri, Error>
     where
         Source: Wire,
@@ -381,7 +422,9 @@ impl Serializable<Uri> for Basic {
 }
 
 #[async_trait]
-impl Serialize<frame::Kind, Error> for Basic {
+impl Serialize<frame::Kind> for Basic {
+    type Error = Error;
+
     async fn serialize<Destination>(
         &mut self,
         input: &frame::Kind,
@@ -395,7 +438,9 @@ impl Serialize<frame::Kind, Error> for Basic {
 }
 
 #[async_trait]
-impl Deserialize<frame::Kind, Error> for Basic {
+impl Deserialize<frame::Kind> for Basic {
+    type Error = Error;
+
     async fn deserialize<Source>(
         &mut self,
         source: &mut Source,
@@ -415,7 +460,9 @@ impl Serializable<frame::Kind> for Basic {
 }
 
 #[async_trait]
-impl Serialize<frame::Header, Error> for Basic {
+impl Serialize<frame::Header> for Basic {
+    type Error = Error;
+
     async fn serialize<Destination>(
         &mut self,
         input: &frame::Header,
@@ -433,7 +480,9 @@ impl Serialize<frame::Header, Error> for Basic {
 }
 
 #[async_trait]
-impl Deserialize<frame::Header, Error> for Basic {
+impl Deserialize<frame::Header> for Basic {
+    type Error = Error;
+
     async fn deserialize<Source>(
         &mut self,
         source: &mut Source,
@@ -459,7 +508,9 @@ impl Serializable<frame::Header> for Basic {
 }
 
 #[async_trait]
-impl Serialize<frame::Data, Error> for Basic {
+impl Serialize<frame::Data> for Basic {
+    type Error = Error;
+
     async fn serialize<Destination>(
         &mut self,
         input: &frame::Data,
@@ -477,7 +528,9 @@ impl Serialize<frame::Data, Error> for Basic {
 }
 
 #[async_trait]
-impl Deserialize<frame::Data, Error> for Basic {
+impl Deserialize<frame::Data> for Basic {
+    type Error = Error;
+
     async fn deserialize<Source>(
         &mut self,
         source: &mut Source,
@@ -503,7 +556,9 @@ impl Serializable<frame::Data> for Basic {
 }
 
 #[async_trait]
-impl Serialize<Method, Error> for Basic {
+impl Serialize<Method> for Basic {
+    type Error = Error;
+
     async fn serialize<Destination>(
         &mut self,
         input: &Method,
@@ -517,7 +572,9 @@ impl Serialize<Method, Error> for Basic {
 }
 
 #[async_trait]
-impl Deserialize<Method, Error> for Basic {
+impl Deserialize<Method> for Basic {
+    type Error = Error;
+
     async fn deserialize<Source>(&mut self, source: &mut Source) -> EncodingResult<Method, Error>
     where
         Source: Wire,
@@ -534,7 +591,9 @@ impl Serializable<Method> for Basic {
 }
 
 #[async_trait]
-impl Serialize<Status, Error> for Basic {
+impl Serialize<Status> for Basic {
+    type Error = Error;
+
     async fn serialize<Destination>(
         &mut self,
         input: &Status,
@@ -548,7 +607,9 @@ impl Serialize<Status, Error> for Basic {
 }
 
 #[async_trait]
-impl Deserialize<Status, Error> for Basic {
+impl Deserialize<Status> for Basic {
+    type Error = Error;
+
     async fn deserialize<Source>(&mut self, source: &mut Source) -> EncodingResult<Status, Error>
     where
         Source: Wire,
@@ -565,7 +626,9 @@ impl Serializable<Status> for Basic {
 }
 
 #[async_trait]
-impl Serialize<Request, Error> for Basic {
+impl Serialize<Request> for Basic {
+    type Error = Error;
+
     async fn serialize<Destination>(
         &mut self,
         input: &Request,
@@ -583,7 +646,9 @@ impl Serialize<Request, Error> for Basic {
 }
 
 #[async_trait]
-impl Deserialize<Request, Error> for Basic {
+impl Deserialize<Request> for Basic {
+    type Error = Error;
+
     async fn deserialize<Source>(&mut self, source: &mut Source) -> EncodingResult<Request, Error>
     where
         Source: Wire,
@@ -600,7 +665,9 @@ impl Serializable<Request> for Basic {
 }
 
 #[async_trait]
-impl Serialize<Response, Error> for Basic {
+impl Serialize<Response> for Basic {
+    type Error = Error;
+
     async fn serialize<Destination>(
         &mut self,
         input: &Response,
@@ -614,7 +681,9 @@ impl Serialize<Response, Error> for Basic {
 }
 
 #[async_trait]
-impl Deserialize<Response, Error> for Basic {
+impl Deserialize<Response> for Basic {
+    type Error = Error;
+
     async fn deserialize<Source>(&mut self, source: &mut Source) -> EncodingResult<Response, Error>
     where
         Source: Wire,
