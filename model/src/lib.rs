@@ -13,6 +13,7 @@ mod message;
 mod method;
 mod request;
 mod response;
+mod size;
 mod status;
 pub mod synchronous;
 mod uri;

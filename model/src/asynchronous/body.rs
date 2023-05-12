@@ -1,12 +1,11 @@
 use std::io;
-use std::io::Cursor;
 
-use crate::asynchronous;
+use crate::{asynchronous, size};
 use async_trait::async_trait;
 
 #[async_trait]
 pub trait Body: Send + Sync {
-    async fn length(&self) -> Option<usize>;
+    async fn size_hint(&self) -> size::Hint;
 
     async fn copy<Wire>(&self, wire: &mut Wire) -> io::Result<usize>
     where
@@ -14,9 +13,27 @@ pub trait Body: Send + Sync {
 }
 
 #[async_trait]
+impl Body for [u8] {
+    async fn size_hint(&self) -> size::Hint {
+        size::Hint::exact(self.as_ref().len())
+    }
+
+    async fn copy<Wire>(&self, wire: &mut Wire) -> io::Result<usize>
+    where
+        Wire: asynchronous::Wire,
+    {
+        let bytes = self.as_ref();
+
+        wire.write_all(bytes).await?;
+
+        Ok(bytes.len())
+    }
+}
+
+#[async_trait]
 impl Body for str {
-    async fn length(&self) -> Option<usize> {
-        Some(self.len())
+    async fn size_hint(&self) -> size::Hint {
+        self.as_bytes().size_hint().await
     }
 
     async fn copy<Wire>(&self, wire: &mut Wire) -> io::Result<usize>
@@ -27,60 +44,14 @@ impl Body for str {
     }
 }
 
-#[async_trait]
-impl Body for String {
-    async fn length(&self) -> Option<usize> {
-        Some(self.len())
-    }
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    async fn copy<Wire>(&self, wire: &mut Wire) -> io::Result<usize>
-    where
-        Wire: asynchronous::Wire,
-    {
-        self.as_str().copy(wire).await
-    }
-}
+    #[tokio::test]
+    async fn cursor() {
+        let message = "Hello, world!";
 
-#[async_trait]
-impl Body for [u8] {
-    async fn length(&self) -> Option<usize> {
-        Some(self.len())
-    }
-
-    async fn copy<Wire>(&self, wire: &mut Wire) -> io::Result<usize>
-    where
-        Wire: asynchronous::Wire,
-    {
-        wire.write_all(self).await?;
-
-        Ok(self.len())
-    }
-}
-
-#[async_trait]
-impl Body for Vec<u8> {
-    async fn length(&self) -> Option<usize> {
-        Some(self.len())
-    }
-
-    async fn copy<Wire>(&self, wire: &mut Wire) -> io::Result<usize>
-    where
-        Wire: asynchronous::Wire,
-    {
-        self.as_slice().copy(wire).await
-    }
-}
-
-#[async_trait]
-impl Body for Cursor<Vec<u8>> {
-    async fn length(&self) -> Option<usize> {
-        Some(self.get_ref().len() - self.position() as usize)
-    }
-
-    async fn copy<Wire>(&self, wire: &mut Wire) -> io::Result<usize>
-    where
-        Wire: asynchronous::Wire,
-    {
-        self.get_ref().copy(wire).await
+        assert_eq!(size::Hint::exact(message.len()), message.size_hint().await)
     }
 }
