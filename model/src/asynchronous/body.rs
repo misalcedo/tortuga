@@ -1,46 +1,45 @@
 use std::io;
 
-use crate::{asynchronous, size};
+use crate::asynchronous::Wire;
+use crate::size;
 use async_trait::async_trait;
 
 #[async_trait]
 pub trait Body: Send + Sync {
     async fn size_hint(&self) -> size::Hint;
 
-    async fn copy<Wire>(&self, wire: &mut Wire) -> io::Result<usize>
+    async fn write_to<Destination>(self, wire: &mut Destination) -> io::Result<usize>
     where
-        Wire: asynchronous::Wire;
+        Destination: Wire;
 }
 
 #[async_trait]
-impl Body for [u8] {
+impl Body for &[u8] {
     async fn size_hint(&self) -> size::Hint {
-        size::Hint::exact(self.as_ref().len())
+        size::Hint::exact(self.len())
     }
 
-    async fn copy<Wire>(&self, wire: &mut Wire) -> io::Result<usize>
+    async fn write_to<Destination>(self, wire: &mut Destination) -> io::Result<usize>
     where
-        Wire: asynchronous::Wire,
+        Destination: Wire,
     {
-        let bytes = self.as_ref();
+        wire.write_all(&self).await?;
 
-        wire.write_all(bytes).await?;
-
-        Ok(bytes.len())
+        Ok(self.len())
     }
 }
 
 #[async_trait]
-impl Body for str {
+impl Body for &str {
     async fn size_hint(&self) -> size::Hint {
         self.as_bytes().size_hint().await
     }
 
-    async fn copy<Wire>(&self, wire: &mut Wire) -> io::Result<usize>
+    async fn write_to<Destination>(self, wire: &mut Destination) -> io::Result<usize>
     where
-        Wire: asynchronous::Wire,
+        Destination: Wire,
     {
-        self.as_bytes().copy(wire).await
+        self.as_bytes().write_to(wire).await
     }
 }
 
@@ -49,7 +48,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn cursor() {
+    async fn string() {
         let message = "Hello, world!";
 
         assert_eq!(size::Hint::exact(message.len()), message.size_hint().await)

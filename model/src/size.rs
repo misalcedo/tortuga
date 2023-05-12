@@ -1,4 +1,6 @@
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Copy, Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Hint(usize, Option<usize>);
 
 impl Hint {

@@ -1,11 +1,9 @@
-use crate::asynchronous;
 use crate::{Request, Response};
-use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-pub struct Message<Head, Body> {
+#[derive(Clone, Debug, PartialEq)]
+pub struct Message<Head, Content> {
     head: Head,
-    body: Body,
+    content: Content,
 }
 
 impl<Head, Body> Message<Head, Body> {
@@ -13,35 +11,29 @@ impl<Head, Body> Message<Head, Body> {
         &self.head
     }
 
-    pub fn body(&mut self) -> &mut Body {
-        &mut self.body
+    pub fn content(&mut self) -> &mut Body {
+        &mut self.content
     }
 
-    pub fn into_body(self) -> Body {
-        self.body
+    pub fn into_content(self) -> Body {
+        self.content
     }
 }
 
-impl<Body> Message<Request, Body>
-where
-    Body: asynchronous::Body,
-{
-    pub fn new(request: Request, body: Body) -> Self {
+impl<Content> Message<Request, Content> {
+    pub fn new(request: Request, content: Content) -> Self {
         Message {
             head: request,
-            body,
+            content,
         }
     }
 }
 
-impl<Body> Message<Response, Body>
-where
-    Body: asynchronous::Body,
-{
-    pub fn new(response: Response, body: Body) -> Self {
+impl<Content> Message<Response, Content> {
+    pub fn new(response: Response, body: Content) -> Self {
         Message {
             head: response,
-            body,
+            content: body,
         }
     }
 }
