@@ -1,16 +1,18 @@
-#[derive(Default, Clone, PartialEq)]
+use crate::{Headers, Status};
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq)]
 pub struct Response {
-    status: u16,
+    status: Status,
+    headers: Headers,
 }
 
 impl Response {
-    pub fn new(status: impl Into<u16>) -> Self {
-        Response {
-            status: status.into(),
-        }
+    pub fn new(status: Status, headers: Headers) -> Self {
+        Response { status, headers }
     }
 
-    pub fn status(&self) -> u16 {
+    pub fn status(&self) -> Status {
         self.status
     }
 }

@@ -1,10 +1,14 @@
+use serde::{Deserialize, Serialize};
+
 /// HTTP defines a set of request methods to indicate the desired action to be performed for a given resource.
 /// Although they can also be nouns, these request methods are sometimes referred to as HTTP verbs.
 /// Each of them implements a different semantic, but some common features are shared by a group of them:
 /// e.g. a request method can be safe, idempotent, or cacheable.
 ///
 /// See https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods
-#[derive(Debug, Default, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]
+#[derive(
+    Serialize, Deserialize, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash,
+)]
 #[repr(u8)]
 pub enum Method {
     /// The `GET` method requests a representation of the specified resource. Requests using GET should only retrieve data.

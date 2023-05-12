@@ -1,6 +1,8 @@
 use crate::asynchronous;
 use crate::{Request, Response};
+use serde::{Deserialize, Serialize};
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Message<Head, Body> {
     head: Head,
     body: Body,

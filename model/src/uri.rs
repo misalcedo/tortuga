@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
 use std::str::FromStr;
 
@@ -9,7 +10,7 @@ const PATH_PREFIX: char = '/';
 const QUERY_PREFIX: char = '?';
 const FRAGMENT_PREFIX: char = '#';
 
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Uri(String);
 
 impl Default for Uri {
