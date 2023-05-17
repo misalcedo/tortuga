@@ -1,31 +1,39 @@
-use crate::encoding::Error;
+use crate::encoding::{Encoder, Error};
 use bincode;
 use serde::{Deserialize, Serialize};
+use std::io::{Cursor, Read, Write};
 
 #[derive(Clone, Copy, Default, Debug)]
 pub struct Binary {}
 
-impl Binary {
-    pub fn serialize<Value>(&self, value: &Value) -> Result<Vec<u8>, Error>
-    where
-        Value: Serialize,
-    {
+impl<'a, In, Out> Encoder<In, Out> for Binary
+where
+    In: Serialize,
+    Out: Deserialize<'a>,
+{
+    fn serialize(&self, input: &In) -> Result<Vec<u8>, Error> {
         bincode::serialize(value).map_err(|_| Error)
     }
 
-    pub fn serialized_size<Value>(&self, value: &Value) -> Result<usize, Error>
+    fn serialize_to<Destination>(
+        &self,
+        destination: &mut Destination,
+        input: &In,
+    ) -> Result<(), Error>
     where
-        Value: Serialize,
+        Destination: Write,
     {
-        bincode::serialized_size(value)
-            .map(|n| n as usize)
-            .map_err(|_| Error)
+        bincode::serialize_into(destination, input).map_err(|_| Error)
     }
 
-    pub fn deserialize<'a, Value>(&self, bytes: &'a [u8]) -> Result<Value, Error>
-    where
-        Value: Deserialize<'a>,
-    {
+    fn deserialize(&self, bytes: &[u8]) -> Result<Out, Error> {
         bincode::deserialize(bytes).map_err(|_| Error)
+    }
+
+    fn deserialize_from<Source>(&self, source: &mut Source) -> Result<Out, Error>
+    where
+        Source: Read,
+    {
+        bincode::deserialize_from(source).map_err(|_| Error)
     }
 }

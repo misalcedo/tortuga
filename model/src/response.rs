@@ -1,7 +1,7 @@
 use crate::{Headers, Status};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Response {
     status: Status,
     headers: Headers,

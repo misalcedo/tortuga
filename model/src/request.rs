@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 /// A cursor into the current request being processed.
 /// An embedded process handles a single request at a time.
-#[derive(Serialize, Deserialize, Default, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Request {
     method: Method,
     uri: Uri,
