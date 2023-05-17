@@ -1,24 +1,23 @@
 use crate::encoding::{Encoder, Error};
 use bincode;
-use serde::{Deserialize, Serialize};
-use std::io::{Cursor, Read, Write};
+use serde::{de::DeserializeOwned, Serialize};
+use std::io::{Read, Write};
 
 #[derive(Clone, Copy, Default, Debug)]
 pub struct Binary {}
 
-impl<'a, In, Out> Encoder<In, Out> for Binary
+impl<'a, Value> Encoder<Value> for Binary
 where
-    In: Serialize,
-    Out: Deserialize<'a>,
+    Value: Serialize + DeserializeOwned,
 {
-    fn serialize(&self, input: &In) -> Result<Vec<u8>, Error> {
-        bincode::serialize(value).map_err(|_| Error)
+    fn serialize(&self, input: &Value) -> Result<Vec<u8>, Error> {
+        bincode::serialize(input).map_err(|_| Error)
     }
 
     fn serialize_to<Destination>(
         &self,
         destination: &mut Destination,
-        input: &In,
+        input: &Value,
     ) -> Result<(), Error>
     where
         Destination: Write,
@@ -26,11 +25,11 @@ where
         bincode::serialize_into(destination, input).map_err(|_| Error)
     }
 
-    fn deserialize(&self, bytes: &[u8]) -> Result<Out, Error> {
+    fn deserialize(&self, bytes: &[u8]) -> Result<Value, Error> {
         bincode::deserialize(bytes).map_err(|_| Error)
     }
 
-    fn deserialize_from<Source>(&self, source: &mut Source) -> Result<Out, Error>
+    fn deserialize_from<Source>(&self, source: &mut Source) -> Result<Value, Error>
     where
         Source: Read,
     {

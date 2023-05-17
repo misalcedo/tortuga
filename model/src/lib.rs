@@ -21,6 +21,7 @@ mod uri;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::encoding::Encoder;
 
     #[test]
     fn request() {

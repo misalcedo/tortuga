@@ -1,4 +1,4 @@
-use binary::Binary;
+pub use binary::Binary;
 use std::io;
 
 mod binary;
