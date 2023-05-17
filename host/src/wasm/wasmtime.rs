@@ -7,14 +7,15 @@ use wasmtime::{Caller, Config, Engine, InstancePre, Linker, Module, Store};
 
 use crate::wasm::{self, Connection, Data, Identifier};
 
-const EPOCH_YIELD_TICKS: u64 = 1;
-const EPOCH_DEADLINE_TICKS: u64 = 500;
+const FUEL_TO_INJECT: u64 = 1000;
+const INJECTION_COUNT: u64 = 500;
 
 pub struct Host<Primary, Factory, Rest> {
     engine: Engine,
     factory: Factory,
     guests: Arc<RwLock<HashMap<Identifier, Guest<Primary, Factory, Rest>>>>,
-    epoch_deadline: u64,
+    fuel_to_inject: u64,
+    injection_count: u64,
 }
 
 impl<Primary, Factory, Rest> Clone for Host<Primary, Factory, Rest>
@@ -26,7 +27,8 @@ where
             engine: self.engine.clone(),
             factory: self.factory.clone(),
             guests: self.guests.clone(),
-            epoch_deadline: self.epoch_deadline,
+            fuel_to_inject: self.fuel_to_inject,
+            injection_count: self.injection_count,
         }
     }
 }
@@ -37,7 +39,7 @@ where
     Factory: wasm::Factory<Stream = Rest>,
     Rest: wasm::Stream,
 {
-    pub fn new(factory: Factory, epoch_deadline: u64) -> Self {
+    pub fn new(factory: Factory, fuel_to_inject: u64, injection_count: u64) -> Self {
         let mut configuration = Config::new();
 
         configuration.async_support(true);
@@ -49,7 +51,8 @@ where
             engine,
             factory,
             guests: Arc::new(RwLock::new(HashMap::new())),
-            epoch_deadline,
+            fuel_to_inject,
+            injection_count,
         }
     }
 }
@@ -64,7 +67,7 @@ where
         let mut configuration = Config::new();
 
         configuration.async_support(true);
-        configuration.epoch_interruption(true);
+        configuration.consume_fuel(true);
 
         let engine = Engine::new(&configuration).unwrap();
 
@@ -72,41 +75,9 @@ where
             engine,
             factory,
             guests: Arc::new(RwLock::new(HashMap::new())),
-            epoch_deadline: EPOCH_DEADLINE_TICKS,
+            fuel_to_inject: FUEL_TO_INJECT,
+            injection_count: INJECTION_COUNT,
         }
-    }
-}
-
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct AdditionalState {
-    ticks: u64,
-    deadline: u64,
-}
-
-impl AdditionalState {
-    fn new(deadline: u64) -> Self {
-        AdditionalState { ticks: 0, deadline }
-    }
-
-    fn tick(&mut self) -> Result<u64, wasmtime::Error> {
-        self.ticks += 1;
-
-        if self.ticks <= self.deadline {
-            Ok(1)
-        } else {
-            Err(wasmtime::Error::msg("exceeded allotted execution time"))
-        }
-    }
-}
-
-impl<Primary, Factory, Rest> wasm::Ticker for Host<Primary, Factory, Rest>
-where
-    Primary: wasm::Stream,
-    Factory: wasm::Factory<Stream = Rest>,
-    Rest: wasm::Stream,
-{
-    fn tick(&mut self) {
-        self.engine.increment_epoch()
     }
 }
 
@@ -118,7 +89,6 @@ where
 {
     type Guest = Guest<Primary, Factory, Rest>;
     type Error = wasmtime::Error;
-    type Ticker = Self;
 
     fn welcome<Code>(&mut self, code: Code) -> Result<Identifier, Self::Error>
     where
@@ -130,7 +100,7 @@ where
         linker.func_wrap3_async(
             "stream",
             "read",
-            move |caller: Caller<'_, Data<AdditionalState, Connection<Primary, Factory, Rest>>>,
+            move |caller: Caller<'_, Data<(), Connection<Primary, Factory, Rest>>>,
                   stream: u64,
                   pointer: u32,
                   length: u32| {
@@ -146,7 +116,7 @@ where
         linker.func_wrap3_async(
             "stream",
             "write",
-            move |caller: Caller<'_, Data<AdditionalState, Connection<Primary, Factory, Rest>>>,
+            move |caller: Caller<'_, Data<(), Connection<Primary, Factory, Rest>>>,
                   stream: u64,
                   pointer: u32,
                   length: u32| {
@@ -162,10 +132,7 @@ where
         linker.func_wrap0_async(
             "stream",
             "start",
-            move |mut caller: Caller<
-                '_,
-                Data<AdditionalState, Connection<Primary, Factory, Rest>>,
-            >| {
+            move |mut caller: Caller<'_, Data<(), Connection<Primary, Factory, Rest>>>| {
                 Box::new(async move { caller.data_mut().connection_mut().start_stream() })
             },
         )?;
@@ -175,7 +142,8 @@ where
         let guest = Guest {
             instance,
             factory: self.factory.clone(),
-            epoch_deadline: self.epoch_deadline,
+            fuel_to_inject: self.fuel_to_inject,
+            injection_count: self.injection_count,
         };
 
         let mut guests = match self.guests.write() {
@@ -196,16 +164,13 @@ where
 
         guests.get(identifier).cloned()
     }
-
-    fn ticker(&self) -> Self::Ticker {
-        self.clone()
-    }
 }
 
 pub struct Guest<Primary, Factory, Rest> {
-    instance: InstancePre<Data<AdditionalState, Connection<Primary, Factory, Rest>>>,
+    instance: InstancePre<Data<(), Connection<Primary, Factory, Rest>>>,
     factory: Factory,
-    epoch_deadline: u64,
+    fuel_to_inject: u64,
+    injection_count: u64,
 }
 
 impl<Primary, Factory, Rest> Clone for Guest<Primary, Factory, Rest>
@@ -216,7 +181,8 @@ where
         Guest {
             instance: self.instance.clone(),
             factory: self.factory.clone(),
-            epoch_deadline: self.epoch_deadline,
+            fuel_to_inject: self.fuel_to_inject,
+            injection_count: self.injection_count,
         }
     }
 }
@@ -233,12 +199,11 @@ where
 
     async fn invoke(&self, stream: Self::Stream) -> Result<i32, Self::Error> {
         let connection = Connection::new(stream, self.factory.clone());
-        let data = Data::new(connection, AdditionalState::new(self.epoch_deadline));
+        let data = Data::new(connection, ());
 
         let mut store = Store::new(self.instance.module().engine(), data);
 
-        store.set_epoch_deadline(EPOCH_YIELD_TICKS);
-        store.epoch_deadline_callback(|mut ctx| ctx.data_mut().additional_mut().tick());
+        store.out_of_fuel_async_yield(self.injection_count, self.fuel_to_inject);
 
         let instance = self.instance.instantiate_async(&mut store).await?;
 
@@ -274,7 +239,7 @@ impl Action {
 }
 
 async fn stream_read_write<Primary, Factory, Rest>(
-    mut caller: Caller<'_, Data<AdditionalState, Connection<Primary, Factory, Rest>>>,
+    mut caller: Caller<'_, Data<(), Connection<Primary, Factory, Rest>>>,
     stream: u64,
     pointer: u32,
     length: u32,
@@ -304,7 +269,6 @@ where
 
 #[cfg(all(test, feature = "memory"))]
 mod tests {
-    use crate::executor;
     use crate::stream::memory;
     use crate::wasm::{wasmtime, Factory, Guest, Host};
     use std::io::Cursor;
@@ -342,16 +306,14 @@ mod tests {
         assert_eq!(buffer.get_ref().as_slice(), body);
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    #[tokio::test]
     async fn sample_timeout() {
         let mut bridge = memory::Bridge::default();
-        let mut host = wasmtime::Host::new(bridge.clone(), 3);
+        let mut host = wasmtime::Host::new(bridge.clone(), 500, 1);
 
         let infinite_code = include_bytes!(env!("CARGO_BIN_FILE_INFINITE"));
         let infinite = host.welcome(infinite_code).unwrap();
         let guest = host.guest(&infinite).unwrap();
-
-        let ticker = executor::tokio::schedule_tick(&host);
 
         let stream = bridge.create();
         let request = Request::new(Method::Get, "/infinite".into(), 0, Cursor::new(Vec::new()));
@@ -359,7 +321,5 @@ mod tests {
         bridge.write_message(0, request).unwrap();
 
         assert!(guest.invoke(stream).await.is_err());
-
-        ticker.abort();
     }
 }

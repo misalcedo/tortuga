@@ -1,14 +1,12 @@
 use crate::executor::{self, acceptor::RoutingAcceptor, Identifier, Router};
 use crate::stream::memory;
 use crate::wasm;
-use std::time::Duration;
-use tokio::task::{yield_now, JoinHandle, JoinSet};
+use tokio::task::{yield_now, JoinSet};
 use tortuga_guest::Header;
 
 pub struct Executor<Acceptor, Host> {
     acceptor: Acceptor,
     host: Host,
-    ticker: JoinHandle<()>,
 }
 
 impl Default
@@ -27,12 +25,6 @@ impl Default
     }
 }
 
-impl<Acceptor, Host> Drop for Executor<Acceptor, Host> {
-    fn drop(&mut self) {
-        self.ticker.abort_handle().abort()
-    }
-}
-
 impl<Acceptor, Host> Executor<Acceptor, Host> {
     pub fn acceptor_mut(&mut self) -> &mut Acceptor {
         &mut self.acceptor
@@ -43,41 +35,15 @@ impl<Acceptor, Host> Executor<Acceptor, Host> {
     }
 }
 
-/// Schedules ticking of the epoch.
-/// Must be scheduled in a separate Runtime from the one running the guest code to prevent starvation of this task.
-pub fn schedule_tick<Host, Ticker>(host: &Host) -> JoinHandle<()>
-where
-    Host: wasm::Host<Ticker = Ticker>,
-    Ticker: wasm::Ticker + 'static,
-{
-    let mut epoch = host.ticker();
-
-    tokio::task::spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_millis(1));
-
-        loop {
-            interval.tick().await;
-            epoch.tick();
-        }
-    })
-}
-
-impl<Acceptor, Guest, Host, Stream, Ticker> Executor<Acceptor, Host>
+impl<Acceptor, Guest, Host, Stream> Executor<Acceptor, Host>
 where
     Acceptor: executor::Acceptor<Stream = Stream>,
     Guest: wasm::Guest<Stream = Stream> + 'static,
-    Host: wasm::Host<Guest = Guest, Ticker = Ticker>,
+    Host: wasm::Host<Guest = Guest>,
     Stream: wasm::Stream + 'static,
-    Ticker: wasm::Ticker + 'static,
 {
     pub fn new(acceptor: Acceptor, host: Host) -> Self {
-        let ticker = schedule_tick(&host);
-
-        Executor {
-            acceptor,
-            host,
-            ticker,
-        }
+        Executor { acceptor, host }
     }
 
     pub async fn run(&mut self) {}
@@ -139,11 +105,11 @@ mod tests {
         assert_eq!(buffer.get_ref().as_slice(), body);
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[tokio::test]
     async fn sample_timeout() {
         let mut bridge = memory::Bridge::default();
         let mut router = Router::default();
-        let mut host = wasm::wasmtime::Host::new(bridge.clone(), 3);
+        let mut host = wasm::wasmtime::Host::new(bridge.clone(), 500, 1);
         let acceptor = RoutingAcceptor::new(bridge.clone(), router.clone());
 
         let infinite_code = include_bytes!(env!("CARGO_BIN_FILE_INFINITE"));

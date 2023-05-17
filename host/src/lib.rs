@@ -6,7 +6,6 @@ pub mod executor;
 pub mod stream;
 pub mod wasm;
 
-// TODO: Get rid of ticker from host
 // TODO: Introduce a host server using hyper and http3
 // TODO: Use the new model instead of the guest library.
 // TODO: Re-implement guest using the new model.
