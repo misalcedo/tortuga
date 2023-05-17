@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-/// See https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
+/// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Status>
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]
 pub enum Status {
     NoResponse,

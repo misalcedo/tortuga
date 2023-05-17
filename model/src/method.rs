@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 /// Each of them implements a different semantic, but some common features are shared by a group of them:
 /// e.g. a request method can be safe, idempotent, or cacheable.
 ///
-/// See https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods
+/// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods>
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]
 pub enum Method {
     /// The `GET` method requests a representation of the specified resource. Requests using GET should only retrieve data.
