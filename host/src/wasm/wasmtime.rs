@@ -1,273 +1,207 @@
-use async_trait::async_trait;
-use std::collections::HashMap;
+use std::io::{Cursor, Read, Write};
+use std::mem::size_of;
 use std::sync::{Arc, RwLock};
 
+use tortuga_model::encoding::Format;
+use tortuga_model::{Headers, Message, Request, Response, Status};
 use wasmtime::{Caller, Config, Engine, InstancePre, Linker, Module, Store};
+use wasmtime_wasi::sync::WasiCtxBuilder;
+use wasmtime_wasi::WasiCtx;
 
-use crate::wasm::{self, Connection, Data, Identifier};
+#[derive(Debug)]
+pub enum Error {
+    Wasm(wasmtime::Error),
+    WasiArgs(wasi_common::StringArrayError),
+    Encoding(tortuga_model::encoding::Error),
+    Internal,
+}
 
-const FUEL_TO_INJECT: u64 = 1000;
-const INJECTION_COUNT: u64 = 500;
+impl From<wasmtime::Error> for Error {
+    fn from(value: wasmtime::Error) -> Self {
+        Error::Wasm(value)
+    }
+}
 
-pub struct Host<Primary, Factory, Rest> {
+impl From<wasi_common::StringArrayError> for Error {
+    fn from(value: wasi_common::StringArrayError) -> Self {
+        Error::WasiArgs(value)
+    }
+}
+
+impl From<tortuga_model::encoding::Error> for Error {
+    fn from(value: tortuga_model::encoding::Error) -> Self {
+        Error::Encoding(value)
+    }
+}
+
+pub struct Host<Encoding> {
     engine: Engine,
-    factory: Factory,
-    guests: Arc<RwLock<HashMap<Identifier, Guest<Primary, Factory, Rest>>>>,
-    fuel_to_inject: u64,
+    encoding: Encoding,
     injection_count: u64,
+    fuel_to_inject: u64,
 }
 
-impl<Primary, Factory, Rest> Clone for Host<Primary, Factory, Rest>
-where
-    Factory: Clone,
-{
-    fn clone(&self) -> Self {
-        Host {
-            engine: self.engine.clone(),
-            factory: self.factory.clone(),
-            guests: self.guests.clone(),
-            fuel_to_inject: self.fuel_to_inject,
-            injection_count: self.injection_count,
-        }
+pub struct Data {
+    context: WasiCtx,
+}
+
+impl Data {
+    pub fn new(context: WasiCtx) -> Self {
+        Data { context }
+    }
+
+    pub fn context_mut(&mut self) -> &mut WasiCtx {
+        &mut self.context
     }
 }
 
-impl<Primary, Factory, Rest> Host<Primary, Factory, Rest>
+impl<Encoding> Host<Encoding>
 where
-    Primary: wasm::Stream,
-    Factory: wasm::Factory<Stream = Rest>,
-    Rest: wasm::Stream,
+    Encoding: Format<Request> + Format<Response>,
 {
-    pub fn new(factory: Factory, fuel_to_inject: u64, injection_count: u64) -> Self {
+    pub fn new(
+        encoding: Encoding,
+        injection_count: u64,
+        fuel_to_inject: u64,
+    ) -> Result<Self, Error> {
         let mut configuration = Config::new();
 
         configuration.async_support(true);
         configuration.consume_fuel(true);
+        configuration.wasm_memory64(size_of::<usize>() == size_of::<u64>());
 
-        let engine = Engine::new(&configuration).unwrap();
+        let engine = Engine::new(&configuration)?;
 
-        Host {
+        Ok(Host {
             engine,
-            factory,
-            guests: Arc::new(RwLock::new(HashMap::new())),
-            fuel_to_inject,
+            encoding,
             injection_count,
-        }
+            fuel_to_inject,
+        })
     }
 }
 
-impl<Primary, Factory, Rest> From<Factory> for Host<Primary, Factory, Rest>
+impl<Encoding> Host<Encoding>
 where
-    Primary: wasm::Stream,
-    Factory: wasm::Factory<Stream = Rest>,
-    Rest: wasm::Stream,
+    Encoding: Clone + Format<Request> + Format<Response>,
 {
-    fn from(factory: Factory) -> Self {
-        let mut configuration = Config::new();
-
-        configuration.async_support(true);
-        configuration.consume_fuel(true);
-
-        let engine = Engine::new(&configuration).unwrap();
-
-        Host {
-            engine,
-            factory,
-            guests: Arc::new(RwLock::new(HashMap::new())),
-            fuel_to_inject: FUEL_TO_INJECT,
-            injection_count: INJECTION_COUNT,
-        }
-    }
-}
-
-impl<Primary, Factory, Rest> wasm::Host for Host<Primary, Factory, Rest>
-where
-    Primary: wasm::Stream,
-    Factory: wasm::Factory<Stream = Rest>,
-    Rest: wasm::Stream,
-{
-    type Guest = Guest<Primary, Factory, Rest>;
-    type Error = wasmtime::Error;
-
-    fn welcome<Code>(&mut self, code: Code) -> Result<Identifier, Self::Error>
+    fn welcome<Code>(&self, code: Code) -> Result<Guest<Encoding>, Error>
     where
         Code: AsRef<[u8]>,
     {
         let mut linker = Linker::new(&self.engine);
-        let module = Module::new(&self.engine, code)?;
 
-        linker.func_wrap3_async(
-            "stream",
-            "read",
-            move |caller: Caller<'_, Data<Connection<Primary, Factory, Rest>, ()>>,
-                  stream: u64,
-                  pointer: u32,
-                  length: u32| { Box::new(async { 0 }) },
-        )?;
-        linker.func_wrap3_async(
-            "stream",
-            "write",
-            move |caller: Caller<'_, Data<Connection<Primary, Factory, Rest>, ()>>,
-                  stream: u64,
-                  pointer: u32,
-                  length: u32| { Box::new(async { 0 }) },
-        )?;
+        wasmtime_wasi::add_to_linker(&mut linker, Data::context_mut)?;
+
         linker.func_wrap2_async(
             "stream",
             "start",
-            move |mut caller: Caller<'_, Data<Connection<Primary, Factory, Rest>, ()>>,
-                  pointer: u32,
-                  length: u32| {
+            move |mut caller: Caller<'_, Data>, pointer: u32, length: u32| {
                 Box::new(async move {
                     let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
-                    let (data, state): (
-                        &mut [u8],
-                        &mut Data<Connection<Primary, Factory, Rest>, ()>,
-                    ) = memory.data_and_store_mut(&mut caller);
+                    let (data, state): (&mut [u8], &mut Data) =
+                        memory.data_and_store_mut(&mut caller);
                     let view =
                         &mut data[..(pointer as usize + length as usize)][pointer as usize..];
 
-                    let index = state.connection_mut().start_stream();
-                    let stream = state.connection_mut().get_mut(index).unwrap();
-
-                    stream.write(view).await.unwrap();
-
-                    index.get()
+                    Ok(0)
                 })
             },
         )?;
 
+        let module = Module::new(&self.engine, code)?;
         let instance = linker.instantiate_pre(&module)?;
-        let identifier = Identifier::default();
-        let guest = Guest {
+
+        Ok(Guest {
             instance,
-            factory: self.factory.clone(),
-            fuel_to_inject: self.fuel_to_inject,
+            encoding: self.encoding.clone(),
             injection_count: self.injection_count,
-        };
-
-        let mut guests = match self.guests.write() {
-            Ok(guests) => guests,
-            Err(e) => e.into_inner(),
-        };
-
-        guests.insert(identifier, guest);
-
-        Ok(identifier)
-    }
-
-    fn guest(&self, identifier: &Identifier) -> Option<Self::Guest> {
-        let guests = match self.guests.read() {
-            Ok(guests) => guests,
-            Err(e) => e.into_inner(),
-        };
-
-        guests.get(identifier).cloned()
+            fuel_to_inject: self.fuel_to_inject,
+        })
     }
 }
 
-pub struct Guest<Primary, Factory, Rest> {
-    instance: InstancePre<Data<Connection<Primary, Factory, Rest>, ()>>,
-    factory: Factory,
-    fuel_to_inject: u64,
+pub struct Guest<Encoding> {
+    instance: InstancePre<Data>,
+    encoding: Encoding,
     injection_count: u64,
+    fuel_to_inject: u64,
 }
 
-impl<Primary, Factory, Rest> Clone for Guest<Primary, Factory, Rest>
+impl<Encoding> Guest<Encoding>
 where
-    Factory: Clone,
+    Encoding: Format<Request> + Format<Response>,
 {
-    fn clone(&self) -> Self {
-        Guest {
-            instance: self.instance.clone(),
-            factory: self.factory.clone(),
-            fuel_to_inject: self.fuel_to_inject,
-            injection_count: self.injection_count,
-        }
-    }
-}
+    async fn invoke<I, O>(
+        &self,
+        message: Message<Request, I>,
+        output: O,
+    ) -> Result<Message<Response, O>, Error>
+    where
+        I: Read + Send + Sync + 'static,
+        O: Write + Send + Sync + 'static,
+    {
+        let request = Cursor::new(self.encoding.serialize(message.head())?);
+        let input = request.chain(message.into_content());
+        let output = Arc::new(RwLock::new(output));
 
-#[async_trait]
-impl<Primary, Factory, Rest> wasm::Guest for Guest<Primary, Factory, Rest>
-where
-    Primary: wasm::Stream,
-    Factory: wasm::Factory<Stream = Rest>,
-    Rest: wasm::Stream,
-{
-    type Stream = Primary;
-    type Error = wasmtime::Error;
+        let context = WasiCtxBuilder::new()
+            .stdin(Box::new(wasi_common::pipe::ReadPipe::new(input)))
+            .stdout(Box::new(wasi_common::pipe::WritePipe::from_shared(
+                output.clone(),
+            )))
+            .inherit_stderr()
+            .build();
 
-    async fn invoke(&self, stream: Self::Stream) -> Result<i32, Self::Error> {
-        let connection = Connection::new(stream, self.factory.clone());
-        let data = Data::new(connection, ());
-
-        let mut store = Store::new(self.instance.module().engine(), data);
+        let mut store = Store::new(self.instance.module().engine(), Data::new(context));
 
         store.out_of_fuel_async_yield(self.injection_count, self.fuel_to_inject);
 
         let instance = self.instance.instantiate_async(&mut store).await?;
 
         instance
-            .get_typed_func::<(i32, i32), i32>(&mut store, "main")
-            .unwrap()
-            .call_async(&mut store, (0, 0))
-            .await
+            .get_typed_func::<(), ()>(&mut store, "_start")?
+            .call_async(&mut store, ())
+            .await?;
+
+        drop(store);
+
+        match Arc::try_unwrap(output)
+            .map_err(|e| Error::Internal)?
+            .into_inner()
+        {
+            Ok(o) => {
+                let response = Response::new(Status::Ok, Headers::default());
+                Ok(Message::new_response(response, o))
+            }
+            Err(e) => {
+                let response = Response::new(Status::InternalServerError, Headers::default());
+                Ok(Message::new_response(response, e.into_inner()))
+            }
+        }
     }
 }
 
-#[cfg(all(test, feature = "memory"))]
+#[cfg(test)]
 mod tests {
-    use crate::stream::memory;
-    use crate::wasm::{wasmtime, Factory, Guest, Host};
+    use super::*;
     use std::io::Cursor;
-    use tortuga_guest::{Method, Request, Response, Status};
+    use tortuga_model::encoding::Binary;
+    use tortuga_model::{Headers, Method};
 
     #[tokio::test]
-    async fn execute_static() {
-        let code = include_bytes!(env!("CARGO_BIN_FILE_STATIC"));
-        let body = Vec::from("Hello, World!");
+    async fn error() {
+        let encoding = Binary::default();
+        let host = Host::new(encoding, 10, 1000).unwrap();
 
-        let mut buffer = Cursor::new(Vec::new());
-        let mut bridge = memory::Bridge::default();
-        let mut host = wasmtime::Host::from(bridge.clone());
+        let code = include_bytes!(env!("CARGO_BIN_FILE_WASI"));
+        let guest = host.welcome(code).unwrap();
 
-        let request = Request::new(
-            Method::Get,
-            "/".into(),
-            body.len(),
-            Cursor::new(body.to_vec()),
-        );
-        let response = Response::new(Status::Ok, body.len(), Cursor::new(body.to_vec()));
+        let request = Request::new(Method::Get, "/".into(), Headers::default());
+        let message = Message::new_request(request, Cursor::new(Vec::new()));
+        let output: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        let mut response = guest.invoke(message, output).await.unwrap();
 
-        let identifier = host.welcome(code).unwrap();
-        let guest = host.guest(&identifier).unwrap();
-        let stream = bridge.create();
-
-        bridge.write_message(0, request).unwrap();
-        guest.invoke(stream).await.unwrap();
-
-        let mut actual: Response<_> = bridge.read_message(0).unwrap();
-
-        std::io::copy(actual.body(), &mut buffer).unwrap();
-
-        assert_eq!(actual, response);
-        assert_eq!(buffer.get_ref().as_slice(), body);
-    }
-
-    #[tokio::test]
-    async fn sample_timeout() {
-        let mut bridge = memory::Bridge::default();
-        let mut host = wasmtime::Host::new(bridge.clone(), 500, 1);
-
-        let infinite_code = include_bytes!(env!("CARGO_BIN_FILE_INFINITE"));
-        let infinite = host.welcome(infinite_code).unwrap();
-        let guest = host.guest(&infinite).unwrap();
-
-        let stream = bridge.create();
-        let request = Request::new(Method::Get, "/infinite".into(), 0, Cursor::new(Vec::new()));
-
-        bridge.write_message(0, request).unwrap();
-
-        assert!(guest.invoke(stream).await.is_err());
+        assert_eq!(response.content().get_ref().as_slice(), b"Hello, world!\n")
     }
 }

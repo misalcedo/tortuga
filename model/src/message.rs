@@ -21,7 +21,7 @@ impl<Head, Content> Message<Head, Content> {
 }
 
 impl<Content> Message<Request, Content> {
-    pub fn new(request: Request, content: Content) -> Self {
+    pub fn new_request(request: Request, content: Content) -> Self {
         Message {
             head: request,
             content,
@@ -30,7 +30,7 @@ impl<Content> Message<Request, Content> {
 }
 
 impl<Content> Message<Response, Content> {
-    pub fn new(response: Response, content: Content) -> Self {
+    pub fn new_response(response: Response, content: Content) -> Self {
         Message {
             head: response,
             content,

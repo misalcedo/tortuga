@@ -6,7 +6,7 @@ mod binary;
 #[derive(Debug)]
 pub struct Error;
 
-pub trait Encoder<In, Out = In> {
+pub trait Format<In, Out = In> {
     fn serialize(&self, input: &In) -> Result<Vec<u8>, Error>;
 
     fn serialize_to<Destination>(

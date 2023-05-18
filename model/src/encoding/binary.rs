@@ -1,4 +1,4 @@
-use crate::encoding::{Encoder, Error};
+use crate::encoding::{Error, Format};
 use bincode;
 use serde::{de::DeserializeOwned, Serialize};
 use std::io::{Read, Write};
@@ -6,7 +6,7 @@ use std::io::{Read, Write};
 #[derive(Clone, Copy, Default, Debug)]
 pub struct Binary {}
 
-impl<'a, Value> Encoder<Value> for Binary
+impl<'a, Value> Format<Value> for Binary
 where
     Value: Serialize + DeserializeOwned,
 {
