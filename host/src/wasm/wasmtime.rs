@@ -1,6 +1,5 @@
 use async_trait::async_trait;
 use std::collections::HashMap;
-use std::num::NonZeroU64;
 use std::sync::{Arc, RwLock};
 
 use wasmtime::{Caller, Config, Engine, InstancePre, Linker, Module, Store};
@@ -43,7 +42,6 @@ where
         let mut configuration = Config::new();
 
         configuration.async_support(true);
-        configuration.epoch_interruption(true);
         configuration.consume_fuel(true);
 
         let engine = Engine::new(&configuration).unwrap();
@@ -68,7 +66,6 @@ where
         let mut configuration = Config::new();
 
         configuration.async_support(true);
-        configuration.epoch_interruption(true);
         configuration.consume_fuel(true);
 
         let engine = Engine::new(&configuration).unwrap();
@@ -102,40 +99,41 @@ where
         linker.func_wrap3_async(
             "stream",
             "read",
-            move |caller: Caller<'_, Data<(), Connection<Primary, Factory, Rest>>>,
+            move |caller: Caller<'_, Data<Connection<Primary, Factory, Rest>, ()>>,
                   stream: u64,
                   pointer: u32,
-                  length: u32| {
-                Box::new(stream_read_write(
-                    caller,
-                    stream,
-                    pointer,
-                    length,
-                    Action::Read,
-                ))
-            },
+                  length: u32| { Box::new(async { 0 }) },
         )?;
         linker.func_wrap3_async(
             "stream",
             "write",
-            move |caller: Caller<'_, Data<(), Connection<Primary, Factory, Rest>>>,
+            move |caller: Caller<'_, Data<Connection<Primary, Factory, Rest>, ()>>,
                   stream: u64,
                   pointer: u32,
-                  length: u32| {
-                Box::new(stream_read_write(
-                    caller,
-                    stream,
-                    pointer,
-                    length,
-                    Action::Write,
-                ))
-            },
+                  length: u32| { Box::new(async { 0 }) },
         )?;
-        linker.func_wrap0_async(
+        linker.func_wrap2_async(
             "stream",
             "start",
-            move |mut caller: Caller<'_, Data<(), Connection<Primary, Factory, Rest>>>| {
-                Box::new(async move { caller.data_mut().connection_mut().start_stream() })
+            move |mut caller: Caller<'_, Data<Connection<Primary, Factory, Rest>, ()>>,
+                  pointer: u32,
+                  length: u32| {
+                Box::new(async move {
+                    let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
+                    let (data, state): (
+                        &mut [u8],
+                        &mut Data<Connection<Primary, Factory, Rest>, ()>,
+                    ) = memory.data_and_store_mut(&mut caller);
+                    let view =
+                        &mut data[..(pointer as usize + length as usize)][pointer as usize..];
+
+                    let index = state.connection_mut().start_stream();
+                    let stream = state.connection_mut().get_mut(index).unwrap();
+
+                    stream.write(view).await.unwrap();
+
+                    index.get()
+                })
             },
         )?;
 
@@ -169,7 +167,7 @@ where
 }
 
 pub struct Guest<Primary, Factory, Rest> {
-    instance: InstancePre<Data<(), Connection<Primary, Factory, Rest>>>,
+    instance: InstancePre<Data<Connection<Primary, Factory, Rest>, ()>>,
     factory: Factory,
     fuel_to_inject: u64,
     injection_count: u64,
@@ -205,8 +203,6 @@ where
 
         let mut store = Store::new(self.instance.module().engine(), data);
 
-        store.epoch_deadline_trap();
-        store.set_epoch_deadline(1);
         store.out_of_fuel_async_yield(self.injection_count, self.fuel_to_inject);
 
         let instance = self.instance.instantiate_async(&mut store).await?;
@@ -216,58 +212,6 @@ where
             .unwrap()
             .call_async(&mut store, (0, 0))
             .await
-    }
-}
-
-enum Action {
-    Read,
-    Write,
-}
-
-impl Action {
-    async fn perform<Stream>(&self, stream: &mut Stream, buffer: &mut [u8]) -> i64
-    where
-        Stream: wasm::Stream,
-    {
-        match self {
-            Action::Read => match Stream::read(stream, buffer).await {
-                Ok(bytes) => bytes as i64,
-                Err(_) => -1,
-            },
-            Action::Write => match Stream::write(stream, buffer).await {
-                Ok(bytes) => bytes as i64,
-                Err(_) => -1,
-            },
-        }
-    }
-}
-
-async fn stream_read_write<Primary, Factory, Rest>(
-    mut caller: Caller<'_, Data<(), Connection<Primary, Factory, Rest>>>,
-    stream: u64,
-    pointer: u32,
-    length: u32,
-    action: Action,
-) -> i64
-where
-    Primary: wasm::Stream,
-    Factory: wasm::Factory<Stream = Rest>,
-    Rest: wasm::Stream,
-{
-    let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
-    let (data, state) = memory.data_and_store_mut(&mut caller);
-    let view = &mut data[..(pointer as usize + length as usize)][pointer as usize..];
-
-    match NonZeroU64::new(stream) {
-        None => {
-            let stream = state.connection_mut().primary_mut();
-
-            action.perform(stream, view).await
-        }
-        Some(stream) => match state.connection_mut().get_mut(stream) {
-            None => -1,
-            Some(stream) => action.perform(stream, view).await,
-        },
     }
 }
 

@@ -41,5 +41,5 @@ pub trait Stream: Source + Destination + Send {
     type Error: Debug + Display + Send;
 
     async fn read(&mut self, buffer: &mut [u8]) -> Result<usize, Self::Error>;
-    async fn write(&mut self, buffer: &mut [u8]) -> Result<usize, Self::Error>;
+    async fn write(&mut self, buffer: &[u8]) -> Result<usize, Self::Error>;
 }

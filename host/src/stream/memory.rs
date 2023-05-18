@@ -119,7 +119,7 @@ impl wasm::Stream for Stream {
         Ok(bytes)
     }
 
-    async fn write(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+    async fn write(&mut self, buffer: &[u8]) -> io::Result<usize> {
         Write::write(self, buffer)
     }
 }

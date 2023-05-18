@@ -18,7 +18,7 @@ where
         }
     }
 
-    async fn write(&mut self, buffer: &mut [u8]) -> Result<usize, Self::Error> {
+    async fn write(&mut self, buffer: &[u8]) -> Result<usize, Self::Error> {
         wasm::Stream::write(self.stream_mut(), buffer).await
     }
 }

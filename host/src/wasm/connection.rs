@@ -36,8 +36,9 @@ where
         }
     }
 
-    pub fn start_stream(&mut self) -> u64 {
+    pub fn start_stream(&mut self) -> NonZeroU64 {
         self.rest.push(self.factory.create());
-        self.rest.len() as u64
+
+        NonZeroU64::new(self.rest.len() as u64).unwrap()
     }
 }
