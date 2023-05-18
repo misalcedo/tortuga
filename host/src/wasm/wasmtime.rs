@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::io::{Read, Write};
 use std::mem::size_of;
@@ -119,16 +120,69 @@ pub struct Guest {
     fuel_to_inject: u64,
 }
 
+pub struct Configuration<Input, Output> {
+    arguments: Vec<String>,
+    environment: HashMap<String, String>,
+    input: Input,
+    output: Output,
+}
+
+impl<Input, Output> Configuration<Input, Output> {
+    pub fn arguments(&self) -> &[String] {
+        self.arguments.as_slice()
+    }
+
+    pub fn add_argument(&mut self, argument: String) {
+        self.arguments.push(argument);
+    }
+
+    pub fn with_arguments(&mut self, arguments: Vec<String>) {
+        self.arguments = arguments;
+    }
+
+    pub fn environment(&self) -> &HashMap<String, String> {
+        &self.environment
+    }
+
+    pub fn set_environment_variable(&mut self, name: String, value: String) {
+        self.environment.insert(name, value);
+    }
+
+    pub fn with_environment(&mut self, environment: HashMap<String, String>) {
+        self.environment = environment;
+    }
+}
+
+impl<Input, Output> Configuration<Input, Output>
+where
+    Input: Read + Send + Sync + 'static,
+    Output: Write + Send + Sync + 'static,
+{
+    pub fn new(input: Input, output: Output) -> Self {
+        Configuration {
+            arguments: vec![],
+            environment: HashMap::new(),
+            input,
+            output,
+        }
+    }
+}
+
 impl Guest {
-    async fn invoke<I, O>(&self, input: I, output: O) -> Result<O, Error>
+    async fn invoke<Input, Output>(
+        &self,
+        configuration: Configuration<Input, Output>,
+    ) -> Result<Output, Error>
     where
-        I: Read + Send + Sync + 'static,
-        O: Write + Send + Sync + 'static,
+        Input: Read + Send + Sync + 'static,
+        Output: Write + Send + Sync + 'static,
     {
-        let output = Arc::new(RwLock::new(output));
+        let output = Arc::new(RwLock::new(configuration.output));
 
         let context = WasiCtxBuilder::new()
-            .stdin(Box::new(wasi_common::pipe::ReadPipe::new(input)))
+            .stdin(Box::new(wasi_common::pipe::ReadPipe::new(
+                configuration.input,
+            )))
             .stdout(Box::new(wasi_common::pipe::WritePipe::from_shared(
                 output.clone(),
             )))
@@ -171,8 +225,9 @@ mod tests {
 
         let input: Cursor<Vec<u8>> = Cursor::new(Vec::new());
         let output: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        let configuration = Configuration::new(input, output);
 
-        let response = guest.invoke(input, output).await.unwrap();
+        let response = guest.invoke(configuration).await.unwrap();
 
         assert_eq!(response.get_ref().as_slice(), b"Hello, world!\n");
     }
