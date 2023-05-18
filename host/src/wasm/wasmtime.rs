@@ -44,6 +44,7 @@ where
 
         configuration.async_support(true);
         configuration.epoch_interruption(true);
+        configuration.consume_fuel(true);
 
         let engine = Engine::new(&configuration).unwrap();
 
@@ -67,6 +68,7 @@ where
         let mut configuration = Config::new();
 
         configuration.async_support(true);
+        configuration.epoch_interruption(true);
         configuration.consume_fuel(true);
 
         let engine = Engine::new(&configuration).unwrap();
@@ -203,6 +205,8 @@ where
 
         let mut store = Store::new(self.instance.module().engine(), data);
 
+        store.epoch_deadline_trap();
+        store.set_epoch_deadline(1);
         store.out_of_fuel_async_yield(self.injection_count, self.fuel_to_inject);
 
         let instance = self.instance.instantiate_async(&mut store).await?;
