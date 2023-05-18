@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use std::io::{Cursor, Read, Write};
 use std::mem::size_of;
 use std::sync::{Arc, RwLock};
@@ -13,8 +14,18 @@ pub enum Error {
     Wasm(wasmtime::Error),
     WasiArgs(wasi_common::StringArrayError),
     Encoding(tortuga_model::encoding::Error),
+    MissingExport,
+    MissingMemory,
     Internal,
 }
+
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl std::error::Error for Error {}
 
 impl From<wasmtime::Error> for Error {
     fn from(value: wasmtime::Error) -> Self {
@@ -43,15 +54,27 @@ pub struct Host<Encoding> {
 
 pub struct Data {
     context: WasiCtx,
+    response: Response,
 }
 
 impl Data {
     pub fn new(context: WasiCtx) -> Self {
-        Data { context }
+        Data {
+            context,
+            response: Response::new(Status::Custom(0), Headers::default()),
+        }
     }
 
     pub fn context_mut(&mut self) -> &mut WasiCtx {
         &mut self.context
+    }
+
+    pub fn set_response(&mut self, response: Response) {
+        self.response = response;
+    }
+
+    pub fn into_response(self) -> Response {
+        self.response
     }
 }
 
@@ -83,7 +106,7 @@ where
 
 impl<Encoding> Host<Encoding>
 where
-    Encoding: Clone + Format<Request> + Format<Response>,
+    Encoding: Clone + Format<Request> + Format<Response> + 'static,
 {
     fn welcome<Code>(&self, code: Code) -> Result<Guest<Encoding>, Error>
     where
@@ -93,16 +116,45 @@ where
 
         wasmtime_wasi::add_to_linker(&mut linker, Data::context_mut)?;
 
+        let request_encoding = self.encoding.clone();
+        let response_encoding = self.encoding.clone();
+
         linker.func_wrap2_async(
-            "stream",
-            "start",
+            "guest",
+            "exit",
             move |mut caller: Caller<'_, Data>, pointer: u32, length: u32| {
+                let encoding = response_encoding.clone();
+
                 Box::new(async move {
-                    let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
-                    let (data, state): (&mut [u8], &mut Data) =
-                        memory.data_and_store_mut(&mut caller);
-                    let view =
-                        &mut data[..(pointer as usize + length as usize)][pointer as usize..];
+                    let memory = caller
+                        .get_export("memory")
+                        .ok_or(Error::MissingExport)?
+                        .into_memory()
+                        .ok_or(Error::MissingMemory)?;
+                    let (data, store) = memory.data_and_store_mut(&mut caller);
+                    let view = &data[..(pointer as usize + length as usize)][pointer as usize..];
+
+                    store.set_response(encoding.deserialize(view)?);
+
+                    Ok(())
+                })
+            },
+        )?;
+        linker.func_wrap2_async(
+            "guest",
+            "request",
+            move |mut caller: Caller<'_, Data>, pointer: u32, length: u32| {
+                let encoding = request_encoding.clone();
+
+                Box::new(async move {
+                    let memory = caller
+                        .get_export("memory")
+                        .ok_or(Error::MissingExport)?
+                        .into_memory()
+                        .ok_or(Error::MissingMemory)?;
+                    let (data, store) = memory.data_and_store_mut(&mut caller);
+                    let view = &data[..(pointer as usize + length as usize)][pointer as usize..];
+                    let request: Request = encoding.deserialize(view)?;
 
                     Ok(0)
                 })
@@ -164,18 +216,15 @@ where
             .call_async(&mut store, ())
             .await?;
 
-        drop(store);
+        let response = store.into_data().into_response();
 
         match Arc::try_unwrap(output)
-            .map_err(|e| Error::Internal)?
+            .map_err(|_| Error::Internal)?
             .into_inner()
         {
-            Ok(o) => {
-                let response = Response::new(Status::Ok, Headers::default());
-                Ok(Message::new_response(response, o))
-            }
+            Ok(o) => Ok(Message::new_response(response, o)),
             Err(e) => {
-                let response = Response::new(Status::InternalServerError, Headers::default());
+                let response = Response::new(Status::InternalServerError, response.into_headers());
                 Ok(Message::new_response(response, e.into_inner()))
             }
         }
@@ -191,17 +240,18 @@ mod tests {
 
     #[tokio::test]
     async fn error() {
+        let code = include_bytes!(env!("CARGO_BIN_FILE_WASI"));
         let encoding = Binary::default();
         let host = Host::new(encoding, 10, 1000).unwrap();
-
-        let code = include_bytes!(env!("CARGO_BIN_FILE_WASI"));
         let guest = host.welcome(code).unwrap();
 
         let request = Request::new(Method::Get, "/".into(), Headers::default());
         let message = Message::new_request(request, Cursor::new(Vec::new()));
         let output: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+
         let mut response = guest.invoke(message, output).await.unwrap();
 
-        assert_eq!(response.content().get_ref().as_slice(), b"Hello, world!\n")
+        assert_eq!(response.head().status(), Status::Custom(0));
+        assert_eq!(response.content().get_ref().as_slice(), b"Hello, world!\n");
     }
 }

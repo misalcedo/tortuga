@@ -26,4 +26,12 @@ impl Request {
     pub fn method(&self) -> Method {
         self.method
     }
+
+    pub fn headers(&self) -> &Headers {
+        &self.headers
+    }
+
+    pub fn into_headers(self) -> Headers {
+        self.headers
+    }
 }

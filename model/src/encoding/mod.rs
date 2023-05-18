@@ -1,4 +1,5 @@
 pub use binary::Binary;
+use std::fmt::{Display, Formatter};
 use std::io;
 
 mod binary;
@@ -6,7 +7,15 @@ mod binary;
 #[derive(Debug)]
 pub struct Error;
 
-pub trait Format<In, Out = In> {
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl std::error::Error for Error {}
+
+pub trait Format<In, Out = In>: Send + Sync {
     fn serialize(&self, input: &In) -> Result<Vec<u8>, Error>;
 
     fn serialize_to<Destination>(

@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Status>
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]
 pub enum Status {
-    NoResponse,
     Continue,
     Ok,
     Created,
@@ -36,7 +35,6 @@ impl PartialEq<u16> for Status {
 impl From<Status> for u16 {
     fn from(status: Status) -> Self {
         match status {
-            Status::NoResponse => 0,
             Status::Continue => 100,
             Status::Ok => 200,
             Status::Created => 201,
@@ -62,22 +60,19 @@ impl From<Status> for u16 {
     }
 }
 
-impl TryFrom<u16> for Status {
-    type Error = u16;
-
-    fn try_from(status: u16) -> Result<Self, Self::Error> {
+impl From<u16> for Status {
+    fn from(status: u16) -> Self {
         match status {
-            0 => Ok(Status::NoResponse),
-            100..=199 => Ok(Status::Continue),
+            100..=199 => Status::Continue,
             200..=299 => match status {
-                200 => Ok(Status::Ok),
-                201 => Ok(Status::Created),
-                _ => Err(status),
+                200 => Status::Ok,
+                201 => Status::Created,
+                _ => Status::Custom(status),
             },
-            300..=399 => Ok(Status::MultipleChoices),
-            400..=499 => Ok(Status::BadRequest),
-            500..=599 => Ok(Status::InternalServerError),
-            _ => Err(status),
+            300..=399 => Status::MultipleChoices,
+            400..=499 => Status::BadRequest,
+            500..=599 => Status::InternalServerError,
+            _ => Status::Custom(status),
         }
     }
 }

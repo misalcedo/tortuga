@@ -15,4 +15,12 @@ impl Response {
     pub fn status(&self) -> Status {
         self.status
     }
+
+    pub fn headers(&self) -> &Headers {
+        &self.headers
+    }
+
+    pub fn into_headers(self) -> Headers {
+        self.headers
+    }
 }
