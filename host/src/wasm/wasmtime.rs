@@ -129,6 +129,7 @@ where
                     let capabilities = FileCaps::FDSTAT_SET_FLAGS
                         | FileCaps::FILESTAT_GET
                         | FileCaps::READ
+                        | FileCaps::WRITE
                         | FileCaps::POLL_READWRITE;
                     let file_descriptor =
                         store.context_mut().push_file(connection, capabilities)?;
@@ -325,6 +326,16 @@ where
     }
 }
 
+impl<R, W> BidirectionalPipe<R, W> {
+    fn into_write(self) -> Option<W> {
+        let lock = Arc::try_unwrap(self.write).ok()?;
+        match lock.into_inner() {
+            Ok(w) => Some(w),
+            Err(e) => Some(e.into_inner()),
+        }
+    }
+}
+
 #[async_trait]
 impl<R, W> WasiFile for BidirectionalPipe<R, W>
 where
@@ -347,14 +358,7 @@ where
         if (ri_flags & !(RiFlags::RECV_PEEK | RiFlags::RECV_WAITALL)) != RiFlags::empty() {
             Err(wasi_common::Error::not_supported())
         } else if ri_flags.contains(RiFlags::RECV_PEEK) {
-            todo!();
-
-            // if let Some(first) = ri_data.iter_mut().next() {
-            //     let n = self.0.peek(first)?;
-            //     return Ok((n as u64, RoFlags::empty()));
-            // } else {
-            //     return Ok((0, RoFlags::empty()));
-            // }
+            Err(wasi_common::Error::not_supported())
         } else if ri_flags.contains(RiFlags::RECV_WAITALL) {
             let n: usize = ri_data.iter().map(|buf| buf.len()).sum();
             let mut buffers = &mut ri_data[..];
@@ -421,6 +425,20 @@ where
         }
     }
 
+    async fn set_fdflags(&mut self, flags: FdFlags) -> Result<(), wasi_common::Error> {
+        let mut guard = RwLock::write(&self.state).unwrap();
+
+        if flags == FdFlags::NONBLOCK {
+            guard.blocking = false;
+            Ok(())
+        } else if flags == FdFlags::empty() {
+            guard.blocking = true;
+            Ok(())
+        } else {
+            Err(wasi_common::Error::invalid_argument().context("only NONBLOCK is supported"))
+        }
+    }
+
     async fn read_vectored<'a>(
         &self,
         bufs: &mut [IoSliceMut<'a>],
@@ -435,11 +453,11 @@ where
     }
 
     async fn peek(&self, _buf: &mut [u8]) -> Result<u64, wasi_common::Error> {
-        todo!()
+        Err(wasi_common::Error::not_supported())
     }
 
     fn num_ready_bytes(&self) -> Result<u64, wasi_common::Error> {
-        todo!()
+        Err(wasi_common::Error::not_supported())
     }
 
     async fn readable(&self) -> Result<(), wasi_common::Error> {
@@ -482,6 +500,10 @@ mod tests {
 
         let response = guest.invoke(configuration).await.unwrap();
 
+        drop(host);
+        drop(guest);
+
         assert_eq!(response.get_ref().as_slice(), b"Hello, world!\n");
+        assert_eq!(stream.into_write().unwrap().get_ref().as_slice(), b"!");
     }
 }
