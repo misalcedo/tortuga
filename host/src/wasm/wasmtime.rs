@@ -1,8 +1,11 @@
+use async_trait::async_trait;
+use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
-use std::io::{Read, Write};
-use std::mem::size_of;
+use std::io::{Cursor, IoSlice, IoSliceMut, Read, Write};
 use std::sync::{Arc, RwLock};
+use wasi_common::file::{FdFlags, FileCaps, FileType, RiFlags, RoFlags, SdFlags, SiFlags};
+use wasi_common::{ErrorExt, WasiFile};
 
 use wasmtime::{Caller, Config, Engine, InstancePre, Linker, Module, Store};
 use wasmtime_wasi::sync::WasiCtxBuilder;
@@ -14,6 +17,7 @@ pub enum Error {
     WasiArgs(wasi_common::StringArrayError),
     MissingExport,
     MissingMemory,
+    FailedConnection,
     Poison,
     Internal,
 }
@@ -38,8 +42,9 @@ impl From<wasi_common::StringArrayError> for Error {
     }
 }
 
-pub struct Host {
+pub struct Host<Network> {
     engine: Engine,
+    network: Network,
     injection_count: u64,
     fuel_to_inject: u64,
 }
@@ -58,47 +63,77 @@ impl Data {
     }
 }
 
-impl Host {
-    pub fn new(injection_count: u64, fuel_to_inject: u64) -> Result<Self, Error> {
+#[async_trait]
+pub trait Network: Clone + Send + Sync {
+    async fn add(&mut self, origin: &str, guest: Guest) -> Option<Guest>;
+
+    async fn connect(&mut self, origin: &str) -> Option<Box<dyn WasiFile>>;
+}
+
+impl<N> Host<N>
+where
+    N: Network,
+{
+    pub fn new(network: N, injection_count: u64, fuel_to_inject: u64) -> Result<Self, Error> {
         let mut configuration = Config::new();
 
         configuration.async_support(true);
         configuration.consume_fuel(true);
-        configuration.wasm_memory64(size_of::<usize>() == size_of::<u64>());
+        configuration.wasm_memory64(true);
 
         let engine = Engine::new(&configuration)?;
 
         Ok(Host {
             engine,
+            network,
             injection_count,
             fuel_to_inject,
         })
     }
 }
 
-impl Host {
+impl<N> Host<N>
+where
+    N: Network + 'static,
+{
     fn welcome<Code>(&self, code: Code) -> Result<Guest, Error>
     where
         Code: AsRef<[u8]>,
     {
+        let network = self.network.clone();
         let mut linker = Linker::new(&self.engine);
 
         wasmtime_wasi::add_to_linker(&mut linker, Data::context_mut)?;
 
         linker.func_wrap2_async(
             "guest",
-            "request",
-            move |mut caller: Caller<'_, Data>, pointer: u32, length: u32| {
+            "connect",
+            move |mut caller: Caller<'_, Data>, pointer: u32, length: u64| {
+                let mut network = network.clone();
+
                 Box::new(async move {
                     let memory = caller
                         .get_export("memory")
                         .ok_or(Error::MissingExport)?
                         .into_memory()
                         .ok_or(Error::MissingMemory)?;
-                    let (data, store) = memory.data_and_store_mut(&mut caller);
+                    let (data, store): (&mut [u8], &mut Data) =
+                        memory.data_and_store_mut(&mut caller);
                     let view = &data[..(pointer as usize + length as usize)][pointer as usize..];
+                    let origin = String::from_utf8_lossy(view);
 
-                    Ok(0)
+                    let connection = network
+                        .connect(origin.as_ref())
+                        .await
+                        .ok_or(Error::FailedConnection)?;
+                    let capabilities = FileCaps::FDSTAT_SET_FLAGS
+                        | FileCaps::FILESTAT_GET
+                        | FileCaps::READ
+                        | FileCaps::POLL_READWRITE;
+                    let file_descriptor =
+                        store.context_mut().push_file(connection, capabilities)?;
+
+                    Ok(file_descriptor)
                 })
             },
         )?;
@@ -212,15 +247,233 @@ impl Guest {
     }
 }
 
+#[async_trait]
+impl Network for () {
+    async fn add(&mut self, origin: &str, guest: Guest) -> Option<Guest> {
+        None
+    }
+
+    async fn connect(&mut self, _: &str) -> Option<Box<dyn WasiFile>> {
+        None
+    }
+}
+
+#[async_trait]
+impl<R, W> Network for BidirectionalPipe<R, W>
+where
+    R: Read + Send + Sync + 'static,
+    W: Write + Send + Sync + 'static,
+{
+    async fn add(&mut self, origin: &str, guest: Guest) -> Option<Guest> {
+        None
+    }
+
+    async fn connect(&mut self, origin: &str) -> Option<Box<dyn WasiFile>> {
+        Some(Box::new(self.clone()))
+    }
+}
+
+pub struct BidirectionalPipe<R, W> {
+    read: Arc<RwLock<R>>,
+    write: Arc<RwLock<W>>,
+    state: Arc<RwLock<PipeState>>,
+}
+
+pub struct PipeState {
+    blocking: bool,
+    readable: bool,
+    writable: bool,
+}
+
+impl Default for PipeState {
+    fn default() -> Self {
+        PipeState {
+            blocking: true,
+            readable: true,
+            writable: true,
+        }
+    }
+}
+
+impl<R, W> Clone for BidirectionalPipe<R, W> {
+    fn clone(&self) -> Self {
+        BidirectionalPipe {
+            read: Arc::clone(&self.read),
+            write: Arc::clone(&self.write),
+            state: Arc::clone(&self.state),
+        }
+    }
+}
+
+impl Default for BidirectionalPipe<Cursor<Vec<u8>>, Cursor<Vec<u8>>> {
+    fn default() -> Self {
+        BidirectionalPipe::new(Cursor::new(Vec::new()), Cursor::new(Vec::new()))
+    }
+}
+
+impl<R, W> BidirectionalPipe<R, W>
+where
+    R: Read + Send + Sync + 'static,
+    W: Write + Send + Sync + 'static,
+{
+    fn new(read: R, write: W) -> Self {
+        BidirectionalPipe {
+            read: Arc::new(RwLock::new(read)),
+            write: Arc::new(RwLock::new(write)),
+            state: Arc::new(RwLock::new(PipeState::default())),
+        }
+    }
+}
+
+#[async_trait]
+impl<R, W> WasiFile for BidirectionalPipe<R, W>
+where
+    R: Read + Send + Sync + 'static,
+    W: Write + Send + Sync + 'static,
+{
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    async fn get_filetype(&self) -> Result<FileType, wasi_common::Error> {
+        Ok(FileType::SocketStream)
+    }
+
+    async fn sock_recv<'a>(
+        &self,
+        ri_data: &mut [IoSliceMut<'a>],
+        ri_flags: RiFlags,
+    ) -> Result<(u64, RoFlags), wasi_common::Error> {
+        if (ri_flags & !(RiFlags::RECV_PEEK | RiFlags::RECV_WAITALL)) != RiFlags::empty() {
+            Err(wasi_common::Error::not_supported())
+        } else if ri_flags.contains(RiFlags::RECV_PEEK) {
+            todo!();
+
+            // if let Some(first) = ri_data.iter_mut().next() {
+            //     let n = self.0.peek(first)?;
+            //     return Ok((n as u64, RoFlags::empty()));
+            // } else {
+            //     return Ok((0, RoFlags::empty()));
+            // }
+        } else if ri_flags.contains(RiFlags::RECV_WAITALL) {
+            let n: usize = ri_data.iter().map(|buf| buf.len()).sum();
+            let mut buffers = &mut ri_data[..];
+
+            while !buffers.is_empty() {
+                if buffers[0].is_empty() {
+                    buffers = &mut buffers[1..];
+                    continue;
+                }
+
+                let mut guard = RwLock::write(&self.read).unwrap();
+                match guard.read_vectored(buffers) {
+                    Ok(0) => return Err(wasi_common::Error::io()),
+                    Ok(read) => IoSliceMut::advance_slices(&mut buffers, read as usize), // https://github.com/rust-lang/rust/issues/62726
+                    Err(e) if e.kind() == std::io::ErrorKind::Interrupted => (),
+                    Err(e) => return Err(e.into()),
+                }
+            }
+
+            Ok((n as u64, RoFlags::empty()))
+        } else {
+            Ok((self.read_vectored(ri_data).await?, RoFlags::empty()))
+        }
+    }
+
+    async fn sock_send<'a>(
+        &self,
+        si_data: &[IoSlice<'a>],
+        si_flags: SiFlags,
+    ) -> Result<u64, wasi_common::Error> {
+        if si_flags != SiFlags::empty() {
+            return Err(wasi_common::Error::not_supported());
+        }
+
+        self.write_vectored(si_data).await
+    }
+
+    async fn sock_shutdown(&self, how: SdFlags) -> Result<(), wasi_common::Error> {
+        let mut guard = RwLock::write(&self.state).unwrap();
+
+        if how == SdFlags::RD | SdFlags::WR {
+            guard.readable = false;
+            guard.writable = false;
+
+            Ok(())
+        } else if how == SdFlags::RD {
+            guard.readable = false;
+            Ok(())
+        } else if how == SdFlags::WR {
+            guard.writable = false;
+            Ok(())
+        } else {
+            Err(wasi_common::Error::invalid_argument())
+        }
+    }
+
+    async fn get_fdflags(&self) -> Result<FdFlags, wasi_common::Error> {
+        let guard = RwLock::read(&self.state).unwrap();
+
+        if guard.blocking {
+            Ok(FdFlags::empty())
+        } else {
+            Ok(FdFlags::NONBLOCK)
+        }
+    }
+
+    async fn read_vectored<'a>(
+        &self,
+        bufs: &mut [IoSliceMut<'a>],
+    ) -> Result<u64, wasi_common::Error> {
+        let mut guard = RwLock::write(&self.read).unwrap();
+        Ok(guard.read_vectored(bufs)? as u64)
+    }
+
+    async fn write_vectored<'a>(&self, bufs: &[IoSlice<'a>]) -> Result<u64, wasi_common::Error> {
+        let mut guard = RwLock::write(&self.write).unwrap();
+        Ok(guard.write_vectored(bufs)? as u64)
+    }
+
+    async fn peek(&self, _buf: &mut [u8]) -> Result<u64, wasi_common::Error> {
+        todo!()
+    }
+
+    fn num_ready_bytes(&self) -> Result<u64, wasi_common::Error> {
+        todo!()
+    }
+
+    async fn readable(&self) -> Result<(), wasi_common::Error> {
+        let guard = RwLock::read(&self.state).unwrap();
+
+        if guard.readable {
+            Ok(())
+        } else {
+            Err(wasi_common::Error::io())
+        }
+    }
+
+    async fn writable(&self) -> Result<(), wasi_common::Error> {
+        let guard = RwLock::read(&self.state).unwrap();
+
+        if guard.writable {
+            Ok(())
+        } else {
+            Err(wasi_common::Error::io())
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::io::Cursor;
 
+    use super::*;
+
     #[tokio::test]
-    async fn error() {
+    async fn basic() {
         let code = include_bytes!(env!("CARGO_BIN_FILE_WASI"));
-        let host = Host::new(10, 1000).unwrap();
+        let stream = BidirectionalPipe::new(Cursor::new(b"foobar"), Cursor::new(Vec::new()));
+        let host = Host::new(stream.clone(), 100, 1000).unwrap();
         let guest = host.welcome(code).unwrap();
 
         let input: Cursor<Vec<u8>> = Cursor::new(Vec::new());
