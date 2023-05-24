@@ -2,7 +2,7 @@ use std::future::Future;
 use std::io::{Read, Write};
 use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::task::{Context, Poll, Waker};
 
 use async_trait::async_trait;
@@ -12,21 +12,21 @@ use tortuga_model::asynchronous;
 
 #[derive(Clone, Debug)]
 pub struct Pipe {
-    buffer: Arc<RwLock<Buffer>>,
-    closed: Arc<AtomicBool>,
     blocking: bool,
-    read_waker: Option<Waker>,
-    write_waker: Option<Waker>,
+    closed: Arc<AtomicBool>,
+    buffer: Arc<RwLock<Buffer>>,
+    read_waker: Arc<Mutex<Option<Waker>>>,
+    write_waker: Arc<Mutex<Option<Waker>>>,
 }
 
 impl Pipe {
     pub fn new(capacity: usize) -> Self {
         Pipe {
-            buffer: Arc::new(RwLock::new(Buffer::new(capacity))),
-            closed: Arc::new(AtomicBool::new(false)),
             blocking: true,
-            read_waker: None,
-            write_waker: None,
+            closed: Arc::new(AtomicBool::new(false)),
+            buffer: Arc::new(RwLock::new(Buffer::new(capacity))),
+            read_waker: Arc::new(Mutex::new(None)),
+            write_waker: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -39,17 +39,41 @@ impl Pipe {
     }
 
     fn is_empty(&self) -> bool {
-        let guard = self.read_lock();
+        let guard = Self::read_lock(&self.buffer, &self.closed);
         guard.is_empty()
     }
 
     fn is_full(&self) -> bool {
-        let guard = self.read_lock();
+        let guard = Self::read_lock(&self.buffer, &self.closed);
         guard.is_full()
     }
 
-    fn write_lock(&mut self) -> RwLockWriteGuard<'_, Buffer> {
-        match RwLock::write(&self.buffer) {
+    fn is_closed(&self) -> bool {
+        self.closed.load(Ordering::SeqCst)
+    }
+
+    fn take_waker(mutex: &Mutex<Option<Waker>>) -> Option<Waker> {
+        match mutex.lock() {
+            Ok(mut guard) => guard.take(),
+            Err(e) => {
+                let mut guard = e.into_inner();
+                guard.take();
+                None
+            }
+        }
+    }
+
+    fn set_waker(mutex: &Mutex<Option<Waker>>, cx: &mut Context) {
+        let mut waker_guard = match mutex.lock() {
+            Ok(guard) => guard,
+            Err(e) => e.into_inner(),
+        };
+
+        *waker_guard = Some(cx.waker().clone());
+    }
+
+    fn write_lock(buffer: &RwLock<Buffer>) -> RwLockWriteGuard<'_, Buffer> {
+        match RwLock::write(buffer) {
             Ok(guard) => guard,
             Err(e) => {
                 let mut guard = e.into_inner();
@@ -59,21 +83,26 @@ impl Pipe {
         }
     }
 
-    fn read_lock(&self) -> RwLockReadGuard<'_, Buffer> {
-        match RwLock::read(&self.buffer) {
+    fn read_lock<'a, 'b>(
+        buffer: &'a RwLock<Buffer>,
+        closed: &'b AtomicBool,
+    ) -> RwLockReadGuard<'a, Buffer> {
+        match RwLock::read(buffer) {
             Ok(guard) => guard,
             Err(e) => {
-                self.closed.store(true, Ordering::SeqCst);
+                closed.store(true, Ordering::SeqCst);
                 e.into_inner()
             }
         }
     }
 
     fn readable(&mut self) -> ReadFuture<'_> {
+        self.set_blocking(false);
         ReadFuture(self)
     }
 
     fn writable(&mut self) -> WriteFuture<'_> {
+        self.set_blocking(false);
         WriteFuture(self)
     }
 }
@@ -82,13 +111,17 @@ impl Read for Pipe {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         if !self.blocking && self.is_empty() {
             Err(std::io::ErrorKind::WouldBlock.into())
-        } else if self.closed.load(Ordering::SeqCst) && self.is_empty() {
+        } else if self.is_closed() && self.is_empty() {
             Ok(0)
         } else {
             loop {
-                let mut guard = self.write_lock();
+                let mut guard = Self::write_lock(&self.buffer);
 
                 if !guard.is_empty() {
+                    if let Some(waker) = Self::take_waker(&self.write_waker) {
+                        waker.wake();
+                    }
+
                     return Ok(guard.read(buf));
                 }
             }
@@ -98,15 +131,19 @@ impl Read for Pipe {
 
 impl Write for Pipe {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        if !self.blocking && self.is_full() {
-            Err(std::io::ErrorKind::WouldBlock.into())
-        } else if self.closed.load(Ordering::SeqCst) {
+        if self.is_closed() {
             Err(std::io::ErrorKind::BrokenPipe.into())
+        } else if !self.blocking && self.is_full() {
+            Err(std::io::ErrorKind::WouldBlock.into())
         } else {
             loop {
-                let mut guard = self.write_lock();
+                let mut guard = Self::write_lock(&self.buffer);
 
                 if !guard.is_full() {
+                    if let Some(waker) = Self::take_waker(&self.read_waker) {
+                        waker.wake();
+                    }
+
                     return Ok(guard.write(buf));
                 }
             }
@@ -120,19 +157,69 @@ impl Write for Pipe {
 
 pub struct ReadFuture<'a>(&'a mut Pipe);
 
+impl<'a> Future for ReadFuture<'a> {
+    type Output = ();
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = self.get_mut();
+        let guard = Pipe::read_lock(&this.0.buffer, &this.0.closed);
+
+        if this.0.is_closed() || !guard.is_empty() {
+            Poll::Ready(())
+        } else {
+            Pipe::set_waker(&this.0.read_waker, cx);
+            Poll::Pending
+        }
+    }
+}
+
 #[async_trait]
 impl asynchronous::Read for Pipe {
     async fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        Ok(0)
+        loop {
+            self.readable().await;
+
+            match Read::read(self, buf) {
+                Ok(bytes) => return Ok(bytes),
+                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {}
+                Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => {}
+                Err(e) => return Err(e),
+            }
+        }
     }
 }
 
 pub struct WriteFuture<'a>(&'a mut Pipe);
 
+impl<'a> Future for WriteFuture<'a> {
+    type Output = ();
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = self.get_mut();
+        let guard = Pipe::read_lock(&this.0.buffer, &this.0.closed);
+
+        if this.0.is_closed() || !guard.is_full() {
+            Poll::Ready(())
+        } else {
+            Pipe::set_waker(&this.0.write_waker, cx);
+            Poll::Pending
+        }
+    }
+}
+
 #[async_trait]
 impl asynchronous::Write for Pipe {
     async fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        Ok(0)
+        loop {
+            self.writable().await;
+
+            match Write::write(self, buf) {
+                Ok(bytes) => return Ok(bytes),
+                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {}
+                Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => {}
+                Err(e) => return Err(e),
+            }
+        }
     }
 
     async fn flush(&mut self) -> std::io::Result<()> {
@@ -252,14 +339,14 @@ mod tests {
         let input = [42];
         let mut output = [0];
         let mut pipe = Pipe::new(1);
-        let mut clone = pipe.clone();
+        let clone = pipe.clone();
 
         assert_eq!(
             asynchronous::Write::write(&mut pipe, &input).await.unwrap(),
             1
         );
 
-        let mut handle = tokio::spawn(read_pipe(clone));
+        let handle = tokio::spawn(read_pipe(clone));
 
         assert_eq!(
             asynchronous::Write::write(&mut pipe, &input).await.unwrap(),
