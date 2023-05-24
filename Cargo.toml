@@ -19,7 +19,7 @@ lto = true
 debug = true
 
 [dev-dependencies]
-criterion = "0.3"
+criterion = "0.5"
 env_logger = "0.9"
 test-log = { version = "0.2.8", features = ["trace"] }
 tracing = { version = "0.1", default-features = false }
