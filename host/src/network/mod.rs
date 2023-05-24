@@ -1,10 +1,12 @@
 use async_trait::async_trait;
 use std::net::TcpStream;
 
-// Pipe, RingBuffer, DuplexStream
-mod bidirectional;
+pub use pipe::Pipe;
+pub use stream::DuplexStream;
+
 mod pipe;
 mod ring;
+mod stream;
 
 pub trait DuplexBuffer {
     fn remaining(&self) -> usize;
@@ -16,5 +18,5 @@ pub trait DuplexBuffer {
 pub trait Network: Clone + Send + Sync {
     async fn add(&mut self, origin: &str, guest: ()) -> Option<()>;
 
-    async fn connect(&mut self, origin: &str) -> Result<bidirectional::Pipe, TcpStream>;
+    async fn connect(&mut self, origin: &str) -> Result<DuplexStream, TcpStream>;
 }
