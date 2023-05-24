@@ -1,5 +1,5 @@
 #[derive(Debug, Default, Clone, Eq, PartialEq)]
-struct Buffer {
+pub struct Buffer {
     buffer: Vec<u8>,
     read_cursor: usize,
     write_cursor: usize,
@@ -60,12 +60,26 @@ impl Buffer {
         bytes
     }
 
+    pub fn clear(&mut self) {
+        self.length = 0;
+        self.read_cursor = 0;
+        self.write_cursor = 0;
+
+        for x in self.buffer.iter_mut() {
+            *x = 0;
+        }
+    }
+
     pub fn len(&self) -> usize {
         self.length
     }
 
     pub fn is_empty(&self) -> bool {
         self.length == 0
+    }
+
+    pub fn is_full(&self) -> bool {
+        self.remaining() == 0
     }
 
     pub fn remaining(&self) -> usize {
@@ -181,7 +195,4 @@ mod tests {
 
         assert!(buffer.reserve(1));
     }
-
-    #[test]
-    fn used_empty() {}
 }

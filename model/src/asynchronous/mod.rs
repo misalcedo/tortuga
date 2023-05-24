@@ -36,6 +36,23 @@ pub trait Read: Send + Sync {
 #[async_trait]
 pub trait Write: Send + Sync {
     async fn write(&mut self, buf: &[u8]) -> std::io::Result<usize>;
-    async fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()>;
+
+    async fn write_all(&mut self, mut buf: &[u8]) -> std::io::Result<()> {
+        while !buf.is_empty() {
+            match self.write(buf).await {
+                Ok(0) => {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::WriteZero,
+                        "failed to write whole buffer",
+                    ));
+                }
+                Ok(n) => buf = &buf[n..],
+                Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => {}
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(())
+    }
+
     async fn flush(&mut self) -> std::io::Result<()>;
 }

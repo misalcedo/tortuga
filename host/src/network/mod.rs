@@ -3,8 +3,8 @@ use std::net::TcpStream;
 
 // Pipe, RingBuffer, DuplexStream
 mod bidirectional;
+mod pipe;
 mod ring;
-mod unidirectional;
 
 pub trait DuplexBuffer {
     fn remaining(&self) -> usize;
