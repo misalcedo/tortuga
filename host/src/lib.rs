@@ -1,6 +1,7 @@
 #![feature(io_slice_advance)]
 //! Public interface of the tortuga compiler and runtime.
 
+pub mod network;
 // pub mod executor;
 // pub mod stream;
 pub mod wasm;

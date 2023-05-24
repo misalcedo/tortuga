@@ -8,6 +8,8 @@ pub trait Wire {
     fn write(&mut self, buffer: &[u8]) -> io::Result<usize>;
 
     fn write_all(&mut self, buffer: &[u8]) -> io::Result<()>;
+
+    fn flush(&mut self) -> io::Result<()>;
 }
 
 impl<W> Wire for W
@@ -28,5 +30,9 @@ where
 
     fn write_all(&mut self, buffer: &[u8]) -> io::Result<()> {
         io::Write::write_all(self, buffer)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        io::Write::flush(self)
     }
 }
