@@ -33,7 +33,7 @@ cli = ["clap", "colored", "mimalloc", "rustyline", "tracing-log", "tracing-subsc
 pprof = { version = "0.6", features = ["criterion", "flamegraph", "protobuf"] }
 
 [dependencies]
-clap = { version = "3.0", features = ["derive"], optional = true }
+clap = { version = "4.4", features = ["derive"], optional = true }
 colored = { version = "2.0.0", optional = true }
 lazy_static = "1.4"
 log = "0.4"
