@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::process::exit;
 
 mod cgi;
 mod server;
@@ -34,21 +35,21 @@ enum Commands {
 pub fn main() {
     let options = Options::parse();
 
-    println!("Verbosity set to {}", options.verbosity);
+    eprintln!("Verbosity set to {}", options.verbosity);
 
     // You can check for the existence of subcommands, and if found use their
     // matches just as you would the top level cmd
-    match &options.command {
+    match options.command {
         Some(Commands::Serve { script }) => {
             // Configure a runtime for the server that runs everything on the current thread
-            let rt = tokio::runtime::Builder::new_current_thread()
+            let rt = tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
                 .build()
                 .expect("build runtime");
 
-            // Combine it with a `LocalSet,  which means it can spawn !Send futures...
-            let local = tokio::task::LocalSet::new();
-            local.block_on(&rt, server::serve(script)).unwrap();
+            let server = rt.spawn(server::serve(script));
+
+            rt.block_on(handle_signals(server));
         }
         Some(Commands::Test { script }) => {
             let args = vec!["-test", "echo hello"];
@@ -84,7 +85,7 @@ pub fn main() {
                 ("PATH_TRANSLATED", "/var/www/html/extra/path")
             ]);
 
-            let output = cgi::run(script, args, env).expect("Failed to read stdout");
+            let output = cgi::run(&script, args, env).expect("Failed to read stdout");
 
             let stdout = String::from_utf8_lossy(&output.stdout);
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -95,4 +96,24 @@ pub fn main() {
         }
         _ => {}
     }
+}
+
+async fn handle_signals(server: tokio::task::JoinHandle<Result<(), Box<dyn std::error::Error + Send + Sync>>>) {
+    match tokio::signal::ctrl_c().await {
+        Ok(()) => {
+           eprintln!("Shutting down the server...");
+        },
+        Err(err) => {
+            eprintln!("Unable to listen for shutdown signal: {}", err);
+            // we also shut down in case of error
+        },
+    }
+
+    server.abort();
+
+    if let Err(e) = server.await {
+        eprintln!("{e}");
+    }
+
+    exit(0);
 }
