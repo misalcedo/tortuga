@@ -1,6 +1,6 @@
-use std::path::PathBuf;
 use std::convert::Infallible;
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use std::time::Duration;
 
 use http_body_util::Full;
@@ -16,14 +16,13 @@ async fn hello(_: Request<hyper::body::Incoming>) -> Result<Response<Full<Bytes>
     Ok(Response::new(Full::new(Bytes::from("Hello, World!"))))
 }
 
-pub async fn serve(script: &PathBuf) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+pub async fn serve(_script: &PathBuf) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
 
     // Use a 5 second timeout for incoming connections to the server.
     // If a request is in progress when the 5 second timeout elapses,
     // use a 2 second timeout for processing the final request and graceful shutdown.
     let connection_timeouts = vec![Duration::from_secs(5), Duration::from_secs(2)];
-
 
     // We create a TcpListener and bind it to 127.0.0.1:3000
     let listener = TcpListener::bind(addr).await?;
