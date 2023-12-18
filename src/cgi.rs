@@ -1,17 +1,27 @@
-use std::io::Write;
+use std::ffi::OsStr;
+use std::io::{Result, Write};
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
+use std::process::{Command, Output, Stdio};
 
-pub fn run(script: &PathBuf) {
+pub fn run<Arguments, Argument, Environment, Key, Value>(script: &PathBuf, arguments: Arguments, environment: Environment) -> Result<Output>
+where
+    Arguments: IntoIterator<Item = Argument>,
+    Argument: AsRef<OsStr>,
+    Environment: IntoIterator<Item = (Key, Value)>,
+    Key: AsRef<OsStr>,
+    Value: AsRef<OsStr>,
+{
     println!("Running script {}...", script.display());
 
     let mut child = Command::new(script)
-        .arg("-test")
-        .arg("echo hello")
+        .args(arguments)
+        .env_clear()
+        .envs(environment)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn()
-        .expect("failed to start script {script}");
+        .expect(format!("failed to start script {}", script.display()).as_str());
 
     let mut stdin = child.stdin.take().expect("Failed to open stdin");
 
@@ -21,12 +31,5 @@ pub fn run(script: &PathBuf) {
             .expect("Failed to write to stdin");
     });
 
-    let output = child.wait_with_output().expect("Failed to read stdout");
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let stderr = String::from_utf8_lossy(&output.stderr);
-
-    println!("Exit code: {}", output.status);
-    println!("STDOUT: {stdout}");
-    println!("STDERR: {stderr}");
+    child.wait_with_output()
 }
