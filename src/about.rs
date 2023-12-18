@@ -1,4 +1,4 @@
-//! Information about the tortuga command.
+//! Information about the tortuga program.
 
 /// The name of the command-line interface executable.
 pub const PROGRAM: &str = env!("CARGO_CRATE_NAME");
