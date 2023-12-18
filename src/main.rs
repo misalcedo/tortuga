@@ -76,9 +76,10 @@ pub fn main() {
                 ("SERVER_PROTOCOL", "HTTP/1.1"),
                 ("REQUEST_METHOD", "POST"),
                 ("QUERY_STRING", "foo+bar+--me%202"),
-                ("REQUEST_URI", "/cgi-bin/debug.cgi?foo+bar+--me%202"),
+                ("REQUEST_URI", "/cgi-bin/debug.cgi/extra/path?foo+bar+--me%202"),
                 ("SCRIPT_NAME", "/cgi-bin/debug.cgi"),
                 // Only if there is a path after the script portion of the path.
+                // Translates the extra path based on the rules of the server to a local path.
                 ("PATH_INFO", "/extra/path"),
                 ("PATH_TRANSLATED", "/var/www/html/extra/path")
             ]);

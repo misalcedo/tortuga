@@ -19,12 +19,12 @@ Environment:
   "REMOTE_PORT": "39582",
   "GATEWAY_INTERFACE": "CGI/1.1",
   "SERVER_PROTOCOL": "HTTP/1.1",
-  "REQUEST_METHOD": "GET",
+  "REQUEST_METHOD": "POST",
   "QUERY_STRING": "foo+bar+--me%202",
-  "REQUEST_URI": "/cgi-bin/debug.cgi/cgi-bin/debug.cgi/extra/path?foo+bar+--me%202",
+  "REQUEST_URI": "/cgi-bin/debug.cgi/extra/path?foo+bar+--me%202",
   "SCRIPT_NAME": "/cgi-bin/debug.cgi",
-  "PATH_INFO": "/cgi-bin/debug.cgi/extra/path",
-  "PATH_TRANSLATED": "/usr/lib/cgi-bin/debug.cgi/extra/path"
+  "PATH_INFO": "/extra/path",
+  "PATH_TRANSLATED": "/var/www/html/extra/path"
 }
 Arguments:
 ["foo", "bar", "--me 2"]
