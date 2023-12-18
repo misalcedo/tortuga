@@ -10,3 +10,5 @@ p ARGV
 
 puts "STDIN:"
 p STDIN.read
+
+STDERR.puts "Done"

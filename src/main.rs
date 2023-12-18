@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
+mod cgi;
 mod server;
 
 #[derive(Parser)]
@@ -21,6 +22,12 @@ enum Commands {
         #[arg(short, long, value_name = "SCRIPT")]
         script: PathBuf,
     },
+    /// Tests a CGI script.
+    Test {
+        /// Sets a CGI script file
+        #[arg(short, long, value_name = "SCRIPT")]
+        script: PathBuf,
+    },
 }
 
 pub fn main() {
@@ -30,15 +37,21 @@ pub fn main() {
 
     // You can check for the existence of subcommands, and if found use their
     // matches just as you would the top level cmd
-    if let Some(Commands::Serve { script }) = &options.command {
-        // Configure a runtime for the server that runs everything on the current thread
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .expect("build runtime");
+    match &options.command {
+        Some(Commands::Serve { script }) => {
+            // Configure a runtime for the server that runs everything on the current thread
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("build runtime");
 
-        // Combine it with a `LocalSet,  which means it can spawn !Send futures...
-        let local = tokio::task::LocalSet::new();
-        local.block_on(&rt, server::serve(script)).unwrap();
+            // Combine it with a `LocalSet,  which means it can spawn !Send futures...
+            let local = tokio::task::LocalSet::new();
+            local.block_on(&rt, server::serve(script)).unwrap();
+        }
+        Some(Commands::Test { script }) => {
+            cgi::run(script);
+        }
+        _ => {}
     }
 }
