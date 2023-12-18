@@ -11,8 +11,6 @@ where
     Key: AsRef<OsStr>,
     Value: AsRef<OsStr>,
 {
-    println!("Running script {}...", script.display());
-
     let mut child = Command::new(script)
         .args(arguments)
         .env_clear()

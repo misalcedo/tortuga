@@ -104,7 +104,7 @@ pub async fn serve(script: PathBuf) -> Result<(), Box<dyn std::error::Error + Se
                     _ = tokio::time::sleep(*sleep_duration) => {
                         // tokio::time::sleep returned a result.
                         // Call graceful_shutdown on the connection and continue the loop.
-                        eprintln!("iter = {} got timeout_interval, calling conn.graceful_shutdown", iter);
+                        eprintln!("iter = {iter} got timeout_interval, calling conn.graceful_shutdown");
                         conn.as_mut().graceful_shutdown();
                     }
                 }
