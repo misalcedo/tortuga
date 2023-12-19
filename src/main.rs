@@ -41,15 +41,7 @@ pub fn main() {
     // matches just as you would the top level cmd
     match options.command {
         Some(Commands::Serve { script }) => {
-            // Configure a runtime for the server that runs everything on the current thread
-            let rt = tokio::runtime::Builder::new_multi_thread()
-                .enable_all()
-                .build()
-                .expect("build runtime");
-
-            let server = rt.spawn(server::serve(script));
-
-            rt.block_on(handle_signals(server));
+            server::serve(script).expect("Unable to start the server");
         }
         Some(Commands::Test { script }) => {
             let args = vec!["-test", "echo hello"];
@@ -96,24 +88,4 @@ pub fn main() {
         }
         _ => {}
     }
-}
-
-async fn handle_signals(server: tokio::task::JoinHandle<Result<(), Box<dyn std::error::Error + Send + Sync>>>) {
-    match tokio::signal::ctrl_c().await {
-        Ok(()) => {
-           eprintln!("Shutting down the server...");
-        },
-        Err(err) => {
-            eprintln!("Unable to listen for shutdown signal: {}", err);
-            // we also shut down in case of error
-        },
-    }
-
-    server.abort();
-
-    if let Err(e) = server.await {
-        eprintln!("{e}");
-    }
-
-    exit(0);
 }
