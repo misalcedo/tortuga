@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 mod cgi;
 mod server;
+mod board;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about)]
