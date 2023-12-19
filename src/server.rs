@@ -1,8 +1,8 @@
 use std::io;
 use std::net::SocketAddr;
 
-use mio::{Events, Interest, Poll, Token};
 use mio::net::{TcpListener, TcpStream};
+use mio::{Events, Interest, Poll, Token};
 
 use crate::board::SwitchBoard;
 
@@ -10,14 +10,14 @@ const LISTENER: Token = Token(0);
 
 struct Client {
     stream: TcpStream,
-    buffer: Vec<u8>
+    buffer: Vec<u8>,
 }
 
 impl From<TcpStream> for Client {
     fn from(stream: TcpStream) -> Self {
         Self {
             stream,
-            buffer: Vec::with_capacity(1024 * 16)
+            buffer: Vec::with_capacity(1024 * 16),
         }
     }
 }
@@ -53,16 +53,22 @@ impl Server {
 
             for event in &self.events {
                 match event.token() {
-                    LISTENER => {
-                        loop {
-                            match self.listener.accept() {
-                                Ok((mut client, _)) => {
-                                    let slot = self.switch_board.reserve();
-                                    self.poll.registry().register(&mut client, Token(slot.get()), Interest::READABLE)?;
-                                    self.switch_board[slot] = Some(Client::from(client));
-                                }
-                                Err(e) if e.kind() == io::ErrorKind::WouldBlock => { break; }
-                                Err(e) => { return Err(e); }
+                    LISTENER => loop {
+                        match self.listener.accept() {
+                            Ok((mut client, _)) => {
+                                let slot = self.switch_board.reserve();
+                                self.poll.registry().register(
+                                    &mut client,
+                                    Token(slot.get()),
+                                    Interest::READABLE,
+                                )?;
+                                self.switch_board[slot] = Some(Client::from(client));
+                            }
+                            Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
+                                break;
+                            }
+                            Err(e) => {
+                                return Err(e);
                             }
                         }
                     },
