@@ -15,7 +15,5 @@ debug = true
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
-hyper = { version = "1", features = ["http1", "server"] }
-http-body-util = "0.1"
-hyper-util = { version = "0.1.1", features = ["tokio"] }
-tokio = { version = "1", features = ["full"] }
+httparse = "1.8.0"
+mio = { version = "0.8.10", features = ["net"] }
