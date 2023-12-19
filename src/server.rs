@@ -4,8 +4,8 @@ use std::net::SocketAddr;
 use std::num::NonZeroUsize;
 use std::ops::{Index, IndexMut};
 
-use mio::{Events, Poll, Interest, Token};
 use mio::net::{TcpListener, TcpStream};
+use mio::{Events, Interest, Poll, Token};
 
 const LISTENER: Token = Token(0);
 
@@ -60,20 +60,23 @@ impl SwitchBoard {
             let index = slot.checked_sub(1)?;
 
             self.available.push_back(index);
-            
+
             Some(self.slots[index].take().is_some())
         }
     }
 
     pub fn claim_slot(&mut self) -> NonZeroUsize {
-        self.available.pop_front().and_then(NonZeroUsize::new).unwrap_or_else(|| {
-            let index = self.slots.len();
-            
-            self.slots.reserve(1);
-            self.slots.push(None);
-            
-            NonZeroUsize::new(index + 1).unwrap_or(NonZeroUsize::MIN)
-        })
+        self.available
+            .pop_front()
+            .and_then(NonZeroUsize::new)
+            .unwrap_or_else(|| {
+                let index = self.slots.len();
+
+                self.slots.reserve(1);
+                self.slots.push(None);
+
+                NonZeroUsize::new(index + 1).unwrap_or(NonZeroUsize::MIN)
+            })
     }
 }
 
@@ -81,13 +84,19 @@ impl Index<usize> for SwitchBoard {
     type Output = Socket;
 
     fn index(&self, index: usize) -> &Self::Output {
-        self.slots.index(index).as_ref().expect("Indexed an empty slot.")
+        self.slots
+            .index(index)
+            .as_ref()
+            .expect("Indexed an empty slot.")
     }
 }
 
 impl IndexMut<usize> for SwitchBoard {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        self.slots.index_mut(index).as_mut().expect("Indexed an empty slot.")
+        self.slots
+            .index_mut(index)
+            .as_mut()
+            .expect("Indexed an empty slot.")
     }
 }
 
@@ -105,7 +114,8 @@ impl Server {
         let switch_board = SwitchBoard::with_capacity(capacity);
         let events = Events::with_capacity(capacity);
 
-        poll.registry().register(&mut listener, LISTENER, Interest::READABLE)?;
+        poll.registry()
+            .register(&mut listener, LISTENER, Interest::READABLE)?;
 
         Ok(Self {
             listener,
@@ -121,21 +131,27 @@ impl Server {
 
             for event in &self.events {
                 match event.token() {
-                    LISTENER => {
-                        loop {
-                            match self.listener.accept() {
-                                Ok((mut client, _)) => {
-                                    let slot = self.switch_board.claim_slot();
-                                    
-                                    self.poll.registry().register(&mut client, Token(slot.get()), Interest::READABLE)?;
-                                    self.switch_board.set(slot, client);
-                                }
-                                Err(e) if e.kind() == io::ErrorKind::WouldBlock => { break; }
-                                Err(e) => { return Err(e); }
+                    LISTENER => loop {
+                        match self.listener.accept() {
+                            Ok((mut client, _)) => {
+                                let slot = self.switch_board.claim_slot();
+
+                                self.poll.registry().register(
+                                    &mut client,
+                                    Token(slot.get()),
+                                    Interest::READABLE,
+                                )?;
+                                self.switch_board.set(slot, client);
+                            }
+                            Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
+                                break;
+                            }
+                            Err(e) => {
+                                return Err(e);
                             }
                         }
-                    }
-                    Token(slot) => {
+                    },
+                    Token(_slot) => {
                         loop {
                             // match client.read_to_end(buffer) {
                             //     Ok(0) => {
@@ -184,6 +200,6 @@ mod tests {
     #[test]
     fn new_connections() {
         let address = SocketAddr::from(([127, 0, 0, 1], 0));
-        let mut server = Server::new(address, 1).unwrap();
+        let _server = Server::new(address, 1).unwrap();
     }
 }

@@ -57,10 +57,10 @@ impl<T> SwitchBoard<T> {
     }
 
     pub fn reserve(&mut self) -> SlotIndex {
-        self.available.pop_front().unwrap_or_else(|| {            
+        self.available.pop_front().unwrap_or_else(|| {
             self.slots.reserve(1);
             self.slots.push(None);
-            
+
             let slot = self.slots.len();
 
             SlotIndex(NonZeroUsize::new(slot).unwrap_or(NonZeroUsize::MIN))
@@ -89,14 +89,14 @@ mod tests {
     #[test]
     fn basic() {
         let mut board = SwitchBoard::new();
-        
+
         let slot1 = board.reserve();
         let slot2 = board.reserve();
         let slot3 = board.reserve();
 
         board[slot1] = Some(42);
         board[slot2] = Some(0);
-        
+
         board.remove(slot2);
 
         assert_eq!(board[slot1], Some(42));

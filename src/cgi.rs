@@ -3,7 +3,11 @@ use std::io::{Result, Write};
 use std::path::PathBuf;
 use std::process::{Command, Output, Stdio};
 
-pub fn run<Arguments, Argument, Environment, Key, Value>(script: &PathBuf, arguments: Arguments, environment: Environment) -> Result<Output>
+pub fn run<Arguments, Argument, Environment, Key, Value>(
+    script: &PathBuf,
+    arguments: Arguments,
+    environment: Environment,
+) -> Result<Output>
 where
     Arguments: IntoIterator<Item = Argument>,
     Argument: AsRef<OsStr>,
