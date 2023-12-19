@@ -16,4 +16,5 @@ debug = true
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 httparse = "1.8.0"
-mio = { version = "0.8.10", features = ["net"] }
+mio = { version = "0.8.10", features = ["net", "os-poll", "os-ext"] }
+slab = "0.4.9"

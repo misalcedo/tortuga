@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use std::collections::HashMap;
+use std::net::SocketAddr;
 use std::path::PathBuf;
-use std::process::exit;
 
 mod cgi;
 mod server;
@@ -41,7 +41,11 @@ pub fn main() {
     // matches just as you would the top level cmd
     match options.command {
         Some(Commands::Serve { script }) => {
-            server::serve(script).expect("Unable to start the server");
+            let address = SocketAddr::from(([127, 0, 0, 1], 3000));
+
+            let server = server::Server::new(address, 8).unwrap();
+
+            server.serve().expect("Unable to start the server");
         }
         Some(Commands::Test { script }) => {
             let args = vec!["-test", "echo hello"];
