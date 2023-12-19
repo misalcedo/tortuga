@@ -1,13 +1,14 @@
 use std::fmt::{Display, Formatter};
 use std::io;
-use std::io::{Read, Write};
+use std::io::{Cursor, Read, Write};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::process::Child;
+use std::time::Duration;
 use httparse::{EMPTY_HEADER, Status};
 
 use mio::net::{TcpListener, TcpStream};
-use mio::{Events, Interest, Poll, Token};
+use mio::{event::Event, Events, Interest, Poll, Token};
 
 use crate::board::{SlotIndex, SwitchBoard};
 use crate::cgi;
@@ -16,7 +17,7 @@ const LISTENER: Token = Token(0);
 
 struct Client {
     stream: TcpStream,
-    buffer: Vec<u8>,
+    buffer: Cursor<Vec<u8>>,
     child: Option<Child>
 }
 
@@ -47,26 +48,31 @@ impl From<httparse::Error> for ClientError {
 }
 
 impl Client {
-    pub fn handle(&mut self, script: &PathBuf) -> Result<usize, ClientError> {
-        let bytes_read = self.stream.read_to_end(&mut self.buffer)?;
+    pub fn handle(&mut self, _event: &Event, script: &PathBuf) -> Result<usize, ClientError> {
+        match self.child {
+            None => {
+                let bytes_read = self.stream.read_to_end(self.buffer.get_mut())?;
 
-        let mut headers = vec![EMPTY_HEADER; 16];
-        let mut request = httparse::Request::new(&mut headers);
+                let mut headers = vec![EMPTY_HEADER; 16];
+                let mut request = httparse::Request::new(&mut headers);
 
-        if let Status::Complete(index) = request.parse(&self.buffer)? {
-            let args: Option<String> = None;
-            let env: Option<(String, String)> = None;
+                if let Status::Complete(index) = request.parse(self.buffer.get_ref())? {
+                    let args: Option<String> = None;
+                    let env: Option<(String, String)> = None;
 
-            let mut child = cgi::spawn(script, args, env)?;
+                    let mut child = cgi::spawn(script, args, env)?;
 
-            if let Some(stdin) = &mut child.stdin {
-                stdin.write_all(&self.buffer[index..])?;
+                    if let Some(stdin) = &mut child.stdin {
+                        stdin.write(&self.buffer.get_ref()[index..])?;
+                    }
+
+                    self.child = Some(child);
+                }
+
+                Ok(bytes_read)
             }
-
-            self.child = Some(child);
+            Some(_) => { Ok(0) }
         }
-
-        Ok(bytes_read)
     }
 }
 
@@ -74,7 +80,7 @@ impl From<TcpStream> for Client {
     fn from(stream: TcpStream) -> Self {
         Self {
             stream,
-            buffer: Vec::with_capacity(1024 * 16),
+            buffer: Cursor::new(Vec::with_capacity(1024 * 16)),
             child: None
         }
     }
@@ -107,7 +113,7 @@ impl Server {
 
     pub fn serve(mut self, script: PathBuf) -> io::Result<()> {
         loop {
-            self.poll.poll(&mut self.events, None)?;
+            self.poll.poll(&mut self.events, Some(Duration::from_millis(10)))?;
 
             for event in &self.events {
                 match event.token() {
@@ -134,7 +140,7 @@ impl Server {
                         let client = &mut self.switch_board[token - 1];
 
                         loop {
-                            match client.handle(&script) {
+                            match client.handle(&event, &script) {
                                 Ok(0) => {
                                     self.switch_board.remove(SlotIndex::new(token));
                                     break;
