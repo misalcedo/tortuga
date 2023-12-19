@@ -41,12 +41,12 @@ pub fn main() {
     // You can check for the existence of subcommands, and if found use their
     // matches just as you would the top level cmd
     match options.command {
-        Some(Commands::Serve { script: _ }) => {
+        Some(Commands::Serve { script }) => {
             let address = SocketAddr::from(([127, 0, 0, 1], 3000));
 
             let server = server::Server::new(address, 8).unwrap();
 
-            server.serve().expect("Unable to start the server");
+            server.serve(script).expect("Unable to start the server");
         }
         Some(Commands::Test { script }) => {
             let args = vec!["-test", "echo hello"];
@@ -88,7 +88,8 @@ pub fn main() {
                 ("PATH_TRANSLATED", "/var/www/html/extra/path"),
             ]);
 
-            let output = cgi::run(&script, args, env).expect("Failed to read stdout");
+            let child = cgi::spawn(&script, args, env).expect("Failed to read stdout");
+            let output = child.wait_with_output().expect("Failed to wait for the child process.");
 
             let stdout = String::from_utf8_lossy(&output.stdout);
             let stderr = String::from_utf8_lossy(&output.stderr);

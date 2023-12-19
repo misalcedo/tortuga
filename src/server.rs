@@ -1,16 +1,73 @@
+use std::fmt::{Display, Formatter};
 use std::io;
+use std::io::{Read, Write};
 use std::net::SocketAddr;
+use std::path::PathBuf;
+use std::process::Child;
+use httparse::{EMPTY_HEADER, Status};
 
 use mio::net::{TcpListener, TcpStream};
 use mio::{Events, Interest, Poll, Token};
 
-use crate::board::SwitchBoard;
+use crate::board::{SlotIndex, SwitchBoard};
+use crate::cgi;
 
 const LISTENER: Token = Token(0);
 
 struct Client {
     stream: TcpStream,
     buffer: Vec<u8>,
+    child: Option<Child>
+}
+
+enum ClientError {
+    IO(io::Error),
+    HTTP(httparse::Error)
+}
+
+impl Display for ClientError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ClientError::IO(e) => Display::fmt(&e, f),
+            ClientError::HTTP(e) => Display::fmt(&e, f)
+        }
+    }
+}
+
+impl From<io::Error> for ClientError {
+    fn from(value: io::Error) -> Self {
+        ClientError::IO(value)
+    }
+}
+
+impl From<httparse::Error> for ClientError {
+    fn from(value: httparse::Error) -> Self {
+        ClientError::HTTP(value)
+    }
+}
+
+impl Client {
+    pub fn handle(&mut self, script: &PathBuf) -> Result<usize, ClientError> {
+        let bytes_read = self.stream.read_to_end(&mut self.buffer)?;
+
+        let mut headers = vec![EMPTY_HEADER; 16];
+        let mut request = httparse::Request::new(&mut headers);
+
+        if let Status::Complete(index) = request.parse(&self.buffer)? {
+            let args: Option<String> = None;
+            let env: Option<(String, String)> = None;
+
+            let mut child = cgi::spawn(script, args, env)?;
+
+            if let Some(stdin) = &mut child.stdin {
+                stdin.write_all(&self.buffer[index..])?;
+            }
+
+            self.child = Some(child);
+        }
+
+        Ok(bytes_read)
+    }
 }
 
 impl From<TcpStream> for Client {
@@ -18,6 +75,7 @@ impl From<TcpStream> for Client {
         Self {
             stream,
             buffer: Vec::with_capacity(1024 * 16),
+            child: None
         }
     }
 }
@@ -47,7 +105,7 @@ impl Server {
         })
     }
 
-    pub fn serve(mut self) -> io::Result<()> {
+    pub fn serve(mut self, script: PathBuf) -> io::Result<()> {
         loop {
             self.poll.poll(&mut self.events, None)?;
 
@@ -72,40 +130,25 @@ impl Server {
                             }
                         }
                     },
-                    Token(_slot) => {
+                    Token(token) => {
+                        let client = &mut self.switch_board[token - 1];
+
                         loop {
-                            // match client.read_to_end(buffer) {
-                            //     Ok(0) => {
-                            //         self.switch_board.remove(index);
-                            //         break;
-                            //     }
-                            //     Ok(_) => {
-                            //         let mut headers = Vec::with_capacity(16);
-                            //         let mut request = httparse::Request::new(&mut headers);
-
-                            //         match request.parse(buffer) {
-                            //             Ok(result) if result.is_complete() => {
-
-                            //             }
-                            //             Ok(result) => {
-
-                            //             }
-                            //             Err(e) => {
-                            //                 eprintln!("HTTP parse error {e}");
-                            //                 self.switch_board.remove(index);
-                            //                 break;
-                            //             }
-                            //         }
-                            //     },
-                            //     Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
-                            //         break;
-                            //     }
-                            //     Err(e) => {
-                            //         eprintln!("Unexpected socket error {e}");
-                            //         self.switch_board.remove(index);
-                            //         break;
-                            //     }
-                            // }
+                            match client.handle(&script) {
+                                Ok(0) => {
+                                    self.switch_board.remove(SlotIndex::new(token));
+                                    break;
+                                }
+                                Ok(_) => {}
+                                Err(ClientError::IO(e)) if e.kind() == io::ErrorKind::WouldBlock => {
+                                    break;
+                                }
+                                Err(e) => {
+                                    eprintln!("Unexpected socket error {e}");
+                                    self.switch_board.remove(SlotIndex::new(token));
+                                    break;
+                                }
+                            }
                         }
                     }
                 }

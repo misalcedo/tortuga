@@ -13,6 +13,10 @@ impl Default for SlotIndex {
 }
 
 impl SlotIndex {
+    pub fn new(index: usize) -> Self {
+        Self(NonZeroUsize::new(index).expect("Slot index must be non-zero."))
+    }
+
     pub fn get(&self) -> usize {
         self.0.get()
     }
@@ -82,6 +86,20 @@ impl<T> IndexMut<SlotIndex> for SwitchBoard<T> {
     }
 }
 
+impl<T> Index<usize> for SwitchBoard<T> {
+    type Output = T;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        self.slots.index(index).as_ref().expect("Found empty slot")
+    }
+}
+
+impl<T> IndexMut<usize> for SwitchBoard<T> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        self.slots.index_mut(index).as_mut().expect("Found empty slot")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -113,5 +131,22 @@ mod tests {
         board.remove(slot1);
 
         board[slot1];
+    }
+
+    #[test]
+    #[should_panic]
+    fn index_usize_empty() {
+        let mut board: SwitchBoard<()> = SwitchBoard::new();
+
+        board.reserve();
+        board[0];
+    }
+
+    #[test]
+    #[should_panic]
+    fn index_usize_too_large() {
+        let board: SwitchBoard<()> = SwitchBoard::new();
+
+        board[0];
     }
 }
