@@ -3,10 +3,7 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
-mod board;
 mod cgi;
-mod client;
-mod poll;
 mod server;
 
 #[derive(Parser)]
@@ -46,7 +43,7 @@ pub fn main() {
         Some(Commands::Serve { script }) => {
             let address = SocketAddr::from(([127, 0, 0, 1], 3000));
 
-            let server = server::Server::new(address, 8).unwrap();
+            let server = server::Server::new(address).unwrap();
 
             server.serve(script).expect("Unable to start the server");
         }

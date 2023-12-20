@@ -1,112 +1,116 @@
-use std::io::{self, Read, Write};
-use std::net::{SocketAddr, TcpListener};
-use std::os::fd::AsRawFd;
+use std::io;
+use std::net::SocketAddr;
 use std::path::PathBuf;
-use std::time::Duration;
+use std::process::Stdio;
+use std::sync::{Arc, Once};
+use tokio::net::TcpListener;
+use tokio::process::Command;
+use tokio::runtime::Runtime;
 
-use crate::board::{SlotIndex, SwitchBoard};
-use crate::client::Client;
-use crate::poll::Poller;
+#[repr(transparent)]
+pub struct ShutdownSignal(Arc<Once>);
 
-const LISTENER: usize = 0;
+impl ShutdownSignal {
+    pub fn shutdown(self) {
+        self.0.call_once(|| {})
+    }
+}
+
+impl Drop for ShutdownSignal {
+    fn drop(&mut self) {
+        self.0.call_once(|| {})
+    }
+}
 
 pub struct Server {
+    runtime: Runtime,
     listener: TcpListener,
-    poll: Poller,
-    switch_board: SwitchBoard<Client>,
+    signal: Arc<Once>,
 }
 
 impl Server {
-    pub fn new(address: SocketAddr, capacity: usize) -> io::Result<Self> {
-        let listener = TcpListener::bind(address)?;
-        let switch_board = SwitchBoard::with_capacity(capacity);
-        let mut poll = Poller::new(capacity)?;
-
-        poll.register(listener.as_raw_fd(), LISTENER, false)?;
+    pub fn new(address: SocketAddr) -> io::Result<Self> {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_io()
+            .build()?;
+        let listener = runtime.block_on(TcpListener::bind(address))?;
 
         Ok(Self {
+            runtime,
             listener,
-            poll,
-            switch_board,
+            signal: Arc::new(Once::new()),
         })
     }
 
-    pub fn serve(mut self, script: PathBuf) -> io::Result<()> {
-        loop {
-            self.poll.poll()?;
+    pub fn shutdown_signal(&self) -> ShutdownSignal {
+        ShutdownSignal(self.signal.clone())
+    }
 
-            for hint in self.poll.hints() {
-                let token = hint.token();
-
-                if token == LISTENER {
-                    loop {
-                        match self.listener.accept() {
-                            Ok(client) => {
-                                let file_descriptor = client.0.as_raw_fd();
-                                let slot = self.switch_board.add(client.into());
-
-                                self.poll.register(file_descriptor, slot.get(), false)?;
-                            }
-                            Err(e) if e.kind() == io::ErrorKind::Interrupted => {
-                                continue;
-                            }
-                            Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
-                                break;
-                            }
-                            Err(e) => {
-                                return Err(e);
-                            }
-                        }
-                    }
-                } else {
-                    let client = &mut self.switch_board[token - 1];
-
-                    loop {
-                        match client.handle(&script) {
-                            Ok(0) => {
-                                self.switch_board.remove(SlotIndex::new(token));
-                                break;
-                            }
-                            Ok(_) => {
-                                continue;
-                            }
-                            Err(e) if e.kind() == io::ErrorKind::Interrupted => {
-                                continue;
-                            }
-                            Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
-                                break;
-                            }
-                            Err(e) => {
-                                eprintln!("Unexpected socket error {e}");
-                                self.switch_board.remove(SlotIndex::new(token));
-                                break;
-                            }
-                        }
-                    }
+    pub fn serve(self, script: PathBuf) -> io::Result<()> {
+        self.runtime.block_on(async {
+            loop {
+                if self.signal.is_completed() {
+                    break;
                 }
+
+                let (stream, _) = self.listener.accept().await?;
+                let mut command = Command::new(&script);
+
+                tokio::spawn(async move {
+                    let (mut reader, mut writer) = stream.into_split();
+
+                    let mut child = command
+                        .kill_on_drop(true)
+                        .env_clear()
+                        .stdin(Stdio::piped())
+                        .stdout(Stdio::piped())
+                        .stderr(Stdio::inherit())
+                        .spawn()?;
+
+                    if let Some(mut stdin) = child.stdin.take() {
+                        tokio::spawn(async move { tokio::io::copy(&mut reader, &mut stdin).await });
+                    }
+
+                    if let Some(mut stdout) = child.stdout.take() {
+                        tokio::spawn(
+                            async move { tokio::io::copy(&mut stdout, &mut writer).await },
+                        );
+                    }
+
+                    child.wait().await
+                });
             }
-        }
+
+            Ok(())
+        })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::{Read, Write};
     use std::net::TcpStream;
     use std::thread;
+    use std::time::Duration;
 
+    #[test]
     fn new_connections() {
-        let server = Server::new(SocketAddr::from(([127, 0, 0, 1], 0)), 1).unwrap();
+        let server = Server::new(SocketAddr::from(([127, 0, 0, 1], 0))).unwrap();
         let address = server.listener.local_addr().unwrap();
+        let signal = server.shutdown_signal();
 
         let thread = thread::spawn(|| server.serve("../examples/hello.cgi".into()));
 
-        let mut client = TcpStream::connect_timeout(&address, Duration::from_millis(50)).unwrap();
+        let mut client = TcpStream::connect_timeout(&address, Duration::from_secs(1)).unwrap();
         let mut output = String::new();
 
         client.write_all(b"Hi!").unwrap();
         client.read_to_string(&mut output).unwrap();
 
-        assert_eq!(output.as_str(), "Hello, World!");
+        signal.shutdown();
+        thread.join().unwrap().unwrap();
+
+        assert_eq!(output.as_str(), "\nHello, World!\n");
     }
 }
