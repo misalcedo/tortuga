@@ -7,7 +7,7 @@ use tokio::io::{BufReader, BufWriter};
 use tokio::net::TcpListener;
 use tokio::process::Command;
 use tokio::runtime::Runtime;
-use tokio::select;
+use tokio::{pin, select};
 
 #[repr(transparent)]
 pub struct ShutdownSignal(Arc<Once>);
@@ -89,18 +89,25 @@ impl Server {
                         }
                     };
 
-                    select! {
-                        child_result = child.wait() => {
-                            eprintln!("Child process finished.");
-                            return Ok::<(), io::Error>(());
-                        }
-                        reader_result = reader_task => {
-                            eprintln!("Stream to stdin finished.");
-                        }
-                        writer_result = writer_task => {
-                            eprintln!("Stdout to stream finished.");
+                    pin!(reader_task);
+                    pin!(writer_task);
+
+                    loop {
+                        select! {
+                            child_result = child.wait() => {
+                                eprintln!("Child process finished.");
+                                break;
+                            }
+                            reader_result = &mut reader_task => {
+                                eprintln!("Stream to stdin finished.");
+                            }
+                            writer_result = &mut writer_task => {
+                                eprintln!("Stdout to stream finished.");
+                            }
                         }
                     }
+
+                    eprintln!("Done with connection");
 
                     Ok::<(), io::Error>(())
                 });
