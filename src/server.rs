@@ -5,7 +5,6 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::process::Child;
 use std::time::Duration;
-use httparse::{EMPTY_HEADER, Status};
 
 use mio::net::{TcpListener, TcpStream};
 use mio::{event::Event, Events, Interest, Poll, Token};
@@ -17,61 +16,46 @@ const LISTENER: Token = Token(0);
 
 struct Client {
     stream: TcpStream,
-    buffer: Cursor<Vec<u8>>,
+    read_buffer: Cursor<Vec<u8>>,
+    write_buffer: Cursor<Vec<u8>>,
     child: Option<Child>
 }
 
-enum ClientError {
-    IO(io::Error),
-    HTTP(httparse::Error)
-}
-
-impl Display for ClientError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ClientError::IO(e) => Display::fmt(&e, f),
-            ClientError::HTTP(e) => Display::fmt(&e, f)
-        }
-    }
-}
-
-impl From<io::Error> for ClientError {
-    fn from(value: io::Error) -> Self {
-        ClientError::IO(value)
-    }
-}
-
-impl From<httparse::Error> for ClientError {
-    fn from(value: httparse::Error) -> Self {
-        ClientError::HTTP(value)
-    }
-}
-
 impl Client {
-    pub fn handle(&mut self, _event: &Event, script: &PathBuf) -> Result<usize, ClientError> {
-        match self.child {
+    pub fn handle(&mut self, event: &Event, script: &PathBuf) -> io::Result<usize> {
+        if event.is_readable() {
+            // TODO: handle would block to allow write as well.
+            io::copy(&mut self.stream, &mut self.read_buffer)?;
+        }
+
+        if event.is_writable() {
+            io::copy(&mut self.write_buffer, &mut self.stream)?;
+        }
+
+        match self.child.as_mut() {
             None => {
-                let bytes_read = self.stream.read_to_end(self.buffer.get_mut())?;
+                let args: Option<String> = None;
+                let env: Option<(String, String)> = None;
 
-                let mut headers = vec![EMPTY_HEADER; 16];
-                let mut request = httparse::Request::new(&mut headers);
+                let mut child = cgi::spawn(script, args, env)?;
 
-                if let Status::Complete(index) = request.parse(self.buffer.get_ref())? {
-                    let args: Option<String> = None;
-                    let env: Option<(String, String)> = None;
+                if let Some(stdin) = &mut child.stdin {
+                    std::io::copy(&mut self.read_buffer, stdin)?;
 
-                    let mut child = cgi::spawn(script, args, env)?;
-
-                    if let Some(stdin) = &mut child.stdin {
-                        stdin.write(&self.buffer.get_ref()[index..])?;
-                    }
-
-                    self.child = Some(child);
+                    stdin.write(&self.read_buffer.get_ref()[0..])?;
                 }
 
-                Ok(bytes_read)
+                self.child = Some(child);
+
+                Ok(1)
             }
-            Some(_) => { Ok(0) }
+            Some(child) => {
+                if event.is_readable() {
+
+                }
+
+                Ok(0)
+            }
         }
     }
 }
@@ -80,7 +64,8 @@ impl From<TcpStream> for Client {
     fn from(stream: TcpStream) -> Self {
         Self {
             stream,
-            buffer: Cursor::new(Vec::with_capacity(1024 * 16)),
+            read_buffer: Cursor::new(Vec::with_capacity(1024 * 16)),
+            write_buffer: Cursor::new(Vec::with_capacity(1024 * 16)),
             child: None
         }
     }
@@ -146,7 +131,7 @@ impl Server {
                                     break;
                                 }
                                 Ok(_) => {}
-                                Err(ClientError::IO(e)) if e.kind() == io::ErrorKind::WouldBlock => {
+                                Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
                                     break;
                                 }
                                 Err(e) => {
@@ -165,11 +150,23 @@ impl Server {
 
 #[cfg(test)]
 mod tests {
+    use std::net::TcpStream;
+    use std::thread;
     use super::*;
 
     #[test]
     fn new_connections() {
-        let address = SocketAddr::from(([127, 0, 0, 1], 0));
-        let _server = Server::new(address, 1).unwrap();
+        let server = Server::new(SocketAddr::from(([127, 0, 0, 1], 0)), 1).unwrap();
+        let address = server.listener.local_addr().unwrap();
+
+        let thread = thread::spawn(|| server.serve("../examples/hello.cgi".into()));
+
+        let mut client = TcpStream::connect_timeout(&address, Duration::from_millis(50)).unwrap();
+        let mut output = String::new();
+
+        client.write_all(b"Hi!").unwrap();
+        client.read_to_string(&mut output).unwrap();
+
+        assert_eq!(output.as_str(), "Hello, World!");
     }
 }
