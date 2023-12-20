@@ -1,114 +1,54 @@
-use std::io::{self, Cursor, Read, Write};
-use std::net::SocketAddr;
+use std::io::{self, Read, Write};
+use std::net::{SocketAddr, TcpListener};
+use std::os::fd::AsRawFd;
 use std::path::PathBuf;
-use std::process::Child;
 use std::time::Duration;
 
-use mio::net::{TcpListener, TcpStream};
-use mio::{event::Event, Events, Interest, Poll, Token};
-
 use crate::board::{SlotIndex, SwitchBoard};
-use crate::cgi;
+use crate::client::Client;
+use crate::poll::Poller;
 
-const LISTENER: Token = Token(0);
-
-struct Client {
-    stream: TcpStream,
-    read_buffer: Cursor<Vec<u8>>,
-    write_buffer: Cursor<Vec<u8>>,
-    child: Option<Child>,
-}
-
-impl Client {
-    pub fn handle(&mut self, event: &Event, script: &PathBuf) -> io::Result<usize> {
-        if event.is_readable() {
-            // TODO: handle would block to allow write as well.
-            io::copy(&mut self.stream, &mut self.read_buffer)?;
-        }
-
-        if event.is_writable() {
-            io::copy(&mut self.write_buffer, &mut self.stream)?;
-        }
-
-        match self.child.as_mut() {
-            None => {
-                let args: Option<String> = None;
-                let env: Option<(String, String)> = None;
-
-                let mut child = cgi::spawn(script, args, env)?;
-
-                if let Some(stdin) = &mut child.stdin {
-                    std::io::copy(&mut self.read_buffer, stdin)?;
-
-                    stdin.write(&self.read_buffer.get_ref()[0..])?;
-                }
-
-                self.child = Some(child);
-
-                Ok(1)
-            }
-            Some(child) => {
-                if event.is_readable() {}
-
-                Ok(0)
-            }
-        }
-    }
-}
-
-impl From<TcpStream> for Client {
-    fn from(stream: TcpStream) -> Self {
-        Self {
-            stream,
-            read_buffer: Cursor::new(Vec::with_capacity(1024 * 16)),
-            write_buffer: Cursor::new(Vec::with_capacity(1024 * 16)),
-            child: None,
-        }
-    }
-}
+const LISTENER: usize = 0;
 
 pub struct Server {
     listener: TcpListener,
-    poll: Poll,
+    poll: Poller,
     switch_board: SwitchBoard<Client>,
-    events: Events,
 }
 
 impl Server {
     pub fn new(address: SocketAddr, capacity: usize) -> io::Result<Self> {
-        let mut listener = TcpListener::bind(address)?;
-        let poll = Poll::new()?;
+        let listener = TcpListener::bind(address)?;
         let switch_board = SwitchBoard::with_capacity(capacity);
-        let events = Events::with_capacity(capacity);
+        let mut poll = Poller::new(capacity)?;
 
-        poll.registry()
-            .register(&mut listener, LISTENER, Interest::READABLE)?;
+        poll.register(listener.as_raw_fd(), LISTENER, false)?;
 
         Ok(Self {
             listener,
             poll,
             switch_board,
-            events,
         })
     }
 
     pub fn serve(mut self, script: PathBuf) -> io::Result<()> {
         loop {
-            self.poll
-                .poll(&mut self.events, Some(Duration::from_millis(10)))?;
+            self.poll.poll()?;
 
-            for event in &self.events {
-                match event.token() {
-                    LISTENER => loop {
+            for hint in self.poll.hints() {
+                let token = hint.token();
+
+                if token == LISTENER {
+                    loop {
                         match self.listener.accept() {
-                            Ok((mut client, _)) => {
-                                let slot = self.switch_board.reserve();
-                                self.poll.registry().register(
-                                    &mut client,
-                                    Token(slot.get()),
-                                    Interest::READABLE,
-                                )?;
-                                self.switch_board[slot] = Some(Client::from(client));
+                            Ok(client) => {
+                                let file_descriptor = client.0.as_raw_fd();
+                                let slot = self.switch_board.add(client.into());
+
+                                self.poll.register(file_descriptor, slot.get(), false)?;
+                            }
+                            Err(e) if e.kind() == io::ErrorKind::Interrupted => {
+                                continue;
                             }
                             Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
                                 break;
@@ -117,25 +57,29 @@ impl Server {
                                 return Err(e);
                             }
                         }
-                    },
-                    Token(token) => {
-                        let client = &mut self.switch_board[token - 1];
+                    }
+                } else {
+                    let client = &mut self.switch_board[token - 1];
 
-                        loop {
-                            match client.handle(&event, &script) {
-                                Ok(0) => {
-                                    self.switch_board.remove(SlotIndex::new(token));
-                                    break;
-                                }
-                                Ok(_) => {}
-                                Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
-                                    break;
-                                }
-                                Err(e) => {
-                                    eprintln!("Unexpected socket error {e}");
-                                    self.switch_board.remove(SlotIndex::new(token));
-                                    break;
-                                }
+                    loop {
+                        match client.handle(&script) {
+                            Ok(0) => {
+                                self.switch_board.remove(SlotIndex::new(token));
+                                break;
+                            }
+                            Ok(_) => {
+                                continue;
+                            }
+                            Err(e) if e.kind() == io::ErrorKind::Interrupted => {
+                                continue;
+                            }
+                            Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
+                                break;
+                            }
+                            Err(e) => {
+                                eprintln!("Unexpected socket error {e}");
+                                self.switch_board.remove(SlotIndex::new(token));
+                                break;
                             }
                         }
                     }
@@ -151,7 +95,6 @@ mod tests {
     use std::net::TcpStream;
     use std::thread;
 
-    #[test]
     fn new_connections() {
         let server = Server::new(SocketAddr::from(([127, 0, 0, 1], 0)), 1).unwrap();
         let address = server.listener.local_addr().unwrap();

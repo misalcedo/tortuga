@@ -5,6 +5,8 @@ use std::path::PathBuf;
 
 mod board;
 mod cgi;
+mod client;
+mod poll;
 mod server;
 
 #[derive(Parser)]
@@ -89,7 +91,9 @@ pub fn main() {
             ]);
 
             let child = cgi::spawn(&script, args, env).expect("Failed to read stdout");
-            let output = child.wait_with_output().expect("Failed to wait for the child process.");
+            let output = child
+                .wait_with_output()
+                .expect("Failed to wait for the child process.");
 
             let stdout = String::from_utf8_lossy(&output.stdout);
             let stderr = String::from_utf8_lossy(&output.stderr);

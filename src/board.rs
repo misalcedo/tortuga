@@ -60,7 +60,13 @@ impl<T> SwitchBoard<T> {
         }
     }
 
-    pub fn reserve(&mut self) -> SlotIndex {
+    pub fn add(&mut self, value: T) -> SlotIndex {
+        let slot = self.reserve();
+        self[slot] = Some(value);
+        slot
+    }
+
+    fn reserve(&mut self) -> SlotIndex {
         self.available.pop_front().unwrap_or_else(|| {
             self.slots.reserve(1);
             self.slots.push(None);
@@ -96,7 +102,10 @@ impl<T> Index<usize> for SwitchBoard<T> {
 
 impl<T> IndexMut<usize> for SwitchBoard<T> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        self.slots.index_mut(index).as_mut().expect("Found empty slot")
+        self.slots
+            .index_mut(index)
+            .as_mut()
+            .expect("Found empty slot")
     }
 }
 
