@@ -3,9 +3,11 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::{Arc, Once};
+use tokio::io::{BufReader, BufWriter};
 use tokio::net::TcpListener;
 use tokio::process::Command;
 use tokio::runtime::Runtime;
+use tokio::select;
 
 #[repr(transparent)]
 pub struct ShutdownSignal(Arc<Once>);
@@ -68,23 +70,39 @@ impl Server {
                         .stderr(Stdio::inherit())
                         .spawn()?;
 
-                    let mut reader_task = None;
+                    let mut stdin = child.stdin.take().map(BufWriter::new);
+                    let mut stdout = child.stdout.take().map(BufReader::new);
 
-                    // TODO: reader does not finish
-                    if let Some(mut stdin) = child.stdin.take() {
-                        reader_task = Some(tokio::spawn(async move {
+                    let reader_task = async {
+                        if let Some(mut stdin) = stdin.as_mut() {
                             tokio::io::copy(&mut reader, &mut stdin).await
-                        }));
+                        } else {
+                            Ok(0)
+                        }
+                    };
+
+                    let writer_task = async {
+                        if let Some(mut stdout) = stdout.as_mut() {
+                            tokio::io::copy(&mut stdout, &mut writer).await
+                        } else {
+                            Ok(0)
+                        }
+                    };
+
+                    select! {
+                        child_result = child.wait() => {
+                            eprintln!("Child process finished.");
+                            return Ok::<(), io::Error>(());
+                        }
+                        reader_result = reader_task => {
+                            eprintln!("Stream to stdin finished.");
+                        }
+                        writer_result = writer_task => {
+                            eprintln!("Stdout to stream finished.");
+                        }
                     }
 
-                    if let Some(mut stdout) = child.stdout.take() {
-                        tokio::spawn(
-                            async move { tokio::io::copy(&mut stdout, &mut writer).await },
-                        );
-                    }
-
-                    child.wait().await?;
-                    reader_task?.abort();
+                    Ok::<(), io::Error>(())
                 });
             }
 
