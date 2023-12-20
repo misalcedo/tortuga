@@ -1,6 +1,4 @@
-use std::fmt::{Display, Formatter};
-use std::io;
-use std::io::{Cursor, Read, Write};
+use std::io::{self, Cursor, Read, Write};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::process::Child;
@@ -18,7 +16,7 @@ struct Client {
     stream: TcpStream,
     read_buffer: Cursor<Vec<u8>>,
     write_buffer: Cursor<Vec<u8>>,
-    child: Option<Child>
+    child: Option<Child>,
 }
 
 impl Client {
@@ -50,9 +48,7 @@ impl Client {
                 Ok(1)
             }
             Some(child) => {
-                if event.is_readable() {
-
-                }
+                if event.is_readable() {}
 
                 Ok(0)
             }
@@ -66,7 +62,7 @@ impl From<TcpStream> for Client {
             stream,
             read_buffer: Cursor::new(Vec::with_capacity(1024 * 16)),
             write_buffer: Cursor::new(Vec::with_capacity(1024 * 16)),
-            child: None
+            child: None,
         }
     }
 }
@@ -98,7 +94,8 @@ impl Server {
 
     pub fn serve(mut self, script: PathBuf) -> io::Result<()> {
         loop {
-            self.poll.poll(&mut self.events, Some(Duration::from_millis(10)))?;
+            self.poll
+                .poll(&mut self.events, Some(Duration::from_millis(10)))?;
 
             for event in &self.events {
                 match event.token() {
@@ -150,9 +147,9 @@ impl Server {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use std::net::TcpStream;
     use std::thread;
-    use super::*;
 
     #[test]
     fn new_connections() {
