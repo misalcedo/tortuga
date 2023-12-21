@@ -53,7 +53,7 @@ impl Server {
 
         let result = self.runtime.block_on(async {
             loop {
-                let (client, remote_address) = select! {
+                let (stream, remote_address) = select! {
                     _ = self.shutdown.0.cancelled() => {
                         break;
                     }
@@ -61,8 +61,9 @@ impl Server {
                         result?
                     }
                 };
+                let client = Client::new(context.clone(), stream, remote_address);
 
-                tokio::spawn(Client::new(context.clone(), client, remote_address).run());
+                tokio::spawn(client.run());
             }
 
             Ok(())
