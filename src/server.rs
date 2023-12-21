@@ -2,7 +2,6 @@ use std::io;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::process::Stdio;
-use std::sync::Arc;
 use tokio::io::{AsyncWriteExt, BufReader, BufWriter};
 use tokio::net::TcpListener;
 use tokio::process::Command;
@@ -29,9 +28,9 @@ impl Server {
     pub fn serve(self, script: PathBuf) -> io::Result<()> {
         // Context
         let address = self.listener.local_addr()?;
-        let script_path = Arc::new(script.canonicalize()?);
-        let ip_address = Arc::new(address.ip().to_string());
-        let port = Arc::new(address.port().to_string());
+        let script_path = script.canonicalize()?;
+        let ip_address = address.ip().to_string();
+        let port = address.port().to_string();
         let path: &'static str = env!("PATH");
         let software = format!("{}/{}", about::PROGRAM, about::VERSION);
         let signature = format!(
@@ -42,7 +41,7 @@ impl Server {
         self.runtime.block_on(async {
             loop {
                 let (mut client, remote_address) = self.listener.accept().await?;
-                let mut command = Command::new(script_path.as_ref());
+                let mut command = Command::new(&script_path);
                 command
                     .env_clear()
                     .env("PATH", path)
@@ -52,8 +51,8 @@ impl Server {
                     .env("SERVER_PROTOCOL", "HTTP/1.1")
                     .env("SCRIPT_FILENAME", script_path.as_os_str())
                     .env("SCRIPT_NAME", script.as_os_str())
-                    .env("SERVER_ADDR", ip_address.clone().as_str())
-                    .env("SERVER_PORT", port.clone().as_str())
+                    .env("SERVER_ADDR", ip_address.as_str())
+                    .env("SERVER_PORT", port.as_str())
                     .env("REMOTE_ADDR", remote_address.ip().to_string())
                     .env("REMOTE_PORT", remote_address.port().to_string());
 
