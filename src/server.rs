@@ -96,7 +96,7 @@ mod tests {
 
         client
             .write_all(
-                b"GET / HTTP/1.1\r\nHost: localhost\r\nUser-Agent: test\r\nAccept: */*\r\n\r\n",
+                b"GET /%20foo?a=b HTTP/1.1\r\nHost: localhost\r\nUser-Agent: test\r\nAccept: */*\r\n\r\n",
             )
             .unwrap();
         client.read_to_string(&mut output).unwrap();
