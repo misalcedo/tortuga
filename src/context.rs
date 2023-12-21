@@ -11,7 +11,6 @@ pub struct ServerContext {
     port: String,
     path: &'static str,
     software: String,
-    signature: String,
 }
 
 impl ServerContext {
@@ -24,10 +23,6 @@ impl ServerContext {
         let path: &'static str = env!("PATH");
 
         let software = format!("{}/{}", about::PROGRAM, about::VERSION);
-        let signature = format!(
-            "<address>{} Server at {} Port {}</address>\n",
-            software, ip_address, port
-        );
 
         Ok(Self {
             script,
@@ -36,7 +31,6 @@ impl ServerContext {
             port,
             path,
             software,
-            signature,
         })
     }
 
@@ -46,10 +40,6 @@ impl ServerContext {
 
     pub fn software(&self) -> &str {
         self.software.as_str()
-    }
-
-    pub fn signature(&self) -> &str {
-        self.signature.as_str()
     }
 
     pub fn script_filename(&self) -> &OsStr {

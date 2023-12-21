@@ -32,7 +32,6 @@ impl Client {
                 .env_clear()
                 .env("PATH", self.context.path())
                 .env("SERVER_SOFTWARE", self.context.software())
-                .env("SERVER_SIGNATURE", self.context.signature())
                 .env("GATEWAY_INTERFACE", "CGI/1.1")
                 .env("SERVER_PROTOCOL", "HTTP/1.1")
                 .env("SCRIPT_FILENAME", self.context.script_filename())
