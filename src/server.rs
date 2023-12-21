@@ -44,6 +44,7 @@ impl Server {
             loop {
                 let (mut client, remote_address) = self.listener.accept().await?;
                 let mut command = Command::new(&script_path);
+
                 command
                     .env_clear()
                     .env("PATH", path)

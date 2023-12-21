@@ -1,11 +1,29 @@
 use clap::{Parser, Subcommand};
 use std::collections::HashMap;
-use std::net::SocketAddr;
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::path::PathBuf;
+use std::str::FromStr;
 
 mod about;
 mod cgi;
 mod server;
+
+#[repr(transparent)]
+#[derive(Clone, Debug)]
+struct Interface(SocketAddr);
+
+impl FromStr for Interface {
+    type Err = std::io::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut addresses = s.to_socket_addrs()?;
+        let address = addresses
+            .next()
+            .ok_or_else(|| std::io::Error::from(std::io::ErrorKind::AddrNotAvailable))?;
+
+        Ok(Self(address))
+    }
+}
 
 #[derive(Parser)]
 #[command(author, version, about, long_about)]
@@ -25,9 +43,14 @@ enum Commands {
         #[arg(short, long, value_name = "SCRIPT")]
         script: PathBuf,
 
-        /// Sets a CGI script file
-        #[arg(short, long, default_value_t = 3000u16, value_name = "PORT")]
-        port: u16,
+        /// The TCP host and port for the server to listen on
+        #[arg(
+            short,
+            long,
+            default_value = "localhost:3000",
+            value_name = "INTERFACE"
+        )]
+        interface: Interface,
     },
     /// Tests a CGI script.
     Test {
@@ -45,10 +68,8 @@ pub fn main() {
     // You can check for the existence of subcommands, and if found use their
     // matches just as you would the top level cmd
     match options.command {
-        Some(Commands::Serve { script, port }) => {
-            let address = SocketAddr::from(([127, 0, 0, 1], port));
-
-            let server = server::Server::new(address).unwrap();
+        Some(Commands::Serve { script, interface }) => {
+            let server = server::Server::new(interface.0).unwrap();
 
             server.serve(script).expect("Unable to start the server");
         }
