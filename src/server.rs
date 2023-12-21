@@ -84,7 +84,7 @@ mod tests {
     use std::time::Duration;
 
     #[test]
-    fn new_connections() {
+    fn hello_world() {
         let server = Server::new(SocketAddr::from(([127, 0, 0, 1], 0))).unwrap();
         let signal = server.shutdown();
         let address = server.listener.local_addr().unwrap();
@@ -94,12 +94,16 @@ mod tests {
         let mut client = TcpStream::connect_timeout(&address, Duration::from_secs(1)).unwrap();
         let mut output = String::new();
 
-        client.write_all(b"Hi!").unwrap();
+        client
+            .write_all(
+                b"GET / HTTP/1.1\r\nHost: localhost\r\nUser-Agent: test\r\nAccept: */*\r\n\r\n",
+            )
+            .unwrap();
         client.read_to_string(&mut output).unwrap();
 
         signal.shutdown();
         thread.join().unwrap().unwrap();
 
-        assert_eq!(output.as_str(), "\nHello, World!\n");
+        assert_eq!(output.as_str(), "HTTP/1.1 200 OK\r\n\r\nHello, World!\n");
     }
 }

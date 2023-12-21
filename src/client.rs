@@ -4,7 +4,7 @@ use std::net::SocketAddr;
 use std::process::Stdio;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::io::{AsyncWriteExt, BufReader, BufWriter};
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader, BufWriter};
 use tokio::net::TcpStream;
 use tokio::process::Command;
 use tokio::{pin, select};
@@ -14,6 +14,12 @@ pub struct Client {
     stream: TcpStream,
     remote_address: SocketAddr,
 }
+
+const MAX_REQUEST_BYTES: usize = 1024 * 16;
+const MAX_HEADER_BYTES: usize = 1024 * 32;
+
+const CRLF: &'static str = "\r\n";
+const HTTP_VERSION: &'static str = "HTTP/1.1";
 
 impl Client {
     pub fn new(context: Arc<ServerContext>, stream: TcpStream, remote_address: SocketAddr) -> Self {
@@ -26,8 +32,35 @@ impl Client {
 
     pub async fn run(mut self) -> io::Result<()> {
         {
-            let (reader, mut writer) = self.stream.split();
-            let mut reader = BufReader::new(reader);
+            let (reader, writer) = self.stream.split();
+            let mut reader = BufReader::new(reader).take(MAX_REQUEST_BYTES as u64);
+            let mut writer = BufWriter::new(writer);
+
+            let mut request = String::with_capacity(512);
+            while request.is_empty() || request.as_str() == CRLF {
+                request.clear();
+
+                if reader.read_line(&mut request).await? == 0 {
+                    return Ok(());
+                }
+            }
+
+            reader = reader.into_inner().take(MAX_HEADER_BYTES as u64);
+            let mut headers = String::with_capacity(1024 * 4);
+            let mut line_start = 0;
+
+            while &headers[line_start..] != CRLF {
+                line_start = headers.len();
+
+                if reader.read_line(&mut headers).await? == 0 {
+                    return Ok(());
+                }
+            }
+
+            writer.write_all(HTTP_VERSION.as_bytes()).await?;
+            writer.write_all(b" 200 OK").await?;
+            writer.write_all(CRLF.as_bytes()).await?;
+            writer.flush().await?;
 
             let mut child = Command::new(self.context.script_filename())
                 .kill_on_drop(true)

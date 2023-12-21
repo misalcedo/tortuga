@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
 
-echo ""
+echo "\r"
 
 /usr/bin/env

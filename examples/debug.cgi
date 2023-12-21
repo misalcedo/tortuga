@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-puts "Content-type: text/html\n\n"
+puts "Content-type: text/html\r\n\r"
 
 require "json"
 
