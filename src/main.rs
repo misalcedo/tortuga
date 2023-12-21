@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
+mod about;
 mod cgi;
 mod server;
 
@@ -54,11 +55,6 @@ pub fn main() {
         Some(Commands::Test { script }) => {
             let args = vec!["-test", "echo hello"];
             let env = HashMap::from([
-                ("HTTP_HOST", "localhost"),
-                ("HTTP_USER_AGENT", "curl/7.68.0"),
-                ("HTTP_ACCEPT", "*/*"),
-                ("CONTENT_LENGTH", "11"),
-                ("CONTENT_TYPE", "application/x-www-form-urlencoded"),
                 ("PATH", env!("PATH")),
                 (
                     "SERVER_SIGNATURE",
@@ -70,7 +66,6 @@ pub fn main() {
                 ("SERVER_PORT", "80"),
                 ("REMOTE_ADDR", "::1"),
                 ("DOCUMENT_ROOT", "/var/www/html"),
-                ("REQUEST_SCHEME", "http"),
                 ("CONTEXT_PREFIX", "/cgi-bin/"),
                 ("CONTEXT_DOCUMENT_ROOT", "/usr/lib/cgi-bin/"),
                 ("SERVER_ADMIN", "webmaster@localhost"),
@@ -78,13 +73,20 @@ pub fn main() {
                 ("REMOTE_PORT", "55914"),
                 ("GATEWAY_INTERFACE", "CGI/1.1"),
                 ("SERVER_PROTOCOL", "HTTP/1.1"),
+                // HTTP
+                ("HTTP_HOST", "localhost"),
+                ("HTTP_USER_AGENT", "curl/7.68.0"),
+                ("HTTP_ACCEPT", "*/*"),
+                ("CONTENT_LENGTH", "11"),
+                ("CONTENT_TYPE", "application/x-www-form-urlencoded"),
+                ("REQUEST_SCHEME", "http"),
                 ("REQUEST_METHOD", "POST"),
+                ("SCRIPT_NAME", "/cgi-bin/debug.cgi"),
                 ("QUERY_STRING", "foo+bar+--me%202"),
                 (
                     "REQUEST_URI",
                     "/cgi-bin/debug.cgi/extra/path?foo+bar+--me%202",
                 ),
-                ("SCRIPT_NAME", "/cgi-bin/debug.cgi"),
                 // Only if there is a path after the script portion of the path.
                 // Translates the extra path based on the rules of the server to a local path.
                 ("PATH_INFO", "/extra/path"),

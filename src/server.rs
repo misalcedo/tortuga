@@ -2,32 +2,18 @@ use std::io;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::process::Stdio;
-use std::sync::{Arc, Once};
+use std::sync::Arc;
 use tokio::io::{AsyncWriteExt, BufReader, BufWriter};
 use tokio::net::TcpListener;
 use tokio::process::Command;
 use tokio::runtime::Runtime;
 use tokio::{pin, select};
 
-#[repr(transparent)]
-pub struct ShutdownSignal(Arc<Once>);
-
-impl ShutdownSignal {
-    pub fn shutdown(self) {
-        self.0.call_once(|| {})
-    }
-}
-
-impl Drop for ShutdownSignal {
-    fn drop(&mut self) {
-        self.0.call_once(|| {})
-    }
-}
+use crate::about;
 
 pub struct Server {
     runtime: Runtime,
     listener: TcpListener,
-    signal: Arc<Once>,
 }
 
 impl Server {
@@ -37,35 +23,45 @@ impl Server {
             .build()?;
         let listener = runtime.block_on(TcpListener::bind(address))?;
 
-        Ok(Self {
-            runtime,
-            listener,
-            signal: Arc::new(Once::new()),
-        })
-    }
-
-    pub fn shutdown_signal(&self) -> ShutdownSignal {
-        ShutdownSignal(self.signal.clone())
+        Ok(Self { runtime, listener })
     }
 
     pub fn serve(self, script: PathBuf) -> io::Result<()> {
-        let script_path = script.canonicalize()?;
+        // Context
+        let address = self.listener.local_addr()?;
+        let script_path = Arc::new(script.canonicalize()?);
+        let ip_address = Arc::new(address.ip().to_string());
+        let port = Arc::new(address.port().to_string());
+        let path: &'static str = env!("PATH");
+        let software = format!("{}/{}", about::PROGRAM, about::VERSION);
+        let signature = format!(
+            "<address>{} Server at {} Port {}</address>\n",
+            software, ip_address, port
+        );
 
         self.runtime.block_on(async {
             loop {
-                if self.signal.is_completed() {
-                    break;
-                }
-
-                let (mut stream, _) = self.listener.accept().await?;
-                let mut command = Command::new(&script_path);
+                let (mut client, remote_address) = self.listener.accept().await?;
+                let mut command = Command::new(script_path.as_ref());
+                command
+                    .env_clear()
+                    .env("PATH", path)
+                    .env("SERVER_SOFTWARE", software.as_str())
+                    .env("SERVER_SIGNATURE", signature.as_str())
+                    .env("GATEWAY_INTERFACE", "CGI/1.1")
+                    .env("SERVER_PROTOCOL", "HTTP/1.1")
+                    .env("SCRIPT_FILENAME", script_path.as_os_str())
+                    .env("SCRIPT_NAME", script.as_os_str())
+                    .env("SERVER_ADDR", ip_address.clone().as_str())
+                    .env("SERVER_PORT", port.clone().as_str())
+                    .env("REMOTE_ADDR", remote_address.ip().to_string())
+                    .env("REMOTE_PORT", remote_address.port().to_string());
 
                 tokio::spawn(async move {
                     {
-                        let (mut reader, mut writer) = stream.split();
+                        let (mut reader, mut writer) = client.split();
 
                         let mut child = command
-                            .env_clear()
                             .stdin(Stdio::piped())
                             .stdout(Stdio::piped())
                             .stderr(Stdio::inherit())
@@ -98,24 +94,22 @@ impl Server {
 
                         loop {
                             select! {
-                                child_result = child.wait() => {
+                                _ = child.wait() => {
                                     break;
                                 }
-                                reader_result = &mut reader_task, if !reader_done => {
+                                _ = &mut reader_task, if !reader_done => {
                                     reader_done = true;
                                 }
-                                writer_result = &mut writer_task, if !writer_done => {
+                                _ = &mut writer_task, if !writer_done => {
                                     writer_done = true;
                                 }
                             }
                         }
                     }
 
-                    stream.shutdown().await
+                    client.shutdown().await
                 });
             }
-
-            Ok(())
         })
     }
 }
@@ -132,7 +126,6 @@ mod tests {
     fn new_connections() {
         let server = Server::new(SocketAddr::from(([127, 0, 0, 1], 0))).unwrap();
         let address = server.listener.local_addr().unwrap();
-        let signal = server.shutdown_signal();
 
         let thread = thread::spawn(|| server.serve("./examples/hello.cgi".into()));
 
@@ -141,10 +134,6 @@ mod tests {
 
         client.write_all(b"Hi!").unwrap();
         client.read_to_string(&mut output).unwrap();
-
-        signal.shutdown();
-        //TODO: Fix shutdown, server currently stuck on accepting new connections.
-        // thread.join().unwrap().unwrap();
 
         assert_eq!(output.as_str(), "\nHello, World!\n");
     }
