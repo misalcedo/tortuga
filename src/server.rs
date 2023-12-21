@@ -26,12 +26,14 @@ impl Server {
     }
 
     pub fn serve(self, script: PathBuf) -> io::Result<()> {
-        // Context
-        let address = self.listener.local_addr()?;
         let script_path = script.canonicalize()?;
+
+        let address = self.listener.local_addr()?;
         let ip_address = address.ip().to_string();
         let port = address.port().to_string();
+
         let path: &'static str = env!("PATH");
+
         let software = format!("{}/{}", about::PROGRAM, about::VERSION);
         let signature = format!(
             "<address>{} Server at {} Port {}</address>\n",
