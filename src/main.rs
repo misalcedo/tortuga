@@ -41,8 +41,8 @@ struct Options {
 enum Commands {
     /// Serves a CGI script.
     Serve {
-        /// Sets a CGI script file
-        #[arg(short, long, value_name = "SCRIPT")]
+        /// The file path to the CGI script.
+        #[arg(value_name = "SCRIPT")]
         script: PathBuf,
 
         /// The TCP host and port for the server to listen on
