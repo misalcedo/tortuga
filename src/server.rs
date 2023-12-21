@@ -1,17 +1,15 @@
+use crate::client::Client;
 use std::io;
 use std::net::SocketAddr;
 use std::path::PathBuf;
-use std::process::Stdio;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::io::{AsyncWriteExt, BufReader, BufWriter};
-use tokio::net::{TcpListener, TcpStream};
-use tokio::process::Command;
+use tokio::net::TcpListener;
 use tokio::runtime::Runtime;
-use tokio::{pin, select};
+use tokio::select;
 use tokio_util::sync::CancellationToken;
 
-use crate::about;
+use crate::context::ServerContext;
 
 #[repr(transparent)]
 #[derive(Clone)]
@@ -20,43 +18,6 @@ pub struct ShutdownSignal(CancellationToken);
 impl ShutdownSignal {
     pub fn shutdown(self) {
         self.0.cancel()
-    }
-}
-
-struct ServerContext {
-    script: PathBuf,
-    script_path: PathBuf,
-    ip_address: String,
-    port: String,
-    path: &'static str,
-    software: String,
-    signature: String,
-}
-
-impl ServerContext {
-    fn new(address: SocketAddr, script: PathBuf) -> io::Result<Self> {
-        let script_path = script.canonicalize()?;
-
-        let ip_address = address.ip().to_string();
-        let port = address.port().to_string();
-
-        let path: &'static str = env!("PATH");
-
-        let software = format!("{}/{}", about::PROGRAM, about::VERSION);
-        let signature = format!(
-            "<address>{} Server at {} Port {}</address>\n",
-            software, ip_address, port
-        );
-
-        Ok(Self {
-            script,
-            script_path,
-            ip_address,
-            port,
-            path,
-            software,
-            signature,
-        })
     }
 }
 
@@ -101,7 +62,7 @@ impl Server {
                     }
                 };
 
-                tokio::spawn(Self::handle_client(context.clone(), remote_address, client));
+                tokio::spawn(Client::new(context.clone(), client, remote_address).run());
             }
 
             Ok(())
@@ -110,78 +71,6 @@ impl Server {
         self.runtime.shutdown_timeout(Duration::from_secs(5));
 
         result
-    }
-
-    async fn handle_client(
-        context: Arc<ServerContext>,
-        remote_address: SocketAddr,
-        mut client: TcpStream,
-    ) -> io::Result<()> {
-        {
-            let (mut reader, mut writer) = client.split();
-            let mut child = Command::new(&context.script_path)
-                .kill_on_drop(true)
-                .env_clear()
-                .env("PATH", &context.path)
-                .env("SERVER_SOFTWARE", &context.software.as_str())
-                .env("SERVER_SIGNATURE", &context.signature.as_str())
-                .env("GATEWAY_INTERFACE", "CGI/1.1")
-                .env("SERVER_PROTOCOL", "HTTP/1.1")
-                .env("SCRIPT_FILENAME", &context.script_path.as_os_str())
-                .env("SCRIPT_NAME", &context.script.as_os_str())
-                .env("SERVER_ADDR", &context.ip_address.as_str())
-                .env("SERVER_PORT", &context.port.as_str())
-                .env("REMOTE_ADDR", remote_address.ip().to_string())
-                .env("REMOTE_PORT", remote_address.port().to_string())
-                .stdin(Stdio::piped())
-                .stdout(Stdio::piped())
-                .stderr(Stdio::inherit())
-                .spawn()?;
-
-            let mut stdin = child.stdin.take().map(BufWriter::new);
-            let mut stdout = child.stdout.take().map(BufReader::new);
-
-            let reader_task = async {
-                if let Some(mut stdin) = stdin.as_mut() {
-                    tokio::io::copy(&mut reader, &mut stdin).await
-                } else {
-                    Ok(0)
-                }
-            };
-
-            let writer_task = async {
-                if let Some(mut stdout) = stdout.as_mut() {
-                    tokio::io::copy(&mut stdout, &mut writer).await
-                } else {
-                    Ok(0)
-                }
-            };
-
-            pin!(reader_task);
-            pin!(writer_task);
-
-            let mut reader_done = false;
-            let mut writer_done = false;
-
-            loop {
-                select! {
-                    _ = child.wait() => {
-                        break;
-                    }
-                    _ = &mut reader_task, if !reader_done => {
-                        reader_done = true;
-                    }
-                    _ = &mut writer_task, if !writer_done => {
-                        writer_done = true;
-                    }
-                    _ = tokio::time::sleep(Duration::from_secs(1)) => {
-                        child.start_kill()?;
-                    }
-                }
-            }
-        }
-
-        client.shutdown().await
     }
 }
 
