@@ -23,6 +23,10 @@ enum Commands {
         /// Sets a CGI script file
         #[arg(short, long, value_name = "SCRIPT")]
         script: PathBuf,
+
+        /// Sets a CGI script file
+        #[arg(short, long, default_value_t = 3000u16, value_name = "PORT")]
+        port: u16,
     },
     /// Tests a CGI script.
     Test {
@@ -40,8 +44,8 @@ pub fn main() {
     // You can check for the existence of subcommands, and if found use their
     // matches just as you would the top level cmd
     match options.command {
-        Some(Commands::Serve { script }) => {
-            let address = SocketAddr::from(([127, 0, 0, 1], 3000));
+        Some(Commands::Serve { script, port }) => {
+            let address = SocketAddr::from(([127, 0, 0, 1], port));
 
             let server = server::Server::new(address).unwrap();
 
