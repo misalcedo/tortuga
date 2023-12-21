@@ -26,7 +26,9 @@ impl Client {
 
     pub async fn run(mut self) -> io::Result<()> {
         {
-            let (mut reader, mut writer) = self.stream.split();
+            let (reader, mut writer) = self.stream.split();
+            let mut reader = BufReader::new(reader);
+
             let mut child = Command::new(self.context.script_filename())
                 .kill_on_drop(true)
                 .env_clear()
