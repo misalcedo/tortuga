@@ -42,8 +42,8 @@ enum Commands {
     /// Serves a CGI script.
     Serve {
         /// The file path to the CGI script.
-        #[arg(value_name = "SCRIPT")]
-        script: PathBuf,
+        #[arg(value_name = "PATH")]
+        path: PathBuf,
 
         /// The TCP host and port for the server to listen on
         #[arg(
@@ -70,10 +70,10 @@ pub fn main() {
     // You can check for the existence of subcommands, and if found use their
     // matches just as you would the top level cmd
     match options.command {
-        Some(Commands::Serve { script, interface }) => {
+        Some(Commands::Serve { path, interface }) => {
             let server = server::Server::new(interface.0).unwrap();
 
-            server.serve(script).expect("Unable to start the server");
+            server.serve(path).expect("Unable to start the server");
         }
         Some(Commands::Test { script }) => {
             let args = vec!["-test", "echo hello"];
