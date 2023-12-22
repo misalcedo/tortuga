@@ -9,6 +9,7 @@ mod cgi;
 mod client;
 mod context;
 mod server;
+mod variable;
 
 #[repr(transparent)]
 #[derive(Clone, Debug)]
