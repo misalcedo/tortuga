@@ -37,20 +37,25 @@ impl NonParsedHeader {
             .serve_connection(TokioIo::new(stream), self)
             .await
     }
-    pub async fn serve(&self, request: Request<Incoming>) -> io::Result<Response<Full<Bytes>>> {
-        let mut child = Command::new(self.context.script_filename())
+
+    pub async fn serve(
+        context: Arc<ServerContext>,
+        remote_address: SocketAddr,
+        request: Request<Incoming>,
+    ) -> io::Result<Response<Full<Bytes>>> {
+        let mut child = Command::new(context.script_filename())
             .kill_on_drop(true)
             .env_clear()
-            .env("PATH", self.context.path())
-            .env("SERVER_SOFTWARE", self.context.software())
+            .env("PATH", context.path())
+            .env("SERVER_SOFTWARE", context.software())
             .env("GATEWAY_INTERFACE", "CGI/1.1")
             .env("SERVER_PROTOCOL", format!("{:?}", request.version()))
-            .env("SCRIPT_FILENAME", self.context.script_filename())
-            .env("SCRIPT_NAME", self.context.script_name())
-            .env("SERVER_ADDR", self.context.ip_address())
-            .env("SERVER_PORT", self.context.port())
-            .env("REMOTE_ADDR", self.remote_address.ip().to_string())
-            .env("REMOTE_PORT", self.remote_address.port().to_string())
+            .env("SCRIPT_FILENAME", context.script_filename())
+            .env("SCRIPT_NAME", context.script_name())
+            .env("SERVER_ADDR", context.ip_address())
+            .env("SERVER_PORT", context.port())
+            .env("REMOTE_ADDR", remote_address.ip().to_string())
+            .env("REMOTE_PORT", remote_address.port().to_string())
             .env("PATH_INFO", request.uri().path())
             .env("REQUEST_METHOD", request.method().as_str())
             .envs(request.uri().query().map(|q| ("QUERY_STRING", q)))
@@ -134,6 +139,10 @@ impl Service<Request<Incoming>> for NonParsedHeader {
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
     fn call(&self, request: Request<Incoming>) -> Self::Future {
-        Box::pin(self.serve(request))
+        Box::pin(Self::serve(
+            self.context.clone(),
+            self.remote_address,
+            request,
+        ))
     }
 }
