@@ -12,7 +12,7 @@ use std::pin::Pin;
 use std::process::Stdio;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::io::{AsyncWriteExt, BufReader, BufWriter};
+use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader, BufWriter};
 use tokio::net::TcpStream;
 use tokio::process::Command;
 use tokio::{pin, select};
@@ -87,7 +87,7 @@ impl NonParsedHeader {
             .map_err(|_| io::Error::from(io::ErrorKind::InvalidData))?
             .to_bytes();
         let reader_task = async {
-            if let Some(mut stdin) = stdin.as_mut() {
+            if let Some(stdin) = stdin.as_mut() {
                 stdin.write_all(whole_body.as_ref()).await
             } else {
                 Ok(())
@@ -95,13 +95,15 @@ impl NonParsedHeader {
         };
 
         let writer_task = async {
-            if let Some(mut stdout) = stdout.as_mut() {
-                Err(io::Error::from(io::ErrorKind::InvalidData))
-                //tokio::io::copy(&mut stdout, &mut writer).await
+            if let Some(stdout) = stdout.as_mut() {
+                let mut output = Vec::with_capacity(1024 * 8);
+                stdout.read_to_end(&mut output).await?;
+                Ok(output)
             } else {
-                Ok(0)
+                Ok::<Vec<u8>, io::Error>(Vec::new())
             }
         };
+
         pin!(reader_task);
         pin!(writer_task);
 
@@ -110,14 +112,18 @@ impl NonParsedHeader {
 
         loop {
             select! {
-                _ = child.wait() => {
-                    //eprintln!("Child exited with status {:?}.", output.status);
-                    //eprintln!("{}", String::from_utf8_lossy(output.stderr.as_slice()));
+                status = child.wait() => {
+                    eprintln!("Child exited with status {:?}.", status?);
 
-                    return Ok(Response::new(Full::new(Bytes::from("TODO"))));
+                    let output = writer_task.await?;
+
+                    return Ok(Response::new(Full::new(Bytes::from(output))));
                 }
                 _ = &mut reader_task, if !reader_done => {
                     reader_done = true;
+                }
+                _ = &mut writer_task, if !writer_done => {
+                    writer_done = true;
                 }
                 _ = tokio::time::sleep(Duration::from_secs(1)) => {
                     child.kill().await?;
