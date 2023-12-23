@@ -92,18 +92,29 @@ mod tests {
         let thread = thread::spawn(|| server.serve("./examples/hello.cgi".into()));
 
         let mut client = TcpStream::connect_timeout(&address, Duration::from_secs(1)).unwrap();
-        let mut output = String::new();
 
-        client
-            .write_all(
-                b"GET /%20foo?a=b HTTP/1.1\r\nHost: localhost\r\nUser-Agent: test\r\nAccept: */*\r\n\r\n",
-            )
-            .unwrap();
-        client.read_to_string(&mut output).unwrap();
+        for _ in 0..10 {
+            let mut output = vec![0; 1024];
+
+            let response_start = "HTTP/1.1 200 OK\r\ncontent-length: 16\r\ndate: ";
+            let response_end = " GMT\r\n\r\n\r\nHello, World!\n";
+
+            client
+                .write_all(
+                    b"GET /%20foo?--abc%205 HTTP/1.1\r\nHost: localhost\r\nUser-Agent: test\r\nAccept: */*\r\n\r\n",
+                )
+                .unwrap();
+
+            client.read(&mut output).unwrap();
+
+            let response = String::from_utf8_lossy(output.as_slice());
+            let end = response.find('\0').unwrap_or_else(|| response.len());
+
+            assert_eq!(&response[..response_start.len()], response_start);
+            assert_eq!(&response[(end - response_end.len())..end], response_end);
+        }
 
         signal.shutdown();
         thread.join().unwrap().unwrap();
-
-        assert_eq!(output.as_str(), "HTTP/1.1 200 OK\r\n\r\nHello, World!\n");
     }
 }
