@@ -15,7 +15,8 @@ use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::process::Command;
-use tokio::{pin, select};
+use tokio::{select, try_join};
+use tokio_util::sync::CancellationToken;
 
 const MAX_BODY_BYTES: u64 = 1024 * 64;
 
@@ -56,22 +57,29 @@ impl NonParsedHeader {
             return Ok(response);
         }
 
+        let (request, body) = request.into_parts();
+        let whole_body = body
+            .collect()
+            .await
+            .map_err(|_| io::Error::from(io::ErrorKind::InvalidData))?
+            .to_bytes();
+
         let mut child = Command::new(context.script_filename())
             .kill_on_drop(true)
             .env_clear()
             .env("PATH", context.path())
             .env("SERVER_SOFTWARE", context.software())
             .env("GATEWAY_INTERFACE", "CGI/1.1")
-            .env("SERVER_PROTOCOL", format!("{:?}", request.version()))
+            .env("SERVER_PROTOCOL", format!("{:?}", request.version))
             .env("SCRIPT_FILENAME", context.script_filename())
             .env("SCRIPT_NAME", context.script_name())
             .env("SERVER_ADDR", context.ip_address())
             .env("SERVER_PORT", context.port())
             .env("REMOTE_ADDR", remote_address.ip().to_string())
             .env("REMOTE_PORT", remote_address.port().to_string())
-            .env("PATH_INFO", request.uri().path())
-            .env("REQUEST_METHOD", request.method().as_str())
-            .envs(request.uri().query().map(|q| ("QUERY_STRING", q)))
+            .env("PATH_INFO", request.uri.path())
+            .env("REQUEST_METHOD", request.method.as_str())
+            .envs(request.uri.query().map(|q| ("QUERY_STRING", q)))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
@@ -80,63 +88,55 @@ impl NonParsedHeader {
         let mut stdin = child.stdin.take();
         let mut stdout = child.stdout.take();
 
-        let whole_body = request
-            .into_body()
-            .collect()
-            .await
-            .map_err(|_| io::Error::from(io::ErrorKind::InvalidData))?
-            .to_bytes();
-        let reader_task = async {
+        let cancel = CancellationToken::new();
+        let stdin_cancel = cancel.child_token();
+        let _cancel_guard = cancel.drop_guard();
+
+        tokio::spawn(async move {
             if let Some(stdin) = stdin.as_mut() {
-                stdin.write_all(whole_body.as_ref()).await
+                select! {
+                    result = stdin.write_all(whole_body.as_ref()) => { result }
+                    _ = stdin_cancel.cancelled() => {
+                        eprintln!("Cancelled!");
+                        Ok(())
+                    }
+                }
             } else {
                 Ok(())
             }
-        };
+        });
 
-        let mut output = Vec::with_capacity(1024 * 8);
-        let writer_task = async {
+        let stdout_task = async {
+            let mut output = Vec::with_capacity(1024 * 8);
+
             if let Some(stdout) = stdout.as_mut() {
                 stdout.read_to_end(&mut output).await?;
-                Ok(output)
-            } else {
-                Ok::<Vec<u8>, io::Error>(Vec::new())
             }
+
+            Ok::<Vec<u8>, io::Error>(output)
         };
 
-        pin!(reader_task);
-        pin!(writer_task);
+        match try_join!(
+            tokio::time::timeout(Duration::from_secs(1), child.wait()),
+            tokio::time::timeout(Duration::from_secs(1), stdout_task),
+        ) {
+            Ok((Ok(status), Ok(output))) if status.success() => {
+                return Ok(Response::new(Full::new(Bytes::from(output))));
+            }
+            Ok(_) => {
+                child.kill().await?;
 
-        let mut reader_done = false;
-        let mut writer_done = false;
+                let mut response =
+                    Response::new(Full::new(Bytes::from("Unable to wait for child process.")));
+                *response.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
+                Ok(response)
+            }
+            Err(_) => {
+                child.kill().await?;
 
-        loop {
-            select! {
-                status = child.wait() => {
-                    let status = status?;
-                    if !status.success() {
-                        eprintln!("Child exited with status {:?}.", status.code());
-                    }
-
-                    let output = writer_task.await?;
-
-                    return Ok(Response::new(Full::new(Bytes::from(output))));
-                }
-                _ = &mut reader_task, if !reader_done => {
-                    reader_done = true;
-                }
-                _ = &mut writer_task, if !writer_done => {
-                    writer_done = true;
-                }
-                _ = tokio::time::sleep(Duration::from_secs(1)) => {
-                    child.kill().await?;
-
-                    let mut response = Response::new(Full::new(Bytes::from("Request timed out.")));
-
-                    *response.status_mut() = StatusCode::GATEWAY_TIMEOUT;
-
-                    return Ok(response);
-                }
+                let mut response = Response::new(Full::new(Bytes::from("Request timed out.")));
+                *response.status_mut() = StatusCode::GATEWAY_TIMEOUT;
+                Ok(response)
             }
         }
     }
