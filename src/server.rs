@@ -61,7 +61,7 @@ impl Server {
                         result?
                     }
                 };
-                let handler = service::NonParsedHeader::new(context.clone(), remote_address);
+                let handler = service::CommonGatewayInterface::new(context.clone(), remote_address);
 
                 tokio::spawn(handler.run(stream));
             }

@@ -1,3 +1,3 @@
 mod cgi;
 
-pub use cgi::NonParsedHeader;
+pub use cgi::CommonGatewayInterface;

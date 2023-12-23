@@ -20,13 +20,12 @@ use tokio_util::sync::CancellationToken;
 
 const MAX_BODY_BYTES: u64 = 1024 * 64;
 
-pub struct NonParsedHeader {
+pub struct CommonGatewayInterface {
     context: Arc<ServerContext>,
     remote_address: SocketAddr,
 }
 
-// TODO: rename and fix bug where the connection cannot be re-used.
-impl NonParsedHeader {
+impl CommonGatewayInterface {
     pub fn new(context: Arc<ServerContext>, remote_address: SocketAddr) -> Self {
         Self {
             context,
@@ -142,7 +141,7 @@ impl NonParsedHeader {
     }
 }
 
-impl Service<Request<Incoming>> for NonParsedHeader {
+impl Service<Request<Incoming>> for CommonGatewayInterface {
     type Response = Response<Full<Bytes>>;
     type Error = io::Error;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
