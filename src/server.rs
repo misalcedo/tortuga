@@ -117,4 +117,37 @@ mod tests {
         signal.shutdown();
         thread.join().unwrap().unwrap();
     }
+
+    #[test]
+    fn validate() {
+        let server = Server::new(SocketAddr::from(([127, 0, 0, 1], 0))).unwrap();
+        let signal = server.shutdown();
+        let address = server.listener.local_addr().unwrap();
+
+        let thread = thread::spawn(|| server.serve("./examples/assert.cgi".into()));
+
+        let mut client = TcpStream::connect_timeout(&address, Duration::from_secs(1)).unwrap();
+
+        let mut output = vec![0; 1024];
+
+        let response_start = "HTTP/1.1 200 OK\r\ncontent-length: 8\r\ndate: ";
+        let response_end = " GMT\r\n\r\n\r\nHello, World!\n";
+
+        client
+            .write_all(
+                b"POST /%20foo?--abc%205 HTTP/1.1\r\nHost: localhost\r\nUser-Agent: test\r\nAccept: */*\r\ncontext-length: 6\r\ncontent-type: application/octet-stream\r\n\r\nfoobar",
+            )
+            .unwrap();
+
+        client.read(&mut output).unwrap();
+
+        let response = String::from_utf8_lossy(output.as_slice());
+        let end = response.find('\0').unwrap_or_else(|| response.len());
+
+        assert_eq!(&response[..response_start.len()], response_start);
+        assert_eq!(&response[(end - response_end.len())..end], response_end);
+
+        signal.shutdown();
+        thread.join().unwrap().unwrap();
+    }
 }
