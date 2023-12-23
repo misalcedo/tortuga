@@ -45,7 +45,6 @@ impl CommonGatewayInterface {
         remote_address: SocketAddr,
         request: Request<Incoming>,
     ) -> io::Result<Response<Full<Bytes>>> {
-        // Protect our server from massive bodies.
         let upper = request.body().size_hint().upper().unwrap_or(u64::MAX);
         if upper > MAX_BODY_BYTES {
             let mut response = Response::new(Full::new(Bytes::from(format!(
@@ -72,6 +71,7 @@ impl CommonGatewayInterface {
         });
         let mut child = Command::new(context.script_filename())
             .kill_on_drop(true)
+            .current_dir(context.working_directory())
             .env_clear()
             .env("PATH", context.path())
             .env("SERVER_SOFTWARE", context.software())

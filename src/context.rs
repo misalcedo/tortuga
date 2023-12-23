@@ -2,7 +2,8 @@ use crate::about;
 use std::ffi::OsStr;
 use std::io;
 use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::path::Component::CurDir;
+use std::path::{Path, PathBuf};
 
 pub struct ServerContext {
     script: PathBuf,
@@ -43,7 +44,14 @@ impl ServerContext {
     }
 
     pub fn script_filename(&self) -> &OsStr {
-        self.script_path.as_os_str()
+        &self.script_path.as_os_str()
+    }
+
+    pub fn working_directory(&self) -> &OsStr {
+        self.script_path
+            .parent()
+            .map(Path::as_os_str)
+            .unwrap_or_else(|| CurDir.as_os_str())
     }
 
     pub fn script_name(&self) -> &OsStr {
