@@ -12,7 +12,7 @@ use std::pin::Pin;
 use std::process::Stdio;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader, BufWriter};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::process::Command;
 use tokio::{pin, select};
@@ -44,6 +44,18 @@ impl NonParsedHeader {
         remote_address: SocketAddr,
         request: Request<Incoming>,
     ) -> io::Result<Response<Full<Bytes>>> {
+        // Protect our server from massive bodies.
+        let upper = request.body().size_hint().upper().unwrap_or(u64::MAX);
+        if upper > MAX_BODY_BYTES {
+            let mut response = Response::new(Full::new(Bytes::from(format!(
+                "Body size of {upper} bytes is too large. The largest supported body is {MAX_BODY_BYTES}"
+            ))));
+
+            *response.status_mut() = StatusCode::PAYLOAD_TOO_LARGE;
+
+            return Ok(response);
+        }
+
         let mut child = Command::new(context.script_filename())
             .kill_on_drop(true)
             .env_clear()
@@ -65,24 +77,11 @@ impl NonParsedHeader {
             .stderr(Stdio::inherit())
             .spawn()?;
 
-        let mut stdin = child.stdin.take().map(BufWriter::new);
-        let mut stdout = child.stdout.take().map(BufReader::new);
+        let mut stdin = child.stdin.take();
+        let mut stdout = child.stdout.take();
 
-        let body = request.into_body();
-
-        // Protect our server from massive bodies.
-        let upper = body.size_hint().upper().unwrap_or(u64::MAX);
-        if upper > MAX_BODY_BYTES {
-            let mut response = Response::new(Full::new(Bytes::from(format!(
-                "Body size of {upper} bytes is too large. The largest supported body is {MAX_BODY_BYTES}"
-            ))));
-
-            *response.status_mut() = StatusCode::PAYLOAD_TOO_LARGE;
-
-            return Ok(response);
-        }
-
-        let whole_body = body
+        let whole_body = request
+            .into_body()
             .collect()
             .await
             .map_err(|_| io::Error::from(io::ErrorKind::InvalidData))?
