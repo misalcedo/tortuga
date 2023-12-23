@@ -24,6 +24,7 @@ pub struct NonParsedHeader {
     remote_address: SocketAddr,
 }
 
+// TODO: rename and fix bug where the connection cannot be re-used.
 impl NonParsedHeader {
     pub fn new(context: Arc<ServerContext>, remote_address: SocketAddr) -> Self {
         Self {
@@ -94,9 +95,9 @@ impl NonParsedHeader {
             }
         };
 
+        let mut output = Vec::with_capacity(1024 * 8);
         let writer_task = async {
             if let Some(stdout) = stdout.as_mut() {
-                let mut output = Vec::with_capacity(1024 * 8);
                 stdout.read_to_end(&mut output).await?;
                 Ok(output)
             } else {
@@ -113,7 +114,10 @@ impl NonParsedHeader {
         loop {
             select! {
                 status = child.wait() => {
-                    eprintln!("Child exited with status {:?}.", status?);
+                    let status = status?;
+                    if !status.success() {
+                        eprintln!("Child exited with status {:?}.", status.code());
+                    }
 
                     let output = writer_task.await?;
 
