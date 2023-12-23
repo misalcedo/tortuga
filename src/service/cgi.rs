@@ -1,4 +1,5 @@
 use crate::context::ServerContext;
+use crate::variable::ToMetaVariable;
 use http_body_util::{BodyExt, Full};
 use hyper::body::{Body, Bytes, Incoming};
 use hyper::server::conn::http1;
@@ -63,6 +64,12 @@ impl CommonGatewayInterface {
             .map_err(|_| io::Error::from(io::ErrorKind::InvalidData))?
             .to_bytes();
 
+        let headers = request.headers.iter().map(|(key, value)| {
+            (
+                key.as_str().to_meta_variable(Some("HTTP")),
+                String::from_utf8_lossy(value.as_bytes()).to_string(),
+            )
+        });
         let mut child = Command::new(context.script_filename())
             .kill_on_drop(true)
             .env_clear()
@@ -78,6 +85,7 @@ impl CommonGatewayInterface {
             .env("REMOTE_PORT", remote_address.port().to_string())
             .env("PATH_INFO", request.uri.path())
             .env("REQUEST_METHOD", request.method.as_str())
+            .envs(headers)
             .envs(request.uri.query().map(|q| ("QUERY_STRING", q)))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
