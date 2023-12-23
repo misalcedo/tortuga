@@ -1,4 +1,4 @@
-use crate::client::Client;
+use crate::service;
 use std::io;
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -61,9 +61,9 @@ impl Server {
                         result?
                     }
                 };
-                let client = Client::new(context.clone(), stream, remote_address);
+                let handler = service::NonParsedHeader::new(context.clone(), remote_address);
 
-                tokio::spawn(client.run());
+                tokio::spawn(handler.run(stream));
             }
 
             Ok(())

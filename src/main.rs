@@ -6,9 +6,9 @@ use std::str::FromStr;
 
 mod about;
 mod cgi;
-mod client;
 mod context;
 mod server;
+mod service;
 mod variable;
 
 #[repr(transparent)]
