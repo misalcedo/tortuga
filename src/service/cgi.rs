@@ -4,7 +4,7 @@ use http_body_util::{BodyExt, Full};
 use hyper::body::{Body, Bytes, Incoming};
 use hyper::server::conn::http1;
 use hyper::service::Service;
-use hyper::{Request, Response, StatusCode};
+use hyper::{HeaderMap, Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
 use std::future::Future;
 use std::io;
@@ -57,11 +57,10 @@ impl CommonGatewayInterface {
         }
 
         let (request, body) = request.into_parts();
-        let whole_body = body
+        let collected_body = body
             .collect()
             .await
-            .map_err(|_| io::Error::from(io::ErrorKind::InvalidData))?
-            .to_bytes();
+            .map_err(|_| io::Error::from(io::ErrorKind::InvalidData))?;
 
         let headers = request.headers.iter().map(|(key, value)| {
             (
@@ -69,6 +68,16 @@ impl CommonGatewayInterface {
                 String::from_utf8_lossy(value.as_bytes()).to_string(),
             )
         });
+        let trailers = collected_body
+            .trailers()
+            .into_iter()
+            .flat_map(HeaderMap::iter)
+            .map(|(key, value)| {
+                (
+                    key.as_str().to_meta_variable(Some("HTTP")),
+                    String::from_utf8_lossy(value.as_bytes()).to_string(),
+                )
+            });
         let mut child = Command::new(context.script_filename())
             .kill_on_drop(true)
             .current_dir(context.working_directory())
@@ -86,6 +95,7 @@ impl CommonGatewayInterface {
             .env("PATH_INFO", request.uri.path())
             .env("REQUEST_METHOD", request.method.as_str())
             .envs(headers)
+            .envs(trailers)
             .envs(request.uri.query().map(|q| ("QUERY_STRING", q)))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -99,10 +109,12 @@ impl CommonGatewayInterface {
         let stdin_cancel = cancel.child_token();
         let _cancel_guard = cancel.drop_guard();
 
+        let input = collected_body.to_bytes();
+
         tokio::spawn(async move {
             if let Some(stdin) = stdin.as_mut() {
                 select! {
-                    result = stdin.write_all(whole_body.as_ref()) => { result }
+                    result = stdin.write_all(input.as_ref()) => { result }
                     _ = stdin_cancel.cancelled() => {
                         eprintln!("Cancelled!");
                         Ok(())
