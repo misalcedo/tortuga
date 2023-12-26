@@ -10,6 +10,7 @@ use hyper::{Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
 use std::future::Future;
 use std::io;
+use std::mem::size_of;
 use std::net::SocketAddr;
 use std::pin::Pin;
 use std::process::Stdio;
@@ -88,13 +89,21 @@ impl CommonGatewayInterface {
             .env("SERVER_PORT", context.port())
             .env("REMOTE_ADDR", remote_address.ip().to_string())
             .env("REMOTE_PORT", remote_address.port().to_string())
-            .env("PATH_INFO", request.uri.path())
             .env("REQUEST_METHOD", request.method.as_str())
             .envs(headers)
             .envs(request.uri.query().map(|q| ("QUERY_STRING", q)))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit());
+
+        match decode_path(request.uri.path()) {
+            Ok(path_info) => {
+                command.env("PATH_INFO", path_info);
+            }
+            Err(path_info) => {
+                command.env("PATH_INFO", path_info);
+            }
+        }
 
         if input.len() > 0 {
             command.env("CONTENT_LENGTH", input.len().to_string());
@@ -224,8 +233,52 @@ impl Service<Request<Incoming>> for CommonGatewayInterface {
     }
 }
 
+fn decode_path(s: &str) -> Result<String, &str> {
+    if !s.contains('%') {
+        return Err(s);
+    }
+
+    let mut path = Vec::with_capacity(s.len());
+    let mut buffer = [0u8; size_of::<char>()];
+    let mut character = String::with_capacity(2);
+    let mut characters = s.chars();
+
+    while let Some(c) = characters.next() {
+        match c {
+            '%' => match (characters.next(), characters.next()) {
+                (Some(a), Some(b)) => {
+                    character.clear();
+                    character.push(a);
+                    character.push(b);
+
+                    match u8::from_str_radix(character.as_str(), 16) {
+                        Ok(decoded) => path.push(decoded),
+                        Err(_) => return Err(s),
+                    }
+                }
+                _ => return Err(s),
+            },
+            _ => {
+                path.extend_from_slice(c.encode_utf8(&mut buffer).as_bytes());
+            }
+        }
+    }
+
+    String::from_utf8(path).map_err(|_| s)
+}
+
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    #[test]
+    fn special_characters() {
+        assert_eq!(decode_path("abc"), Err("abc"));
+        assert_eq!(decode_path("%2"), Err("%2"));
+        assert_eq!(decode_path("%20%26").unwrap(), " &");
+        assert_eq!(decode_path("%C6%92").unwrap(), "ƒ");
+    }
+
     #[test]
     fn empty() {
         let mut headers = [httparse::EMPTY_HEADER];
