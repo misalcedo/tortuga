@@ -1,6 +1,8 @@
 use clap::{Parser, Subcommand};
+use http::uri::Uri;
 use std::collections::HashMap;
 use std::net::{SocketAddr, ToSocketAddrs};
+use std::path::Component::CurDir;
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -38,29 +40,44 @@ struct Options {
     command: Option<Commands>,
 }
 
+#[derive(Parser)]
+struct ServeOptions {
+    /// The document root path to load CGI scripts and other assets from.
+    #[arg(value_name = "DOCUMENT_ROOT")]
+    document_root: PathBuf,
+
+    /// The path to CGI scripts; may be relative or absolute.
+    /// Relative paths are resolved relative to the document root.
+    #[arg(short, long, default_value=CurDir.as_os_str(), value_name = "CGI_BIN")]
+    cgi_bin: PathBuf,
+
+    /// The TCP host and port for the server to listen on
+    #[arg(
+        short,
+        long,
+        default_value = "localhost:3000",
+        value_name = "INTERFACE"
+    )]
+    interface: Interface,
+}
+
+#[derive(Parser)]
+struct InvokeOptions {
+    /// The path to the CGI script to invoke.
+    #[arg(short, long, value_name = "SCRIPT_PATH", required = true)]
+    script: PathBuf,
+
+    /// The URI to simulate the script invocation for.
+    #[arg(short, long, value_name = "URI", required = true)]
+    uri: Uri,
+}
+
 #[derive(Subcommand)]
 enum Commands {
-    /// Serves a CGI script.
-    Serve {
-        /// The file path to the CGI script.
-        #[arg(value_name = "PATH")]
-        path: PathBuf,
-
-        /// The TCP host and port for the server to listen on
-        #[arg(
-            short,
-            long,
-            default_value = "localhost:3000",
-            value_name = "INTERFACE"
-        )]
-        interface: Interface,
-    },
-    /// Tests a CGI script.
-    Test {
-        /// Sets a CGI script file
-        #[arg(short, long, value_name = "SCRIPT")]
-        script: PathBuf,
-    },
+    /// Serve CGI scripts and static assets from an HTTP server.
+    Serve(ServeOptions),
+    /// Invoke a single CGI script.
+    Invoke(InvokeOptions),
 }
 
 pub fn main() {
@@ -71,12 +88,14 @@ pub fn main() {
     // You can check for the existence of subcommands, and if found use their
     // matches just as you would the top level cmd
     match options.command {
-        Some(Commands::Serve { path, interface }) => {
-            let server = server::Server::new(interface.0).unwrap();
+        Some(Commands::Serve(options)) => {
+            let server = server::Server::new(options.interface.0).unwrap();
 
-            server.serve(path).expect("Unable to start the server");
+            server
+                .serve(options.document_root)
+                .expect("Unable to start the server");
         }
-        Some(Commands::Test { script }) => {
+        Some(Commands::Invoke(options)) => {
             let args = vec!["-test", "echo hello"];
             let env = HashMap::from([
                 ("PATH", env!("PATH")),
@@ -117,7 +136,7 @@ pub fn main() {
                 ("PATH_TRANSLATED", "/var/www/html/extra/path"),
             ]);
 
-            let child = cgi::spawn(&script, args, env).expect("Failed to read stdout");
+            let child = cgi::spawn(&options.script, args, env).expect("Failed to read stdout");
             let output = child
                 .wait_with_output()
                 .expect("Failed to wait for the child process.");

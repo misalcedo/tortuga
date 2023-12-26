@@ -21,3 +21,4 @@ hyper = { version = "1", features = ["server"] }
 http-body-util = "0.1"
 hyper-util = { version = "0.1", features = ["full"] }
 httparse = "1.8.0"
+http = "1.0.0"
