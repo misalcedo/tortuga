@@ -131,11 +131,11 @@ mod tests {
         let mut output = vec![0; 1024];
 
         let response_start = "HTTP/1.1 200 OK\r\ncontent-length: 8\r\ndate: ";
-        let response_end = " GMT\r\n\r\n\r\nHello, World!\n";
+        let response_end = " GMT\r\n\r\n\r\nfoobar";
 
         client
             .write_all(
-                b"POST /%20foo?--abc%205 HTTP/1.1\r\nHost: localhost\r\nUser-Agent: test\r\nAccept: */*\r\ncontext-length: 6\r\ncontent-type: application/octet-stream\r\n\r\nfoobar",
+                b"POST /%20foo?--abc%205 HTTP/1.1\r\nHost: localhost\r\nUser-Agent: test\r\nAccept: */*\r\ncontent-length: 6\r\ncontent-type: application/octet-stream\r\n\r\nfoobar",
             )
             .unwrap();
 

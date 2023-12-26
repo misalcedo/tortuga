@@ -47,13 +47,12 @@ impl CommonGatewayInterface {
     ) -> io::Result<Response<Full<Bytes>>> {
         let upper = request.body().size_hint().upper().unwrap_or(u64::MAX);
         if upper > MAX_BODY_BYTES {
-            let mut response = Response::new(Full::new(Bytes::from(format!(
-                "Body size of {upper} bytes is too large. The largest supported body is {MAX_BODY_BYTES}"
-            ))));
-
-            *response.status_mut() = StatusCode::PAYLOAD_TOO_LARGE;
-
-            return Ok(response);
+            return Response::builder()
+                .status(StatusCode::PAYLOAD_TOO_LARGE)
+                .body(Full::new(Bytes::from(format!(
+                    "Body size of {upper} bytes is too large. The largest supported body is {MAX_BODY_BYTES}"
+                ))))
+                .map_err(|_| io::Error::from(io::ErrorKind::InvalidData));
         }
 
         let (request, body) = request.into_parts();
@@ -109,19 +108,16 @@ impl CommonGatewayInterface {
         let stdin_cancel = cancel.child_token();
         let _cancel_guard = cancel.drop_guard();
 
-        let input = collected_body.to_bytes();
-
         tokio::spawn(async move {
-            if let Some(stdin) = stdin.as_mut() {
+            if let Some(mut stdin) = stdin.take() {
+                let mut input = collected_body.aggregate();
+
                 select! {
-                    result = stdin.write_all(input.as_ref()) => { result }
-                    _ = stdin_cancel.cancelled() => {
-                        eprintln!("Cancelled!");
-                        Ok(())
-                    }
+                    _ = stdin.write_all_buf(&mut input) => {}
+                    _ = stdin_cancel.cancelled() => {}
                 }
-            } else {
-                Ok(())
+
+                drop(stdin);
             }
         });
 
