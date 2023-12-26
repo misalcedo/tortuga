@@ -54,10 +54,6 @@ impl ServerContext {
             .unwrap_or_else(|| CurDir.as_os_str())
     }
 
-    pub fn script_name(&self) -> &OsStr {
-        self.script.as_os_str()
-    }
-
     pub fn ip_address(&self) -> &str {
         self.ip_address.as_str()
     }

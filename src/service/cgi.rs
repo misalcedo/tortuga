@@ -84,7 +84,7 @@ impl CommonGatewayInterface {
             .env("GATEWAY_INTERFACE", "CGI/1.1")
             .env("SERVER_PROTOCOL", format!("{:?}", request.version))
             .env("SCRIPT_FILENAME", context.script_filename())
-            .env("SCRIPT_NAME", context.script_name())
+            .env("SCRIPT_NAME", "/")
             .env("SERVER_ADDR", context.ip_address())
             .env("SERVER_PORT", context.port())
             .env("REMOTE_ADDR", remote_address.ip().to_string())
@@ -154,6 +154,11 @@ impl CommonGatewayInterface {
             Ok((Ok(status), Ok(output))) if status.success() => {
                 let output = Bytes::from(output);
                 let mut response = Response::new(Full::from(output.clone()));
+
+                if output.is_empty() {
+                    *response.status_mut() = StatusCode::BAD_GATEWAY;
+                }
+
                 let mut headers = [httparse::EMPTY_HEADER; 256];
                 let mut offset = 0;
 
