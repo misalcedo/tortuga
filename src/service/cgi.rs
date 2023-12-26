@@ -6,7 +6,7 @@ use hyper::body::{Body, Bytes, Incoming};
 use hyper::http::{HeaderName, HeaderValue};
 use hyper::server::conn::http1;
 use hyper::service::Service;
-use hyper::{HeaderMap, Request, Response, StatusCode};
+use hyper::{Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
 use std::future::Future;
 use std::io;
@@ -59,10 +59,11 @@ impl CommonGatewayInterface {
         }
 
         let (request, body) = request.into_parts();
-        let collected_body = body
+        let mut input = body
             .collect()
             .await
-            .map_err(|_| io::Error::from(io::ErrorKind::InvalidData))?;
+            .map_err(|_| io::Error::from(io::ErrorKind::InvalidData))?
+            .to_bytes();
 
         let headers = request.headers.iter().map(|(key, value)| {
             (
@@ -70,17 +71,10 @@ impl CommonGatewayInterface {
                 String::from_utf8_lossy(value.as_bytes()).to_string(),
             )
         });
-        let trailers = collected_body
-            .trailers()
-            .into_iter()
-            .flat_map(HeaderMap::iter)
-            .map(|(key, value)| {
-                (
-                    key.as_str().to_meta_variable(Some("HTTP")),
-                    String::from_utf8_lossy(value.as_bytes()).to_string(),
-                )
-            });
-        let mut child = Command::new(context.script_filename())
+
+        let mut command = Command::new(context.script_filename());
+
+        command
             .kill_on_drop(true)
             .current_dir(context.working_directory())
             .env_clear()
@@ -97,12 +91,24 @@ impl CommonGatewayInterface {
             .env("PATH_INFO", request.uri.path())
             .env("REQUEST_METHOD", request.method.as_str())
             .envs(headers)
-            .envs(trailers)
             .envs(request.uri.query().map(|q| ("QUERY_STRING", q)))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::inherit())
-            .spawn()?;
+            .stderr(Stdio::inherit());
+
+        if input.len() > 0 {
+            command.env("CONTENT_LENGTH", input.len().to_string());
+
+            if let Some(Ok(value)) = request
+                .headers
+                .get(hyper::header::CONTENT_TYPE)
+                .map(HeaderValue::to_str)
+            {
+                command.env("CONTENT_TYPE", value);
+            }
+        }
+
+        let mut child = command.spawn()?;
 
         let mut stdin = child.stdin.take();
         let mut stdout = child.stdout.take();
@@ -113,8 +119,6 @@ impl CommonGatewayInterface {
 
         tokio::spawn(async move {
             if let Some(mut stdin) = stdin.take() {
-                let mut input = collected_body.aggregate();
-
                 select! {
                     _ = stdin.write_all_buf(&mut input) => {}
                     _ = stdin_cancel.cancelled() => {}

@@ -21,6 +21,25 @@ impl ShutdownSignal {
     }
 }
 
+///    The server acts as an application gateway.  It receives the request
+///    from the client, selects a CGI script to handle the request, converts
+///    the client request to a CGI request, executes the script and converts
+///    the CGI response into a response for the client.  When processing the
+///    client request, it is responsible for implementing any protocol or
+///    transport level authentication and security.  The server MAY also
+///    function in a 'non-transparent' manner, modifying the request or
+///    response in order to provide some additional service, such as media
+///    type transformation or protocol reduction.
+///
+///    The server MUST perform translations and protocol conversions on the
+///    client request data required by this specification.  Furthermore, the
+///    server retains its responsibility to the client to conform to the
+///    relevant network protocol even if the CGI script fails to conform to
+///    this specification.
+///
+///    If the server is applying authentication to the request, then it MUST
+///    NOT execute the script unless the request passes all defined access
+///    controls.
 pub struct Server {
     runtime: Runtime,
     listener: TcpListener,
@@ -135,7 +154,7 @@ mod tests {
 
         client
             .write_all(
-                b"POST /%20foo?--abc%205 HTTP/1.1\r\nHost: localhost\r\nUser-Agent: test\r\nAccept: */*\r\ncontent-length: 6\r\ncontent-type: application/octet-stream\r\n\r\nfoobar",
+                b"GET /%20foo?--abc%205 HTTP/1.1\r\nHost: localhost\r\nUser-Agent: test\r\nAccept: */*\r\ncontent-length: 6\r\ncontent-type: application/octet-stream\r\n\r\nfoobar",
             )
             .unwrap();
 
