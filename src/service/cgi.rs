@@ -1,7 +1,9 @@
 use crate::context::ServerContext;
 use crate::variable::ToMetaVariable;
 use http_body_util::{BodyExt, Full};
+use httparse::Status;
 use hyper::body::{Body, Bytes, Incoming};
+use hyper::http::{HeaderName, HeaderValue};
 use hyper::server::conn::http1;
 use hyper::service::Service;
 use hyper::{HeaderMap, Request, Response, StatusCode};
@@ -11,6 +13,7 @@ use std::io;
 use std::net::SocketAddr;
 use std::pin::Pin;
 use std::process::Stdio;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -136,7 +139,51 @@ impl CommonGatewayInterface {
             tokio::time::timeout(Duration::from_secs(1), stdout_task),
         ) {
             Ok((Ok(status), Ok(output))) if status.success() => {
-                return Ok(Response::new(Full::new(Bytes::from(output))));
+                let output = Bytes::from(output);
+                let mut response = Response::new(Full::from(output.clone()));
+                let mut headers = [httparse::EMPTY_HEADER; 256];
+                let mut offset = 0;
+
+                match httparse::parse_headers(&output, &mut headers) {
+                    Ok(Status::Complete((last, headers))) => {
+                        offset = last;
+
+                        for header in headers {
+                            match header.name {
+                                "Status" => {
+                                    if let Ok(status_code) = StatusCode::from_bytes(header.value) {
+                                        *response.status_mut() = status_code;
+                                    }
+                                }
+                                _ => {
+                                    match (
+                                        HeaderName::from_str(header.name),
+                                        HeaderValue::from_bytes(header.value),
+                                    ) {
+                                        (Ok(name), Ok(value)) => {
+                                            response.headers_mut().insert(name, value);
+                                        }
+                                        _ => {
+                                            eprintln!("Skipping invalid header '{}'", header.name);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Ok(Status::Partial) => {
+                        eprintln!("Partial headers.")
+                    }
+                    Err(e) => {
+                        eprintln!("Encountered an error parsing headers: {e}")
+                    }
+                }
+
+                if offset != 0 {
+                    *response.body_mut() = Full::from(output.slice(offset..));
+                }
+
+                return Ok(response);
             }
             Ok(_) => {
                 child.kill().await?;
@@ -168,5 +215,59 @@ impl Service<Request<Incoming>> for CommonGatewayInterface {
             self.remote_address,
             request,
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn empty() {
+        let mut headers = [httparse::EMPTY_HEADER];
+
+        let input = b"\r\n";
+        let result = httparse::parse_headers(input, &mut headers).unwrap();
+
+        assert!(result.is_complete());
+        assert_eq!(headers[0], httparse::EMPTY_HEADER);
+    }
+
+    #[test]
+    fn header_per_line() {
+        let mut headers = [httparse::EMPTY_HEADER];
+
+        let input = b"Content-Length: 42\n";
+        let result = httparse::parse_headers(input, &mut headers).unwrap();
+
+        assert!(result.is_partial());
+        assert_eq!(headers[0].name, "Content-Length");
+        assert_eq!(headers[0].value, b"42");
+    }
+
+    #[test]
+    fn header_per_line_complete() {
+        let mut headers = [httparse::EMPTY_HEADER];
+
+        let input = b"Content-Length: 42\r\n\r\n";
+        let result = httparse::parse_headers(input, &mut headers).unwrap();
+
+        assert!(result.is_complete());
+        assert_eq!(result.unwrap().0, input.len());
+        assert_eq!(headers[0].name, "Content-Length");
+        assert_eq!(headers[0].value, b"42");
+    }
+
+    #[test]
+    fn complete_with_body() {
+        let mut headers = [httparse::EMPTY_HEADER];
+
+        let input = b"Foo: Bar\r\n\r\nbody";
+        let result = httparse::parse_headers(input, &mut headers).unwrap();
+        let start_index = result.unwrap().0;
+
+        assert!(result.is_complete());
+        assert_eq!(start_index, input.strip_suffix(b"body").unwrap().len());
+        assert_eq!(&input[start_index..], b"body");
+        assert_eq!(headers[0].name, "Foo");
+        assert_eq!(headers[0].value, b"Bar");
     }
 }

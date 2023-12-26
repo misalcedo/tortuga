@@ -20,3 +20,4 @@ tokio-util = "0.7.10"
 hyper = { version = "1", features = ["server"] }
 http-body-util = "0.1"
 hyper-util = { version = "0.1", features = ["full"] }
+httparse = "1.8.0"
