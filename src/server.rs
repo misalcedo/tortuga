@@ -163,7 +163,8 @@ mod tests {
 
         let mut output = vec![0; 1024];
 
-        let response_start = "HTTP/1.1 404 Not Found\r\ncontent-length: 0\r\ndate: ";
+        let response_start =
+            "HTTP/1.1 404 Not Found\r\ncontent-type: text/html\r\ncontent-length: 0\r\ndate: ";
         let response_end = " GMT\r\n\r\n";
 
         client

@@ -161,7 +161,9 @@ impl CommonGatewayInterface {
                                         HeaderValue::from_bytes(header.value),
                                     ) {
                                         (Ok(name), Ok(value)) => {
-                                            response.headers_mut().insert(name, value);
+                                            if !name.as_str().starts_with("x-cgi-") {
+                                                response.headers_mut().insert(name, value);
+                                            }
                                         }
                                         _ => {
                                             eprintln!("Skipping invalid header '{}'", header.name);
