@@ -47,11 +47,7 @@ impl ServerContext {
             .split_once('/')
             .unwrap_or_else(|| (script_path, &script_path[script_path.len()..]));
 
-        let mut file_path = if self.cgi_bin.is_relative() {
-            self.document_root.join(&self.cgi_bin)
-        } else {
-            self.cgi_bin.clone()
-        };
+        let mut file_path = self.cgi_bin.clone();
 
         file_path.push(filename);
 

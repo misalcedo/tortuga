@@ -36,7 +36,7 @@ pub struct Server {
 }
 
 impl Server {
-    pub async fn bind(options: ServeOptions) -> io::Result<Self> {
+    pub async fn bind(mut options: ServeOptions) -> io::Result<Self> {
         let mut addresses =
             tokio::net::lookup_host(format!("{}:{}", options.hostname, options.port)).await?;
         let address = addresses.next().ok_or_else(|| {
@@ -48,6 +48,15 @@ impl Server {
 
         let listener = TcpListener::bind(address).await?;
         let address = listener.local_addr()?;
+
+        options.document_root = options.document_root.canonicalize()?;
+
+        if options.cgi_bin.is_relative() {
+            options.cgi_bin = options
+                .document_root
+                .join(&options.cgi_bin)
+                .canonicalize()?;
+        }
 
         Ok(Self {
             context: Arc::new(ServerContext::new(address, options)),

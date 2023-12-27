@@ -115,10 +115,7 @@ impl CommonGatewayInterface {
                 }
                 Err(path_info) => {
                     command.env("PATH_INFO", path_info);
-                    command.env(
-                        "PATH_TRANSLATED",
-                        context.translate_path(path_info.as_str()),
-                    );
+                    command.env("PATH_TRANSLATED", context.translate_path(path_info));
                 }
             }
         }
