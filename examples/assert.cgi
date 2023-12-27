@@ -1,9 +1,5 @@
 #!/usr/bin/env ruby
 
-if ARGV.any?
-  abort("Invalid command-line arguments.")
-end
-
 if ENV["PWD"] != __dir__
   abort("Working directory (#{ENV["PWD"]}) must be the parent directory of the script (#{__dir__}).")
 end
@@ -39,17 +35,27 @@ end
 if ENV.include?("PATH_INFO")
   require "cgi"
 
-    unless ENV["PATH_INFO"] == CGI::unescape(ENV["PATH_INFO"])
-      abort("Path info '#{ENV["PATH_INFO"]}' must not be URL-escaped.")
-    end
+  unless ENV["PATH_INFO"] == CGI::unescape(ENV["PATH_INFO"])
+    abort("Path info '#{ENV["PATH_INFO"]}' must not be URL-escaped.")
+  end
 
-    unless ENV["PATH_TRANSLATED"] == File.join(Dir.pwd, ENV["PATH_INFO"])
-      abort("Path translated '#{ENV["PATH_TRANSLATED"]}' must be resolved by the document root (i.e. #{File.join(Dir.pwd, ENV["PATH_INFO"])}).")
-    end
+  unless ENV["PATH_TRANSLATED"] == File.join(Dir.pwd, ENV["PATH_INFO"])
+    abort("Path translated '#{ENV["PATH_TRANSLATED"]}' must be resolved by the document root (i.e. #{File.join(Dir.pwd, ENV["PATH_INFO"])}).")
+  end
 end
 
-if ENV.include?("QUERY_STRING")
-  # TODO
+if ENV.include?("QUERY_STRING") && %w[GET HEAD].include?(ENV["REQUEST_METHOD"]&.upcase)
+  if ENV["QUERY_STRING"].include?("=")
+    if ENV["QUERY_STRING"].include?("%") && ENV["QUERY_STRING"] == CGI::unescape(ENV["QUERY_STRING"])
+      abort("Query string '#{ENV["QUERY_STRING"]}' must be URL-escaped.")
+    end
+  else
+    require "cgi"
+
+    unless ARGV.join(" ") == CGI::unescape(ENV["QUERY_STRING"])
+      abort("Query string '#{ENV["QUERY_STRING"]}' without '=' must be passed in as the command-line arguments (i.e. #{CGI::unescape(ENV["QUERY_STRING"]).split(" ").inspect}).")
+    end
+  end
 end
 
 unless ENV.include?("REMOTE_ADDR")

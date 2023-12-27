@@ -73,7 +73,7 @@ impl CommonGatewayInterface {
             )
         });
 
-        let Some((mut script, extra_path)) = context.script_filename(request.uri.path()) else {
+        let Some((script, extra_path)) = context.script_filename(request.uri.path()) else {
             return Response::builder()
                 .status(StatusCode::NOT_FOUND)
                 .body(Full::from("Requested a non-CGI script path."))
@@ -81,6 +81,16 @@ impl CommonGatewayInterface {
         };
 
         let mut command = Command::new(&script);
+
+        if request.method == http::Method::GET || request.method == http::Method::HEAD {
+            if let Some(query) = request.uri.query() {
+                if !query.contains('=') {
+                    if let Ok(decoded_query) = decode_path(query) {
+                        command.args(decoded_query.split(' '));
+                    }
+                }
+            }
+        }
 
         command
             .kill_on_drop(true)
@@ -264,6 +274,9 @@ fn decode_path(s: &str) -> Result<String, &str> {
 
     while let Some(c) = characters.next() {
         match c {
+            '+' => {
+                path.extend_from_slice(' '.encode_utf8(&mut buffer).as_bytes());
+            }
             '%' => match (characters.next(), characters.next()) {
                 (Some(a), Some(b)) => {
                     character.clear();
