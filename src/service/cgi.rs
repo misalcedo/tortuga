@@ -85,8 +85,10 @@ impl CommonGatewayInterface {
         if request.method == http::Method::GET || request.method == http::Method::HEAD {
             if let Some(query) = request.uri.query() {
                 if !query.contains('=') {
-                    if let Ok(decoded_query) = decode_path(query) {
-                        command.args(decoded_query.split(' '));
+                    for search_word in query.split('+') {
+                        if let Ok(decoded_query) = decode_path(search_word) {
+                            command.args(decoded_query.split(' '));
+                        }
                     }
                 }
             }
