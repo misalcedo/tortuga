@@ -70,7 +70,16 @@ unless ENV["SCRIPT_NAME"] == "/cgi-bin/#{__FILE__}"
 end
 
 if ENV["SERVER_NAME"]
-  # TODO
+  require "resolv"
+  addresses = Resolv.getaddresses(ENV["SERVER_NAME"]) rescue nil
+
+  if addresses.nil?
+    abort("The server name '#{ENV["SERVER_NAME"]}' must resolve to a valid IP address.")
+  end
+
+  if ENV.include?("SERVER_ADDR") && !addresses.include?(ENV["SERVER_ADDR"])
+    abort("The server name '#{ENV["SERVER_NAME"]}' does not match the server address '#{ENV["SERVER_ADDR"]}'.")
+  end
 end
 
 unless ENV.include?("SERVER_ADDR")

@@ -41,6 +41,10 @@ impl ServerContext {
         self.software.as_str()
     }
 
+    pub fn server_name(&self) -> &str {
+        self.hostname.as_str()
+    }
+
     pub fn script_filename<'a>(&self, path: &'a str) -> Option<(PathBuf, &'a str)> {
         let script_path = path.strip_prefix("/cgi-bin/")?;
         let (filename, extra_path) = script_path

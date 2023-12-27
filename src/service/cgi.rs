@@ -91,6 +91,7 @@ impl CommonGatewayInterface {
             .env("GATEWAY_INTERFACE", "CGI/1.1")
             .env("SERVER_PROTOCOL", format!("{:?}", request.version))
             .env("SCRIPT_NAME", format!("/cgi-bin/{}", script.display()))
+            .env("SERVER_NAME", context.server_name())
             .env("SERVER_ADDR", context.ip_address())
             .env("SERVER_PORT", context.port())
             .env("REMOTE_ADDR", remote_address.ip().to_string())
