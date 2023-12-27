@@ -48,5 +48,61 @@ if ENV.include?("PATH_INFO")
     end
 end
 
+if ENV.include?("QUERY_STRING")
+  # TODO
+end
+
+unless ENV.include?("REMOTE_ADDR")
+  require "ipaddr"
+  address = IPAddr.new(ENV["REMOTE_ADDR"]) rescue nil
+
+  if address.nil?
+    abort("Remote address '#{ENV["REMOTE_ADDR"]}' must be a valid IP address.")
+  end
+end
+
+unless %w[GET HEAD POST PUT DELETE CONNECT OPTIONS TRACE PATCH].include?(ENV["REQUEST_METHOD"])
+  abort("Invalid HTTP request method: #{ENV["REQUEST_METHOD"]}.")
+end
+
+unless ENV["SCRIPT_NAME"] == "/cgi-bin/#{__FILE__}"
+  abort("'#{ENV["SCRIPT_NAME"]}' script name must be a valid URI path prefix (i.e. #{"/cgi-bin/#{__FILE__}"})")
+end
+
+if ENV["SERVER_NAME"]
+  # TODO
+end
+
+unless ENV.include?("SERVER_ADDR")
+  require "ipaddr"
+  address = IPAddr.new(ENV["SERVER_ADDR"]) rescue nil
+
+  if address.nil?
+    abort("Server address '#{ENV["SERVER_ADDR"]}' must be a valid IP address.")
+  end
+end
+
+unless (0...2**16).include?(ENV["SERVER_PORT"].to_i)
+  abort("Server port '#{ENV["SERVER_PORT"]}' must be be a non-negative number smaller than 2^16.")
+end
+
+unless %w[HTTP/1.1].include?(ENV["SERVER_PROTOCOL"])
+  abort("Server protocol '#{ENV["SERVER_PROTOCOL"]}' must be either HTTP or HTTPS.")
+end
+
+if ENV["SERVER_SOFTWARE"]
+  program, version = ENV["SERVER_SOFTWARE"].split("/")
+
+  unless program.downcase == "tortuga"
+    abort("Server software '#{ENV["SERVER_SOFTWARE"]}' must have 'tortuga' as the program name.")
+  end
+
+  version = Gem::Version.new(version) rescue nil
+
+  if version.nil?
+    abort("Server software '#{ENV["SERVER_SOFTWARE"]}' does not contain a valid version.")
+  end
+end
+
 STDOUT.write("\r\n")
 STDOUT.write(input)

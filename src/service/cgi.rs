@@ -80,9 +80,7 @@ impl CommonGatewayInterface {
                 .map_err(|_| io::Error::from(io::ErrorKind::InvalidData));
         };
 
-        script = script.canonicalize()?;
-
-        let mut command = Command::new(script);
+        let mut command = Command::new(&script);
 
         command
             .kill_on_drop(true)
@@ -92,7 +90,7 @@ impl CommonGatewayInterface {
             .env("SERVER_SOFTWARE", context.software())
             .env("GATEWAY_INTERFACE", "CGI/1.1")
             .env("SERVER_PROTOCOL", format!("{:?}", request.version))
-            .env("SCRIPT_NAME", "/")
+            .env("SCRIPT_NAME", format!("/cgi-bin/{}", script.display()))
             .env("SERVER_ADDR", context.ip_address())
             .env("SERVER_PORT", context.port())
             .env("REMOTE_ADDR", remote_address.ip().to_string())
