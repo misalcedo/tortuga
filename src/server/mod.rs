@@ -136,7 +136,7 @@ mod tests {
 
         client
             .write_all(
-                b"GET /cgi-bin/assert.cgi/%20foo?--abc%205 HTTP/1.1\r\nHost: localhost\r\nUser-Agent: test\r\nAccept: */*\r\ncontent-length: 6\r\ncontent-type: application/octet-stream\r\n\r\nfoobar",
+                b"GET /cgi-bin/assert.cgi/%20foo?--abc%205+--d+42 HTTP/1.1\r\nHost: localhost\r\nUser-Agent: test\r\nAccept: */*\r\ncontent-length: 6\r\ncontent-type: application/octet-stream\r\n\r\nfoobar",
             ).await
             .unwrap();
 
