@@ -104,12 +104,22 @@ impl CommonGatewayInterface {
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit());
 
-        match decode_path(request.uri.path()) {
-            Ok(path_info) => {
-                command.env("PATH_INFO", path_info);
-            }
-            Err(path_info) => {
-                command.env("PATH_INFO", path_info);
+        if !extra_path.is_empty() {
+            match decode_path(extra_path) {
+                Ok(path_info) => {
+                    command.env("PATH_INFO", path_info.as_str());
+                    command.env(
+                        "PATH_TRANSLATED",
+                        context.translate_path(path_info.as_str()),
+                    );
+                }
+                Err(path_info) => {
+                    command.env("PATH_INFO", path_info);
+                    command.env(
+                        "PATH_TRANSLATED",
+                        context.translate_path(path_info.as_str()),
+                    );
+                }
             }
         }
 

@@ -58,6 +58,10 @@ impl ServerContext {
         Some((file_path, extra_path))
     }
 
+    pub fn translate_path(&self, path: &str) -> PathBuf {
+        self.document_root.join(path)
+    }
+
     pub fn working_directory(&self) -> &OsStr {
         self.document_root.as_os_str()
     }
