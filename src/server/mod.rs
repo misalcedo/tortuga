@@ -127,6 +127,30 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn head() {
+        let mut client = connect_to_server().await;
+
+        let mut output = vec![0; 1024];
+
+        let response_start = "HTTP/1.1 200 OK\r\ncontent-length: 0\r\ndate: ";
+        let response_end = " GMT\r\n\r\n";
+
+        client
+            .write_all(
+                b"HEAD /cgi-bin/hello.cgi/%20foo?--abc%205 HTTP/1.1\r\nHost: localhost\r\nUser-Agent: test\r\nAccept: */*\r\n\r\n",
+            ).await
+            .unwrap();
+
+        client.read(&mut output).await.unwrap();
+
+        let response = String::from_utf8_lossy(output.as_slice());
+        let end = response.find('\0').unwrap_or_else(|| response.len());
+
+        assert_eq!(&response[..response_start.len()], response_start);
+        assert_eq!(&response[(end - response_end.len())..end], response_end);
+    }
+
+    #[tokio::test]
     async fn validate() {
         let mut client = connect_to_server().await;
         let mut output = vec![0; 1024];
