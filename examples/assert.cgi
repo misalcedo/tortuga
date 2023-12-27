@@ -53,7 +53,7 @@ if ENV.include?("QUERY_STRING") && %w[GET HEAD].include?(ENV["REQUEST_METHOD"]&.
     require "cgi"
 
     unless ARGV.join(" ") == CGI::unescape(ENV["QUERY_STRING"])
-      abort("Query string '#{ENV["QUERY_STRING"]}' without '=' must be passed in as the command-line arguments (i.e. #{CGI::unescape(ENV["QUERY_STRING"]).split(" ").inspect}).")
+      abort("Query string '#{ENV["QUERY_STRING"]}' without '=' must be passed in as the command-line arguments (expected: #{CGI::unescape(ENV["QUERY_STRING"]).split(" ").inspect}, actual: #{ARGV.inspect}).")
     end
   end
 end

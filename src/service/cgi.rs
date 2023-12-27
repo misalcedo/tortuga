@@ -86,8 +86,13 @@ impl CommonGatewayInterface {
             if let Some(query) = request.uri.query() {
                 if !query.contains('=') {
                     for search_word in query.split('+') {
-                        if let Ok(decoded_query) = decode_path(search_word) {
-                            command.args(decoded_query.split(' '));
+                        match decode_path(search_word) {
+                            Ok(q) => {
+                                command.args(q.split(' '));
+                            }
+                            Err(q) => {
+                                command.args(q.split(' '));
+                            }
                         }
                     }
                 }
