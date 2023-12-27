@@ -80,6 +80,19 @@ impl CommonGatewayInterface {
                 .map_err(|_| io::Error::from(io::ErrorKind::InvalidData));
         };
 
+        // <scheme> "://" <server-name> ":" <server-port>
+        //                    <script-path> <extra-path> "?" <query-string>
+        let script_name = format!("/cgi-bin/{}", script.display());
+        let script_uri = format!(
+            "{}://{}:{}{}{}?{}",
+            context.scheme(),
+            context.server_name(),
+            context.port(),
+            &script_name,
+            &extra_path,
+            request.uri.query().unwrap_or("")
+        );
+
         let mut command = Command::new(&script);
 
         if request.method == http::Method::GET || request.method == http::Method::HEAD {
@@ -107,7 +120,8 @@ impl CommonGatewayInterface {
             .env("SERVER_SOFTWARE", context.software())
             .env("GATEWAY_INTERFACE", "CGI/1.1")
             .env("SERVER_PROTOCOL", format!("{:?}", request.version))
-            .env("SCRIPT_NAME", format!("/cgi-bin/{}", script.display()))
+            .env("SCRIPT_URI", script_uri)
+            .env("SCRIPT_NAME", script_name)
             .env("SERVER_NAME", context.server_name())
             .env("SERVER_ADDR", context.ip_address())
             .env("SERVER_PORT", context.port())

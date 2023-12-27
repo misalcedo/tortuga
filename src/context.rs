@@ -10,6 +10,7 @@ pub struct ServerContext {
     ip_address: String,
     port: String,
     path: &'static str,
+    scheme: String,
     software: String,
 }
 
@@ -19,7 +20,7 @@ impl ServerContext {
         let port = address.port().to_string();
 
         let path: &'static str = env!("PATH");
-
+        let scheme = String::from("http");
         let software = format!("{}/{}", about::PROGRAM, about::VERSION);
 
         Self {
@@ -29,12 +30,17 @@ impl ServerContext {
             ip_address,
             port,
             path,
+            scheme,
             software,
         }
     }
 
     pub fn path(&self) -> &str {
         self.path
+    }
+
+    pub fn scheme(&self) -> &str {
+        self.scheme.as_str()
     }
 
     pub fn software(&self) -> &str {

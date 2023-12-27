@@ -10,6 +10,39 @@ ENV.to_h.each do |key, value|
   end
 end
 
+if ENV.include?("SCRIPT_URI")
+  require "uri"
+
+  uri = URI.parse(ENV["SCRIPT_URI"]) rescue nil
+  if uri.nil?
+    abort("Scrip URI '#{ENV["SCRIPT_URI"]}' is not a valid URI.")
+  end
+
+  if ENV.include?("SERVER_NAME") && uri.host != ENV["SERVER_NAME"]
+    abort("Scrip URI '#{ENV["SCRIPT_URI"]}' does not have the server name '#{ENV["SERVER_NAME"]}' as the host.")
+  end
+
+  if ENV.include?("SERVER_PORT") && uri.port != ENV["SERVER_PORT"].to_i
+    abort("Scrip URI '#{ENV["SCRIPT_URI"]}' does not have the server name '#{ENV["SERVER_PORT"]}' as the port.")
+  end
+
+  if ENV.include?("SCRIPT_NAME") && !uri.path.start_with?(ENV["SCRIPT_NAME"])
+    abort("Scrip URI '#{ENV["SCRIPT_URI"]}' does not have the script name '#{ENV["SCRIPT_NAME"]}' as the path prefix.")
+  end
+
+  if ENV.include?("PATH_INFO")
+    require "uri"
+
+    unless uri.path.end_with?(URI.escape(ENV["PATH_INFO"]))
+      abort("Scrip URI '#{ENV["SCRIPT_URI"]}' does not have the script name '#{ENV["PATH_INFO"]}' as the path suffix.")
+    end
+  end
+
+  if ENV.include?("QUERY_STRING") && uri.query != ENV["QUERY_STRING"]
+    abort("Scrip URI '#{ENV["SCRIPT_URI"]}' does not have the query string '#{ENV["QUERY_STRING"]}' as the query.")
+  end
+end
+
 input = STDIN.read
 
 unless input.empty?
