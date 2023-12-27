@@ -33,7 +33,7 @@ if ENV.include?("SCRIPT_URI")
   if ENV.include?("PATH_INFO")
     require "uri"
 
-    unless uri.path.end_with?(URI.escape(ENV["PATH_INFO"]))
+    unless uri.path.end_with?(URI.encode_uri_component(ENV["PATH_INFO"]))
       abort("Scrip URI '#{ENV["SCRIPT_URI"]}' does not have the script name '#{ENV["PATH_INFO"]}' as the path suffix.")
     end
   end
@@ -99,6 +99,11 @@ unless ENV.include?("REMOTE_ADDR")
     abort("Remote address '#{ENV["REMOTE_ADDR"]}' must be a valid IP address.")
   end
 end
+
+unless (0...2**16).include?(ENV["REMOTE_PORT"].to_i)
+  abort("Remote port '#{ENV["REMOTE_PORT"]}' must be be a non-negative number smaller than 2^16.")
+end
+
 
 unless %w[GET HEAD POST PUT DELETE CONNECT OPTIONS TRACE PATCH].include?(ENV["REQUEST_METHOD"])
   abort("Invalid HTTP request method: #{ENV["REQUEST_METHOD"]}.")
