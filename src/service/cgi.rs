@@ -28,28 +28,20 @@ const MAX_BODY_BYTES: u64 = 1024 * 64;
 pub struct CommonGatewayInterface {
     context: Arc<ServerContext>,
     remote_address: SocketAddr,
+    request: Request<Incoming>,
 }
 
 impl CommonGatewayInterface {
-    pub fn new(context: Arc<ServerContext>, remote_address: SocketAddr) -> Self {
+    pub fn new(context: Arc<ServerContext>, remote_address: SocketAddr, request: Request<Incoming>) -> Self {
         Self {
             context,
             remote_address,
+            request
         }
     }
 
-    pub async fn run(self, stream: TcpStream) -> Result<(), hyper::Error> {
-        http1::Builder::new()
-            .serve_connection(TokioIo::new(stream), self)
-            .await
-    }
-
-    pub async fn serve(
-        context: Arc<ServerContext>,
-        remote_address: SocketAddr,
-        request: Request<Incoming>,
-    ) -> io::Result<Response<Full<Bytes>>> {
-        let upper = request.body().size_hint().upper().unwrap_or(u64::MAX);
+    pub async fn serve(self) -> io::Result<Response<Full<Bytes>>> {
+        let upper = self.request.body().size_hint().upper().unwrap_or(u64::MAX);
         if upper > MAX_BODY_BYTES {
             return Response::builder()
                 .status(StatusCode::PAYLOAD_TOO_LARGE)
@@ -59,7 +51,7 @@ impl CommonGatewayInterface {
                 .map_err(|_| io::Error::from(io::ErrorKind::InvalidData));
         }
 
-        let (request, body) = request.into_parts();
+        let (request, body) = self.request.into_parts();
         let mut input = body
             .collect()
             .await
@@ -73,7 +65,7 @@ impl CommonGatewayInterface {
             )
         });
 
-        let Some((script, extra_path)) = context.script_filename(request.uri.path()) else {
+        let Some((script, extra_path)) = self.context.script_filename(request.uri.path()) else {
             return Response::builder()
                 .status(StatusCode::NOT_FOUND)
                 .body(Full::from("Requested a non-CGI script path."))
@@ -85,9 +77,9 @@ impl CommonGatewayInterface {
         let script_name = format!("/cgi-bin/{}", script.display());
         let script_uri = format!(
             "{}://{}:{}{}{}?{}",
-            context.scheme(),
-            context.server_name(),
-            context.port(),
+            self.context.scheme(),
+            self.context.server_name(),
+            self.context.port(),
             &script_name,
             &extra_path,
             request.uri.query().unwrap_or("")
@@ -114,19 +106,19 @@ impl CommonGatewayInterface {
 
         command
             .kill_on_drop(true)
-            .current_dir(context.working_directory())
+            .current_dir(self.context.working_directory())
             .env_clear()
-            .env("PATH", context.path())
-            .env("SERVER_SOFTWARE", context.software())
+            .env("PATH", self.context.path())
+            .env("SERVER_SOFTWARE", self.context.software())
             .env("GATEWAY_INTERFACE", "CGI/1.1")
             .env("SERVER_PROTOCOL", format!("{:?}", request.version))
             .env("SCRIPT_URI", script_uri)
             .env("SCRIPT_NAME", script_name)
-            .env("SERVER_NAME", context.server_name())
-            .env("SERVER_ADDR", context.ip_address())
-            .env("SERVER_PORT", context.port())
-            .env("REMOTE_ADDR", remote_address.ip().to_string())
-            .env("REMOTE_PORT", remote_address.port().to_string())
+            .env("SERVER_NAME", self.context.server_name())
+            .env("SERVER_ADDR", self.context.ip_address())
+            .env("SERVER_PORT", self.context.port())
+            .env("REMOTE_ADDR", self.remote_address.ip().to_string())
+            .env("REMOTE_PORT", self.remote_address.port().to_string())
             .env("REQUEST_METHOD", request.method.as_str())
             .envs(headers)
             .envs(request.uri.query().map(|q| ("QUERY_STRING", q)))
@@ -140,12 +132,12 @@ impl CommonGatewayInterface {
                     command.env("PATH_INFO", path_info.as_str());
                     command.env(
                         "PATH_TRANSLATED",
-                        context.translate_path(path_info.as_str()),
+                        self.context.translate_path(path_info.as_str()),
                     );
                 }
                 Err(path_info) => {
                     command.env("PATH_INFO", path_info);
-                    command.env("PATH_TRANSLATED", context.translate_path(path_info));
+                    command.env("PATH_TRANSLATED", self.context.translate_path(path_info));
                 }
             }
         }
@@ -266,20 +258,6 @@ impl CommonGatewayInterface {
                 Ok(response)
             }
         }
-    }
-}
-
-impl Service<Request<Incoming>> for CommonGatewayInterface {
-    type Response = Response<Full<Bytes>>;
-    type Error = io::Error;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
-
-    fn call(&self, request: Request<Incoming>) -> Self::Future {
-        Box::pin(Self::serve(
-            self.context.clone(),
-            self.remote_address,
-            request,
-        ))
     }
 }
 

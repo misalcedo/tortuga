@@ -1,14 +1,22 @@
 use crate::{service, ServeOptions};
+use hyper::{Request, Response};
 use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use http::{Method, StatusCode};
+use http_body_util::Full;
+use hyper::body::{Bytes, Incoming};
+use hyper::server::conn::http1;
+use hyper_util::rt::TokioIo;
 use tokio::net::TcpListener;
 use tokio::select;
 
+mod router;
 mod shutdown;
 
 use crate::context::ServerContext;
 pub use shutdown::ShutdownSignal;
+use router::Router;
 
 ///    The server acts as an application gateway.  It receives the request
 ///    from the client, selects a CGI script to handle the request, converts
@@ -83,10 +91,11 @@ impl Server {
                     result?
                 }
             };
-            let handler =
-                service::CommonGatewayInterface::new(self.context.clone(), remote_address);
 
-            tokio::spawn(handler.run(stream));
+            let handler = http1::Builder::new()
+                .serve_connection(TokioIo::new(stream), Router::new(self.context.clone(), remote_address));
+
+            tokio::spawn(handler);
         }
 
         Ok(())
