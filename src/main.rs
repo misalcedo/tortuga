@@ -1,10 +1,8 @@
 use clap::{Parser, Subcommand};
 use http::uri::Uri;
 use std::collections::HashMap;
-use std::net::{SocketAddr, ToSocketAddrs};
 use std::path::Component::CurDir;
 use std::path::PathBuf;
-use std::str::FromStr;
 
 mod about;
 mod cgi;
@@ -12,23 +10,6 @@ mod context;
 mod server;
 mod service;
 mod variable;
-
-#[repr(transparent)]
-#[derive(Clone, Debug)]
-struct Interface(SocketAddr);
-
-impl FromStr for Interface {
-    type Err = std::io::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut addresses = s.to_socket_addrs()?;
-        let address = addresses
-            .next()
-            .ok_or_else(|| std::io::Error::from(std::io::ErrorKind::AddrNotAvailable))?;
-
-        Ok(Self(address))
-    }
-}
 
 #[derive(Parser)]
 #[command(author, version, about, long_about)]
@@ -40,25 +21,29 @@ struct Options {
     command: Option<Commands>,
 }
 
-#[derive(Parser)]
+#[derive(Clone, Parser)]
 struct ServeOptions {
     /// The document root path to load CGI scripts and other assets from.
     #[arg(value_name = "DOCUMENT_ROOT")]
     document_root: PathBuf,
 
     /// The path to CGI scripts; may be relative or absolute.
-    /// Relative paths are resolved relative to the document root.
+    /// Relative paths are resolved from the document root.
     #[arg(short, long, default_value=CurDir.as_os_str(), value_name = "CGI_BIN")]
     cgi_bin: PathBuf,
 
-    /// The TCP host and port for the server to listen on
+    /// The hostname of the local TCP interface for the server to listen on.
     #[arg(
-        short,
+        short = 'H',
         long,
-        default_value = "localhost:3000",
-        value_name = "INTERFACE"
+        default_value = "localhost",
+        value_name = "HOSTNAME"
     )]
-    interface: Interface,
+    hostname: String,
+
+    /// The TCP port for the server to listen on.
+    #[arg(short = 'P', long, default_value_t = 0, value_name = "PORT")]
+    port: u16,
 }
 
 #[derive(Parser)]
@@ -89,10 +74,19 @@ pub fn main() {
     // matches just as you would the top level cmd
     match options.command {
         Some(Commands::Serve(options)) => {
-            let server = server::Server::new(options.interface.0).unwrap();
+            let runtime = tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()
+                .expect("Unable to start an async runtime");
 
-            server
-                .serve(options.document_root)
+            runtime
+                .block_on(async {
+                    let server = server::Server::bind(options).await.unwrap();
+
+                    println!("Server listening on port {}", server.address().unwrap());
+
+                    server.serve().await
+                })
                 .expect("Unable to start the server");
         }
         Some(Commands::Invoke(options)) => {

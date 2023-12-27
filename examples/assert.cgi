@@ -5,7 +5,7 @@ if ARGV.any?
 end
 
 if ENV["PWD"] != __dir__
-  abort("Working directory must be the parent directory of the script.")
+  abort("Working directory (#{ENV["PWD"]}) must be the parent directory of the script (#{__dir__}).")
 end
 
 ENV.to_h.each do |key, value|

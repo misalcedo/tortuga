@@ -1,13 +1,12 @@
-use crate::about;
+use crate::{about, ServeOptions};
 use std::ffi::OsStr;
-use std::io;
 use std::net::SocketAddr;
-use std::path::Component::CurDir;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 pub struct ServerContext {
-    script: PathBuf,
-    script_path: PathBuf,
+    document_root: PathBuf,
+    cgi_bin: PathBuf,
+    hostname: String,
     ip_address: String,
     port: String,
     path: &'static str,
@@ -15,9 +14,7 @@ pub struct ServerContext {
 }
 
 impl ServerContext {
-    pub fn new(address: SocketAddr, script: PathBuf) -> io::Result<Self> {
-        let script_path = script.canonicalize()?;
-
+    pub fn new(address: SocketAddr, options: ServeOptions) -> Self {
         let ip_address = address.ip().to_string();
         let port = address.port().to_string();
 
@@ -25,14 +22,15 @@ impl ServerContext {
 
         let software = format!("{}/{}", about::PROGRAM, about::VERSION);
 
-        Ok(Self {
-            script,
-            script_path,
+        Self {
+            document_root: options.document_root,
+            cgi_bin: options.cgi_bin,
+            hostname: options.hostname,
             ip_address,
             port,
             path,
             software,
-        })
+        }
     }
 
     pub fn path(&self) -> &str {
@@ -43,15 +41,25 @@ impl ServerContext {
         self.software.as_str()
     }
 
-    pub fn script_filename(&self) -> &OsStr {
-        &self.script_path.as_os_str()
+    pub fn script_filename<'a>(&self, path: &'a str) -> Option<(PathBuf, &'a str)> {
+        let script_path = path.strip_prefix("/cgi-bin/")?;
+        let (filename, extra_path) = script_path
+            .split_once('/')
+            .unwrap_or_else(|| (script_path, &script_path[script_path.len()..]));
+
+        let mut file_path = if self.cgi_bin.is_relative() {
+            self.document_root.join(&self.cgi_bin)
+        } else {
+            self.cgi_bin.clone()
+        };
+
+        file_path.push(filename);
+
+        Some((file_path, extra_path))
     }
 
     pub fn working_directory(&self) -> &OsStr {
-        self.script_path
-            .parent()
-            .map(Path::as_os_str)
-            .unwrap_or_else(|| CurDir.as_os_str())
+        self.document_root.as_os_str()
     }
 
     pub fn ip_address(&self) -> &str {
