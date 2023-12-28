@@ -1,11 +1,7 @@
-use crate::{service, ServeOptions};
-use hyper::{Request, Response};
+use crate::ServeOptions;
 use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use http::{Method, StatusCode};
-use http_body_util::Full;
-use hyper::body::{Bytes, Incoming};
 use hyper::server::conn::http1;
 use hyper_util::rt::TokioIo;
 use tokio::net::TcpListener;
@@ -141,7 +137,7 @@ mod tests {
 
         let mut output = vec![0; 1024];
 
-        let response_start = "HTTP/1.1 200 OK\r\ncontent-length: 0\r\ndate: ";
+        let response_start = "HTTP/1.1 200 OK\r\ndate: ";
         let response_end = " GMT\r\n\r\n";
 
         client

@@ -1,4 +1,5 @@
 use std::future::Future;
+use std::io;
 use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -29,12 +30,22 @@ impl Service<Request<Incoming>> for Router {
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
     fn call(&self, request: Request<Incoming>) -> Self::Future {
+        let method = request.method().clone();
         let handler =
             service::CommonGatewayInterface::new(self.context.clone(), self.remote_address, request);
 
-        Box::pin(async {
+        Box::pin(async move {
             match handler.serve().await {
-                Ok(response) => Ok(response),
+                Ok(mut response) => {
+                    if method == Method::HEAD {
+                        *response.body_mut() = Full::default();
+                    }
+
+                    Ok(response)
+                },
+                Err(e) if e.kind() == io::ErrorKind::NotFound => Response::builder()
+                    .status(StatusCode::NOT_FOUND)
+                    .body(Full::default()),
                 Err(e) => Response::builder()
                     .status(StatusCode::INTERNAL_SERVER_ERROR)
                     .body(Full::from(e.to_string()))
