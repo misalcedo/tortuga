@@ -1,9 +1,9 @@
 use crate::ServeOptions;
+use hyper::server::conn::http1;
+use hyper_util::rt::TokioIo;
 use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use hyper::server::conn::http1;
-use hyper_util::rt::TokioIo;
 use tokio::net::TcpListener;
 use tokio::select;
 
@@ -11,8 +11,8 @@ mod router;
 mod shutdown;
 
 use crate::context::ServerContext;
-pub use shutdown::ShutdownSignal;
 use router::Router;
+pub use shutdown::ShutdownSignal;
 
 ///    The server acts as an application gateway.  It receives the request
 ///    from the client, selects a CGI script to handle the request, converts
@@ -88,8 +88,10 @@ impl Server {
                 }
             };
 
-            let handler = http1::Builder::new()
-                .serve_connection(TokioIo::new(stream), Router::new(self.context.clone(), remote_address));
+            let handler = http1::Builder::new().serve_connection(
+                TokioIo::new(stream),
+                Router::new(self.context.clone(), remote_address),
+            );
 
             tokio::spawn(handler);
         }
@@ -204,15 +206,111 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn not_cgi() {
+    async fn not_found() {
         let mut client = connect_to_server().await;
         let mut output = vec![0; 1024];
 
-        let response_start = "HTTP/1.1 404 Not Found\r\ncontent-length: 32\r\ndate: ";
-        let response_end = " GMT\r\n\r\nRequested a non-CGI script path.";
+        let response_start = "HTTP/1.1 404 Not Found\r\ncontent-length: 0\r\ndate: ";
+        let response_end = " GMT\r\n\r\n";
 
         client
-            .write_all(b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n\r\n")
+            .write_all(b"GET /fake/news HTTP/1.1\r\nHost: localhost\r\n\r\n\r\n")
+            .await
+            .unwrap();
+
+        client.read(&mut output).await.unwrap();
+
+        let response = String::from_utf8_lossy(output.as_slice());
+        let end = response.find('\0').unwrap_or_else(|| response.len());
+
+        assert_eq!(&response[..response_start.len()], response_start);
+        assert_eq!(&response[(end - response_end.len())..end], response_end);
+    }
+
+    #[tokio::test]
+    async fn static_asset() {
+        let mut client = connect_to_server().await;
+        let mut output = vec![0; 1024];
+
+        let response_start = "HTTP/1.1 200 OK\r\ncontent-length: 26\r\ndate: ";
+        let response_end = " GMT\r\n\r\nHello, World from tortuga!";
+
+        client
+            .write_all(
+                b"GET / HTTP/1.1\r\nHost: localhost\r\nUser-Agent: test\r\nAccept: */*\r\n\r\n",
+            )
+            .await
+            .unwrap();
+
+        client.read(&mut output).await.unwrap();
+
+        let response = String::from_utf8_lossy(output.as_slice());
+        let end = response.find('\0').unwrap_or_else(|| response.len());
+
+        assert_eq!(&response[..response_start.len()], response_start);
+        assert_eq!(&response[(end - response_end.len())..end], response_end);
+    }
+
+    #[tokio::test]
+    async fn static_asset_post() {
+        let mut client = connect_to_server().await;
+        let mut output = vec![0; 1024];
+
+        let response_start = "HTTP/1.1 405 Method Not Allowed\r\ncontent-length: 0\r\ndate: ";
+        let response_end = " GMT\r\n\r\n";
+
+        client
+            .write_all(
+                b"POST / HTTP/1.1\r\nHost: localhost\r\nUser-Agent: test\r\nAccept: */*\r\n\r\n",
+            )
+            .await
+            .unwrap();
+
+        client.read(&mut output).await.unwrap();
+
+        let response = String::from_utf8_lossy(output.as_slice());
+        let end = response.find('\0').unwrap_or_else(|| response.len());
+
+        assert_eq!(&response[..response_start.len()], response_start);
+        assert_eq!(&response[(end - response_end.len())..end], response_end);
+    }
+
+    #[tokio::test]
+    async fn static_asset_head() {
+        let mut client = connect_to_server().await;
+        let mut output = vec![0; 1024];
+
+        let response_start = "HTTP/1.1 200 OK\r\ncontent-length: 26\r\ndate: ";
+        let response_end = " GMT\r\n\r\n";
+
+        client
+            .write_all(
+                b"HEAD /index.html HTTP/1.1\r\nHost: localhost\r\nUser-Agent: test\r\nAccept: */*\r\n\r\n",
+            )
+            .await
+            .unwrap();
+
+        client.read(&mut output).await.unwrap();
+
+        let response = String::from_utf8_lossy(output.as_slice());
+        let end = response.find('\0').unwrap_or_else(|| response.len());
+
+        assert_eq!(&response[..response_start.len()], response_start);
+        assert_eq!(&response[(end - response_end.len())..end], response_end);
+    }
+
+    #[tokio::test]
+    async fn static_cgi() {
+        let mut client = connect_to_server().await;
+        let mut output = vec![0; 1024];
+
+        let response_start = "HTTP/1.1 403 Forbidden\r\ncontent-length: 0\r\ndate: ";
+        let response_end = " GMT\r\n\r\n";
+
+        client
+            .write_all(
+                b"GET /hello.cgi HTTP/1.1\r\nHost: localhost\r\nUser-Agent: test\r\nAccept: */*\r\n\r\n",
+            )
             .await
             .unwrap();
 

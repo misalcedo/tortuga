@@ -64,6 +64,16 @@ impl ServerContext {
         Some((file_path, extra_path))
     }
 
+    pub fn resolve_path(&self, path: &str) -> PathBuf {
+        let mut normalized_path = path.strip_prefix("/").unwrap_or(path);
+
+        if normalized_path.is_empty() {
+            normalized_path = "index.html";
+        }
+
+        self.document_root.join(normalized_path)
+    }
+
     pub fn translate_path(&self, path: &str) -> PathBuf {
         self.document_root.join(path)
     }
