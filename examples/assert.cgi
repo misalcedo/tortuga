@@ -33,7 +33,7 @@ if ENV.include?("SCRIPT_URI")
   if ENV.include?("PATH_INFO")
     require "uri"
 
-    unless uri.path.end_with?(URI.encode_uri_component(ENV["PATH_INFO"]))
+    unless uri.path.end_with?(URI.respond_to?(:encode) ? URI.encode(ENV["PATH_INFO"]) : URI.encode_uri_component(ENV["PATH_INFO"]))
       abort("Scrip URI '#{ENV["SCRIPT_URI"]}' does not have the script name '#{ENV["PATH_INFO"]}' as the path suffix.")
     end
   end
