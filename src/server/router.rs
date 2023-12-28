@@ -62,13 +62,16 @@ impl Router {
 
         let response = handler.serve().await?;
 
-        if !response.headers().contains_key(http::header::CONTENT_TYPE) {
-            Err(io::Error::new(
-                io::ErrorKind::Unsupported,
-                "CGI script did not set the content-type.",
-            ))
-        } else {
-            Ok(response)
+        match response.status() {
+            code if code.is_success()
+                && !response.headers().contains_key(http::header::CONTENT_TYPE) =>
+            {
+                Err(io::Error::from(io::ErrorKind::Unsupported))
+            }
+            code if code.is_redirection() && response.headers().len() > 1 => {
+                Err(io::Error::from(io::ErrorKind::Unsupported))
+            }
+            _ => Ok(response),
         }
     }
 
