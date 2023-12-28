@@ -157,5 +157,6 @@ if ENV["SERVER_SOFTWARE"]
   end
 end
 
+STDOUT.write("content-type: application/octet-stream\r\n")
 STDOUT.write("\r\n")
 STDOUT.write(input)

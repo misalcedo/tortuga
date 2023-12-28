@@ -114,7 +114,8 @@ mod tests {
         for _ in 0..10 {
             let mut output = vec![0; 1024];
 
-            let response_start = "HTTP/1.1 200 OK\r\ncontent-length: 14\r\ndate: ";
+            let response_start =
+                "HTTP/1.1 200 OK\r\ncontent-type: text/html\r\ncontent-length: 14\r\ndate: ";
             let response_end = " GMT\r\n\r\nHello, World!\n";
 
             client
@@ -139,7 +140,7 @@ mod tests {
 
         let mut output = vec![0; 1024];
 
-        let response_start = "HTTP/1.1 200 OK\r\ndate: ";
+        let response_start = "HTTP/1.1 200 OK\r\ncontent-type: text/html\r\ndate: ";
         let response_end = " GMT\r\n\r\n";
 
         client
@@ -162,7 +163,8 @@ mod tests {
         let mut client = connect_to_server().await;
         let mut output = vec![0; 1024];
 
-        let response_start = "HTTP/1.1 200 OK\r\ncontent-length: 6\r\ndate: ";
+        let response_start =
+            "HTTP/1.1 200 OK\r\ncontent-type: application/octet-stream\r\ncontent-length: 6\r\ndate: ";
         let response_end = " GMT\r\n\r\nfoobar";
 
         client

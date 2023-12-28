@@ -60,7 +60,16 @@ impl Router {
             request,
         );
 
-        handler.serve().await
+        let response = handler.serve().await?;
+
+        if !response.headers().contains_key(http::header::CONTENT_TYPE) {
+            Err(io::Error::new(
+                io::ErrorKind::Unsupported,
+                "CGI script did not set the content-type.",
+            ))
+        } else {
+            Ok(response)
+        }
     }
 
     async fn load_file(&self, method: &Method, path: &str) -> io::Result<Response<Full<Bytes>>> {
