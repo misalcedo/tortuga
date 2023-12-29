@@ -41,7 +41,13 @@ impl<Body> CgiResponse for Response<Body> {
     fn is_client_redirect(&self) -> bool {
         self.status() == StatusCode::OK
             && self.headers().len() == 1
-            && self.headers().contains_key(http::header::LOCATION)
+            && self
+                .headers()
+                .get(http::header::LOCATION)
+                .map(|l| {
+                    l.as_bytes().starts_with(b"http://") || l.as_bytes().starts_with(b"https://")
+                })
+                .unwrap_or(false)
     }
 
     fn is_client_redirect_with_document(&self) -> bool {
