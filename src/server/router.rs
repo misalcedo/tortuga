@@ -81,25 +81,10 @@ impl Router {
         self,
         request: Request<Incoming>,
     ) -> Result<Response<Full<Bytes>>, http::Error> {
-        let upper = request.body().size_hint().upper().unwrap_or(u64::MAX);
-        if upper > MAX_BODY_BYTES {
-            return Response::builder()
-                .status(StatusCode::PAYLOAD_TOO_LARGE)
-                .body(Full::from(format!(
-                    "Body size of {upper} bytes is too large. The largest supported body is {MAX_BODY_BYTES}"
-                )));
-        }
-
-        let (parts, body) = request.into_parts();
-        let body = match body.collect().await.map(Collected::to_bytes) {
-            Ok(b) => b,
-            Err(_) => {
-                return Response::builder()
-                    .status(StatusCode::UNPROCESSABLE_ENTITY)
-                    .body(Full::from("Unable to read the full request body."));
-            }
+        let request = match Self::collect_body(request).await {
+            Ok(value) => value,
+            Err(value) => return Ok(value),
         };
-        let request = Request::from_parts(parts, body);
 
         let ignore_body = request.method() == Method::HEAD;
         let result = match (request.method(), request.uri().path()) {
@@ -122,6 +107,32 @@ impl Router {
                 .status(StatusCode::INTERNAL_SERVER_ERROR)
                 .body(Full::from(e.to_string())),
         }
+    }
+
+    async fn collect_body(
+        request: Request<Incoming>,
+    ) -> Result<Request<Bytes>, Response<Full<Bytes>>> {
+        let upper = request.body().size_hint().upper().unwrap_or(u64::MAX);
+        if upper > MAX_BODY_BYTES {
+            let mut response = Response::new(Full::from(format!(
+                "Body size of {upper} bytes is too large. The largest supported body is {MAX_BODY_BYTES}"
+            )));
+            *response.status_mut() = StatusCode::PAYLOAD_TOO_LARGE;
+            return Err(response);
+        }
+
+        let (parts, body) = request.into_parts();
+        let body = match body.collect().await.map(Collected::to_bytes) {
+            Ok(b) => b,
+            Err(_) => {
+                let mut response =
+                    Response::new(Full::from("Unable to read the full request body."));
+                *response.status_mut() = StatusCode::UNPROCESSABLE_ENTITY;
+                return Err(response);
+            }
+        };
+
+        Ok(Request::from_parts(parts, body))
     }
 
     async fn invoke_cgi(&self, request: Request<Bytes>) -> io::Result<Response<Full<Bytes>>> {
