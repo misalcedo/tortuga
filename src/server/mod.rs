@@ -190,12 +190,12 @@ mod tests {
 
         let mut output = vec![0; 1024];
 
-        let response_start = "HTTP/1.1 500 Internal Server Error\r\ncontent-length: 11\r\ndate: ";
-        let response_end = " GMT\r\n\r\nunsupported";
+        let response_start = "HTTP/1.1 500 Internal Server Error\r\ncontent-length: 23\r\ndate: ";
+        let response_end = " GMT\r\n\r\nRedirect loop detected.";
 
         client
             .write_all(
-                b"GET /cgi-bin/redirect.cgi/ HTTP/1.1\r\nHost: localhost\r\nRedirect-To: /?foo\r\n\r\n",
+                b"GET /cgi-bin/redirect.cgi/ HTTP/1.1\r\nHost: localhost\r\nRedirect-To: /cgi-bin/redirect.cgi/\r\n\r\n",
             )
             .await
             .unwrap();

@@ -1,5 +1,6 @@
 use crate::context::ServerContext;
 use crate::service;
+use http::uri::PathAndQuery;
 use http::{HeaderValue, Method, Request, Response, StatusCode};
 use http_body_util::{BodyExt, Collected, Full};
 use hyper::body::{Body, Bytes, Incoming};
@@ -135,25 +136,54 @@ impl Router {
         Ok(Request::from_parts(parts, body))
     }
 
-    async fn invoke_cgi(&self, request: Request<Bytes>) -> io::Result<Response<Full<Bytes>>> {
-        let handler = service::CommonGatewayInterface::new(
-            self.context.clone(),
-            self.remote_address,
-            request,
-        );
+    async fn invoke_cgi(&self, mut request: Request<Bytes>) -> io::Result<Response<Full<Bytes>>> {
+        for _ in 0..10 {
+            let handler = service::CommonGatewayInterface::new(
+                self.context.clone(),
+                self.remote_address,
+                request.clone(),
+            );
 
-        let mut response = handler.serve().await?;
+            let mut response = handler.serve().await?;
 
-        if response.is_document() || response.is_client_redirect_with_document() {
-            Ok(response)
-        } else if response.is_local_redirect() {
-            Err(io::Error::from(io::ErrorKind::Unsupported))
-        } else if response.is_client_redirect() {
-            *response.status_mut() = StatusCode::FOUND;
-            Ok(response)
-        } else {
-            Err(io::Error::from(io::ErrorKind::Unsupported))
+            if response.is_document() || response.is_client_redirect_with_document() {
+                return Ok(response);
+            } else if response.is_local_redirect() {
+                let mut parts = request.uri().clone().into_parts();
+
+                let location = response
+                    .headers()
+                    .get(http::header::LOCATION)
+                    .map(HeaderValue::as_bytes)
+                    .ok_or_else(|| {
+                        io::Error::new(io::ErrorKind::InvalidInput, "Missing location header.")
+                    })?;
+                let path_and_query = PathAndQuery::try_from(location).map_err(|_| {
+                    io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "Invalid path and query in location header.",
+                    )
+                })?;
+
+                parts.path_and_query = Some(path_and_query);
+
+                *request.uri_mut() = http::Uri::from_parts(parts).map_err(|_| {
+                    io::Error::new(io::ErrorKind::InvalidInput, "Invalid URI parts.")
+                })?;
+
+                continue;
+            } else if response.is_client_redirect() {
+                *response.status_mut() = StatusCode::FOUND;
+                return Ok(response);
+            } else {
+                return Err(io::Error::from(io::ErrorKind::Unsupported));
+            }
         }
+
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "Redirect loop detected.",
+        ))
     }
 
     async fn load_file(&self, method: &Method, path: &str) -> io::Result<Response<Full<Bytes>>> {
