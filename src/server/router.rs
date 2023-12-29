@@ -2,7 +2,7 @@ use crate::context::ServerContext;
 use crate::service;
 use http::{HeaderValue, Method, Request, Response, StatusCode};
 use http_body_util::Full;
-use hyper::body::{Bytes, Incoming};
+use hyper::body::{Body, Bytes, Incoming, SizeHint};
 use hyper::service::Service;
 use std::future::Future;
 use std::io;
@@ -19,7 +19,7 @@ trait CgiResponse {
     fn is_client_redirect_with_document(&self) -> bool;
 }
 
-impl<Body> CgiResponse for Response<Body> {
+impl CgiResponse for Response<Full<Bytes>> {
     fn is_document(&self) -> bool {
         (self.status().is_success() || self.status().is_client_error())
             && self.headers().contains_key(http::header::CONTENT_TYPE)
@@ -27,6 +27,8 @@ impl<Body> CgiResponse for Response<Body> {
 
     fn is_local_redirect(&self) -> bool {
         self.status() == StatusCode::OK
+            && self.body().size_hint().lower() == 0
+            && self.body().size_hint().exact() == Some(0)
             && self.headers().len() == 1
             && self
                 .headers()
@@ -40,6 +42,8 @@ impl<Body> CgiResponse for Response<Body> {
 
     fn is_client_redirect(&self) -> bool {
         self.status() == StatusCode::OK
+            && self.body().size_hint().lower() == 0
+            && self.body().size_hint().exact() == Some(0)
             && self.headers().len() == 1
             && self
                 .headers()
