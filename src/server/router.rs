@@ -104,7 +104,7 @@ impl Router {
         if response.is_document() || response.is_client_redirect_with_document() {
             Ok(response)
         } else if response.is_local_redirect() {
-            Ok(response)
+            Err(io::Error::from(io::ErrorKind::Unsupported))
         } else if response.is_client_redirect() {
             *response.status_mut() = StatusCode::FOUND;
             Ok(response)

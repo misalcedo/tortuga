@@ -190,8 +190,8 @@ mod tests {
 
         let mut output = vec![0; 1024];
 
-        let response_start = "HTTP/1.1 500 Internal Server Error\r\ncontent-length: 0\r\ndate: ";
-        let response_end = " GMT\r\n\r\n";
+        let response_start = "HTTP/1.1 500 Internal Server Error\r\ncontent-length: 11\r\ndate: ";
+        let response_end = " GMT\r\n\r\nunsupported";
 
         client
             .write_all(
@@ -205,7 +205,6 @@ mod tests {
         let response = String::from_utf8_lossy(output.as_slice());
         let end = response.find('\0').unwrap_or_else(|| response.len());
 
-        assert_eq!(&response[..end], "");
         assert_eq!(&response[..response_start.len()], response_start);
         assert_eq!(&response[(end - response_end.len())..end], response_end);
     }
