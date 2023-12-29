@@ -12,6 +12,45 @@ use std::sync::Arc;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 
+trait CgiResponse {
+    fn is_document(&self) -> bool;
+    fn is_local_redirect(&self) -> bool;
+    fn is_client_redirect(&self) -> bool;
+    fn is_client_redirect_with_document(&self) -> bool;
+}
+
+impl<Body> CgiResponse for Response<Body> {
+    fn is_document(&self) -> bool {
+        (self.status().is_success() || self.status().is_client_error())
+            && self.headers().contains_key(http::header::CONTENT_TYPE)
+    }
+
+    fn is_local_redirect(&self) -> bool {
+        self.status() == StatusCode::OK
+            && self.headers().len() == 1
+            && self
+                .headers()
+                .get(http::header::LOCATION)
+                .map(|l| {
+                    // Local URI's must either have an empty path and query, have a non-empty path or have a non-empty query.
+                    l.is_empty() || l.as_bytes().starts_with(b"/") || l.as_bytes().starts_with(b"?")
+                })
+                .unwrap_or(false)
+    }
+
+    fn is_client_redirect(&self) -> bool {
+        self.status() == StatusCode::OK
+            && self.headers().len() == 1
+            && self.headers().contains_key(http::header::LOCATION)
+    }
+
+    fn is_client_redirect_with_document(&self) -> bool {
+        self.status().is_redirection()
+            && self.headers().contains_key(http::header::LOCATION)
+            && self.headers().contains_key(http::header::CONTENT_TYPE)
+    }
+}
+
 #[derive(Clone)]
 pub struct Router {
     context: Arc<ServerContext>,
@@ -60,18 +99,17 @@ impl Router {
             request,
         );
 
-        let response = handler.serve().await?;
+        let mut response = handler.serve().await?;
 
-        match response.status() {
-            code if code.is_success()
-                && !response.headers().contains_key(http::header::CONTENT_TYPE) =>
-            {
-                Err(io::Error::from(io::ErrorKind::Unsupported))
-            }
-            code if code.is_redirection() && response.headers().len() > 1 => {
-                Err(io::Error::from(io::ErrorKind::Unsupported))
-            }
-            _ => Ok(response),
+        if response.is_document() || response.is_client_redirect_with_document() {
+            Ok(response)
+        } else if response.is_local_redirect() {
+            Ok(response)
+        } else if response.is_client_redirect() {
+            *response.status_mut() = StatusCode::FOUND;
+            Ok(response)
+        } else {
+            Err(io::Error::from(io::ErrorKind::Unsupported))
         }
     }
 

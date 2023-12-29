@@ -1,8 +1,7 @@
 #!/usr/bin/env sh
 
-echo "Status: 302"
-echo "Content-Type: text/html"
 echo "Location: ${HTTP_REDIRECT_TO-}"
+echo "Foo: test"
 echo ""
 
 if test "${HTTP_DOCUMENT-}"

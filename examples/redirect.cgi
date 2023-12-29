@@ -1,10 +1,13 @@
 #!/usr/bin/env sh
 
-echo "Status: 302"
 echo "Location: ${HTTP_REDIRECT_TO-}"
-echo ""
 
 if test "${HTTP_DOCUMENT-}"
 then
-      echo "${HTTP_DOCUMENT-}"
+  echo "Status: 302"
+  echo "Content-Type: text/html"
+  echo ""
+  echo "${HTTP_DOCUMENT-}"
+else
+  echo ""
 fi
