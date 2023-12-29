@@ -1,8 +1,8 @@
 use crate::context::ServerContext;
 use crate::variable::ToMetaVariable;
-use http_body_util::{BodyExt, Full};
+use bytes::Bytes;
+use http_body_util::Full;
 use httparse::Status;
-use hyper::body::{Body, Bytes, Incoming};
 use hyper::http::{HeaderName, HeaderValue};
 use hyper::{Request, Response, StatusCode};
 use std::io;
@@ -17,49 +17,35 @@ use tokio::process::Command;
 use tokio::{select, try_join};
 use tokio_util::sync::CancellationToken;
 
-const MAX_BODY_BYTES: u64 = 1024 * 64;
-
 pub struct CommonGatewayInterface {
     context: Arc<ServerContext>,
     remote_address: SocketAddr,
-    request: Request<Incoming>,
+    request: Request<Bytes>,
 }
 
 impl CommonGatewayInterface {
-    pub fn new(context: Arc<ServerContext>, remote_address: SocketAddr, request: Request<Incoming>) -> Self {
+    pub fn new(
+        context: Arc<ServerContext>,
+        remote_address: SocketAddr,
+        request: Request<Bytes>,
+    ) -> Self {
         Self {
             context,
             remote_address,
-            request
+            request,
         }
     }
 
     pub async fn serve(self) -> io::Result<Response<Full<Bytes>>> {
-        let upper = self.request.body().size_hint().upper().unwrap_or(u64::MAX);
-        if upper > MAX_BODY_BYTES {
-            return Response::builder()
-                .status(StatusCode::PAYLOAD_TOO_LARGE)
-                .body(Full::new(Bytes::from(format!(
-                    "Body size of {upper} bytes is too large. The largest supported body is {MAX_BODY_BYTES}"
-                ))))
-                .map_err(|_| io::Error::from(io::ErrorKind::InvalidData));
-        }
-
-        let (request, body) = self.request.into_parts();
-        let mut input = body
-            .collect()
-            .await
-            .map_err(|_| io::Error::from(io::ErrorKind::InvalidData))?
-            .to_bytes();
-
-        let headers = request.headers.iter().map(|(key, value)| {
+        let headers = self.request.headers().iter().map(|(key, value)| {
             (
                 key.as_str().to_meta_variable(Some("HTTP")),
                 String::from_utf8_lossy(value.as_bytes()).to_string(),
             )
         });
 
-        let Some((script, extra_path)) = self.context.script_filename(request.uri.path()) else {
+        let Some((script, extra_path)) = self.context.script_filename(self.request.uri().path())
+        else {
             return Response::builder()
                 .status(StatusCode::NOT_FOUND)
                 .body(Full::from("Requested a non-CGI script path."))
@@ -76,13 +62,14 @@ impl CommonGatewayInterface {
             self.context.port(),
             &script_name,
             &extra_path,
-            request.uri.query().unwrap_or("")
+            self.request.uri().query().unwrap_or("")
         );
 
         let mut command = Command::new(&script);
 
-        if request.method == http::Method::GET || request.method == http::Method::HEAD {
-            if let Some(query) = request.uri.query() {
+        if self.request.method() == http::Method::GET || self.request.method() == http::Method::HEAD
+        {
+            if let Some(query) = self.request.uri().query() {
                 if !query.contains('=') {
                     for search_word in query.split('+') {
                         match decode_path(search_word) {
@@ -105,7 +92,7 @@ impl CommonGatewayInterface {
             .env("PATH", self.context.path())
             .env("SERVER_SOFTWARE", self.context.software())
             .env("GATEWAY_INTERFACE", "CGI/1.1")
-            .env("SERVER_PROTOCOL", format!("{:?}", request.version))
+            .env("SERVER_PROTOCOL", format!("{:?}", self.request.version()))
             .env("SCRIPT_URI", script_uri)
             .env("SCRIPT_NAME", script_name)
             .env("SERVER_NAME", self.context.server_name())
@@ -113,9 +100,9 @@ impl CommonGatewayInterface {
             .env("SERVER_PORT", self.context.port())
             .env("REMOTE_ADDR", self.remote_address.ip().to_string())
             .env("REMOTE_PORT", self.remote_address.port().to_string())
-            .env("REQUEST_METHOD", request.method.as_str())
+            .env("REQUEST_METHOD", self.request.method().as_str())
             .envs(headers)
-            .envs(request.uri.query().map(|q| ("QUERY_STRING", q)))
+            .envs(self.request.uri().query().map(|q| ("QUERY_STRING", q)))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit());
@@ -136,11 +123,12 @@ impl CommonGatewayInterface {
             }
         }
 
-        if input.len() > 0 {
-            command.env("CONTENT_LENGTH", input.len().to_string());
+        if self.request.body().len() > 0 {
+            command.env("CONTENT_LENGTH", self.request.body().len().to_string());
 
-            if let Some(Ok(value)) = request
-                .headers
+            if let Some(Ok(value)) = self
+                .request
+                .headers()
                 .get(hyper::header::CONTENT_TYPE)
                 .map(HeaderValue::to_str)
             {
@@ -156,6 +144,8 @@ impl CommonGatewayInterface {
         let cancel = CancellationToken::new();
         let stdin_cancel = cancel.child_token();
         let _cancel_guard = cancel.drop_guard();
+
+        let mut input = self.request.body().clone();
 
         tokio::spawn(async move {
             if let Some(mut stdin) = stdin.take() {
@@ -239,15 +229,14 @@ impl CommonGatewayInterface {
             Ok(_) => {
                 child.kill().await?;
 
-                let mut response =
-                    Response::new(Full::new(Bytes::from("Unable to wait for child process.")));
+                let mut response = Response::new(Full::from("Unable to wait for child process."));
                 *response.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
                 Ok(response)
             }
             Err(_) => {
                 child.kill().await?;
 
-                let mut response = Response::new(Full::new(Bytes::from("Request timed out.")));
+                let mut response = Response::new(Full::from("Request timed out."));
                 *response.status_mut() = StatusCode::GATEWAY_TIMEOUT;
                 Ok(response)
             }

@@ -1,8 +1,8 @@
 use crate::context::ServerContext;
 use crate::service;
 use http::{HeaderValue, Method, Request, Response, StatusCode};
-use http_body_util::Full;
-use hyper::body::{Body, Bytes, Incoming, SizeHint};
+use http_body_util::{BodyExt, Collected, Full};
+use hyper::body::{Body, Bytes, Incoming};
 use hyper::service::Service;
 use std::future::Future;
 use std::io;
@@ -11,6 +11,8 @@ use std::pin::Pin;
 use std::sync::Arc;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
+
+const MAX_BODY_BYTES: u64 = 1024 * 64;
 
 trait CgiResponse {
     fn is_document(&self) -> bool;
@@ -79,6 +81,26 @@ impl Router {
         self,
         request: Request<Incoming>,
     ) -> Result<Response<Full<Bytes>>, http::Error> {
+        let upper = request.body().size_hint().upper().unwrap_or(u64::MAX);
+        if upper > MAX_BODY_BYTES {
+            return Response::builder()
+                .status(StatusCode::PAYLOAD_TOO_LARGE)
+                .body(Full::from(format!(
+                    "Body size of {upper} bytes is too large. The largest supported body is {MAX_BODY_BYTES}"
+                )));
+        }
+
+        let (parts, body) = request.into_parts();
+        let body = match body.collect().await.map(Collected::to_bytes) {
+            Ok(b) => b,
+            Err(_) => {
+                return Response::builder()
+                    .status(StatusCode::UNPROCESSABLE_ENTITY)
+                    .body(Full::from("Unable to read the full request body."));
+            }
+        };
+        let request = Request::from_parts(parts, body);
+
         let ignore_body = request.method() == Method::HEAD;
         let result = match (request.method(), request.uri().path()) {
             (_, path) if path.starts_with("/cgi-bin/") => self.invoke_cgi(request).await,
@@ -102,7 +124,7 @@ impl Router {
         }
     }
 
-    async fn invoke_cgi(&self, request: Request<Incoming>) -> io::Result<Response<Full<Bytes>>> {
+    async fn invoke_cgi(&self, request: Request<Bytes>) -> io::Result<Response<Full<Bytes>>> {
         let handler = service::CommonGatewayInterface::new(
             self.context.clone(),
             self.remote_address,
