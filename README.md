@@ -113,11 +113,13 @@ $ wrk -c 1 -t 1 -d 1s 'http://localhost:3000/cgi-bin/echo.wcgi/extra/path?--foo+
 Running 1s test @ http://localhost:3000/cgi-bin/echo.wcgi/extra/path?--foo+bar
   1 threads and 1 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency   389.07ms   22.79ms 405.18ms  100.00%
-    Req/Sec     2.00      1.41     3.00    100.00%
-  2 requests in 1.01s, 200.00B read
-Requests/sec:      1.99
-Transfer/sec:     198.70B
+    Latency   110.82us   30.98us 690.00us   89.94%
+    Req/Sec     8.90k   564.01     9.71k    72.73%
+  9730 requests in 1.10s, 1.25MB read
+  Non-2xx or 3xx responses: 9730
+Requests/sec:   8847.71
+Transfer/sec:      1.14MB
+
 ```
 
 #### WCGI with Compilation Cache
@@ -136,13 +138,13 @@ Transfer/sec:    687.56KB
 
 #### CGI
 ```bash
-$ wrk -c 1 -t 1 -d 1s 'http://localhost:3000/cgi-bin/echo.cgi/extra/path?--foo+bar'
+$ wrk -c 1 -t 1 -d 1s 'http://localhost:3000/cgi-bin/echo.cgi/extra/path?--foo+bar' 
 Running 1s test @ http://localhost:3000/cgi-bin/echo.cgi/extra/path?--foo+bar
-1 threads and 1 connections
-Thread Stats   Avg      Stdev     Max   +/- Stdev
-Latency     4.71ms  418.66us   6.51ms   78.54%
-Req/Sec   212.55      8.63   230.00     63.64%
-233 requests in 1.10s, 22.75KB read
-Requests/sec:    211.58
-Transfer/sec:     20.66KB
+  1 threads and 1 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     4.51ms  618.60us   7.62ms   80.63%
+    Req/Sec   222.10     16.44   242.00     50.00%
+  222 requests in 1.00s, 21.68KB read
+Requests/sec:    220.94
+Transfer/sec:     21.58KB
 ```
