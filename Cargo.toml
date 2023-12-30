@@ -23,3 +23,6 @@ hyper-util = { version = "0.1", features = ["full"] }
 httparse = "1.8.0"
 http = "1.0.0"
 bytes = "1.5.0"
+wasmtime = "16.0.0"
+wasmtime-wasi = "16.0.0"
+wasi-common = "16.0.0"
