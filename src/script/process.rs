@@ -1,6 +1,4 @@
 use crate::context::RequestContext;
-use crate::uri::decode_percent_encoded;
-use crate::variable::ToMetaVariable;
 use bytes::Bytes;
 use http_body_util::Full;
 use httparse::Status;
@@ -16,104 +14,16 @@ use tokio::{select, try_join};
 use tokio_util::sync::CancellationToken;
 
 pub async fn serve(context: RequestContext, body: Bytes) -> io::Result<Response<Full<Bytes>>> {
-    let server = context.server();
-    let client = context.client();
-    let request = context.request();
-
-    let headers = request.headers.iter().map(|(key, value)| {
-        (
-            key.as_str().to_meta_variable(Some("HTTP")),
-            String::from_utf8_lossy(value.as_bytes()).to_string(),
-        )
-    });
-
-    let Some((script, extra_path)) = server.script_filename(request.uri.path()) else {
-        return Response::builder()
-            .status(StatusCode::NOT_FOUND)
-            .body(Full::from("Requested a non-CGI script path."))
-            .map_err(|_| io::Error::from(io::ErrorKind::InvalidData));
-    };
-
-    // <scheme> "://" <server-name> ":" <server-port>
-    //                    <script-path> <extra-path> "?" <query-string>
-    let script_name = format!("/cgi-bin/{}", script.display());
-    let script_uri = format!(
-        "{}://{}:{}{}{}?{}",
-        server.scheme(),
-        server.server_name(),
-        server.port(),
-        &script_name,
-        &extra_path,
-        request.uri.query().unwrap_or("")
-    );
-
-    let mut command = Command::new(&script);
-
-    if request.method == http::Method::GET || request.method == http::Method::HEAD {
-        if let Some(query) = request.uri.query() {
-            if !query.contains('=') {
-                for search_word in query.split('+') {
-                    match decode_percent_encoded(search_word) {
-                        Ok(q) => {
-                            command.args(q.split(' '));
-                        }
-                        Err(q) => {
-                            command.args(q.split(' '));
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    command
+    let mut child = Command::new(context.script())
         .kill_on_drop(true)
-        .current_dir(server.working_directory())
+        .current_dir(context.working_directory())
+        .args(context.arguments())
         .env_clear()
-        .env("PATH", server.path())
-        .env("SERVER_SOFTWARE", server.software())
-        .env("GATEWAY_INTERFACE", "CGI/1.1")
-        .env("SERVER_PROTOCOL", format!("{:?}", request.version))
-        .env("SCRIPT_URI", script_uri)
-        .env("SCRIPT_NAME", script_name)
-        .env("SERVER_NAME", server.server_name())
-        .env("SERVER_ADDR", server.ip_address())
-        .env("SERVER_PORT", server.port())
-        .env("REMOTE_ADDR", client.remote_ip_address())
-        .env("REMOTE_PORT", client.remote_port())
-        .env("REQUEST_METHOD", request.method.as_str())
-        .envs(headers)
-        .envs(request.uri.query().map(|q| ("QUERY_STRING", q)))
+        .envs(context.variables())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::inherit());
-
-    if !extra_path.is_empty() {
-        match decode_percent_encoded(extra_path) {
-            Ok(path_info) => {
-                command.env("PATH_INFO", path_info.as_str());
-                command.env("PATH_TRANSLATED", server.translate_path(path_info.as_str()));
-            }
-            Err(path_info) => {
-                command.env("PATH_INFO", path_info);
-                command.env("PATH_TRANSLATED", server.translate_path(path_info));
-            }
-        }
-    }
-
-    if body.len() > 0 {
-        command.env("CONTENT_LENGTH", body.len().to_string());
-
-        if let Some(Ok(value)) = request
-            .headers
-            .get(hyper::header::CONTENT_TYPE)
-            .map(HeaderValue::to_str)
-        {
-            command.env("CONTENT_TYPE", value);
-        }
-    }
-
-    let mut child = command.spawn()?;
+        .stderr(Stdio::inherit())
+        .spawn()?;
 
     let mut stdin = child.stdin.take();
     let mut stdout = child.stdout.take();

@@ -18,8 +18,8 @@ impl CgiHandler {
     }
 
     pub async fn serve(&self, request: Request<Bytes>) -> io::Result<Response<Full<Bytes>>> {
-        let (parts, body) = request.into_parts();
-        let context = RequestContext::new(self.server.clone(), self.client.clone(), parts);
+        let context = RequestContext::new(self.server.clone(), self.client.clone(), &request);
+        let body = request.into_body();
 
         script::process::serve(context, body).await
     }
