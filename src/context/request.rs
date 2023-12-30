@@ -88,7 +88,7 @@ impl RequestContext {
             }
         }
 
-        if request.body().len() > 0 {
+        if !request.body().is_empty() {
             variables.insert(
                 "CONTENT_LENGTH".to_string(),
                 request.body().len().to_string(),
@@ -111,7 +111,7 @@ impl RequestContext {
             variables.insert(key, value);
         }
 
-        let arguments = Self::extract_arguments(&request);
+        let arguments = Self::extract_arguments(request);
 
         Self {
             server,

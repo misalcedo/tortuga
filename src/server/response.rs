@@ -62,7 +62,7 @@ impl CgiResponse for Response<Full<Bytes>> {
     fn parse_headers(&mut self, output: &Bytes) -> io::Result<usize> {
         let mut headers = [httparse::EMPTY_HEADER; 256];
 
-        match httparse::parse_headers(&output, &mut headers) {
+        match httparse::parse_headers(output, &mut headers) {
             Ok(Status::Complete((last, headers))) => {
                 let offset = last;
 

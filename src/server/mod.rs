@@ -110,7 +110,7 @@ mod tests {
                 ).await
                 .unwrap();
 
-            client.read(&mut output).await.unwrap();
+            assert_ne!(client.read(&mut output).await.unwrap(), 0);
 
             let response = String::from_utf8_lossy(output.as_slice());
             let end = response.find('\0').unwrap_or_else(|| response.len());
@@ -135,7 +135,7 @@ mod tests {
             ).await
             .unwrap();
 
-        client.read(&mut output).await.unwrap();
+        assert_ne!(client.read(&mut output).await.unwrap(), 0);
 
         let response = String::from_utf8_lossy(output.as_slice());
         let end = response.find('\0').unwrap_or_else(|| response.len());
@@ -161,7 +161,7 @@ mod tests {
             .await
             .unwrap();
 
-        client.read(&mut output).await.unwrap();
+        assert_ne!(client.read(&mut output).await.unwrap(), 0);
 
         let response = String::from_utf8_lossy(output.as_slice());
         let end = response.find('\0').unwrap_or_else(|| response.len());
@@ -186,7 +186,7 @@ mod tests {
             .await
             .unwrap();
 
-        client.read(&mut output).await.unwrap();
+        assert_ne!(client.read(&mut output).await.unwrap(), 0);
 
         let response = String::from_utf8_lossy(output.as_slice());
         let end = response.find('\0').unwrap_or_else(|| response.len());
@@ -212,7 +212,7 @@ mod tests {
             .await
             .unwrap();
 
-        client.read(&mut output).await.unwrap();
+        assert_ne!(client.read(&mut output).await.unwrap(), 0);
 
         let response = String::from_utf8_lossy(output.as_slice());
         let end = response.find('\0').unwrap_or_else(|| response.len());
@@ -238,7 +238,7 @@ mod tests {
             .await
             .unwrap();
 
-        client.read(&mut output).await.unwrap();
+        assert_ne!(client.read(&mut output).await.unwrap(), 0);
 
         let response = String::from_utf8_lossy(output.as_slice());
         let end = response.find('\0').unwrap_or_else(|| response.len());
@@ -263,7 +263,7 @@ mod tests {
             .await
             .unwrap();
 
-        client.read(&mut output).await.unwrap();
+        assert_ne!(client.read(&mut output).await.unwrap(), 0);
 
         let response = String::from_utf8_lossy(output.as_slice());
         let end = response.find('\0').unwrap_or_else(|| response.len());
@@ -287,7 +287,7 @@ mod tests {
             ).await
             .unwrap();
 
-        client.read(&mut output).await.unwrap();
+        assert_ne!(client.read(&mut output).await.unwrap(), 0);
 
         let response = String::from_utf8_lossy(output.as_slice());
         let end = response.find('\0').unwrap_or_else(|| response.len());
@@ -312,7 +312,7 @@ mod tests {
             .await
             .unwrap();
 
-        client.read(&mut output).await.unwrap();
+        assert_ne!(client.read(&mut output).await.unwrap(), 0);
 
         let response = String::from_utf8_lossy(output.as_slice());
         let end = response.find('\0').unwrap_or_else(|| response.len());
@@ -334,7 +334,7 @@ mod tests {
             .await
             .unwrap();
 
-        client.read(&mut output).await.unwrap();
+        assert_ne!(client.read(&mut output).await.unwrap(), 0);
 
         let response = String::from_utf8_lossy(output.as_slice());
         let end = response.find('\0').unwrap_or_else(|| response.len());
@@ -358,7 +358,7 @@ mod tests {
             .await
             .unwrap();
 
-        client.read(&mut output).await.unwrap();
+        assert_ne!(client.read(&mut output).await.unwrap(), 0);
 
         let response = String::from_utf8_lossy(output.as_slice());
         let end = response.find('\0').unwrap_or_else(|| response.len());
@@ -382,7 +382,7 @@ mod tests {
             .await
             .unwrap();
 
-        client.read(&mut output).await.unwrap();
+        assert_ne!(client.read(&mut output).await.unwrap(), 0);
 
         let response = String::from_utf8_lossy(output.as_slice());
         let end = response.find('\0').unwrap_or_else(|| response.len());
@@ -406,7 +406,7 @@ mod tests {
             .await
             .unwrap();
 
-        client.read(&mut output).await.unwrap();
+        assert_ne!(client.read(&mut output).await.unwrap(), 0);
 
         let response = String::from_utf8_lossy(output.as_slice());
         let end = response.find('\0').unwrap_or_else(|| response.len());
@@ -430,7 +430,7 @@ mod tests {
             .await
             .unwrap();
 
-        client.read(&mut output).await.unwrap();
+        assert_ne!(client.read(&mut output).await.unwrap(), 0);
 
         let response = String::from_utf8_lossy(output.as_slice());
         let end = response.find('\0').unwrap_or_else(|| response.len());

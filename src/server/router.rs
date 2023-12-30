@@ -151,7 +151,7 @@ impl Router {
             _ => {
                 let mut response = Response::new(Full::default());
                 *response.status_mut() = StatusCode::METHOD_NOT_ALLOWED;
-                return Ok(response);
+                Ok(response)
             }
         }
     }

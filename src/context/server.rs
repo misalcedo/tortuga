@@ -65,7 +65,7 @@ impl ServerContext {
     }
 
     pub fn resolve_path(&self, path: &str) -> PathBuf {
-        let mut normalized_path = path.strip_prefix("/").unwrap_or(path);
+        let mut normalized_path = path.strip_prefix('/').unwrap_or(path);
 
         if normalized_path.is_empty() {
             normalized_path = "index.html";
