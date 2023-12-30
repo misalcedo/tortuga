@@ -1,40 +1,34 @@
-use crate::context::ServerContext;
-use crate::script;
-use crate::server::response::CgiResponse;
+use crate::context::{ClientContext, ServerContext};
+use crate::server::{self, request::CgiRequest, response::CgiResponse};
 use http::uri::PathAndQuery;
 use http::{HeaderValue, Method, Request, Response, StatusCode};
-use http_body_util::{BodyExt, Collected, Full};
+use http_body_util::{BodyExt, Full};
 use hyper::body::{Body, Bytes, Incoming};
 use hyper::service::Service;
+use server::handler::CgiHandler;
 use std::future::Future;
 use std::io;
-use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::Arc;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 
-const MAX_BODY_BYTES: u64 = 1024 * 64;
-
 #[derive(Clone)]
 pub struct Router {
-    context: Arc<ServerContext>,
-    remote_address: SocketAddr,
+    server: Arc<ServerContext>,
+    client: Arc<ClientContext>,
 }
 
 impl Router {
-    pub fn new(context: Arc<ServerContext>, remote_address: SocketAddr) -> Self {
-        Self {
-            context,
-            remote_address,
-        }
+    pub fn new(server: Arc<ServerContext>, client: Arc<ClientContext>) -> Self {
+        Self { server, client }
     }
 
     pub async fn route(
         self,
         request: Request<Incoming>,
     ) -> Result<Response<Full<Bytes>>, http::Error> {
-        let request = match Self::collect_body(request).await {
+        let request = match request.buffer().await {
             Ok(value) => value,
             Err(value) => return Ok(value),
         };
@@ -62,39 +56,10 @@ impl Router {
         }
     }
 
-    async fn collect_body(
-        request: Request<Incoming>,
-    ) -> Result<Request<Bytes>, Response<Full<Bytes>>> {
-        let upper = request.body().size_hint().upper().unwrap_or(u64::MAX);
-        if upper > MAX_BODY_BYTES {
-            let mut response = Response::new(Full::from(format!(
-                "Body size of {upper} bytes is too large. The largest supported body is {MAX_BODY_BYTES}"
-            )));
-            *response.status_mut() = StatusCode::PAYLOAD_TOO_LARGE;
-            return Err(response);
-        }
-
-        let (parts, body) = request.into_parts();
-        let body = match body.collect().await.map(Collected::to_bytes) {
-            Ok(b) => b,
-            Err(_) => {
-                let mut response =
-                    Response::new(Full::from("Unable to read the full request body."));
-                *response.status_mut() = StatusCode::UNPROCESSABLE_ENTITY;
-                return Err(response);
-            }
-        };
-
-        Ok(Request::from_parts(parts, body))
-    }
-
     async fn invoke_cgi(&self, mut request: Request<Bytes>) -> io::Result<Response<Full<Bytes>>> {
         for _ in 0..10 {
-            let handler = script::CommonGatewayInterface::new(
-                self.context.clone(),
-                self.remote_address,
-                request.clone(),
-            );
+            let handler =
+                CgiHandler::new(self.server.clone(), self.client.clone(), request.clone());
 
             let mut response = handler.serve().await?;
 
@@ -139,7 +104,7 @@ impl Router {
     }
 
     async fn load_file(&self, method: &Method, path: &str) -> io::Result<Response<Full<Bytes>>> {
-        let file_path = self.context.resolve_path(path);
+        let file_path = self.server.resolve_path(path);
 
         if file_path.extension() == Some("cgi".as_ref()) {
             let mut response = Response::new(Full::default());

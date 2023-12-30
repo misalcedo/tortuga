@@ -8,11 +8,12 @@ use tokio::net::TcpListener;
 use tokio::select;
 
 mod handler;
+mod request;
 mod response;
 mod router;
 mod shutdown;
 
-use crate::context::ServerContext;
+use crate::context::{ClientContext, ServerContext};
 use router::Router;
 pub use shutdown::ShutdownSignal;
 
@@ -90,9 +91,10 @@ impl Server {
                 }
             };
 
+            let client = Arc::new(ClientContext::new(remote_address));
             let handler = http1::Builder::new().serve_connection(
                 TokioIo::new(stream),
-                Router::new(self.context.clone(), remote_address),
+                Router::new(self.context.clone(), client),
             );
 
             tokio::spawn(handler);

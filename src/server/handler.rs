@@ -1,4 +1,4 @@
-use crate::context::ServerContext;
+use crate::context::{ClientContext, ServerContext};
 use crate::variable::ToMetaVariable;
 use bytes::Bytes;
 use http_body_util::Full;
@@ -7,7 +7,6 @@ use hyper::http::{HeaderName, HeaderValue};
 use hyper::{Request, Response, StatusCode};
 use std::io;
 use std::mem::size_of;
-use std::net::SocketAddr;
 use std::process::Stdio;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -17,21 +16,21 @@ use tokio::process::Command;
 use tokio::{select, try_join};
 use tokio_util::sync::CancellationToken;
 
-pub struct CommonGatewayInterface {
-    context: Arc<ServerContext>,
-    remote_address: SocketAddr,
+pub struct CgiHandler {
+    server: Arc<ServerContext>,
+    client: Arc<ClientContext>,
     request: Request<Bytes>,
 }
 
-impl CommonGatewayInterface {
+impl CgiHandler {
     pub fn new(
-        context: Arc<ServerContext>,
-        remote_address: SocketAddr,
+        server: Arc<ServerContext>,
+        client: Arc<ClientContext>,
         request: Request<Bytes>,
     ) -> Self {
         Self {
-            context,
-            remote_address,
+            server,
+            client,
             request,
         }
     }
@@ -44,7 +43,7 @@ impl CommonGatewayInterface {
             )
         });
 
-        let Some((script, extra_path)) = self.context.script_filename(self.request.uri().path())
+        let Some((script, extra_path)) = self.server.script_filename(self.request.uri().path())
         else {
             return Response::builder()
                 .status(StatusCode::NOT_FOUND)
@@ -57,9 +56,9 @@ impl CommonGatewayInterface {
         let script_name = format!("/cgi-bin/{}", script.display());
         let script_uri = format!(
             "{}://{}:{}{}{}?{}",
-            self.context.scheme(),
-            self.context.server_name(),
-            self.context.port(),
+            self.server.scheme(),
+            self.server.server_name(),
+            self.server.port(),
             &script_name,
             &extra_path,
             self.request.uri().query().unwrap_or("")
@@ -87,19 +86,19 @@ impl CommonGatewayInterface {
 
         command
             .kill_on_drop(true)
-            .current_dir(self.context.working_directory())
+            .current_dir(self.server.working_directory())
             .env_clear()
-            .env("PATH", self.context.path())
-            .env("SERVER_SOFTWARE", self.context.software())
+            .env("PATH", self.server.path())
+            .env("SERVER_SOFTWARE", self.server.software())
             .env("GATEWAY_INTERFACE", "CGI/1.1")
             .env("SERVER_PROTOCOL", format!("{:?}", self.request.version()))
             .env("SCRIPT_URI", script_uri)
             .env("SCRIPT_NAME", script_name)
-            .env("SERVER_NAME", self.context.server_name())
-            .env("SERVER_ADDR", self.context.ip_address())
-            .env("SERVER_PORT", self.context.port())
-            .env("REMOTE_ADDR", self.remote_address.ip().to_string())
-            .env("REMOTE_PORT", self.remote_address.port().to_string())
+            .env("SERVER_NAME", self.server.server_name())
+            .env("SERVER_ADDR", self.server.ip_address())
+            .env("SERVER_PORT", self.server.port())
+            .env("REMOTE_ADDR", self.client.remote_ip_address())
+            .env("REMOTE_PORT", self.client.remote_port())
             .env("REQUEST_METHOD", self.request.method().as_str())
             .envs(headers)
             .envs(self.request.uri().query().map(|q| ("QUERY_STRING", q)))
@@ -113,12 +112,12 @@ impl CommonGatewayInterface {
                     command.env("PATH_INFO", path_info.as_str());
                     command.env(
                         "PATH_TRANSLATED",
-                        self.context.translate_path(path_info.as_str()),
+                        self.server.translate_path(path_info.as_str()),
                     );
                 }
                 Err(path_info) => {
                     command.env("PATH_INFO", path_info);
-                    command.env("PATH_TRANSLATED", self.context.translate_path(path_info));
+                    command.env("PATH_TRANSLATED", self.server.translate_path(path_info));
                 }
             }
         }
