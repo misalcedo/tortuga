@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
-if ENV["PWD"] != __dir__
-  abort("Working directory (#{ENV["PWD"]}) must be the parent directory of the script (#{__dir__}).")
+if Dir.pwd != __dir__
+  abort("Working directory (#{Dir.pwd}) must be the parent directory of the script (#{__dir__}).")
 end
 
 ENV.to_h.each do |key, value|
