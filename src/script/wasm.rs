@@ -1,22 +1,17 @@
 use crate::context::RequestContext;
 use bytes::Bytes;
-use http::Response;
-use http_body_util::Full;
 use std::io;
 use wasi_common::pipe::{ReadPipe, WritePipe};
 use wasmtime::{Config, Engine, Linker, Module, Store};
 use wasmtime_wasi::WasiCtxBuilder;
 
-pub async fn serve(context: RequestContext, body: Bytes) -> io::Result<Response<Full<Bytes>>> {
+pub async fn serve(context: RequestContext, body: Bytes) -> io::Result<Bytes> {
     serve_wasmtime(context, body)
         .await
         .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
 }
 
-async fn serve_wasmtime(
-    context: RequestContext,
-    body: Bytes,
-) -> Result<Response<Full<Bytes>>, wasmtime::Error> {
+async fn serve_wasmtime(context: RequestContext, body: Bytes) -> Result<Bytes, wasmtime::Error> {
     let mut configuration = Config::new();
 
     configuration
@@ -46,5 +41,5 @@ async fn serve_wasmtime(
         .typed::<(), ()>(&store)?
         .call(&mut store, ())?;
 
-    Ok(Response::new(Full::default()))
+    Ok(Bytes::new())
 }

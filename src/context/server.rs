@@ -51,15 +51,15 @@ impl ServerContext {
         self.hostname.as_str()
     }
 
-    pub fn script_filename<'a>(&self, path: &'a str) -> Result<(PathBuf, &'a str), &'a str> {
-        let script_path = path.strip_prefix("/cgi-bin/").ok_or(path)?;
+    pub fn script_filename<'a>(&self, path: &'a str) -> Option<(PathBuf, &'a str)> {
+        let script_path = path.strip_prefix("/cgi-bin/")?;
         let (filename, extra_path) = script_path.split_once('/').unwrap_or((script_path, ""));
 
         let mut file_path = self.cgi_bin.clone();
 
         file_path.push(filename);
 
-        Ok((file_path, extra_path))
+        Some((file_path, extra_path))
     }
 
     pub fn resolve_path(&self, path: &str) -> PathBuf {

@@ -1,6 +1,8 @@
 use crate::context::{ClientContext, RequestContext, ServerContext};
 use crate::script;
+use crate::server::response::CgiResponse;
 use bytes::Bytes;
+use http::StatusCode;
 use http_body_util::Full;
 use hyper::{Request, Response};
 use std::io;
@@ -21,7 +23,31 @@ impl CgiHandler {
         let context = RequestContext::new(self.server.clone(), self.client.clone(), &request);
         let body = request.into_body();
 
-        script::process::serve(context, body).await
+        let extension = context.script()?.extension();
+        let output = if extension == Some("wcgi".as_ref()) {
+            script::wasm::serve(context, body).await
+        } else if extension == Some("cgi".as_ref()) {
+            script::process::serve(context, body).await
+        } else {
+            Err(io::Error::new(
+                io::ErrorKind::Unsupported,
+                "Invalid file extension; must be either cgi or wcgi.",
+            ))
+        }?;
+
+        let mut response = Response::new(Full::from(output.clone()));
+
+        if output.is_empty() {
+            *response.status_mut() = StatusCode::BAD_GATEWAY;
+        }
+
+        let offset = response.parse_headers(&output)?;
+
+        if offset != 0 {
+            *response.body_mut() = Full::from(output.slice(offset..));
+        }
+
+        Ok(response)
     }
 }
 

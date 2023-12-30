@@ -5,13 +5,15 @@ use bytes::Bytes;
 use http::{HeaderValue, Request};
 use std::collections::HashMap;
 use std::ffi::OsStr;
+use std::io;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 pub struct RequestContext {
     server: Arc<ServerContext>,
     variables: HashMap<String, String>,
     arguments: Vec<String>,
-    script: String,
+    script: Option<PathBuf>,
 }
 
 impl RequestContext {
@@ -21,13 +23,16 @@ impl RequestContext {
         request: &Request<Bytes>,
     ) -> Self {
         let (script, extra_path) = match server.script_filename(request.uri().path()) {
-            Ok((script, extra_path)) => (script.display().to_string(), extra_path),
-            Err(extra_path) => (String::new(), extra_path),
+            Some((script, extra_path)) => (Some(script), extra_path),
+            None => (None, request.uri().path()),
         };
 
         let mut variables = HashMap::with_capacity(32);
 
-        let script_name = format!("/cgi-bin/{}", script);
+        let script_name = script
+            .as_ref()
+            .map(|s| format!("/cgi-bin/{}", s.display()))
+            .unwrap_or_else(String::new);
         let script_uri = format!(
             "{}://{}:{}{}{}?{}",
             server.scheme(),
@@ -141,8 +146,13 @@ impl RequestContext {
         self.server.working_directory()
     }
 
-    pub fn script(&self) -> &str {
-        self.script.as_str()
+    pub fn script(&self) -> io::Result<&PathBuf> {
+        self.script.as_ref().ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::NotFound,
+                "Unable to extract CGI script file path from URI path.",
+            )
+        })
     }
 
     pub fn arguments(&self) -> impl Iterator<Item = &str> {
