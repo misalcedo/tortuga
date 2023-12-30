@@ -28,7 +28,7 @@ jobs:
         with:
           command: fmt
       - name: Upload formatting and lint fixes
-        if: ${{ github.ref_name == "main" }}
+        if: ${{ github.ref_name }} == "main"
         run: |
           if [ -n "$(git status --porcelain)" ]
           then
