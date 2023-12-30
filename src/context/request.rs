@@ -31,6 +31,7 @@ impl RequestContext {
 
         let script_name = script
             .as_ref()
+            .and_then(|s| s.strip_prefix(server.working_directory()).ok())
             .map(|s| format!("/cgi-bin/{}", s.display()))
             .unwrap_or_else(String::new);
         let script_uri = format!(

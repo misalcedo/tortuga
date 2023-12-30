@@ -55,7 +55,12 @@ impl ServerContext {
 
     pub fn script_filename<'a>(&self, path: &'a str) -> Option<(PathBuf, &'a str)> {
         let script_path = path.strip_prefix("/cgi-bin/")?;
-        let (filename, extra_path) = script_path.split_once('/').unwrap_or((script_path, ""));
+
+        let index = script_path
+            .chars()
+            .position(|c| c == '/')
+            .unwrap_or_else(|| script_path.len());
+        let (filename, extra_path) = script_path.split_at(index);
 
         let mut file_path = self.cgi_bin.clone();
 
@@ -75,7 +80,8 @@ impl ServerContext {
     }
 
     pub fn translate_path(&self, path: &str) -> PathBuf {
-        self.document_root.join(path)
+        self.document_root
+            .join(path.strip_prefix('/').unwrap_or(path))
     }
 
     pub fn working_directory(&self) -> &OsStr {

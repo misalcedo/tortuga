@@ -33,7 +33,7 @@ if ENV.include?("SCRIPT_URI")
   if ENV.include?("PATH_INFO")
     require "uri"
 
-    unless uri.path.end_with?(URI.respond_to?(:encode) ? URI.encode(ENV["PATH_INFO"]) : URI.encode_uri_component(ENV["PATH_INFO"]))
+    unless URI.decode_www_form_component(uri.path).end_with?(ENV["PATH_INFO"])
       abort("Scrip URI '#{ENV["SCRIPT_URI"]}' does not have the script name '#{ENV["PATH_INFO"]}' as the path suffix.")
     end
   end
@@ -109,8 +109,8 @@ unless %w[GET HEAD POST PUT DELETE CONNECT OPTIONS TRACE PATCH].include?(ENV["RE
   abort("Invalid HTTP request method: #{ENV["REQUEST_METHOD"]}.")
 end
 
-unless ENV["SCRIPT_NAME"] == "/cgi-bin/#{__FILE__}"
-  abort("'#{ENV["SCRIPT_NAME"]}' script name must be a valid URI path prefix (i.e. #{"/cgi-bin/#{__FILE__}"})")
+unless ENV["SCRIPT_NAME"] == "/cgi-bin/#{__FILE__.delete_prefix(__dir__ + "/")}"
+  abort("'#{ENV["SCRIPT_NAME"]}' script name must be a valid URI path prefix (i.e. #{"/cgi-bin/#{__FILE__.delete_prefix(__dir__ + "/")}"})")
 end
 
 if ENV["SERVER_NAME"]
