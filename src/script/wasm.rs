@@ -58,5 +58,12 @@ async fn serve_wasmtime(
         .call_async(&mut store, ())
         .await?;
 
-    Ok(Bytes::new())
+    drop(store);
+
+    match stdout.try_into_inner() {
+        Ok(output) => Ok(Bytes::from(output.into_inner())),
+        Err(_) => Err(wasmtime::Error::msg(
+            "Unable to extract output from CGI script",
+        )),
+    }
 }
