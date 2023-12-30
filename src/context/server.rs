@@ -53,7 +53,7 @@ impl ServerContext {
 
     pub fn script_filename<'a>(&self, path: &'a str) -> Result<(PathBuf, &'a str), &'a str> {
         let script_path = path.strip_prefix("/cgi-bin/").ok_or(path)?;
-        let (filename, extra_path) = script_path.split_once('/').ok_or(path)?;
+        let (filename, extra_path) = script_path.split_once('/').unwrap_or((script_path, ""));
 
         let mut file_path = self.cgi_bin.clone();
 

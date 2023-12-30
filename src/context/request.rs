@@ -27,13 +27,6 @@ impl RequestContext {
 
         let mut variables = HashMap::with_capacity(32);
 
-        for (name, value) in request.headers().iter() {
-            let key = name.as_str().to_meta_variable(Some("HTTP"));
-            let value = String::from_utf8_lossy(value.as_bytes()).to_string();
-
-            variables.insert(key, value);
-        }
-
         let script_name = format!("/cgi-bin/{}", script);
         let script_uri = format!(
             "{}://{}:{}{}{}?{}",
@@ -104,6 +97,13 @@ impl RequestContext {
             {
                 variables.insert("CONTENT_TYPE".to_string(), value.to_string());
             }
+        }
+
+        for (name, value) in request.headers().iter() {
+            let key = name.as_str().to_meta_variable(Some("HTTP"));
+            let value = String::from_utf8_lossy(value.as_bytes()).to_string();
+
+            variables.insert(key, value);
         }
 
         let arguments = Self::extract_arguments(&request);
