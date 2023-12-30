@@ -1,0 +1,32 @@
+Environment:
+{
+  "HTTP_HOST": "localhost",
+  "HTTP_USER_AGENT": "curl/7.68.0",
+  "HTTP_ACCEPT": "*/*",
+  "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+  "SERVER_SIGNATURE": "<address>Apache/2.4.41 (Ubuntu) Server at localhost Port 80</address>\n",
+  "SERVER_SOFTWARE": "Apache/2.4.41 (Ubuntu)",
+  "SERVER_NAME": "localhost",
+  "SERVER_ADDR": "::1",
+  "SERVER_PORT": "80",
+  "REMOTE_ADDR": "::1",
+  "DOCUMENT_ROOT": "/var/www/html",
+  "REQUEST_SCHEME": "http",
+  "CONTEXT_PREFIX": "/cgi-bin/",
+  "CONTEXT_DOCUMENT_ROOT": "/usr/lib/cgi-bin/",
+  "SERVER_ADMIN": "webmaster@localhost",
+  "SCRIPT_FILENAME": "/usr/lib/cgi-bin/debug.cgi",
+  "REMOTE_PORT": "39582",
+  "GATEWAY_INTERFACE": "CGI/1.1",
+  "SERVER_PROTOCOL": "HTTP/1.1",
+  "REQUEST_METHOD": "POST",
+  "QUERY_STRING": "foo+bar+--me%202",
+  "REQUEST_URI": "/cgi-bin/debug.cgi/extra/path?foo+bar+--me%202",
+  "SCRIPT_NAME": "/cgi-bin/debug.cgi",
+  "PATH_INFO": "/extra/path",
+  "PATH_TRANSLATED": "/var/www/html/extra/path"
+}
+Arguments:
+["foo", "bar", "--me 2"]
+STDIN:
+"Hello, CGI!"
