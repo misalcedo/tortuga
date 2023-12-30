@@ -1,3 +1,4 @@
+workspace = { members = ["examples/echo"] }
 [package]
 name = "tortuga"
 description = "A Rust-based CGI-specific HTTP web server."
