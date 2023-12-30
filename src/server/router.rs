@@ -2,8 +2,8 @@ use crate::context::{ClientContext, ServerContext};
 use crate::server::{self, request::CgiRequest, response::CgiResponse};
 use http::uri::PathAndQuery;
 use http::{HeaderValue, Method, Request, Response, StatusCode};
-use http_body_util::{BodyExt, Full};
-use hyper::body::{Body, Bytes, Incoming};
+use http_body_util::Full;
+use hyper::body::{Bytes, Incoming};
 use hyper::service::Service;
 use server::handler::CgiHandler;
 use std::future::Future;
@@ -58,10 +58,9 @@ impl Router {
 
     async fn invoke_cgi(&self, mut request: Request<Bytes>) -> io::Result<Response<Full<Bytes>>> {
         for _ in 0..10 {
-            let handler =
-                CgiHandler::new(self.server.clone(), self.client.clone(), request.clone());
+            let handler = CgiHandler::new(self.server.clone(), self.client.clone());
 
-            let mut response = handler.serve().await?;
+            let mut response = handler.serve(request.clone()).await?;
 
             if response.is_document() || response.is_client_redirect_with_document() {
                 return Ok(response);

@@ -1,7 +1,6 @@
 use std::net::SocketAddr;
 
 pub struct ClientContext {
-    remote_address: SocketAddr,
     remote_ip_address: String,
     remote_port: String,
 }
@@ -12,7 +11,6 @@ impl ClientContext {
         let remote_port = remote_address.port().to_string();
 
         Self {
-            remote_address,
             remote_ip_address,
             remote_port,
         }

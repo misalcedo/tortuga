@@ -1,3 +1,2 @@
-mod cgi;
-
-pub use cgi::CommonGatewayInterface;
+pub mod process;
+pub mod wasm;

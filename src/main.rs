@@ -9,6 +9,7 @@ mod cgi;
 mod context;
 mod script;
 mod server;
+mod uri;
 mod variable;
 
 #[derive(Parser)]

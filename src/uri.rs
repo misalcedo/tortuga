@@ -1,31 +1,6 @@
-use crate::context::{ClientContext, RequestContext, ServerContext};
-use crate::script;
-use bytes::Bytes;
-use http_body_util::Full;
-use hyper::{Request, Response};
-use std::io;
 use std::mem::size_of;
-use std::sync::Arc;
 
-pub struct CgiHandler {
-    server: Arc<ServerContext>,
-    client: Arc<ClientContext>,
-}
-
-impl CgiHandler {
-    pub fn new(server: Arc<ServerContext>, client: Arc<ClientContext>) -> Self {
-        Self { server, client }
-    }
-
-    pub async fn serve(&self, request: Request<Bytes>) -> io::Result<Response<Full<Bytes>>> {
-        let (parts, body) = request.into_parts();
-        let context = RequestContext::new(self.server.clone(), self.client.clone(), parts);
-
-        script::process::serve(context, body).await
-    }
-}
-
-fn decode_path(s: &str) -> Result<String, &str> {
+pub fn decode_percent_encoded(s: &str) -> Result<String, &str> {
     if !s.contains('%') {
         return Err(s);
     }
@@ -68,10 +43,10 @@ mod tests {
 
     #[test]
     fn special_characters() {
-        assert_eq!(decode_path("abc"), Err("abc"));
-        assert_eq!(decode_path("%2"), Err("%2"));
-        assert_eq!(decode_path("%20%26").unwrap(), " &");
-        assert_eq!(decode_path("%C6%92").unwrap(), "ƒ");
+        assert_eq!(decode_percent_encoded("abc"), Err("abc"));
+        assert_eq!(decode_percent_encoded("%2"), Err("%2"));
+        assert_eq!(decode_percent_encoded("%20%26").unwrap(), " &");
+        assert_eq!(decode_percent_encoded("%C6%92").unwrap(), "ƒ");
     }
 
     #[test]

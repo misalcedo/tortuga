@@ -5,17 +5,14 @@ use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
-use tokio::select;
 
 mod handler;
 mod request;
 mod response;
 mod router;
-mod shutdown;
 
 use crate::context::{ClientContext, ServerContext};
 use router::Router;
-pub use shutdown::ShutdownSignal;
 
 ///    The server acts as an application gateway.  It receives the request
 ///    from the client, selects a CGI script to handle the request, converts
@@ -38,7 +35,6 @@ pub use shutdown::ShutdownSignal;
 ///    controls.
 pub struct Server {
     context: Arc<ServerContext>,
-    shutdown: ShutdownSignal,
     listener: TcpListener,
 }
 
@@ -67,13 +63,8 @@ impl Server {
 
         Ok(Self {
             context: Arc::new(ServerContext::new(address, options)),
-            shutdown: ShutdownSignal::new(),
             listener,
         })
-    }
-
-    pub fn shutdown_signal(&self) -> ShutdownSignal {
-        self.shutdown.clone()
     }
 
     pub fn address(&self) -> io::Result<SocketAddr> {
@@ -82,14 +73,7 @@ impl Server {
 
     pub async fn serve(self) -> io::Result<()> {
         loop {
-            let (stream, remote_address) = select! {
-                _ = self.shutdown.shutdown_requested() => {
-                    break;
-                }
-                result = self.listener.accept() => {
-                    result?
-                }
-            };
+            let (stream, remote_address) = self.listener.accept().await?;
 
             let client = Arc::new(ClientContext::new(remote_address));
             let handler = http1::Builder::new().serve_connection(
@@ -99,8 +83,6 @@ impl Server {
 
             tokio::spawn(handler);
         }
-
-        Ok(())
     }
 }
 
