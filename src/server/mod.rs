@@ -115,8 +115,8 @@ mod tests {
             let response = String::from_utf8_lossy(output.as_slice());
             let end = response.find('\0').unwrap_or_else(|| response.len());
 
-            assert_eq!(&response[..response_start.len()], response_start);
             assert_eq!(&response[(end - response_end.len())..end], response_end);
+            assert_eq!(&response[..response_start.len()], response_start);
         }
     }
 
@@ -140,8 +140,8 @@ mod tests {
         let response = String::from_utf8_lossy(output.as_slice());
         let end = response.find('\0').unwrap_or_else(|| response.len());
 
-        assert_eq!(&response[..response_start.len()], response_start);
         assert_eq!(&response[(end - response_end.len())..end], response_end);
+        assert_eq!(&response[..response_start.len()], response_start);
     }
 
     #[tokio::test]
@@ -166,8 +166,8 @@ mod tests {
         let response = String::from_utf8_lossy(output.as_slice());
         let end = response.find('\0').unwrap_or_else(|| response.len());
 
-        assert_eq!(&response[..response_start.len()], response_start);
         assert_eq!(&response[(end - response_end.len())..end], response_end);
+        assert_eq!(&response[..response_start.len()], response_start);
     }
 
     #[tokio::test]
@@ -191,8 +191,8 @@ mod tests {
         let response = String::from_utf8_lossy(output.as_slice());
         let end = response.find('\0').unwrap_or_else(|| response.len());
 
-        assert_eq!(&response[..response_start.len()], response_start);
         assert_eq!(&response[(end - response_end.len())..end], response_end);
+        assert_eq!(&response[..response_start.len()], response_start);
     }
 
     #[tokio::test]
@@ -217,8 +217,8 @@ mod tests {
         let response = String::from_utf8_lossy(output.as_slice());
         let end = response.find('\0').unwrap_or_else(|| response.len());
 
-        assert_eq!(&response[..response_start.len()], response_start);
         assert_eq!(&response[(end - response_end.len())..end], response_end);
+        assert_eq!(&response[..response_start.len()], response_start);
     }
 
     #[tokio::test]
@@ -243,8 +243,8 @@ mod tests {
         let response = String::from_utf8_lossy(output.as_slice());
         let end = response.find('\0').unwrap_or_else(|| response.len());
 
-        assert_eq!(&response[..response_start.len()], response_start);
         assert_eq!(&response[(end - response_end.len())..end], response_end);
+        assert_eq!(&response[..response_start.len()], response_start);
     }
 
     #[tokio::test]
@@ -268,8 +268,8 @@ mod tests {
         let response = String::from_utf8_lossy(output.as_slice());
         let end = response.find('\0').unwrap_or_else(|| response.len());
 
-        assert_eq!(&response[..response_start.len()], response_start);
         assert_eq!(&response[(end - response_end.len())..end], response_end);
+        assert_eq!(&response[..response_start.len()], response_start);
     }
 
     #[tokio::test]
@@ -292,8 +292,8 @@ mod tests {
         let response = String::from_utf8_lossy(output.as_slice());
         let end = response.find('\0').unwrap_or_else(|| response.len());
 
-        assert_eq!(&response[..response_start.len()], response_start);
         assert_eq!(&response[(end - response_end.len())..end], response_end);
+        assert_eq!(&response[..response_start.len()], response_start);
     }
 
     #[tokio::test]
@@ -317,8 +317,8 @@ mod tests {
         let response = String::from_utf8_lossy(output.as_slice());
         let end = response.find('\0').unwrap_or_else(|| response.len());
 
-        assert_eq!(&response[..response_start.len()], response_start);
         assert_eq!(&response[(end - response_end.len())..end], response_end);
+        assert_eq!(&response[..response_start.len()], response_start);
     }
 
     #[tokio::test]
@@ -339,8 +339,8 @@ mod tests {
         let response = String::from_utf8_lossy(output.as_slice());
         let end = response.find('\0').unwrap_or_else(|| response.len());
 
-        assert_eq!(&response[..response_start.len()], response_start);
         assert_eq!(&response[(end - response_end.len())..end], response_end);
+        assert_eq!(&response[..response_start.len()], response_start);
     }
 
     #[tokio::test]
@@ -363,8 +363,8 @@ mod tests {
         let response = String::from_utf8_lossy(output.as_slice());
         let end = response.find('\0').unwrap_or_else(|| response.len());
 
-        assert_eq!(&response[..response_start.len()], response_start);
         assert_eq!(&response[(end - response_end.len())..end], response_end);
+        assert_eq!(&response[..response_start.len()], response_start);
     }
 
     #[tokio::test]
@@ -387,8 +387,8 @@ mod tests {
         let response = String::from_utf8_lossy(output.as_slice());
         let end = response.find('\0').unwrap_or_else(|| response.len());
 
-        assert_eq!(&response[..response_start.len()], response_start);
         assert_eq!(&response[(end - response_end.len())..end], response_end);
+        assert_eq!(&response[..response_start.len()], response_start);
     }
 
     #[tokio::test]
@@ -411,8 +411,8 @@ mod tests {
         let response = String::from_utf8_lossy(output.as_slice());
         let end = response.find('\0').unwrap_or_else(|| response.len());
 
-        assert_eq!(&response[..response_start.len()], response_start);
         assert_eq!(&response[(end - response_end.len())..end], response_end);
+        assert_eq!(&response[..response_start.len()], response_start);
     }
 
     #[tokio::test]
@@ -435,8 +435,8 @@ mod tests {
         let response = String::from_utf8_lossy(output.as_slice());
         let end = response.find('\0').unwrap_or_else(|| response.len());
 
-        assert_eq!(&response[..response_start.len()], response_start);
         assert_eq!(&response[(end - response_end.len())..end], response_end);
+        assert_eq!(&response[..response_start.len()], response_start);
     }
 
     async fn connect_to_server() -> TcpStream {
