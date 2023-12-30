@@ -7,8 +7,8 @@ use std::path::PathBuf;
 mod about;
 mod cgi;
 mod context;
+mod script;
 mod server;
-mod service;
 mod variable;
 
 #[derive(Parser)]

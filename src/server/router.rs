@@ -1,5 +1,5 @@
 use crate::context::ServerContext;
-use crate::service;
+use crate::script;
 use http::uri::PathAndQuery;
 use http::{HeaderValue, Method, Request, Response, StatusCode};
 use http_body_util::{BodyExt, Collected, Full};
@@ -138,7 +138,7 @@ impl Router {
 
     async fn invoke_cgi(&self, mut request: Request<Bytes>) -> io::Result<Response<Full<Bytes>>> {
         for _ in 0..10 {
-            let handler = service::CommonGatewayInterface::new(
+            let handler = script::CommonGatewayInterface::new(
                 self.context.clone(),
                 self.remote_address,
                 request.clone(),
