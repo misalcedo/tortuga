@@ -111,8 +111,8 @@ impl Router {
             return Ok(response);
         }
 
-        match method {
-            &Method::HEAD => {
+        match *method {
+            Method::HEAD => {
                 let file = File::open(file_path).await?;
                 let metadata = file.metadata().await?;
                 let mut response = Response::new(Full::default());
@@ -124,7 +124,7 @@ impl Router {
 
                 Ok(response)
             }
-            &Method::GET => {
+            Method::GET => {
                 let mut file = File::open(file_path).await?;
 
                 let metadata = file.metadata().await?;
