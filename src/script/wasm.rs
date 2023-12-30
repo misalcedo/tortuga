@@ -19,7 +19,12 @@ async fn serve_wasmtime(
 ) -> Result<Bytes, wasmtime::Error> {
     let mut configuration = Config::new();
 
+    if let Some(path) = context.wasm_cache() {
+        configuration.cache_config_load(path)?;
+    }
+
     configuration
+        .cache_config_load("/tmp/tortuga")?
         .async_support(true)
         .consume_fuel(true)
         .parallel_compilation(true);

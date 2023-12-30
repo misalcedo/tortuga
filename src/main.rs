@@ -13,6 +13,7 @@ mod variable;
 #[derive(Parser)]
 #[command(author, version, about, long_about)]
 struct Options {
+    /// Sets the verbosity of logging.
     #[arg(short = 'v', long = None, action = clap::ArgAction::Count)]
     verbosity: u8,
 
@@ -22,6 +23,11 @@ struct Options {
 
 #[derive(Clone, Parser)]
 struct ServeOptions {
+    /// The path to a cache directory for WASM CGI script compilation.
+    /// Relative paths are resolved from the current working directory.
+    #[arg(short, long, value_name = "WASM_CACHE")]
+    wasm_cache: Option<PathBuf>,
+
     /// The document root path to load CGI scripts and other assets from.
     #[arg(value_name = "DOCUMENT_ROOT")]
     document_root: PathBuf,

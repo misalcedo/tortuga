@@ -103,3 +103,46 @@ Running the [empty.cgi](examples/empty.cgi) script without an HTTP server takes 
 cargo build --release
 time target/release/tortuga test -s examples/debug.cgi
 ```
+
+### CGI versus WCGI
+On a 4-core Intel CPU, I ran the following quick benchmarks:
+
+#### WCGI without Compilation Cache
+```bash
+$ wrk -c 1 -t 1 -d 1s 'http://localhost:3000/cgi-bin/echo.wcgi/extra/path?--foo+bar'
+Running 1s test @ http://localhost:3000/cgi-bin/echo.wcgi/extra/path?--foo+bar
+  1 threads and 1 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   389.07ms   22.79ms 405.18ms  100.00%
+    Req/Sec     2.00      1.41     3.00    100.00%
+  2 requests in 1.01s, 200.00B read
+Requests/sec:      1.99
+Transfer/sec:     198.70B
+```
+
+#### WCGI with Compilation Cache
+```bash
+$ wrk -c 1 -t 1 -d 1s 'http://localhost:3000/cgi-bin/echo.wcgi/extra/path?--foo+bar'
+Running 1s test @ http://localhost:3000/cgi-bin/echo.wcgi/extra/path?--foo+bar
+1 threads and 1 connections
+Thread Stats   Avg      Stdev     Max   +/- Stdev
+Latency   189.76us   48.01us   0.86ms   90.32%
+Req/Sec     5.24k   386.12     5.75k    54.55%
+5735 requests in 1.10s, 756.08KB read
+Non-2xx or 3xx responses: 5735
+Requests/sec:   5215.26
+Transfer/sec:    687.56KB
+```
+
+#### CGI
+```bash
+$ wrk -c 1 -t 1 -d 1s 'http://localhost:3000/cgi-bin/echo.cgi/extra/path?--foo+bar'
+Running 1s test @ http://localhost:3000/cgi-bin/echo.cgi/extra/path?--foo+bar
+1 threads and 1 connections
+Thread Stats   Avg      Stdev     Max   +/- Stdev
+Latency     4.71ms  418.66us   6.51ms   78.54%
+Req/Sec   212.55      8.63   230.00     63.64%
+233 requests in 1.10s, 22.75KB read
+Requests/sec:    211.58
+Transfer/sec:     20.66KB
+```

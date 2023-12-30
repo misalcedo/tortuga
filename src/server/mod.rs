@@ -441,6 +441,7 @@ mod tests {
 
     async fn connect_to_server() -> TcpStream {
         let server = Server::bind(ServeOptions {
+            wasm_cache: None,
             document_root: "./examples".into(),
             cgi_bin: CurDir.as_os_str().into(),
             hostname: "localhost".to_string(),

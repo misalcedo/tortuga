@@ -4,6 +4,7 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 
 pub struct ServerContext {
+    wasm_cache: Option<PathBuf>,
     document_root: PathBuf,
     cgi_bin: PathBuf,
     hostname: String,
@@ -24,6 +25,7 @@ impl ServerContext {
         let software = format!("{}/{}", about::PROGRAM, about::VERSION);
 
         Self {
+            wasm_cache: options.wasm_cache,
             document_root: options.document_root,
             cgi_bin: options.cgi_bin,
             hostname: options.hostname,
@@ -78,6 +80,10 @@ impl ServerContext {
 
     pub fn working_directory(&self) -> &OsStr {
         self.document_root.as_os_str()
+    }
+
+    pub fn wasm_cache(&self) -> Option<&PathBuf> {
+        self.wasm_cache.as_ref()
     }
 
     pub fn ip_address(&self) -> &str {

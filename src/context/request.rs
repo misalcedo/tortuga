@@ -146,6 +146,10 @@ impl RequestContext {
         self.server.working_directory()
     }
 
+    pub fn wasm_cache(&self) -> Option<&PathBuf> {
+        self.server.wasm_cache()
+    }
+
     pub fn script(&self) -> io::Result<&PathBuf> {
         self.script.as_ref().ok_or_else(|| {
             io::Error::new(
