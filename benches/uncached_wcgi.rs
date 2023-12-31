@@ -1,13 +1,13 @@
 use bytes::Bytes;
 use criterion::{criterion_group, criterion_main, Criterion};
 use http::StatusCode;
-use std::cell::OnceCell;
 use std::net::SocketAddr;
 use std::path::Component::CurDir;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 use tortuga::{Options, Server};
 
-static ADDRESS: OnceCell<SocketAddr> = OnceCell::new();
+static ADDRESS: OnceLock<SocketAddr> = OnceLock::new();
 
 fn main() {
     let runtime = tokio::runtime::Builder::new_multi_thread()
