@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Added a lib.rs in order to benchmark the server with Criterion.
 - Created an Options type for the server separate from the CLI options.
 
+### Added
+- A benchmark for uncached WCGI to the assert script.
+
 ### Removed
 - The "full" features from dependencies in order to speed up compile times.
 
