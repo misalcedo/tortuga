@@ -33,6 +33,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             let response = client.post(URI.get().unwrap())
                 .body(body)
                 .header(reqwest::header::CONTENT_TYPE, "text/html")
+                .header(reqwest::header::CONTENT_LENGTH, body.len())
                 .send()
                 .unwrap();
 
