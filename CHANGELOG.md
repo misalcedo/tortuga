@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Added a lib.rs in order to benchmark the server with Criterion.
 - Created an Options type for the server separate from the CLI options.
 
+### Removed
+- The "full" features from dependencies in order to speed up compile times.
+
 ## [0.6.0] - 2023-12-30
 
 ### Removed
