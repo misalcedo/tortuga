@@ -1,5 +1,6 @@
 use bytes::Bytes;
 use criterion::{criterion_group, criterion_main, Criterion};
+use pprof::criterion::{Output, PProfProfiler};
 use reqwest::StatusCode;
 use std::path::Component::CurDir;
 use std::path::PathBuf;
@@ -23,7 +24,8 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     let server = runtime.block_on(Server::bind(options)).unwrap();
     let address = server.address().unwrap();
 
-    URI.set(format!("http://{}/cgi-bin/assert.cgi", address)).unwrap();
+    URI.set(format!("http://{}/cgi-bin/assert.cgi", address))
+        .unwrap();
 
     runtime.spawn(async move { server.serve().await });
 
@@ -45,5 +47,9 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, criterion_benchmark);
+criterion_group!(
+    name = benches;
+    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    targets = criterion_benchmark
+);
 criterion_main!(benches);
