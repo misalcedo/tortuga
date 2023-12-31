@@ -15,7 +15,6 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             .enable_all()
             .build()
             .expect("Unable to start an async runtime");
-
         let options = Options {
             wasm_cache: None,
             document_root: PathBuf::from("examples/"),
@@ -24,14 +23,11 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             port: 0,
         };
         let server = runtime.block_on(Server::bind(options)).unwrap();
-
         let address = server.address().unwrap();
+        let client = reqwest::blocking::Client::new();
 
         URI.set(format!("http://{}/cgi-bin/assert.cgi", address)).unwrap();
-
         runtime.spawn(async move { server.serve().await });
-
-        let client = reqwest::blocking::Client::new();
 
         b.iter(move || {
             let body = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
