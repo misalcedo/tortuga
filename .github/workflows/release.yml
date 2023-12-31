@@ -51,7 +51,7 @@ jobs:
           FILE: tortuga
         shell: bash
         run: |
-          TAG=v$(cargo metadata --no-deps --quiet | jq -r '.packages[1] | .version')
+          TAG=v$(cargo metadata --no-deps --quiet | jq -r '.packages | last | .version')
           ASSET="$FILE-$TAG-$TARGET"
           
           pushd $DIR
