@@ -8,7 +8,6 @@ use tortuga::{Options, Server};
 
 static URI: OnceLock<String> = OnceLock::new();
 
-// #[allow(dead_code)]
 pub fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("uncached wcgi", |b| {
         let runtime = tokio::runtime::Builder::new_multi_thread()
