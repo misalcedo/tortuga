@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2023-12-31
+### Changed
+- Added a lib.rs in order to benchmark the server with Criterion.
+- Created an Options type for the server separate from the CLI options.
+
 ## [0.6.0] - 2023-12-30
 
 ### Removed

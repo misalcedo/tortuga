@@ -2,7 +2,7 @@ workspace = { members = ["examples/echo"] }
 [package]
 name = "tortuga"
 description = "A Rust-based CGI-specific HTTP web server."
-version = "0.6.0"
+version = "0.6.1"
 authors = ["Miguel D. Salcedo <miguel@salcedo.cc>"]
 edition = "2021"
 license = "Apache-2.0"
@@ -16,6 +16,14 @@ debug = true
 
 [features]
 default = []
+
+[dev-dependencies]
+criterion = "0.5"
+reqwest = { version = "0.11", features = ["blocking"] }
+
+[[bench]]
+name = "uncached_wcgi"
+harness = false
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }

@@ -2,13 +2,7 @@ use clap::{Parser, Subcommand};
 use http::uri::Uri;
 use std::path::Component::CurDir;
 use std::path::PathBuf;
-
-mod about;
-mod context;
-mod script;
-mod server;
-mod uri;
-mod variable;
+use tortuga::Server;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about)]
@@ -17,17 +11,17 @@ struct Options {
     #[arg(short = 'v', long = None, action = clap::ArgAction::Count)]
     verbosity: u8,
 
+    /// The path to a cache directory for WASM CGI script compilation.
+    /// Relative paths are resolved from the current working directory.
+    #[arg(short, long, value_name = "WASM_CACHE")]
+    wasm_cache: Option<PathBuf>,
+
     #[command(subcommand)]
     command: Option<Commands>,
 }
 
 #[derive(Clone, Parser)]
 struct ServeOptions {
-    /// The path to a cache directory for WASM CGI script compilation.
-    /// Relative paths are resolved from the current working directory.
-    #[arg(short, long, value_name = "WASM_CACHE")]
-    wasm_cache: Option<PathBuf>,
-
     /// The document root path to load CGI scripts and other assets from.
     #[arg(value_name = "DOCUMENT_ROOT")]
     document_root: PathBuf,
@@ -78,15 +72,23 @@ pub fn main() {
     // You can check for the existence of subcommands, and if found use their
     // matches just as you would the top level cmd
     match options.command {
-        Some(Commands::Serve(options)) => {
+        Some(Commands::Serve(serve_options)) => {
             let runtime = tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
                 .build()
                 .expect("Unable to start an async runtime");
 
+            let options = tortuga::Options {
+                wasm_cache: options.wasm_cache,
+                document_root: serve_options.document_root,
+                cgi_bin: serve_options.cgi_bin,
+                hostname: serve_options.hostname,
+                port: serve_options.port,
+            };
+
             runtime
                 .block_on(async {
-                    let server = server::Server::bind(options).await.unwrap();
+                    let server = Server::bind(options).await.unwrap();
 
                     println!("Server listening on port {}", server.address().unwrap());
 

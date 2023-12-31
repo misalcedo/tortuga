@@ -1,4 +1,3 @@
-use crate::ServeOptions;
 use hyper::server::conn::http1;
 use hyper_util::rt::TokioIo;
 use std::io;
@@ -7,11 +6,13 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 
 mod handler;
+mod options;
 mod request;
 mod response;
 mod router;
 
 use crate::context::{ClientContext, ServerContext};
+pub use options::Options;
 use router::Router;
 
 ///    The server acts as an application gateway.  It receives the request
@@ -39,7 +40,7 @@ pub struct Server {
 }
 
 impl Server {
-    pub async fn bind(mut options: ServeOptions) -> io::Result<Self> {
+    pub async fn bind(mut options: Options) -> io::Result<Self> {
         let mut addresses =
             tokio::net::lookup_host(format!("{}:{}", options.hostname, options.port)).await?;
         let address = addresses.next().ok_or_else(|| {
@@ -440,7 +441,7 @@ mod tests {
     }
 
     async fn connect_to_server() -> TcpStream {
-        let server = Server::bind(ServeOptions {
+        let server = Server::bind(Options {
             wasm_cache: None,
             document_root: "./examples".into(),
             cgi_bin: CurDir.as_os_str().into(),

@@ -1,4 +1,5 @@
-use crate::{about, ServeOptions};
+use crate::about;
+use crate::server;
 use std::ffi::OsStr;
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -16,7 +17,7 @@ pub struct ServerContext {
 }
 
 impl ServerContext {
-    pub fn new(address: SocketAddr, options: ServeOptions) -> Self {
+    pub fn new(address: SocketAddr, options: server::Options) -> Self {
         let ip_address = address.ip().to_string();
         let port = address.port().to_string();
 
