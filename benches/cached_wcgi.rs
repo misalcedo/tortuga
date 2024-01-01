@@ -1,6 +1,5 @@
 use bytes::Bytes;
 use criterion::{criterion_group, criterion_main, Criterion};
-use pprof::criterion::{Output, PProfProfiler};
 use reqwest::StatusCode;
 use std::path::Component::CurDir;
 use std::path::PathBuf;
@@ -15,7 +14,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         .build()
         .expect("Unable to start an async runtime");
     let options = Options {
-        wasm_cache: Some(std::env::temp_dir()),
+        wasm_cache: Some("examples/config.toml".into()),
         document_root: PathBuf::from("examples/"),
         cgi_bin: PathBuf::from(CurDir.as_os_str()),
         hostname: "localhost".to_string(),
@@ -47,9 +46,5 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     });
 }
 
-criterion_group!(
-    name = benches;
-    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
-    targets = criterion_benchmark
-);
+criterion_group!(benches, criterion_benchmark);
 criterion_main!(benches);
