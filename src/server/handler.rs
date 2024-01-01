@@ -1,6 +1,6 @@
 use crate::context::{ClientContext, RequestContext, ServerContext};
-use crate::script;
 use crate::server::response::CgiResponse;
+use crate::{script, Script};
 use bytes::Bytes;
 use http::StatusCode;
 use http_body_util::Full;
@@ -26,7 +26,8 @@ impl CgiHandler {
         let output = if extension == Some("wcgi".as_ref()) {
             script::wasm::serve(context, body).await
         } else if extension == Some("cgi".as_ref()) {
-            script::process::serve(context, body).await
+            let script = script::Process::new();
+            script.invoke(context, body).await
         } else {
             Err(io::Error::new(
                 io::ErrorKind::Unsupported,
