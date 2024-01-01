@@ -24,7 +24,6 @@ async fn serve_wasmtime(
     }
 
     configuration
-        .cache_config_load("/tmp/tortuga")?
         .async_support(true)
         .consume_fuel(true)
         .parallel_compilation(true);
