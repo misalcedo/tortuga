@@ -24,7 +24,8 @@ impl CgiHandler {
 
         let extension = context.script()?.extension();
         let output = if extension == Some("wcgi".as_ref()) {
-            script::wasm::serve(context, body).await
+            let script = script::Wasm::new(context.server());
+            script.invoke(context, body).await
         } else if extension == Some("cgi".as_ref()) {
             let script = script::Process::new();
             script.invoke(context, body).await

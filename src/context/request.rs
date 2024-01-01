@@ -143,12 +143,12 @@ impl RequestContext {
         arguments
     }
 
-    pub fn working_directory(&self) -> &OsStr {
-        self.server.working_directory()
+    pub fn server(&self) -> &ServerContext {
+        &self.server
     }
 
-    pub fn wasm_cache(&self) -> Option<&PathBuf> {
-        self.server.wasm_cache()
+    pub fn working_directory(&self) -> &OsStr {
+        self.server.working_directory()
     }
 
     pub fn script(&self) -> io::Result<&PathBuf> {

@@ -1,4 +1,4 @@
-use crate::context::RequestContext;
+use crate::context::{RequestContext, ServerContext};
 use crate::script::Script;
 use bytes::Bytes;
 use std::io;
@@ -13,7 +13,7 @@ pub struct Process {}
 
 impl Process {
     pub fn new() -> Self {
-        Process {}
+        Self {}
     }
 }
 
