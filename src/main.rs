@@ -11,7 +11,7 @@ struct Options {
     #[arg(short = 'v', long = None, action = clap::ArgAction::Count)]
     verbosity: u8,
 
-    /// The path to a cache directory for WASM CGI script compilation.
+    /// The path to a cache configuration file for WASM CGI script compilation.
     /// Relative paths are resolved from the current working directory.
     #[arg(short, long, value_name = "WASM_CACHE")]
     wasm_cache: Option<PathBuf>,
