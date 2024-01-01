@@ -1,4 +1,4 @@
-use crate::context::{RequestContext, ServerContext};
+use crate::context::RequestContext;
 use crate::script::Script;
 use bytes::Bytes;
 use std::io;

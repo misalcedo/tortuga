@@ -1,5 +1,6 @@
 use crate::context::RequestContext;
 use bytes::Bytes;
+use std::future::Future;
 use std::io;
 
 mod process;
@@ -9,5 +10,9 @@ pub use process::Process;
 pub use wasm::Wasm;
 
 pub trait Script {
-    async fn invoke(&self, context: RequestContext, body: Bytes) -> io::Result<Bytes>;
+    fn invoke(
+        &self,
+        context: RequestContext,
+        body: Bytes,
+    ) -> impl Future<Output = io::Result<Bytes>> + Send;
 }

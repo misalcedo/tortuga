@@ -11,11 +11,13 @@ pub struct Wasm {
 }
 
 impl Wasm {
-    pub fn new(context: &ServerContext) -> Self {
+    pub fn new(context: &ServerContext) -> io::Result<Self> {
         let mut configuration = Config::new();
 
         if let Some(path) = context.wasm_cache() {
-            configuration.cache_config_load(path)?;
+            configuration
+                .cache_config_load(path)
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
         }
 
         configuration
@@ -23,9 +25,10 @@ impl Wasm {
             .consume_fuel(true)
             .parallel_compilation(true);
 
-        let engine = Engine::new(&configuration)?;
+        let engine =
+            Engine::new(&configuration).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
 
-        Self { engine }
+        Ok(Self { engine })
     }
 
     pub async fn run(
