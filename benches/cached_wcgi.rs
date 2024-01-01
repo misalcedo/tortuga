@@ -15,7 +15,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         .build()
         .expect("Unable to start an async runtime");
     let options = Options {
-        wasm_cache: None,
+        wasm_cache: Some(std::env::temp_dir()),
         document_root: PathBuf::from("examples/"),
         cgi_bin: PathBuf::from(CurDir.as_os_str()),
         hostname: "localhost".to_string(),
@@ -29,7 +29,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     runtime.spawn(async move { server.serve().await });
 
-    c.bench_function("uncached wcgi", |b| {
+    c.bench_function("cached wcgi", |b| {
         let client = reqwest::blocking::Client::new();
 
         b.iter(move || {

@@ -24,12 +24,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     let server = runtime.block_on(Server::bind(options)).unwrap();
     let address = server.address().unwrap();
 
-    URI.set(format!("http://{}/cgi-bin/echo.wcgi", address))
+    URI.set(format!("http://{}/cgi-bin/echo.cgi", address))
         .unwrap();
 
     runtime.spawn(async move { server.serve().await });
 
-    c.bench_function("uncached wcgi", |b| {
+    c.bench_function("cgi", |b| {
         let client = reqwest::blocking::Client::new();
 
         b.iter(move || {
