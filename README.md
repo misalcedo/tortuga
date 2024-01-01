@@ -121,17 +121,18 @@ Transfer/sec:      4.06KB
 ```
 
 #### WCGI with Compilation Cache
+The cache is enabled by pointing the server at a file created via `wasmtime config new`.
+
 ```bash
-$ wrk -c 1 -t 1 -d 1s 'http://localhost:3000/cgi-bin/echo.wcgi/extra/path?--foo+bar'
+$ wrk -c 1 -t 1 -d 1s 'http://localhost:3000/cgi-bin/echo.wcgi/extra/path?--foo+bar'      
 Running 1s test @ http://localhost:3000/cgi-bin/echo.wcgi/extra/path?--foo+bar
-1 threads and 1 connections
-Thread Stats   Avg      Stdev     Max   +/- Stdev
-Latency   189.76us   48.01us   0.86ms   90.32%
-Req/Sec     5.24k   386.12     5.75k    54.55%
-5735 requests in 1.10s, 756.08KB read
-Non-2xx or 3xx responses: 5735
-Requests/sec:   5215.26
-Transfer/sec:    687.56KB
+  1 threads and 1 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     2.66ms  669.17us  10.06ms   95.96%
+    Req/Sec   380.36     34.42   414.00     72.73%
+  417 requests in 1.10s, 40.72KB read
+Requests/sec:    378.36
+Transfer/sec:     36.95KB
 ```
 
 #### CGI
