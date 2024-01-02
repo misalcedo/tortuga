@@ -64,7 +64,7 @@ impl Server {
         }
 
         let process = script::Process::new();
-        let wasm = script::Wasm::new().map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        let wasm = script::Wasm::new(options.loader.clone());
         let scripts = ScriptMapping::new(process, wasm);
 
         Ok(Self {
@@ -95,6 +95,7 @@ impl Server {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ModuleLoader;
     use std::path::Component::CurDir;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpStream;
@@ -448,6 +449,7 @@ mod tests {
     async fn connect_to_server() -> TcpStream {
         let server = Server::bind(Options {
             document_root: "./examples".into(),
+            loader: ModuleLoader::new("./examples".into(), true).unwrap(),
             cgi_bin: CurDir.as_os_str().into(),
             hostname: "localhost".to_string(),
             port: 0,

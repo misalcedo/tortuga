@@ -1,3 +1,4 @@
+use crate::ModuleLoader;
 use std::path::PathBuf;
 
 #[derive(Clone)]
@@ -14,4 +15,7 @@ pub struct Options {
 
     /// The TCP port for the server to listen on.
     pub port: u16,
+
+    /// A WebAssembly module loader.
+    pub loader: ModuleLoader,
 }

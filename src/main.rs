@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use std::path::Component::CurDir;
 use std::path::PathBuf;
-use tortuga::Server;
+use tortuga::{ModuleLoader, Server};
 
 #[derive(Debug, Parser)]
 #[command(author, version, about, long_about)]
@@ -62,6 +62,11 @@ pub fn main() {
     // matches just as you would the top level cmd
     match options.command {
         Some(Commands::Serve(serve_options)) => {
+            let loader = ModuleLoader::new(
+                serve_options.document_root.clone(),
+                serve_options.wasm_cache,
+            )
+            .expect("Unable to instantiate a WebAssembly module loader.");
             let runtime = tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
                 .build()
@@ -69,19 +74,19 @@ pub fn main() {
 
             let options = tortuga::Options {
                 document_root: serve_options.document_root,
+                loader: loader,
                 cgi_bin: serve_options.cgi_bin,
                 hostname: serve_options.hostname,
                 port: serve_options.port,
             };
+            let server = runtime
+                .block_on(Server::bind(options))
+                .expect("Unable to start the server.");
+
+            println!("Server listening on port {}", server.address().unwrap());
 
             runtime
-                .block_on(async {
-                    let server = Server::bind(options).await.unwrap();
-
-                    println!("Server listening on port {}", server.address().unwrap());
-
-                    server.serve().await
-                })
+                .block_on(server.serve())
                 .expect("Unable to start the server");
         }
         _ => {}
