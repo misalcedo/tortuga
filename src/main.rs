@@ -62,11 +62,8 @@ pub fn main() {
     // matches just as you would the top level cmd
     match options.command {
         Some(Commands::Serve(serve_options)) => {
-            let loader = ModuleLoader::new(
-                serve_options.document_root.clone(),
-                serve_options.wasm_cache,
-            )
-            .expect("Unable to instantiate a WebAssembly module loader.");
+            let loader = ModuleLoader::new(serve_options.cgi_bin.clone(), serve_options.wasm_cache)
+                .expect("Unable to instantiate a WebAssembly module loader.");
             let runtime = tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
                 .build()
