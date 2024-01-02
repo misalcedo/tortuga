@@ -53,16 +53,6 @@ impl Server {
 
         let listener = TcpListener::bind(address).await?;
         let address = listener.local_addr()?;
-
-        options.document_root = options.document_root.canonicalize()?;
-
-        if options.cgi_bin.is_relative() {
-            options.cgi_bin = options
-                .document_root
-                .join(&options.cgi_bin)
-                .canonicalize()?;
-        }
-
         let process = script::Process::new();
         let wasm = script::Wasm::new(options.loader.clone());
         let scripts = ScriptMapping::new(process, wasm);
@@ -450,7 +440,7 @@ mod tests {
         let server = Server::bind(Options {
             document_root: "./examples".into(),
             loader: ModuleLoader::new("./examples".into(), true).unwrap(),
-            cgi_bin: CurDir.as_os_str().into(),
+            cgi_bin: "./examples".into(),
             hostname: "localhost".to_string(),
             port: 0,
         })

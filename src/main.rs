@@ -61,7 +61,20 @@ pub fn main() {
     // You can check for the existence of subcommands, and if found use their
     // matches just as you would the top level cmd
     match options.command {
-        Some(Commands::Serve(serve_options)) => {
+        Some(Commands::Serve(mut serve_options)) => {
+            serve_options.document_root = serve_options
+                .document_root
+                .canonicalize()
+                .expect("Unable to canonicalize the root document path.");
+
+            if serve_options.cgi_bin.is_relative() {
+                serve_options.cgi_bin = serve_options
+                    .document_root
+                    .join(&serve_options.cgi_bin)
+                    .canonicalize()
+                    .expect("Unable to canonicalize the CGI bin path.");
+            }
+
             let loader = ModuleLoader::new(serve_options.cgi_bin.clone(), serve_options.wasm_cache)
                 .expect("Unable to instantiate a WebAssembly module loader.");
             let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -70,8 +83,8 @@ pub fn main() {
                 .expect("Unable to start an async runtime");
 
             let options = tortuga::Options {
+                loader,
                 document_root: serve_options.document_root,
-                loader: loader,
                 cgi_bin: serve_options.cgi_bin,
                 hostname: serve_options.hostname,
                 port: serve_options.port,
