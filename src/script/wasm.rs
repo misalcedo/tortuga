@@ -25,22 +25,15 @@ pub struct Wasm {
 }
 
 impl Wasm {
-    pub fn new(wasm_cache: Option<&PathBuf>) -> io::Result<Self> {
+    pub fn new() -> Result<Self, wasmtime::Error> {
         let mut configuration = Config::new();
-
-        if let Some(path) = wasm_cache {
-            configuration
-                .cache_config_load(path)
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
-        }
 
         configuration
             .async_support(true)
             .consume_fuel(true)
             .parallel_compilation(true);
 
-        let engine =
-            Engine::new(&configuration).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        let engine = Engine::new(&configuration)?;
         let cache = RwLock::new(HashMap::new());
 
         Ok(Self { engine, cache })

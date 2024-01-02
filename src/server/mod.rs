@@ -64,7 +64,7 @@ impl Server {
         }
 
         let process = script::Process::new();
-        let wasm = script::Wasm::new(options.wasm_cache.as_ref())?;
+        let wasm = script::Wasm::new().map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
         let scripts = ScriptMapping::new(process, wasm);
 
         Ok(Self {
@@ -447,7 +447,6 @@ mod tests {
 
     async fn connect_to_server() -> TcpStream {
         let server = Server::bind(Options {
-            wasm_cache: None,
             document_root: "./examples".into(),
             cgi_bin: CurDir.as_os_str().into(),
             hostname: "localhost".to_string(),

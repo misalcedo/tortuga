@@ -11,17 +11,20 @@ struct Options {
     #[arg(short = 'v', long = None, action = clap::ArgAction::Count)]
     verbosity: u8,
 
-    /// The path to a cache configuration file for WASM CGI script compilation.
-    /// Relative paths are resolved from the current working directory.
-    #[arg(short, long, value_name = "WASM_CACHE")]
-    wasm_cache: Option<PathBuf>,
-
     #[command(subcommand)]
     command: Option<Commands>,
 }
 
 #[derive(Clone, Parser)]
 struct ServeOptions {
+    /// Enable an in-memory cache for compiled WebAssembly modules.
+    #[arg(short, long, default_value_t = true)]
+    wasm_cache: bool,
+
+    /// Pre-load compiled WebAssembly modules into the in-memory cache.
+    #[arg(short, long, default_value_if("wasm_cache", "true", Some("false")))]
+    preload_wasm: bool,
+
     /// The document root path to load CGI scripts and other assets from.
     #[arg(value_name = "DOCUMENT_ROOT")]
     document_root: PathBuf,
@@ -79,7 +82,6 @@ pub fn main() {
                 .expect("Unable to start an async runtime");
 
             let options = tortuga::Options {
-                wasm_cache: options.wasm_cache,
                 document_root: serve_options.document_root,
                 cgi_bin: serve_options.cgi_bin,
                 hostname: serve_options.hostname,
