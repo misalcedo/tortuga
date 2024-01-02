@@ -108,16 +108,18 @@ time target/release/tortuga test -s examples/debug.cgi
 On a 4-core Intel CPU, I ran the following quick benchmarks:
 
 #### WCGI without Compilation Cache
+The initial compilation slows down the first request.
+
 ```bash
 $ wrk -c 1 -t 1 -d 1s 'http://localhost:3000/cgi-bin/echo.wcgi/extra/path?--foo+bar'
 Running 1s test @ http://localhost:3000/cgi-bin/echo.wcgi/extra/path?--foo+bar
   1 threads and 1 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency    23.63ms    2.13ms  34.56ms   92.86%
-    Req/Sec    41.40      6.04    50.00     60.00%
-  42 requests in 1.01s, 4.10KB read
-Requests/sec:     41.60
-Transfer/sec:      4.06KB
+    Latency     1.19ms    4.79ms  44.02ms   96.79%
+    Req/Sec     2.55k   462.45     3.01k    90.91%
+  2791 requests in 1.10s, 272.56KB read
+Requests/sec:   2535.83
+Transfer/sec:    247.64KB
 ```
 
 #### WCGI with Compilation Cache
@@ -128,11 +130,11 @@ $ wrk -c 1 -t 1 -d 1s 'http://localhost:3000/cgi-bin/echo.wcgi/extra/path?--foo+
 Running 1s test @ http://localhost:3000/cgi-bin/echo.wcgi/extra/path?--foo+bar
   1 threads and 1 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency     2.66ms  669.17us  10.06ms   95.96%
-    Req/Sec   380.36     34.42   414.00     72.73%
-  417 requests in 1.10s, 40.72KB read
-Requests/sec:    378.36
-Transfer/sec:     36.95KB
+    Latency   408.90us  266.19us   3.76ms   92.34%
+    Req/Sec     2.59k   260.40     2.84k    81.82%
+  2828 requests in 1.10s, 276.17KB read
+Requests/sec:   2570.45
+Transfer/sec:    251.02KB
 ```
 
 #### CGI
@@ -141,9 +143,22 @@ $ wrk -c 1 -t 1 -d 1s 'http://localhost:3000/cgi-bin/echo.cgi/extra/path?--foo+b
 Running 1s test @ http://localhost:3000/cgi-bin/echo.cgi/extra/path?--foo+bar
   1 threads and 1 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency     4.27ms  469.06us   7.84ms   85.21%
-    Req/Sec   234.36      8.29   242.00     81.82%
-  257 requests in 1.10s, 25.10KB read
-Requests/sec:    233.14
-Transfer/sec:     22.77KB
+    Latency     6.68ms    1.08ms   9.74ms   69.33%
+    Req/Sec   150.10     13.25   170.00     80.00%
+  150 requests in 1.00s, 14.65KB read
+Requests/sec:    149.35
+Transfer/sec:     14.58KB
+```
+
+#### Static File
+```bash
+$ wrk -c 1 -t 1 -d 1s 'http://localhost:3000/index.html'
+Running 1s test @ http://localhost:3000/index.html
+  1 threads and 1 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   221.81us  118.00us   1.45ms   90.75%
+    Req/Sec     4.62k   497.28     5.10k    81.82%
+  5058 requests in 1.10s, 503.82KB read
+Requests/sec:   4598.99
+Transfer/sec:    458.10KB
 ```

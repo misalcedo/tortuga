@@ -2,7 +2,7 @@ workspace = { members = ["examples/echo"] }
 [package]
 name = "tortuga"
 description = "A Rust-based CGI-specific HTTP web server."
-version = "0.6.2"
+version = "0.6.3"
 authors = ["Miguel D. Salcedo <miguel@salcedo.cc>"]
 edition = "2021"
 license = "Apache-2.0"

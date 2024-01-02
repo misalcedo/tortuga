@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [0.6.3] - 2024-01-02
+### Changed
+- The server now has a single instance of the Process and WASM invokers.
+
+### Added
+- Update the WASM invoker to cache compiled modules to speed up runtimes. The file-based WASM cache is now mostly useful to help with cold starts.
+
+## [0.6.2] - 2023-12-31
+### Changed
+- Update the WASM cache config path documentation to refer to it as a file path.
+
 ## [0.6.1] - 2023-12-31
 ### Changed
 - Added a lib.rs in order to benchmark the server with Criterion.
