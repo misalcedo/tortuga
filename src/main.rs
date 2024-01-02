@@ -3,7 +3,7 @@ use std::path::Component::CurDir;
 use std::path::PathBuf;
 use tortuga::Server;
 
-#[derive(Parser)]
+#[derive(Debug, Parser)]
 #[command(author, version, about, long_about)]
 struct Options {
     /// Sets the verbosity of logging.
@@ -14,14 +14,20 @@ struct Options {
     command: Option<Commands>,
 }
 
-#[derive(Clone, Parser)]
+#[derive(Debug, Subcommand)]
+enum Commands {
+    /// Serve CGI scripts and static assets from an HTTP server.
+    Serve(ServeOptions),
+}
+
+#[derive(Clone, Debug, Parser)]
 struct ServeOptions {
     /// Enable an in-memory cache for compiled WebAssembly modules.
-    #[arg(short, long, default_value_t = true)]
+    #[arg(short, long)]
     wasm_cache: bool,
 
     /// Pre-load compiled WebAssembly modules into the in-memory cache.
-    #[arg(short, long, default_value_if("wasm_cache", "true", Some("false")))]
+    #[arg(short, long, requires = "wasm_cache")]
     preload_wasm: bool,
 
     /// The document root path to load CGI scripts and other assets from.
@@ -47,16 +53,10 @@ struct ServeOptions {
     port: u16,
 }
 
-#[derive(Subcommand)]
-enum Commands {
-    /// Serve CGI scripts and static assets from an HTTP server.
-    Serve(ServeOptions),
-}
-
 pub fn main() {
     let options = Options::parse();
 
-    eprintln!("Verbosity set to {}", options.verbosity);
+    eprintln!("Starting server with options: {:?}", options);
 
     // You can check for the existence of subcommands, and if found use their
     // matches just as you would the top level cmd
