@@ -1,7 +1,9 @@
-use crate::context::{RequestContext, ServerContext};
+use crate::context::RequestContext;
 use crate::Script;
 use bytes::Bytes;
+use std::future::Future;
 use std::io;
+use std::path::PathBuf;
 use wasi_common::pipe::{ReadPipe, WritePipe};
 use wasmtime::{Config, Engine, Linker, Module, Store};
 use wasmtime_wasi::WasiCtxBuilder;
@@ -11,10 +13,10 @@ pub struct Wasm {
 }
 
 impl Wasm {
-    pub fn new(context: &ServerContext) -> io::Result<Self> {
+    pub fn new(wasm_cache: Option<&PathBuf>) -> io::Result<Self> {
         let mut configuration = Config::new();
 
-        if let Some(path) = context.wasm_cache() {
+        if let Some(path) = wasm_cache {
             configuration
                 .cache_config_load(path)
                 .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
@@ -84,7 +86,11 @@ impl Wasm {
 }
 
 impl Script for Wasm {
-    async fn invoke(&self, context: RequestContext, body: Bytes) -> io::Result<Bytes> {
+    fn invoke(
+        &self,
+        context: RequestContext,
+        body: Bytes,
+    ) -> impl Future<Output = io::Result<Bytes>> + Send {
         self.run(context, body)
             .await
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))

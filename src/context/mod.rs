@@ -4,4 +4,4 @@ mod server;
 
 pub use client::ClientContext;
 pub use request::RequestContext;
-pub use server::ServerContext;
+pub use server::{ScriptMapping, ServerContext};

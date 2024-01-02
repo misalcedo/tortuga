@@ -24,10 +24,10 @@ impl CgiHandler {
 
         let extension = context.script()?.extension();
         let output = if extension == Some("wcgi".as_ref()) {
-            let script = script::Wasm::new(context.server())?;
+            let script = self.server.script_mappings().wasm();
             script.invoke(context, body).await
         } else if extension == Some("cgi".as_ref()) {
-            let script = script::Process::new();
+            let script = self.server.script_mappings().process();
             script.invoke(context, body).await
         } else {
             Err(io::Error::new(

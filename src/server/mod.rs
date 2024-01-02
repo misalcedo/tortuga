@@ -11,7 +11,8 @@ mod request;
 mod response;
 mod router;
 
-use crate::context::{ClientContext, ServerContext};
+use crate::context::{ClientContext, ScriptMapping, ServerContext};
+use crate::{script, Script};
 pub use options::Options;
 use router::Router;
 
@@ -62,8 +63,12 @@ impl Server {
                 .canonicalize()?;
         }
 
+        let process = script::Process::new();
+        let wasm = script::Wasm::new(options.wasm_cache.as_ref())?;
+        let scripts = ScriptMapping::new(process, wasm);
+
         Ok(Self {
-            context: Arc::new(ServerContext::new(address, options)),
+            context: Arc::new(ServerContext::new(address, options, scripts)),
             listener,
         })
     }

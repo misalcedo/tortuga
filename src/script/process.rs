@@ -1,6 +1,7 @@
 use crate::context::RequestContext;
 use crate::script::Script;
 use bytes::Bytes;
+use std::future::Future;
 use std::io;
 use std::process::Stdio;
 use std::time::Duration;
@@ -18,7 +19,11 @@ impl Process {
 }
 
 impl Script for Process {
-    async fn invoke(&self, context: RequestContext, body: Bytes) -> io::Result<Bytes> {
+    fn invoke(
+        &self,
+        context: RequestContext,
+        body: Bytes,
+    ) -> impl Future<Output = io::Result<Bytes>> + Send {
         let mut child = Command::new(context.script()?)
             .kill_on_drop(true)
             .current_dir(context.working_directory())

@@ -1,11 +1,10 @@
-use crate::about;
-use crate::server;
+use crate::script::{Process, Wasm};
+use crate::{about, server, Script};
 use std::ffi::OsStr;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
 pub struct ServerContext {
-    wasm_cache: Option<PathBuf>,
     document_root: PathBuf,
     cgi_bin: PathBuf,
     hostname: String,
@@ -14,10 +13,30 @@ pub struct ServerContext {
     path: &'static str,
     scheme: String,
     software: String,
+    cgi_scripts: ScriptMapping,
+}
+
+pub struct ScriptMapping {
+    process: Process,
+    wasm: Wasm,
+}
+
+impl ScriptMapping {
+    pub fn new(process: Process, wasm: Wasm) -> Self {
+        Self { process, wasm }
+    }
+
+    pub fn process(&self) -> &Process {
+        &self.process
+    }
+
+    pub fn wasm(&self) -> &Wasm {
+        &self.wasm
+    }
 }
 
 impl ServerContext {
-    pub fn new(address: SocketAddr, options: server::Options) -> Self {
+    pub fn new(address: SocketAddr, options: server::Options, scripts: ScriptMapping) -> Self {
         let ip_address = address.ip().to_string();
         let port = address.port().to_string();
 
@@ -26,7 +45,6 @@ impl ServerContext {
         let software = format!("{}/{}", about::PROGRAM, about::VERSION);
 
         Self {
-            wasm_cache: options.wasm_cache,
             document_root: options.document_root,
             cgi_bin: options.cgi_bin,
             hostname: options.hostname,
@@ -35,6 +53,7 @@ impl ServerContext {
             path,
             scheme,
             software,
+            cgi_scripts,
         }
     }
 
@@ -89,15 +108,15 @@ impl ServerContext {
         self.document_root.as_os_str()
     }
 
-    pub fn wasm_cache(&self) -> Option<&PathBuf> {
-        self.wasm_cache.as_ref()
-    }
-
     pub fn ip_address(&self) -> &str {
         self.ip_address.as_str()
     }
 
     pub fn port(&self) -> &str {
         self.port.as_str()
+    }
+
+    pub fn script_mappings(&self) -> &ScriptMapping {
+        &self.cgi_scripts
     }
 }
