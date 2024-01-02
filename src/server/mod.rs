@@ -12,7 +12,7 @@ mod response;
 mod router;
 
 use crate::context::{ClientContext, ScriptMapping, ServerContext};
-use crate::{script, Script};
+use crate::script;
 pub use options::Options;
 use router::Router;
 

@@ -1,6 +1,6 @@
 use crate::context::{ClientContext, RequestContext, ServerContext};
 use crate::server::response::CgiResponse;
-use crate::{script, Script};
+use crate::Script;
 use bytes::Bytes;
 use http::StatusCode;
 use http_body_util::Full;

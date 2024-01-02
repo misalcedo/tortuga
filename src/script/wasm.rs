@@ -1,7 +1,6 @@
 use crate::context::RequestContext;
 use crate::Script;
 use bytes::Bytes;
-use std::future::Future;
 use std::io;
 use std::path::PathBuf;
 use wasi_common::pipe::{ReadPipe, WritePipe};
@@ -86,11 +85,7 @@ impl Wasm {
 }
 
 impl Script for Wasm {
-    fn invoke(
-        &self,
-        context: RequestContext,
-        body: Bytes,
-    ) -> impl Future<Output = io::Result<Bytes>> + Send {
+    async fn invoke(&self, context: RequestContext, body: Bytes) -> io::Result<Bytes> {
         self.run(context, body)
             .await
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))

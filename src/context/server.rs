@@ -1,5 +1,5 @@
 use crate::script::{Process, Wasm};
-use crate::{about, server, Script};
+use crate::{about, server};
 use std::ffi::OsStr;
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -36,7 +36,7 @@ impl ScriptMapping {
 }
 
 impl ServerContext {
-    pub fn new(address: SocketAddr, options: server::Options, scripts: ScriptMapping) -> Self {
+    pub fn new(address: SocketAddr, options: server::Options, cgi_scripts: ScriptMapping) -> Self {
         let ip_address = address.ip().to_string();
         let port = address.port().to_string();
 
