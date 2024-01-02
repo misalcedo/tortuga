@@ -1,5 +1,5 @@
 use crate::context::RequestContext;
-use crate::{ModuleLoader, Script};
+use crate::{wasm::ModuleLoader, Script};
 use bytes::Bytes;
 use std::io;
 use wasi_common::pipe::{ReadPipe, WritePipe};

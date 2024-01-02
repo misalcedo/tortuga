@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use std::path::Component::CurDir;
 use std::path::PathBuf;
-use tortuga::{ModuleLoader, Server};
+use tortuga::Server;
 
 #[derive(Debug, Parser)]
 #[command(author, version, about, long_about)]
@@ -61,7 +61,7 @@ pub fn main() {
     // You can check for the existence of subcommands, and if found use their
     // matches just as you would the top level cmd
     match options.command {
-        Some(Commands::Serve(mut serve_options)) => {
+        Some(Commands::Serve(serve_options)) => {
             let runtime = tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
                 .build()

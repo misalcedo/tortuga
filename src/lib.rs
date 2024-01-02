@@ -8,4 +8,3 @@ mod wasm;
 
 pub use script::Script;
 pub use server::{Options, Server};
-pub use wasm::ModuleLoader;

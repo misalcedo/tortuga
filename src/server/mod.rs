@@ -12,7 +12,7 @@ mod response;
 mod router;
 
 use crate::context::{ClientContext, ScriptMapping, ServerContext};
-use crate::{script, ModuleLoader};
+use crate::{script, wasm::ModuleLoader};
 pub use options::Options;
 use router::Router;
 
@@ -453,6 +453,7 @@ mod tests {
             cgi_bin: CurDir.as_os_str().into(),
             hostname: "localhost".to_string(),
             port: 0,
+            wasm_cache: true,
         })
         .await
         .unwrap();
