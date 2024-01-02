@@ -1,5 +1,4 @@
 use clap::{Parser, Subcommand};
-use http::uri::Uri;
 use std::path::Component::CurDir;
 use std::path::PathBuf;
 use tortuga::Server;
@@ -48,23 +47,10 @@ struct ServeOptions {
     port: u16,
 }
 
-#[derive(Parser)]
-struct InvokeOptions {
-    /// The path to the CGI script to invoke.
-    #[arg(short, long, value_name = "SCRIPT_PATH", required = true)]
-    script: PathBuf,
-
-    /// The URI to simulate the script invocation for.
-    #[arg(short, long, value_name = "URI", required = true)]
-    uri: Uri,
-}
-
 #[derive(Subcommand)]
 enum Commands {
     /// Serve CGI scripts and static assets from an HTTP server.
     Serve(ServeOptions),
-    /// Invoke a single CGI script.
-    Invoke(InvokeOptions),
 }
 
 pub fn main() {
@@ -97,9 +83,6 @@ pub fn main() {
                     server.serve().await
                 })
                 .expect("Unable to start the server");
-        }
-        Some(Commands::Invoke(_options)) => {
-            todo!()
         }
         _ => {}
     }
