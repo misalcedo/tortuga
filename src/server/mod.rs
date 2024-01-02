@@ -12,7 +12,7 @@ mod response;
 mod router;
 
 use crate::context::{ClientContext, ScriptMapping, ServerContext};
-use crate::script;
+use crate::{script, ModuleLoader};
 pub use options::Options;
 use router::Router;
 
@@ -42,6 +42,18 @@ pub struct Server {
 
 impl Server {
     pub async fn bind(mut options: Options) -> io::Result<Self> {
+        options.document_root = options.document_root.canonicalize()?;
+
+        if options.cgi_bin.is_relative() {
+            options.cgi_bin = options
+                .document_root
+                .join(&options.cgi_bin)
+                .canonicalize()?;
+        }
+
+        let loader = ModuleLoader::new(options.cgi_bin.clone(), options.wasm_cache)
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+
         let mut addresses =
             tokio::net::lookup_host(format!("{}:{}", options.hostname, options.port)).await?;
         let address = addresses.next().ok_or_else(|| {
@@ -54,7 +66,7 @@ impl Server {
         let listener = TcpListener::bind(address).await?;
         let address = listener.local_addr()?;
         let process = script::Process::new();
-        let wasm = script::Wasm::new(options.loader.clone());
+        let wasm = script::Wasm::new(loader.clone());
         let scripts = ScriptMapping::new(process, wasm);
 
         Ok(Self {
@@ -85,7 +97,6 @@ impl Server {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ModuleLoader;
     use std::path::Component::CurDir;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpStream;
@@ -439,8 +450,7 @@ mod tests {
     async fn connect_to_server() -> TcpStream {
         let server = Server::bind(Options {
             document_root: "./examples".into(),
-            loader: ModuleLoader::new("./examples".into(), true).unwrap(),
-            cgi_bin: "./examples".into(),
+            cgi_bin: CurDir.as_os_str().into(),
             hostname: "localhost".to_string(),
             port: 0,
         })

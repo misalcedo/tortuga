@@ -1,25 +1,20 @@
-use sha3::{Digest, Sha3_256};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::io;
 use std::path::PathBuf;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use tokio::fs::File;
+use tokio::io::AsyncReadExt;
+use tokio::sync::RwLock;
 use wasi_common::WasiCtx;
 use wasmtime::{Config, Engine, InstancePre, Linker, Module, Store};
 
 #[derive(Clone)]
-struct CacheEntry {
-    digest: String,
-    module: InstancePre<WasiCtx>,
-}
-
-#[derive(Clone)]
 pub struct ModuleLoader {
-    cache: Option<Arc<RwLock<HashMap<PathBuf, CacheEntry>>>>,
+    cache: Option<Arc<RwLock<HashMap<PathBuf, InstancePre<WasiCtx>>>>>,
     engine: Engine,
     root: PathBuf,
 }
-
-type ModuleResult = Result<InstancePre<WasiCtx>, wasmtime::Error>;
 
 impl ModuleLoader {
     pub fn new(root: PathBuf, cache: bool) -> Result<Self, wasmtime::Error> {
@@ -48,82 +43,44 @@ impl ModuleLoader {
         Store::new(&self.engine, wasi_ctx)
     }
 
-    pub async fn load(&self, path: &PathBuf) -> ModuleResult {
+    pub async fn load(&self, path: &PathBuf) -> io::Result<InstancePre<WasiCtx>> {
         match self.cache.as_ref() {
-            None => self.load_from_file(path),
-            Some(lock) => {
-                let mut cache = lock.write().unwrap_or_else(|e| {
-                    let mut guard = e.into_inner();
-                    *guard = HashMap::new();
-                    guard
-                });
+            None => self.load_from_file(path).await,
+            Some(lock) => match self.get_cache_entry(path).await {
+                None => {
+                    let mut cache = lock.write().await;
 
-                match cache.entry(path.clone()) {
-                    Entry::Occupied(entry) => Ok(entry.get().module.clone()),
-                    Entry::Vacant(entry) => {
-                        let cache_entry = self.new_cache_entry(path)?;
-                        Ok(entry.insert(cache_entry).module.clone())
+                    match cache.entry(path.clone()) {
+                        Entry::Occupied(entry) => Ok(entry.get().clone()),
+                        Entry::Vacant(entry) => {
+                            Ok(entry.insert(self.load_from_file(path).await?).clone())
+                        }
                     }
                 }
-            }
+                Some(module) => Ok(module),
+            },
         }
     }
 
-    fn delete_entry(&self, path: &PathBuf) {
-        if let Some(cache) = self.cache.as_ref() {
-            match cache.write() {
-                Ok(mut cache) => {
-                    cache.remove(path);
-                }
-                Err(e) => {
-                    let mut guard = e.into_inner();
-                    *guard = HashMap::new();
-                }
-            }
-        }
+    async fn get_cache_entry(&self, path: &PathBuf) -> Option<InstancePre<WasiCtx>> {
+        self.cache.as_ref()?.read().await.get(path).cloned()
     }
 
-    fn get_cache_entry(&self, path: &PathBuf) -> Option<CacheEntry> {
-        self.cache.as_ref()?.read().ok()?.get(path).cloned()
-    }
+    async fn load_from_file(&self, path: &PathBuf) -> io::Result<InstancePre<WasiCtx>> {
+        let mut file = File::open(path).await?;
+        let mut buffer = Vec::with_capacity(1024 * 8);
 
-    fn new_cache_entry(&self, path: &PathBuf) -> Result<CacheEntry, wasmtime::Error> {
-        let module = self.load_from_file(path)?;
-        let code = module.module().text();
+        file.read_to_end(&mut buffer).await?;
 
-        let mut hasher = Sha3_256::new();
-
-        hasher.update(code.len().to_be_bytes());
-        hasher.update(code);
-
-        let result = hasher.finalize();
-        let digest = hex::encode(result);
-
-        Ok(CacheEntry { digest, module })
-    }
-
-    fn load_from_file(&self, path: &PathBuf) -> ModuleResult {
-        let module = Module::from_file(&self.engine, path)?;
+        let module = Module::from_binary(&self.engine, buffer.as_slice())
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
         let mut linker = Linker::new(&self.engine);
 
-        wasmtime_wasi::add_to_linker(&mut linker, |s| s)?;
+        wasmtime_wasi::add_to_linker(&mut linker, |s| s)
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
 
-        linker.instantiate_pre(&module)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn stable_digest() {
-        let loader = ModuleLoader::new("examples/".into(), true).unwrap();
-        let path = "examples/echo.wcgi".into();
-
-        let first = loader.new_cache_entry(&path).unwrap();
-        let second = loader.new_cache_entry(&path).unwrap();
-
-        assert_eq!(first.digest, second.digest);
+        linker
+            .instantiate_pre(&module)
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
     }
 }
