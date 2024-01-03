@@ -86,7 +86,7 @@ impl Server {
 
     pub async fn serve(self) -> io::Result<()> {
         if self.preload_wasm {
-            self.loader.scan().await?;
+            self.loader.scan(self.preload_wasm).await?;
         }
 
         let loader = self.loader.clone();
@@ -96,7 +96,7 @@ impl Server {
             loop {
                 interval.tick().await;
 
-                if let Err(e) = loader.scan().await {
+                if let Err(e) = loader.scan(self.preload_wasm).await {
                     eprintln!("Encountered an error scanning the CGI bin directory structure: {e}")
                 }
             }

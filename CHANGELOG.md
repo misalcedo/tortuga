@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2024-01-02
+### Fixes
+- Bug where preload would not be respected when turned off during periodic scans.
+
+
 ## [0.7.0] - 2024-01-02
 ### Removed
 - The server no longer relies on wasmtime's cache config.

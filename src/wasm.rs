@@ -41,15 +41,15 @@ impl ModuleLoader {
         Store::new(&self.engine, wasi_ctx)
     }
 
-    pub async fn scan(&self) -> io::Result<()> {
-        let seen = self.walk_filesystem().await?;
+    pub async fn scan(&self, preload: bool) -> io::Result<()> {
+        let seen = self.walk_filesystem(preload).await?;
 
         self.purge(seen);
 
         Ok(())
     }
 
-    async fn walk_filesystem(&self) -> io::Result<HashSet<PathBuf>> {
+    async fn walk_filesystem(&self, preload: bool) -> io::Result<HashSet<PathBuf>> {
         let mut queue = VecDeque::new();
         let mut seen = HashSet::new();
 
@@ -68,7 +68,7 @@ impl ModuleLoader {
 
                     queue.push_back(path)
                 }
-            } else if next.extension() == Some("wcgi".as_ref()) {
+            } else if preload && next.extension() == Some("wcgi".as_ref()) {
                 self.load(&next).await?;
             }
 
