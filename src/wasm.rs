@@ -1,5 +1,5 @@
 use std::collections::hash_map::Entry;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::io;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -39,6 +39,60 @@ impl ModuleLoader {
 
     pub fn new_store(&self, wasi_ctx: WasiCtx) -> Store<WasiCtx> {
         Store::new(&self.engine, wasi_ctx)
+    }
+
+    pub async fn scan(&self) -> io::Result<()> {
+        let seen = self.walk_filesystem().await?;
+
+        self.purge(seen);
+
+        Ok(())
+    }
+
+    async fn walk_filesystem(&self) -> io::Result<HashSet<PathBuf>> {
+        let mut queue = VecDeque::new();
+        let mut seen = HashSet::new();
+
+        queue.push_back(self.root.clone());
+
+        while let Some(next) = queue.pop_front() {
+            if seen.contains(&next) {
+                continue;
+            }
+
+            if next.is_dir() {
+                let mut reader = tokio::fs::read_dir(&next).await?;
+
+                while let Some(entry) = reader.next_entry().await? {
+                    let path = entry.path();
+
+                    queue.push_back(path)
+                }
+            } else if next.extension() == Some("wcgi".as_ref()) {
+                self.load(&next).await?;
+            }
+
+            seen.insert(next.clone());
+        }
+        Ok(seen)
+    }
+
+    fn purge(&self, seen: HashSet<PathBuf>) {
+        if let Some(lock) = self.cache.as_ref() {
+            let mut cache = lock.write().unwrap_or_else(|e| {
+                let mut guard = e.into_inner();
+                *guard = HashMap::new();
+                guard
+            });
+
+            let paths: Vec<PathBuf> = cache.keys().cloned().collect();
+
+            for path in paths {
+                if !seen.contains(&path) {
+                    cache.remove(&path);
+                }
+            }
+        }
     }
 
     pub async fn load(&self, path: &PathBuf) -> io::Result<InstancePre<WasiCtx>> {

@@ -36,8 +36,10 @@ use router::Router;
 ///    NOT execute the script unless the request passes all defined access
 ///    controls.
 pub struct Server {
+    preload_wasm: bool,
     context: Arc<ServerContext>,
     listener: TcpListener,
+    loader: ModuleLoader,
 }
 
 impl Server {
@@ -70,8 +72,10 @@ impl Server {
         let scripts = ScriptMapping::new(process, wasm);
 
         Ok(Self {
+            preload_wasm: options.preload_wasm,
             context: Arc::new(ServerContext::new(address, options, scripts)),
             listener,
+            loader,
         })
     }
 
@@ -80,6 +84,10 @@ impl Server {
     }
 
     pub async fn serve(self) -> io::Result<()> {
+        if self.preload_wasm {
+            self.loader.scan().await?;
+        }
+
         loop {
             let (stream, remote_address) = self.listener.accept().await?;
 
@@ -498,6 +506,7 @@ mod tests {
             hostname: "localhost".to_string(),
             port: 0,
             wasm_cache: true,
+            preload_wasm: false,
         })
         .await
         .unwrap();

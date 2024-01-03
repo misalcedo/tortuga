@@ -17,4 +17,7 @@ pub struct Options {
 
     /// Enable an in-memory cache for compiled WebAssembly modules.
     pub wasm_cache: bool,
+
+    /// Pre-load compiled WebAssembly modules into the in-memory cache.
+    pub preload_wasm: bool,
 }

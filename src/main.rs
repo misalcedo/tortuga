@@ -73,6 +73,7 @@ pub fn main() {
                 hostname: serve_options.hostname,
                 port: serve_options.port,
                 wasm_cache: serve_options.wasm_cache,
+                preload_wasm: serve_options.preload_wasm,
             };
             let server = runtime
                 .block_on(Server::bind(options))
