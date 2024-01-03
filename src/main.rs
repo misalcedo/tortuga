@@ -1,27 +1,35 @@
 use clap::{Parser, Subcommand};
-use http::uri::Uri;
 use std::path::Component::CurDir;
 use std::path::PathBuf;
 use tortuga::Server;
 
-#[derive(Parser)]
+#[derive(Debug, Parser)]
 #[command(author, version, about, long_about)]
 struct Options {
     /// Sets the verbosity of logging.
     #[arg(short = 'v', long = None, action = clap::ArgAction::Count)]
     verbosity: u8,
 
-    /// The path to a cache configuration file for WASM CGI script compilation.
-    /// Relative paths are resolved from the current working directory.
-    #[arg(short, long, value_name = "WASM_CACHE")]
-    wasm_cache: Option<PathBuf>,
-
     #[command(subcommand)]
     command: Option<Commands>,
 }
 
-#[derive(Clone, Parser)]
+#[derive(Debug, Subcommand)]
+enum Commands {
+    /// Serve CGI scripts and static assets from an HTTP server.
+    Serve(ServeOptions),
+}
+
+#[derive(Clone, Debug, Parser)]
 struct ServeOptions {
+    /// Enable an in-memory cache for compiled WebAssembly modules.
+    #[arg(short, long)]
+    wasm_cache: bool,
+
+    /// Pre-load compiled WebAssembly modules into the in-memory cache.
+    #[arg(short, long, requires = "wasm_cache")]
+    preload_wasm: bool,
+
     /// The document root path to load CGI scripts and other assets from.
     #[arg(value_name = "DOCUMENT_ROOT")]
     document_root: PathBuf,
@@ -45,29 +53,10 @@ struct ServeOptions {
     port: u16,
 }
 
-#[derive(Parser)]
-struct InvokeOptions {
-    /// The path to the CGI script to invoke.
-    #[arg(short, long, value_name = "SCRIPT_PATH", required = true)]
-    script: PathBuf,
-
-    /// The URI to simulate the script invocation for.
-    #[arg(short, long, value_name = "URI", required = true)]
-    uri: Uri,
-}
-
-#[derive(Subcommand)]
-enum Commands {
-    /// Serve CGI scripts and static assets from an HTTP server.
-    Serve(ServeOptions),
-    /// Invoke a single CGI script.
-    Invoke(InvokeOptions),
-}
-
 pub fn main() {
     let options = Options::parse();
 
-    eprintln!("Verbosity set to {}", options.verbosity);
+    eprintln!("Starting server with options: {:?}", options);
 
     // You can check for the existence of subcommands, and if found use their
     // matches just as you would the top level cmd
@@ -79,25 +68,22 @@ pub fn main() {
                 .expect("Unable to start an async runtime");
 
             let options = tortuga::Options {
-                wasm_cache: options.wasm_cache,
                 document_root: serve_options.document_root,
                 cgi_bin: serve_options.cgi_bin,
                 hostname: serve_options.hostname,
                 port: serve_options.port,
+                wasm_cache: serve_options.wasm_cache,
+                preload_wasm: serve_options.preload_wasm,
             };
+            let server = runtime
+                .block_on(Server::bind(options))
+                .expect("Unable to start the server.");
+
+            println!("Server listening on port {}", server.address().unwrap());
 
             runtime
-                .block_on(async {
-                    let server = Server::bind(options).await.unwrap();
-
-                    println!("Server listening on port {}", server.address().unwrap());
-
-                    server.serve().await
-                })
+                .block_on(server.serve())
                 .expect("Unable to start the server");
-        }
-        Some(Commands::Invoke(_options)) => {
-            todo!()
         }
         _ => {}
     }

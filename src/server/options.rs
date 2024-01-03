@@ -2,10 +2,6 @@ use std::path::PathBuf;
 
 #[derive(Clone)]
 pub struct Options {
-    /// The path to a cache directory for WASM CGI script compilation.
-    /// Relative paths are resolved from the current working directory.
-    pub wasm_cache: Option<PathBuf>,
-
     /// The document root path to load CGI scripts and other assets from.
     pub document_root: PathBuf,
 
@@ -18,4 +14,10 @@ pub struct Options {
 
     /// The TCP port for the server to listen on.
     pub port: u16,
+
+    /// Enable an in-memory cache for compiled WebAssembly modules.
+    pub wasm_cache: bool,
+
+    /// Pre-load compiled WebAssembly modules into the in-memory cache.
+    pub preload_wasm: bool,
 }

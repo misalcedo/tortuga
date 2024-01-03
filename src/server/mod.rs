@@ -3,6 +3,7 @@ use hyper_util::rt::TokioIo;
 use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::net::TcpListener;
 
 mod handler;
@@ -12,7 +13,7 @@ mod response;
 mod router;
 
 use crate::context::{ClientContext, ScriptMapping, ServerContext};
-use crate::script;
+use crate::{script, wasm::ModuleLoader};
 pub use options::Options;
 use router::Router;
 
@@ -36,12 +37,26 @@ use router::Router;
 ///    NOT execute the script unless the request passes all defined access
 ///    controls.
 pub struct Server {
+    preload_wasm: bool,
     context: Arc<ServerContext>,
     listener: TcpListener,
+    loader: ModuleLoader,
 }
 
 impl Server {
     pub async fn bind(mut options: Options) -> io::Result<Self> {
+        options.document_root = options.document_root.canonicalize()?;
+
+        if options.cgi_bin.is_relative() {
+            options.cgi_bin = options
+                .document_root
+                .join(&options.cgi_bin)
+                .canonicalize()?;
+        }
+
+        let loader = ModuleLoader::new(options.cgi_bin.clone(), options.wasm_cache)
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+
         let mut addresses =
             tokio::net::lookup_host(format!("{}:{}", options.hostname, options.port)).await?;
         let address = addresses.next().ok_or_else(|| {
@@ -53,23 +68,15 @@ impl Server {
 
         let listener = TcpListener::bind(address).await?;
         let address = listener.local_addr()?;
-
-        options.document_root = options.document_root.canonicalize()?;
-
-        if options.cgi_bin.is_relative() {
-            options.cgi_bin = options
-                .document_root
-                .join(&options.cgi_bin)
-                .canonicalize()?;
-        }
-
         let process = script::Process::new();
-        let wasm = script::Wasm::new(options.wasm_cache.as_ref())?;
+        let wasm = script::Wasm::new(loader.clone());
         let scripts = ScriptMapping::new(process, wasm);
 
         Ok(Self {
+            preload_wasm: options.preload_wasm,
             context: Arc::new(ServerContext::new(address, options, scripts)),
             listener,
+            loader,
         })
     }
 
@@ -78,6 +85,23 @@ impl Server {
     }
 
     pub async fn serve(self) -> io::Result<()> {
+        if self.preload_wasm {
+            self.loader.scan().await?;
+        }
+
+        let loader = self.loader.clone();
+
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(Duration::from_secs(300));
+            loop {
+                interval.tick().await;
+
+                if let Err(e) = loader.scan().await {
+                    eprintln!("Encountered an error scanning the CGI bin directory structure: {e}")
+                }
+            }
+        });
+
         loop {
             let (stream, remote_address) = self.listener.accept().await?;
 
@@ -350,6 +374,50 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn wcgi_not_found() {
+        let mut client = connect_to_server().await;
+        let mut output = vec![0; 1024];
+
+        let response_start = "HTTP/1.1 404 Not Found\r\ncontent-length: 0\r\ndate: ";
+        let response_end = " GMT\r\n\r\n";
+
+        client
+            .write_all(b"GET /cgi-bin/fake.wcgi HTTP/1.1\r\nHost: localhost\r\n\r\n\r\n")
+            .await
+            .unwrap();
+
+        assert_ne!(client.read(&mut output).await.unwrap(), 0);
+
+        let response = String::from_utf8_lossy(output.as_slice());
+        let end = response.find('\0').unwrap_or_else(|| response.len());
+
+        assert_eq!(&response[(end - response_end.len())..end], response_end);
+        assert_eq!(&response[..response_start.len()], response_start);
+    }
+
+    #[tokio::test]
+    async fn cgi_not_found() {
+        let mut client = connect_to_server().await;
+        let mut output = vec![0; 1024];
+
+        let response_start = "HTTP/1.1 404 Not Found\r\ncontent-length: 0\r\ndate: ";
+        let response_end = " GMT\r\n\r\n";
+
+        client
+            .write_all(b"GET /cgi-bin/fake.cgi HTTP/1.1\r\nHost: localhost\r\n\r\n\r\n")
+            .await
+            .unwrap();
+
+        assert_ne!(client.read(&mut output).await.unwrap(), 0);
+
+        let response = String::from_utf8_lossy(output.as_slice());
+        let end = response.find('\0').unwrap_or_else(|| response.len());
+
+        assert_eq!(&response[(end - response_end.len())..end], response_end);
+        assert_eq!(&response[..response_start.len()], response_start);
+    }
+
+    #[tokio::test]
     async fn static_asset() {
         let mut client = connect_to_server().await;
         let mut output = vec![0; 1024];
@@ -447,11 +515,12 @@ mod tests {
 
     async fn connect_to_server() -> TcpStream {
         let server = Server::bind(Options {
-            wasm_cache: None,
             document_root: "./examples".into(),
             cgi_bin: CurDir.as_os_str().into(),
             hostname: "localhost".to_string(),
             port: 0,
+            wasm_cache: true,
+            preload_wasm: false,
         })
         .await
         .unwrap();

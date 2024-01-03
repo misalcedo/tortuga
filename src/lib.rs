@@ -4,6 +4,7 @@ mod script;
 mod server;
 mod uri;
 mod variable;
+mod wasm;
 
 pub use script::Script;
 pub use server::{Options, Server};
