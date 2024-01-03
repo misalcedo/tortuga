@@ -3,6 +3,7 @@ use hyper_util::rt::TokioIo;
 use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::net::TcpListener;
 
 mod handler;
@@ -87,6 +88,19 @@ impl Server {
         if self.preload_wasm {
             self.loader.scan().await?;
         }
+
+        let loader = self.loader.clone();
+
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(Duration::from_secs(300));
+            loop {
+                interval.tick().await;
+
+                if let Err(e) = loader.scan().await {
+                    eprintln!("Encountered an error scanning the CGI bin directory structure: {e}")
+                }
+            }
+        });
 
         loop {
             let (stream, remote_address) = self.listener.accept().await?;
