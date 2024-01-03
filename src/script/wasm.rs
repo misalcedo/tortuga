@@ -47,7 +47,7 @@ impl Script for Wasm {
             .set_fuel(1_000_000)
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
         store
-            .fuel_async_yield_interval(Some(1_000))
+            .fuel_async_yield_interval(Some(50_000))
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
 
         let instance = module
