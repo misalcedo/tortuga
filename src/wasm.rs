@@ -74,6 +74,7 @@ impl ModuleLoader {
 
             seen.insert(next.clone());
         }
+
         Ok(seen)
     }
 
@@ -85,13 +86,7 @@ impl ModuleLoader {
                 guard
             });
 
-            let paths: Vec<PathBuf> = cache.keys().cloned().collect();
-
-            for path in paths {
-                if !seen.contains(&path) {
-                    cache.remove(&path);
-                }
-            }
+            cache.retain(|path, _| seen.contains(path));
         }
     }
 
