@@ -3,9 +3,7 @@ use std::collections::HashMap;
 use std::io;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::fs::File;
-use tokio::io::AsyncReadExt;
-use tokio::sync::RwLock;
+use std::sync::RwLock;
 use wasi_common::WasiCtx;
 use wasmtime::{Config, Engine, InstancePre, Linker, Module, Store};
 
@@ -45,15 +43,19 @@ impl ModuleLoader {
 
     pub async fn load(&self, path: &PathBuf) -> io::Result<InstancePre<WasiCtx>> {
         match self.cache.as_ref() {
-            None => self.load_from_file(path).await,
-            Some(lock) => match self.get_cache_entry(path).await {
+            None => self.load_from_file(path),
+            Some(lock) => match self.get_cache_entry(path) {
                 None => {
-                    let mut cache = lock.write().await;
+                    let mut cache = lock.write().unwrap_or_else(|e| {
+                        let mut guard = e.into_inner();
+                        *guard = HashMap::new();
+                        guard
+                    });
 
                     match cache.entry(path.clone()) {
                         Entry::Occupied(entry) => Ok(entry.get().clone()),
                         Entry::Vacant(entry) => {
-                            Ok(entry.insert(self.load_from_file(path).await?).clone())
+                            Ok(entry.insert(self.load_from_file(path)?).clone())
                         }
                     }
                 }
@@ -62,18 +64,13 @@ impl ModuleLoader {
         }
     }
 
-    async fn get_cache_entry(&self, path: &PathBuf) -> Option<InstancePre<WasiCtx>> {
-        self.cache.as_ref()?.read().await.get(path).cloned()
+    fn get_cache_entry(&self, path: &PathBuf) -> Option<InstancePre<WasiCtx>> {
+        self.cache.as_ref()?.read().ok()?.get(path).cloned()
     }
 
-    async fn load_from_file(&self, path: &PathBuf) -> io::Result<InstancePre<WasiCtx>> {
-        let mut file = File::open(path).await?;
-        let mut buffer = Vec::with_capacity(1024 * 8);
-
-        file.read_to_end(&mut buffer).await?;
-
-        let module = Module::from_binary(&self.engine, buffer.as_slice())
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+    fn load_from_file(&self, path: &PathBuf) -> io::Result<InstancePre<WasiCtx>> {
+        let module = Module::from_file(&self.engine, path)
+            .map_err(|_| io::Error::from(io::ErrorKind::NotFound))?;
         let mut linker = Linker::new(&self.engine);
 
         wasmtime_wasi::add_to_linker(&mut linker, |s| s)

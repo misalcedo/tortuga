@@ -352,6 +352,50 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn wcgi_not_found() {
+        let mut client = connect_to_server().await;
+        let mut output = vec![0; 1024];
+
+        let response_start = "HTTP/1.1 404 Not Found\r\ncontent-length: 0\r\ndate: ";
+        let response_end = " GMT\r\n\r\n";
+
+        client
+            .write_all(b"GET /cgi-bin/fake.wcgi HTTP/1.1\r\nHost: localhost\r\n\r\n\r\n")
+            .await
+            .unwrap();
+
+        assert_ne!(client.read(&mut output).await.unwrap(), 0);
+
+        let response = String::from_utf8_lossy(output.as_slice());
+        let end = response.find('\0').unwrap_or_else(|| response.len());
+
+        assert_eq!(&response[(end - response_end.len())..end], response_end);
+        assert_eq!(&response[..response_start.len()], response_start);
+    }
+
+    #[tokio::test]
+    async fn cgi_not_found() {
+        let mut client = connect_to_server().await;
+        let mut output = vec![0; 1024];
+
+        let response_start = "HTTP/1.1 404 Not Found\r\ncontent-length: 0\r\ndate: ";
+        let response_end = " GMT\r\n\r\n";
+
+        client
+            .write_all(b"GET /cgi-bin/fake.cgi HTTP/1.1\r\nHost: localhost\r\n\r\n\r\n")
+            .await
+            .unwrap();
+
+        assert_ne!(client.read(&mut output).await.unwrap(), 0);
+
+        let response = String::from_utf8_lossy(output.as_slice());
+        let end = response.find('\0').unwrap_or_else(|| response.len());
+
+        assert_eq!(&response[(end - response_end.len())..end], response_end);
+        assert_eq!(&response[..response_start.len()], response_start);
+    }
+
+    #[tokio::test]
     async fn static_asset() {
         let mut client = connect_to_server().await;
         let mut output = vec![0; 1024];
