@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2024-01-02
+### Removed
+- The server no longer relies on wasmtime's cache config.
+
+### Added
+- The server periodically scans the CGI bin directory to load WASM modules into memory and purge old cached entries no longer on the file system.
+
+### Fixes
+- Bug where wcgi scripts would not return a 404 correctly for script not found.
+  
 ## [0.6.3] - 2024-01-02
 ### Changed
 - The server now has a single instance of the Process and WASM invokers.
