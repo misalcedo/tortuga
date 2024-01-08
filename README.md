@@ -8,8 +8,31 @@ Tortuga is an HTTP CGI-specific server written in Rust.
 [![Crates.io Version](https://img.shields.io/crates/v/tortuga.svg)](https://crates.io/crates/tortuga)
 [![Docs.rs Version](https://docs.rs/tortuga/badge.svg)](https://docs.rs/tortuga)
 
-## Book
-For design goals, non-goals and more see the [Tortuga Web Server Book](https://tortuga.salcedo.cc).
+## Usage
+### Git HTTP Backend
+An example of using the server for an HTTP git server.
+
+#### Start the server
+```bash
+mkdir test.git
+pushd test.git
+git init --bare
+git config http.getanyfile true
+git config http.receivepack true
+popd
+
+tortuga serve $PWD -P 3000
+```
+
+#### Use remote
+
+```bash
+git init
+git touch file.txt
+git commit -m 'this is a test'
+git remote add origin http://misalcedo@localhost:3000/cgi-bin/git.cgi/repos/test.git
+git push --set-upstream origin main
+```
 
 ## RFC
 This project attempts to implement the [CGI RFC](https://www.rfc-editor.org/rfc/rfc3875.html).
