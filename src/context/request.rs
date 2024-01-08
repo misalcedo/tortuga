@@ -1,6 +1,7 @@
 use crate::context::{ClientContext, ServerContext};
 use crate::uri::decode_percent_encoded;
 use crate::variable::ToMetaVariable;
+use base64::Engine;
 use bytes::Bytes;
 use http::{HeaderValue, Request};
 use std::collections::HashMap;
@@ -105,6 +106,11 @@ impl RequestContext {
             }
         }
 
+        if let Some((auth_type, user)) = Self::extract_user(request) {
+            variables.insert("AUTH_TYPE".to_string(), auth_type.as_str().to_string());
+            variables.insert("REMOTE_USER".to_string(), user.to_string());
+        }
+
         for (name, value) in request.headers().iter() {
             let key = name.as_str().to_meta_variable(Some("HTTP"));
             let value = String::from_utf8_lossy(value.as_bytes()).to_string();
@@ -119,6 +125,33 @@ impl RequestContext {
             variables,
             arguments,
             script,
+        }
+    }
+
+    fn extract_user(request: &Request<Bytes>) -> Option<(AuthType, String)> {
+        let header = request
+            .headers()
+            .get(hyper::header::AUTHORIZATION)?
+            .as_bytes();
+        let delimiter = header.iter().position(|b| b == &b' ')?;
+        let (scheme, mut value) = header.split_at(delimiter);
+
+        // skip the delimiter.
+        value = &value[1..];
+
+        let auth_type = AuthType::try_from(scheme).ok()?;
+
+        match auth_type {
+            AuthType::Basic => {
+                let value = base64::engine::general_purpose::STANDARD
+                    .decode(value)
+                    .ok()?;
+                let value = String::from_utf8(value).ok()?;
+
+                let (user, _) = value.split_once(':')?;
+
+                Some((auth_type, user.to_string()))
+            }
         }
     }
 
@@ -166,5 +199,48 @@ impl RequestContext {
 
     pub fn variables(&self) -> impl Iterator<Item = (&str, &str)> {
         self.variables.iter().map(|(k, v)| (k.as_str(), v.as_str()))
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+enum AuthType {
+    Basic,
+}
+
+impl AuthType {
+    fn as_str(&self) -> &str {
+        match self {
+            AuthType::Basic => "Basic",
+        }
+    }
+}
+
+impl<'a> TryFrom<&'a [u8]> for AuthType {
+    type Error = &'a [u8];
+
+    fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
+        match value {
+            [b'B' | b'b', b'A' | b'a', b'S' | b's', b'I' | b'i', b'C' | b'c'] => {
+                Ok(AuthType::Basic)
+            }
+            _ => Err(value),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn basic_scheme() {
+        assert_eq!(AuthType::try_from(b"BaSic".as_slice()), Ok(AuthType::Basic));
+        assert_eq!(AuthType::try_from(b"BASIC".as_slice()), Ok(AuthType::Basic));
+        assert_eq!(AuthType::try_from(b"basic".as_slice()), Ok(AuthType::Basic));
+        assert_eq!(AuthType::try_from(b"Basic".as_slice()), Ok(AuthType::Basic));
+        assert_eq!(
+            AuthType::try_from(b"Other".as_slice()),
+            Err(b"Other".as_slice())
+        );
     }
 }
