@@ -14,8 +14,8 @@ An example of using the server for an HTTP git server.
 
 #### Start the server
 ```bash
-mkdir test.git
-pushd test.git
+mkdir -p repos/test.git
+pushd repos/test.git
 git init --bare
 git config http.getanyfile true
 git config http.receivepack true
