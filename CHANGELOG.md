@@ -2,13 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
+The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [0.7.2] - 2024-01-08
+### Added
+- Support for extracting a `REMOTE_USER` and `AUTH_TYPE` from the `Authorization` header when using the `Basic` authentication scheme.
+ 
 ## [0.7.1] - 2024-01-02
-### Fixes
+### Fixed
 - Bug where preload would not be respected when turned off during periodic scans.
-
 
 ## [0.7.0] - 2024-01-02
 ### Removed
@@ -17,7 +20,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 - The server periodically scans the CGI bin directory to load WASM modules into memory and purge old cached entries no longer on the file system.
 
-### Fixes
+### Fixed
 - Bug where wcgi scripts would not return a 404 correctly for script not found.
   
 ## [0.6.3] - 2024-01-02
