@@ -48,6 +48,6 @@ hyper = { version = "1.1.0", features = ["http1", "server"] }
 hyper-util = { version = "0.1.2", features = ["tokio"] }
 tokio = { version = "1.35.1", features = ["fs", "macros", "net", "process"] }
 tokio-util = "0.7.10"
-wasmtime = "16.0.0"
+wasmtime = "18.0.2"
 wasmtime-wasi = "16.0.0"
 wasi-common = "16.0.0"
